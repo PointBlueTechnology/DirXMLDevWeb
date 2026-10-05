@@ -221,6 +221,13 @@ W5 are where most of the effort sits.
 5. **Its own repository**: this one.
 6. **Name: DirXMLDevWeb.**
 
+W2 (2026-10-05) is the structured policy editor. It is generic rather than a form per action: a
+grammar table generated from the DirXML Script DTD says what each element may hold, in what order
+and how many, and one recursive node editor renders any of the 148 elements from it. The document
+stays the XML string, so the Rules and Source tabs are two views of one draft, saved through
+`artifact.set-content`. The live check reuses the review's preview endpoint, so the engine's own
+compiler answers while editing.
+
 W1 (2026-10-05) added the configuration editors of section 2 — GCVs with per-stage columns,
 driver settings, the filter, policy-set order, the schema map, mapping tables, the override
 matrix — on a shared pattern: an editor stages typed operations, one review runs them against a

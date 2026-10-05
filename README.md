@@ -4,8 +4,8 @@ A browser workbench for NetIQ / OpenText Identity Manager driver sets, over the
 [DirXMLDev](https://github.com/PointBlueTechnology/DirXMLDev) core. It runs on your workstation:
 one command serves a page for one IDM-as-code tree.
 
-Status: **W1** (unreleased). Reading a tree and editing its configuration are in place; the
-structured policy editor, the vault features and the simulator follow. See
+Status: **W2** (unreleased). Reading a tree, editing its configuration and editing policies
+structurally are in place; the vault features and the simulator follow. See
 [docs/design.md](docs/design.md) for the phases.
 
 ## What it is, and is not
@@ -22,9 +22,11 @@ the page follows the files.
   entitlements, forms, PRDs.
 - **Policy flow**: the fishbone the VS Code extension draws, from the same model. Click a policy
   to open it.
-- **Artifact view in two modes.** *Rules* is a structured, read-only view of a DirXML Script
-  policy (each rule: when, do). *Source* is the XML in an editor. Edit the source, review the
-  change as a diff with the core's dry-run verdict, then apply.
+- **Policy editor in two modes** (W2). *Rules* is a structured editor for a DirXML Script
+  policy: rules, condition groups, actions, arguments and tokens, with every element of the
+  language available and each node's attributes, order and nesting taken from the grammar.
+  *Source* is the XML. Both edit one draft. A pause in editing sends the draft through the
+  engine's compiler and the rest of validation, so a mistake is named while it is on screen.
 - **References**: what links to, includes or maps through an artifact.
 - **Validation**: the core's whole check suite, including the engine's own compiler.
 - **Configuration editors** (W1), per driver and for the driver set:
@@ -107,7 +109,9 @@ bin/smoke.sh           # every endpoint, the security gates and the write path, 
 
 ## Known limits
 
-- A DirXML Script policy is edited in its source; the structured rule view is read-only (W2).
+- The structured policy editor covers DirXML Script. XSLT and ECMAScript are edited as source.
+- The editor's grammar table (`web/src/policy/grammar.json`) is generated from the DirXML Script
+  DTD that ships with Designer by `tools/dtd2grammar.py`; regenerate it for a newer DTD.
 - Forms and PRD parts open read-only; change them through Operations (W5).
 - Stage overrides and whole-document configuration editing need a DirXMLDev with
   `override.set` and `config.set-content` (after 0.7.0); without them those controls are hidden

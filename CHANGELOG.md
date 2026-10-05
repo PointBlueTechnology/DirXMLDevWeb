@@ -9,6 +9,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Added
 
+- W2 structured policy editor: rules, condition groups, actions, arguments and tokens of a
+  DirXML Script policy, driven by a grammar table generated from the DTD
+  (`tools/dtd2grammar.py`), sharing one draft with the Source tab and checked live by the
+  engine's compiler through the preview endpoint.
 - W1 configuration editors: GCVs in scope with per-environment override columns, driver
   settings (shim, parameters, engine control values), the filter, policy-set order with drag,
   link and unlink, the schema map, mapping tables, and the stage-override matrix. Configuration

@@ -855,3 +855,159 @@ button.danger:hover:not(:disabled) {
 .pad h3:first-child {
   margin-top: 0;
 }
+
+/* W2 structured policy editor */
+.policy {
+  padding: 12px 20px;
+  overflow: auto;
+}
+.policy .rule header .title {
+  font-weight: 600;
+  border-color: transparent;
+  background: none;
+}
+.policy .rule header .title:hover,
+.policy .rule header .title:focus {
+  border-color: var(--border);
+  background: var(--surface);
+}
+.grow {
+  flex: 1;
+  min-width: 0;
+}
+.mover {
+  display: inline-flex;
+  gap: 2px;
+  flex: none;
+}
+.block h4 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.block select.logic {
+  font-size: 11px;
+  padding: 1px 4px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.group {
+  border-left: 2px solid var(--border);
+  padding-left: 8px;
+  margin-bottom: 8px;
+}
+.grouphead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.node {
+  border: 1px solid transparent;
+  border-radius: 6px;
+  margin: 2px 0;
+}
+.node.open {
+  border-color: var(--border);
+  background: var(--surface-2);
+}
+.node.off > .nodehead code {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+.nodehead {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.nodehead .summary {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  text-align: left;
+  border: none;
+  background: none;
+  padding: 3px 4px;
+  overflow-wrap: anywhere;
+}
+.nodehead .summary:hover {
+  background: var(--surface-2);
+}
+.nodehead .mover {
+  visibility: hidden;
+}
+.nodehead:hover .mover,
+.node.open > .nodehead .mover {
+  visibility: visible;
+}
+.caret {
+  color: var(--muted);
+  flex: none;
+  width: 10px;
+}
+.nodebody {
+  padding: 6px 8px 8px 20px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  align-items: flex-end;
+}
+.nodebody .children,
+.nodebody .adders {
+  flex-basis: 100%;
+}
+.nodebody .adders {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.attr {
+  display: grid;
+  gap: 2px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.attr input,
+.attr select {
+  font-size: 13px;
+  color: var(--text);
+  min-width: 120px;
+}
+.attr.wide {
+  flex-basis: 100%;
+}
+.attr.wide input {
+  width: 100%;
+}
+.attr.missing input,
+.attr.missing select {
+  border-color: var(--err);
+}
+select.addselect {
+  font-size: 12px;
+  color: var(--muted);
+  border-style: dashed;
+  margin-top: 4px;
+  max-width: 220px;
+}
+.checkchip {
+  font-size: 12px;
+  padding: 2px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.checkchip.good {
+  color: var(--ok);
+  border-color: var(--ok);
+}
+.checkchip.bad {
+  color: var(--err);
+  border-color: var(--err);
+}
+.checklist {
+  margin: 0;
+  border-bottom: 1px solid var(--border);
+}

@@ -7,6 +7,11 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- Built against DirXMLDev 0.8.0: the operation factory is reached through the public
+  `Registry.Spec.create`, not reflection.
+
 ### Added
 
 - W6 packages view: installed packages per driver and the Library against the catalog

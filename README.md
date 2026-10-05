@@ -76,7 +76,7 @@ the page follows the files.
 
 ## Run it
 
-Prerequisites: a built [DirXMLDev](https://github.com/PointBlueTechnology/DirXMLDev) 0.7.0 or
+Prerequisites: a built [DirXMLDev](https://github.com/PointBlueTechnology/DirXMLDev) 0.8.0 or
 newer (its `bin/idm doctor` is green), JDK 21, Maven 3.9, Node 20 or newer.
 
 ```bash
@@ -158,10 +158,8 @@ bin/smoke.sh           # every endpoint, the security gates and the write path, 
   `form.field.set --prop`, `role.set`). Branches are inserted with `flow.branch.add` there.
 - Packages with prompts take their answers file through Operations → package.install;
   `package.fetch` and `package.import` fill the catalog from the CLI.
-- Flow edits need a DirXMLDev with the `syncDefinition` fix (DirXMLDev PR #32; after 0.7.0).
-- Stage overrides and whole-document configuration editing need a DirXMLDev with
-  `override.set` and `config.set-content` (after 0.7.0); without them those controls are hidden
-  or read-only.
+- With a DirXMLDev older than 0.8.0 the stage-override and whole-document configuration
+  controls are hidden or read-only, and flow edits fail.
 - A setting cannot be cleared to empty from the Settings tab; do that in the document's XML.
 - Deploy from the page covers the common case. Secrets, deleting a driver, drift capture,
   stepwise deploys and rollback stay with `idm vault.deploy` and `idm vault.rollback`; a deploy's
@@ -172,6 +170,4 @@ bin/smoke.sh           # every endpoint, the security gates and the write path, 
   but are edited in its files; comparing with another tree stays with `idm simulate --against`.
 - Cases are kept in `cases/` beside the tree (or `--cases DIR`). They are not part of the
   tree's revision: the page reloads them after its own writes.
-- The server reaches one DirXMLDev internal by reflection (an operation's factory). A public
-  method is proposed upstream; see `TreeService.factoryOf`.
 - Local mode only. The hosted mode is designed (docs/hosted.md) and not built.

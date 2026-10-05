@@ -17,7 +17,7 @@
         <!-- The DirXMLDev release this server is written against. Install it once with
              `mvn -o install -DskipTests` in the DirXMLDev checkout; bin/idmweb then runs
              against that checkout's classes, engine jars and simulator. -->
-        <dirxmldev.version>0.7.0</dirxmldev.version>
+        <dirxmldev.version>0.8.0</dirxmldev.version>
         <simulator.version>1.7.0</simulator.version>
     </properties>
 

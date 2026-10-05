@@ -392,7 +392,7 @@ public final class TreeService {
                 throw new BadRequest(c.name + ": " + missing);
             }
             try {
-                return factoryOf(spec).create(all);   // a file argument is read here, so the temp file can go
+                return spec.create(all);   // a file argument is read here, so the temp file can go
             } catch (IllegalArgumentException e) {
                 throw new BadRequest(c.name + ": " + e.getMessage());
             }
@@ -527,18 +527,5 @@ public final class TreeService {
         return m;
     }
 
-    /**
-     * The registry keeps an operation's factory package-private (DirXMLDev 0.7.0); a public
-     * {@code Spec.create} is proposed upstream. Until that release, this is the one place that
-     * reaches for it.
-     */
-    private static Registry.Factory factoryOf(Registry.Spec spec) {
-        try {
-            java.lang.reflect.Field f = Registry.Spec.class.getDeclaredField("factory");
-            f.setAccessible(true);
-            return (Registry.Factory) f.get(spec);
-        } catch (ReflectiveOperationException e) {
-            throw new IllegalStateException("this DirXMLDev does not expose operation factories: " + e.getMessage(), e);
-        }
-    }
+    
 }

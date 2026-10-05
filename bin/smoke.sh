@@ -138,7 +138,7 @@ s, fe = call("POST", "/api/op/flow.activity.set", {"args": {"prd": "Request Acce
 if s == 200 and fe.get("ok"):
     check("provisioning: a flow edit lands and the workflow shows it", call("GET", "/api/prd?driver=Loop&name=Request%20Access")[1]["flow"]["activities"][1]["name"] == "Manager approval")
 elif "WRONG_DOCUMENT" in str(fe):
-    print("skip flow edit: this DirXMLDev lacks the flow fix (DirXMLDev PR #32)")
+    print("skip flow edit: this DirXMLDev is older than 0.8.0")
 else:
     check("provisioning: a flow edit lands", False)
 s, pk = call("GET", "/api/packages")

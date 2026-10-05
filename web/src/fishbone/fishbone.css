@@ -1,0 +1,120 @@
+/* The fishbone's own palette: publisher and subscriber channels, the spine, the two ends. */
+.fishbone {
+  --pub: #2f8f83;
+  --pub-fill: #e3f3f0;
+  --sub: #b96a2b;
+  --sub-fill: #f8ece0;
+  --spine: #8a93a3;
+  --idv: #3f6fae;
+  --app: #6a6a80;
+  --empty: #a9b0bb;
+  overflow: auto;
+  padding: 8px 16px 24px;
+}
+@media (prefers-color-scheme: dark) {
+  .fishbone {
+    --pub: #49b3a5;
+    --pub-fill: #1c3d39;
+    --sub: #d58d4c;
+    --sub-fill: #3d2c1c;
+    --spine: #7a8494;
+    --idv: #5a8fd0;
+    --app: #8a8aa3;
+    --empty: #5c6370;
+  }
+}
+.fishbone svg {
+  min-width: 860px;
+  width: 100%;
+  height: auto;
+  font-family: inherit;
+}
+.fishbone .spine {
+  stroke: var(--spine);
+  stroke-width: 4;
+}
+.fishbone .rib {
+  stroke: var(--spine);
+  stroke-width: 2;
+}
+.fishbone text {
+  fill: var(--text);
+  font-size: 12px;
+}
+.fishbone .channel-label {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.fishbone .channel-label.pub {
+  fill: var(--pub);
+}
+.fishbone .channel-label.sub {
+  fill: var(--sub);
+}
+.fishbone .end rect {
+  fill: var(--surface-2);
+  stroke-width: 2;
+}
+.fishbone .end.idv rect {
+  stroke: var(--idv);
+}
+.fishbone .end.app rect {
+  stroke: var(--app);
+}
+.fishbone .end text {
+  font-weight: 600;
+}
+.fishbone .bone > rect {
+  fill: var(--surface-2);
+  stroke: var(--spine);
+  stroke-width: 1.5;
+}
+.fishbone .bone.pub > rect {
+  fill: var(--pub-fill);
+  stroke: var(--pub);
+}
+.fishbone .bone.sub > rect {
+  fill: var(--sub-fill);
+  stroke: var(--sub);
+}
+.fishbone .bone.empty > rect {
+  fill: transparent;
+  stroke: var(--empty);
+  stroke-dasharray: 4 3;
+}
+.fishbone .bone.empty > text {
+  fill: var(--muted);
+}
+.fishbone .bone-title {
+  font-weight: 600;
+}
+.fishbone .count {
+  fill: var(--muted);
+  font-size: 11px;
+}
+.fishbone .policy {
+  cursor: pointer;
+}
+.fishbone .policy rect {
+  fill: var(--surface);
+  stroke: var(--spine);
+  stroke-width: 1;
+}
+.fishbone .policy:hover rect {
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+.fishbone .policy text {
+  font-size: 11px;
+}
+.fishbone .policy.unresolved rect {
+  stroke: var(--err);
+  stroke-dasharray: 3 2;
+}
+.fishbone .bone.filter {
+  cursor: pointer;
+}
+.fishbone .bone.filter:hover > rect {
+  stroke: var(--accent);
+}

@@ -1,0 +1,34 @@
+#!/bin/sh
+# DirXMLDevWeb launcher: bin/idmweb serve <tree> [--port N] [--no-open]
+# Runs this repo's server on the DirXMLDev checkout's own class path — its classes, its
+# lib/*.jar engine jars and the simulator in ~/.m2 — so the page sees exactly what bin/idm sees.
+# DirXMLDev is found at IDM_HOME, else beside this checkout (../DirXMLDev).
+set -e
+HERE=$(cd "$(dirname "$0")/.." && pwd)
+IDM_HOME=${IDM_HOME:-"$HERE/../DirXMLDev"}
+if [ ! -d "$IDM_HOME/target/classes" ]; then
+  echo "ERROR: no built DirXMLDev at $IDM_HOME. Set IDM_HOME, and run 'mvn -o package' there." >&2
+  exit 1
+fi
+if [ ! -d "$HERE/target/classes" ]; then
+  echo "ERROR: this server is not built. Run 'mvn -o package' in $HERE (after 'mvn -o install -DskipTests' in DirXMLDev)." >&2
+  exit 1
+fi
+SIM_VER=${IDM_SIM_VERSION:-1.7.0}
+SIM_JAR="$HOME/.m2/repository/com/pointblue/dirxml/dirxml-simulator/$SIM_VER/dirxml-simulator-$SIM_VER.jar"
+JH=${IDM_JAVA_HOME:-}
+if [ -z "$JH" ] && [ -x /usr/libexec/java_home ]; then
+  JH=$(/usr/libexec/java_home -v 21 2>/dev/null || true)
+fi
+[ -z "$JH" ] && JH=${JAVA_HOME:-}
+if [ -z "$JH" ] || [ ! -x "$JH/bin/java" ]; then
+  echo "ERROR: JDK 21 not found. Set IDM_JAVA_HOME (or JAVA_HOME) to a JDK 21 home." >&2
+  exit 1
+fi
+CP="$HERE/target/classes:$IDM_HOME/target/classes"
+[ -f "$SIM_JAR" ] && CP="$CP:$SIM_JAR"
+for j in "$IDM_HOME"/lib/*.jar; do
+  [ -f "$j" ] && CP="$CP:$j"
+done
+# shellcheck disable=SC2086
+exec "$JH/bin/java" ${IDM_JAVA_OPTS:-} -Didmweb.home="$HERE" -Didm.home="$IDM_HOME" -cp "$CP" com.pointblue.dirxml.web.Serve "$@"

@@ -72,5 +72,50 @@ s, refused = call("POST", "/api/op/artifact.set-content", bad)
 check("a policy the engine rejects is refused by the compile check", s == 200 and not refused["ok"] and refused["newErrors"][0]["code"] == "compile-error")
 check("an unknown operation is 404", call("POST", "/api/op/no.such", {"args": {}, "revision": done["revision"]})[0] == 404)
 check("a missing argument is 400", call("POST", "/api/op/artifact.rename", {"args": {}, "revision": done["revision"]})[0] == 400)
+
+# W1: a batch is one change with real diffs; configuration and overrides as editors read them
+names = {o["name"] for o in cat["operations"]}
+s, cfg = call("GET", "/api/config?driver=Loop")
+gcv = {g["name"]: g for g in cfg["gcvs"]}
+check("config: GCVs in scope with where each is defined", gcv["drv.users"]["owner"] == "drivers/Loop" and gcv["synth.company"]["owner"] == "driverset" and gcv["drv.veto.surname"]["type"] == "boolean")
+check("config: shim parameters and engine control values", cfg["params"][0]["name"] == "pub-heartbeat-interval" and cfg["ecvs"][0]["name"] == "dirxml.engine.retry-interval")
+s, setcfg = call("GET", "/api/config")
+check("config: the driver set's own GCVs", [g["name"] for g in setcfg["gcvs"]] == ["synth.company"])
+rev = call("GET", "/api/session")[1]["revision"]
+ops = [
+    {"name": "gcv.set", "args": {"name": "drv.users", "value": "ou=people,o=synth", "driver": "Loop"}, "files": {}},
+    {"name": "driver.set", "args": {"driver": "Loop", "key": "param:pub-heartbeat-interval", "value": "5"}, "files": {}},
+    {"name": "filter.set-attr", "args": {"driver": "Loop", "class": "User", "attr": "Title", "publisher": "sync", "subscriber": "notify"}, "files": {}},
+]
+s, pre = call("POST", "/api/batch", {"ops": ops, "dryRun": True, "revision": rev})
+files = {d["file"]: d for d in pre.get("diffs", [])}
+check("batch preview: three changes, one verdict, each file before and after",
+      s == 200 and pre["ok"] and not pre["written"] and set(files) == {"drivers/Loop/config-values.xml", "drivers/Loop/shim-config-info.xml", "drivers/Loop/driver-filter.xml"}
+      and "ou=users,o=synth" in files["drivers/Loop/config-values.xml"]["before"] and "ou=people,o=synth" in files["drivers/Loop/config-values.xml"]["after"])
+check("batch preview wrote nothing", call("GET", "/api/session")[1]["revision"] == rev)
+s, app = call("POST", "/api/batch", {"ops": ops, "dryRun": False, "revision": rev})
+check("batch apply: written together", s == 200 and app["written"] and len(app["changedFiles"]) == 3)
+rev = app["revision"]
+bad = ops[:1] + [{"name": "gcv.set", "args": {"name": "no.such.gcv", "value": "x", "driver": "Loop"}, "files": {}}]
+bad[0] = {"name": "gcv.set", "args": {"name": "drv.users", "value": "ou=again,o=synth", "driver": "Loop"}, "files": {}}
+s, ref = call("POST", "/api/batch", {"ops": bad, "dryRun": False, "revision": rev})
+check("a batch with one refused member writes nothing and says which", s == 200 and not ref["ok"] and "change 2 of 2" in ref["refusal"] and call("GET", "/api/session")[1]["revision"] == rev)
+if "override.set" in names:
+    s, o = call("POST", "/api/batch", {"ops": [{"name": "override.set", "args": {"env": "prd", "key": "drivers/Loop.gcv.drv.users", "value": "ou=staff,o=corp"}, "files": {}}], "dryRun": False, "revision": rev})
+    rev = o["revision"]
+    s, ov = call("GET", "/api/overrides")
+    row = ov["overrides"][0]
+    check("overrides: the environment's value beside the base", o["ok"] and ov["environments"] == ["prd"] and row["values"] == {"prd": "ou=staff,o=corp"} and row["base"] == "ou=people,o=synth" and row["resolved"])
+else:
+    print("skip overrides: this DirXMLDev has no override.set")
+if "config.set-content" in names:
+    s, f = call("GET", "/api/file?file=drivers/Loop/driver-filter.xml")
+    doc = f["content"].replace('subscriber="notify"', 'subscriber="reset"')
+    s, c = call("POST", "/api/batch", {"ops": [{"name": "config.set-content", "args": {"kind": "driver-filter", "driver": "Loop"}, "files": {"content-file": doc}}], "dryRun": False, "revision": rev})
+    check("a whole configuration document saves through config.set-content", s == 200 and c["written"] and c["changedFiles"] == ["drivers/Loop/driver-filter.xml"])
+    s, c2 = call("POST", "/api/batch", {"ops": [{"name": "config.set-content", "args": {"kind": "driver-filter", "driver": "Loop"}, "files": {"content-file": "<configuration-values/>"}}], "dryRun": True, "revision": c["revision"]})
+    check("and the wrong root is refused", not c2["ok"] and "<filter>" in c2["refusal"])
+else:
+    print("skip config.set-content: this DirXMLDev does not have it")
 print("smoke: all passed")
 PY

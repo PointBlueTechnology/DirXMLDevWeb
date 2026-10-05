@@ -303,26 +303,73 @@ public final class TreeService {
         return out;
     }
 
+    /** One operation to run: its registered name, its arguments, and the text of its file arguments. */
+    public static final class Call {
+        public final String name;
+        public final Map<String, String> args;
+        public final Map<String, String> files;
+
+        public Call(String name, Map<String, String> args, Map<String, String> files) {
+            this.name = name;
+            this.args = args;
+            this.files = files;
+        }
+    }
+
     /**
-     * Run one operation through the core's transaction: load, apply, validate, and write unless
-     * it is a dry run or it introduced an error. {@code files} carries the text of arguments the
-     * CLI takes as a file path ({@code --content-file}); each is written to a temp file for the
-     * call. {@code revision} must be the tree's current one.
+     * Run operations through the core's transaction, as one change: load, apply each in order,
+     * validate, and write unless one introduced an error. {@code files} carries the text of
+     * arguments the CLI takes as a file path ({@code --content-file}); a repeatable argument's
+     * values are joined by newlines, as the CLI joins them. {@code revision} must be the tree's
+     * current one.
+     *
+     * <p>A dry run is run for real against a throwaway copy of the tree, so the answer carries
+     * what a dry run alone cannot: each changed file, before and after, for the reviewer.
      */
-    public synchronized Map<String, Object> run(String name, Map<String, String> args, Map<String, String> files,
-                                                boolean dryRun, boolean force, String revision) throws IOException {
-        Registry.Spec spec = Registry.get(name);
-        if (spec == null) {
-            throw new NotFound("no operation '" + name + "'");
+    public synchronized Map<String, Object> run(List<Call> calls, boolean dryRun, boolean force, String revision) throws IOException {
+        if (calls.isEmpty()) {
+            throw new BadRequest("no operation given");
         }
         String current = watcher.refreshNow();
         if (revision == null || !revision.equals(current)) {
             throw new Stale("the tree changed since this was planned (planned against " + revision + ", now " + current + "); reload and try again");
         }
-        Map<String, String> all = new LinkedHashMap<>(args);
+        List<Operation> ops = new ArrayList<>();
+        for (Call c : calls) {
+            ops.add(operation(c));
+        }
+        Operation op = new Batch(ops);
+        if (!dryRun) {
+            Result r = Transaction.open(tree).run(op, false, force);
+            Map<String, Object> m = new LinkedHashMap<>(Json.asMap(Json.parse(r.json())));
+            cached = null;
+            m.put("revision", watcher.refreshNow());
+            return m;
+        }
+        Path copy = Files.createTempDirectory("idmweb-preview-");
+        try {
+            copyTree(tree, copy);
+            Result r = Transaction.open(copy).run(op, false, force);
+            Map<String, Object> m = new LinkedHashMap<>(Json.asMap(Json.parse(r.json())));
+            m.put("dryRun", true);
+            m.put("written", false);
+            m.put("diffs", diffs(copy, r));
+            m.put("revision", current);
+            return m;
+        } finally {
+            deleteTree(copy);
+        }
+    }
+
+    private Operation operation(Call c) throws IOException {
+        Registry.Spec spec = Registry.get(c.name);
+        if (spec == null) {
+            throw new NotFound("no operation '" + c.name + "'");
+        }
+        Map<String, String> all = new LinkedHashMap<>(c.args);
         List<Path> temps = new ArrayList<>();
         try {
-            for (Map.Entry<String, String> f : files.entrySet()) {
+            for (Map.Entry<String, String> f : c.files.entrySet()) {
                 Path t = Files.createTempFile("idmweb-", "-" + f.getKey());
                 Files.writeString(t, f.getValue(), StandardCharsets.UTF_8);
                 temps.add(t);
@@ -330,24 +377,142 @@ public final class TreeService {
             }
             String missing = Registry.missing(spec, all);
             if (missing != null) {
-                throw new BadRequest(missing);
+                throw new BadRequest(c.name + ": " + missing);
             }
-            Operation op;
             try {
-                op = factoryOf(spec).create(all);
+                return factoryOf(spec).create(all);   // a file argument is read here, so the temp file can go
             } catch (IllegalArgumentException e) {
-                throw new BadRequest(e.getMessage());
+                throw new BadRequest(c.name + ": " + e.getMessage());
             }
-            Result r = Transaction.open(tree).run(op, dryRun, force);
-            Map<String, Object> m = new LinkedHashMap<>(Json.asMap(Json.parse(r.json())));
-            cached = null;
-            m.put("revision", watcher.refreshNow());
-            return m;
         } finally {
             for (Path t : temps) {
                 Files.deleteIfExists(t);
             }
         }
+    }
+
+    static final long MAX_DIFF = 400L * 1024;
+
+    private List<Object> diffs(Path copy, Result r) throws IOException {
+        List<Object> out = new ArrayList<>();
+        for (String f : r.changedFiles) {
+            Path before = tree.resolve(f);
+            Path after = copy.resolve(f);
+            Map<String, Object> d = new LinkedHashMap<>();
+            d.put("file", f);
+            d.put("status", Files.isRegularFile(before) ? "changed" : "added");
+            d.put("language", language(f));
+            if (textual(f) && sizeOf(before) <= MAX_DIFF && sizeOf(after) <= MAX_DIFF) {
+                d.put("before", Files.isRegularFile(before) ? Files.readString(before, StandardCharsets.UTF_8) : "");
+                d.put("after", Files.isRegularFile(after) ? Files.readString(after, StandardCharsets.UTF_8) : "");
+            }
+            out.add(d);
+        }
+        for (String f : r.deletedFiles) {
+            Path before = tree.resolve(f);
+            Map<String, Object> d = new LinkedHashMap<>();
+            d.put("file", f);
+            d.put("status", "deleted");
+            d.put("language", language(f));
+            if (textual(f) && sizeOf(before) <= MAX_DIFF) {
+                d.put("before", Files.isRegularFile(before) ? Files.readString(before, StandardCharsets.UTF_8) : "");
+                d.put("after", "");
+            }
+            out.add(d);
+        }
+        return out;
+    }
+
+    private static boolean textual(String file) {
+        String f = file.toLowerCase();
+        return f.endsWith(".xml") || f.endsWith(".json") || f.endsWith(".js") || f.endsWith(".properties") || f.endsWith(".md") || f.endsWith(".txt") || f.endsWith(".xsl");
+    }
+
+    private static long sizeOf(Path p) throws IOException {
+        return Files.isRegularFile(p) ? Files.size(p) : 0;
+    }
+
+    static void copyTree(Path from, Path to) throws IOException {
+        Files.walkFileTree(from, new java.nio.file.SimpleFileVisitor<>() {
+            @Override
+            public java.nio.file.FileVisitResult preVisitDirectory(Path dir, java.nio.file.attribute.BasicFileAttributes attrs) throws IOException {
+                if (!dir.equals(from) && (Watcher.SKIP.contains(dir.getFileName().toString()) || dir.getFileName().toString().equals("deploy-log"))) {
+                    return java.nio.file.FileVisitResult.SKIP_SUBTREE;
+                }
+                Files.createDirectories(to.resolve(from.relativize(dir).toString()));
+                return java.nio.file.FileVisitResult.CONTINUE;
+            }
+
+            @Override
+            public java.nio.file.FileVisitResult visitFile(Path file, java.nio.file.attribute.BasicFileAttributes attrs) throws IOException {
+                Files.copy(file, to.resolve(from.relativize(file).toString()));
+                return java.nio.file.FileVisitResult.CONTINUE;
+            }
+        });
+    }
+
+    static void deleteTree(Path dir) {
+        try (java.util.stream.Stream<Path> s = Files.walk(dir)) {
+            s.sorted(java.util.Comparator.reverseOrder()).forEach(p -> {
+                try {
+                    Files.deleteIfExists(p);
+                } catch (IOException e) {
+                    // a temp file left behind is the OS's to clean
+                }
+            });
+        } catch (IOException e) {
+            // best effort
+        }
+    }
+
+    // ---- configuration and overrides, as editors read them ----
+
+    /** A driver's settings, shim parameters, engine control values and the GCVs in its scope; no driver = the driver set's GCVs. */
+    public synchronized Map<String, Object> config(String driver) throws IOException {
+        DriverSet ds = model();
+        Map<String, Object> m;
+        if (driver == null || driver.isBlank()) {
+            m = ConfigViews.driverSet(ds);
+        } else {
+            Driver d = ds.driver(driver);
+            if (d == null) {
+                throw new NotFound("no driver '" + driver + "' in the tree");
+            }
+            m = ConfigViews.driver(ds, d);
+        }
+        m.put("revision", cachedRevision);
+        return m;
+    }
+
+    /** Every environment's overrides ({@code overrides/<env>.properties}), with each key's base value from the tree. */
+    public synchronized Map<String, Object> overrides() throws IOException {
+        DriverSet ds = model();
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("revision", cachedRevision);
+        m.put("environments", new ArrayList<>(ds.overrides.keySet()));
+        java.util.TreeSet<String> keys = new java.util.TreeSet<>();
+        for (Map<String, String> v : ds.overrides.values()) {
+            keys.addAll(v.keySet());
+        }
+        List<Object> rows = new ArrayList<>();
+        for (String key : keys) {
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("key", key);
+            com.pointblue.dirxml.dev.deploy.Overrides.Target t = com.pointblue.dirxml.dev.deploy.Overrides.resolve(ds, key);
+            row.put("resolved", t.resolved());
+            row.put("problem", t.problem);
+            row.put("base", t.resolved() ? t.value() : null);
+            Map<String, Object> values = new LinkedHashMap<>();
+            for (Map.Entry<String, Map<String, String>> e : ds.overrides.entrySet()) {
+                if (e.getValue().containsKey(key)) {
+                    values.put(e.getKey(), e.getValue().get(key));
+                }
+            }
+            row.put("values", values);
+            rows.add(row);
+        }
+        m.put("overrides", rows);
+        return m;
     }
 
     /**

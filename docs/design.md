@@ -1,6 +1,6 @@
 # DirXMLDevWeb: assessment and design
 
-Status: **decided 2026-10-05; W0 spike built** (this repository). The note was written in DirXMLDev as `docs/web-designer.md`; this is its home now.
+Status: **decided 2026-10-05; W0–W3 built** (this repository). The note was written in DirXMLDev as `docs/web-designer.md`; this is its home now.
 
 The question: build a web version of Designer, perhaps with WebAssembly.
 The answer in one paragraph: **yes to a web workbench, no to porting Designer,
@@ -187,7 +187,7 @@ Each is usable on its own and stops cleanly.
 | **W0 spike** | `idm serve` and a read-only explorer: outline, artifact view, fishbone, validation panel, references. Proves the catalog-as-API, the watcher and the token model |
 | **W1 configuration editing** | GCVs, filter, schema map, mapping tables, link order by drag, stage overrides; raw XML editing with validate-on-save; every write previewed as a diff |
 | **W2 policy builder** | Rules, conditions, actions and tokens as structured editors over the DirXML Script grammar, with the engine's compile check live |
-| **W3 compare, deploy, operate** | Vault diff per stage, plan review, confirm, progress, verify, rollback; driver state and control; live trace |
+| **W3 compare, deploy, operate** | Vault diff per stage, plan review, confirm, verify; driver state and control; live trace. Built; rollback, secrets and driver deletion stay with the CLI |
 | **W4 simulator** | Cases, run, stage-by-stage output, comparison against another tree or stage |
 | **W5 provisioning** | PRD flow diagram (read, then edit through `flow.*`), form builder embedded, roles and resources |
 | **W6 packages** | Status, install, upgrade, build |

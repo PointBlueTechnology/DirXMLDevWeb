@@ -1,4 +1,20 @@
-import type { Artifact, ConfigView, OpCall, OpResult, OpSpec, Outline, OverridesData, Session, TreeFile, Validation } from "./types";
+import type {
+  Artifact,
+  ConfigView,
+  DeployResult,
+  LifecycleResult,
+  OpCall,
+  OpResult,
+  OpSpec,
+  Outline,
+  OverridesData,
+  Session,
+  TreeFile,
+  Validation,
+  VaultDiffResult,
+  VaultEnvironments,
+  VaultStatus,
+} from "./types";
 import type { FishboneModel } from "./fishbone/types";
 
 /**
@@ -62,6 +78,15 @@ export const api = {
   catalog: () => call<{ operations: OpSpec[] }>("GET", "/api/catalog"),
   config: (driver: string | null) => call<ConfigView>("GET", driver ? `/api/config?driver=${q(driver)}` : "/api/config"),
   overrides: () => call<OverridesData>("GET", "/api/overrides"),
+  vault: {
+    environments: () => call<VaultEnvironments>("GET", "/api/vault/environments"),
+    diff: (env: string, drivers: string[]) => call<VaultDiffResult>("GET", `/api/vault/diff?env=${q(env)}${drivers.map((d) => `&driver=${q(d)}`).join("")}`),
+    plan: (env: string, drivers: string[], restart: boolean) => call<DeployResult>("POST", "/api/vault/plan", { env, drivers, restart }),
+    /** `confirm` is the environment's name, typed by the person: the server refuses anything else. */
+    deploy: (env: string, drivers: string[], restart: boolean, confirm: string) => call<DeployResult>("POST", "/api/vault/deploy", { env, drivers, restart, confirm }),
+    status: (env: string) => call<VaultStatus>("GET", `/api/vault/status?env=${q(env)}`),
+    driver: (env: string, driver: string, action: string, confirm: string) => call<LifecycleResult>("POST", "/api/vault/driver", { env, driver, action, confirm }),
+  },
   /** Several operations as one change: validated once, written together or not at all. */
   batch: (ops: OpCall[], dryRun: boolean, revision: string) =>
     call<OpResult>("POST", "/api/batch", { ops: ops.map((o) => ({ name: o.name, args: o.args, files: o.files ?? {} })), dryRun, revision }),
@@ -84,5 +109,34 @@ export function followTree(onRevision: (revision: string) => void, onState: (liv
   });
   es.onopen = () => onState(true);
   es.onerror = () => onState(false);
+  return () => es.close();
+}
+
+/** Follow a driver's trace: `onLine` per line, `onState` with open / closed / the failure's message. */
+export function followTrace(env: string, driver: string, engine: boolean, onLine: (line: string) => void, onState: (state: "open" | "closed" | { failed: string }) => void): () => void {
+  const es = new EventSource(`/api/vault/trace?env=${q(env)}&driver=${q(driver)}${engine ? "&engine=true" : ""}&token=${q(token())}`);
+  es.addEventListener("open", () => onState("open"));
+  es.addEventListener("fail", (ev) => {
+    let message = "the trace stream failed";
+    try {
+      message = String(JSON.parse((ev as MessageEvent<string>).data));
+    } catch {
+      // keep the default
+    }
+    es.close();
+    onState({ failed: message });
+  });
+  es.onmessage = (ev) => {
+    try {
+      onLine(String(JSON.parse(ev.data as string)));
+    } catch {
+      // a malformed event is skipped
+    }
+  };
+  es.onerror = () => {
+    // the server ended the stream (or the connection dropped): do not let EventSource reconnect on its own
+    es.close();
+    onState("closed");
+  };
   return () => es.close();
 }

@@ -43,6 +43,14 @@ the page follows the files.
   Apply writes them as one transaction, or nothing.
 - **Operations**: every edit operation the core registers with a form generated from its
   declared arguments, through the same review.
+- **Vault** (W3), against any environment the `idm` CLI knows:
+  - *Compare*: the tree against the vault, for the driver set or one driver, with the stage's
+    overrides applied; each difference opens its detail.
+  - *Deploy*: the plan step by step with nothing written, then the deploy itself (snapshot,
+    write, restart, verify) once you type the environment's name.
+  - *Drivers*: every driver's state, start option and cache; start, stop and restart behind
+    the same typed confirmation.
+  - *Trace*: a driver's trace, live, with a filter.
 - **Live follow**: any change to the tree, by anything, reloads the page within a second.
 
 ## Run it
@@ -81,7 +89,12 @@ exactly what `bin/idm` sees.
 - Requests naming another host (DNS rebinding) or coming from another origin are refused.
 - Files are served only from inside the tree; `.git` and deploy snapshots are not content.
 - A write quotes the tree revision it was planned against and is refused if the tree moved.
-- No vault credential is read by this spike; it does not talk to a vault yet.
+- Vault access uses the environments file and credential sources of the `idm` CLI
+  (`IDM_ENVIRONMENTS`, `./environments.properties`, `~/.idm/environments.properties`). The page
+  is told an environment's name and tier, never a URL, bind DN or secret.
+- Nothing is read from a vault until you choose an environment and ask. Every write to a vault
+  (deploy, driver start, stop, restart) needs that environment's name typed into the page; the
+  server checks it, and `IDM_AGENT_ALLOW_WRITE` does not stand in for it here.
 
 ## Layout
 
@@ -117,7 +130,11 @@ bin/smoke.sh           # every endpoint, the security gates and the write path, 
   `override.set` and `config.set-content` (after 0.7.0); without them those controls are hidden
   or read-only.
 - A setting cannot be cleared to empty from the Settings tab; do that in the document's XML.
-- No vault features yet: compare, deploy, driver control, trace and the simulator are W3–W4.
+- Deploy from the page covers the common case. Secrets, deleting a driver, drift capture,
+  stepwise deploys and rollback stay with `idm vault.deploy` and `idm vault.rollback`; a deploy's
+  result names its snapshot.
+- The trace view reads over the environment's LDAPS connection and keeps the last 5,000 lines.
+- No simulator yet (W4).
 - The server reaches one DirXMLDev internal by reflection (an operation's factory). A public
   method is proposed upstream; see `TreeService.factoryOf`.
 - Local mode only. The hosted mode is designed (docs/design.md) and not built.

@@ -179,4 +179,80 @@ export type Selection =
   | { type: "file"; file: string }
   | { type: "config"; driver: string | null }
   | { type: "overrides" }
+  | { type: "vault" }
   | { type: "operations" };
+
+/** An environment of the environments file, described without its values. */
+export interface VaultEnvironment {
+  name: string;
+  tier: string;
+  ready: boolean;
+  hasOverrides: boolean;
+}
+
+export interface VaultEnvironments {
+  available: boolean;
+  why?: string;
+  file?: string;
+  environments: VaultEnvironment[];
+}
+
+export interface VaultChange {
+  kind: string;
+  driver: string | null;
+  path: string;
+  what: string | null;
+  summary: string;
+  detail?: string | null;
+}
+
+export interface VaultDiffResult {
+  empty: boolean;
+  changes: VaultChange[];
+  affectedDrivers: string[];
+  environment: string;
+  tier: string;
+  text: string;
+  overrides: string | null;
+}
+
+export interface DeployResult {
+  ok: boolean;
+  environment: string;
+  refusal?: string | null;
+  failure?: string | null;
+  plan?: string | null;
+  diff?: string | null;
+  done?: string[];
+  skipped?: string[];
+  restarted?: string[];
+  secretsSet?: string[];
+  snapshot?: string | null;
+  verified?: boolean;
+  verify?: string | null;
+  text?: string;
+}
+
+export interface DriverState {
+  name: string;
+  dn: string;
+  state: string;
+  startOption: string;
+  cacheSize?: string;
+  unprocessedSize?: string;
+  traceLevel?: string;
+}
+
+export interface VaultStatus {
+  environment: string;
+  ok: boolean;
+  drivers: DriverState[];
+  text: string;
+}
+
+export interface LifecycleResult {
+  ok: boolean;
+  text: string;
+  driver: string;
+  action: string;
+}

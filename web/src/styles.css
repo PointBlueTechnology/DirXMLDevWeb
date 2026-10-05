@@ -1011,3 +1011,16 @@ select.addselect {
   margin: 0;
   border-bottom: 1px solid var(--border);
 }
+
+/* vault */
+table.grid { border-collapse: collapse; width: 100%; margin: 8px 0 12px; font-size: 13px; }
+table.grid th, table.grid td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+table.grid th { font-weight: 600; color: var(--muted); font-size: 12px; }
+table.grid tr.clickable { cursor: pointer; }
+table.grid td.right { text-align: right; white-space: nowrap; }
+button.link { background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; font: inherit; text-align: left; }
+button.link:hover { text-decoration: underline; }
+button.danger:not(:disabled) { background: var(--err); border-color: var(--err); color: #fff; }
+.field.confirm input { font-family: var(--mono, ui-monospace, monospace); width: 12em; }
+.tracepane { display: flex; flex-direction: column; min-height: 0; height: 100%; box-sizing: border-box; }
+.tracebox { flex: 1; min-height: 240px; overflow: auto; margin: 8px 0; padding: 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; line-height: 1.4; white-space: pre; }

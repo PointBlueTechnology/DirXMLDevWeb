@@ -9,6 +9,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Added
 
+- W3 vault view: compare the tree with an environment's vault, plan and run a deploy, see and
+  control the drivers, follow a driver's trace. New endpoints under `/api/vault/`; a write to a
+  vault needs the environment's name typed into the page, checked by the server.
+
 - W2 structured policy editor: rules, condition groups, actions, arguments and tokens of a
   DirXML Script policy, driven by a grammar table generated from the DTD
   (`tools/dtd2grammar.py`), sharing one draft with the Source tab and checked live by the

@@ -22,12 +22,14 @@ import java.util.function.Consumer;
 public final class Api implements HttpHandler {
 
     private final TreeService service;
+    private final VaultService vault;
     private final Watcher watcher;
     private final Security security;
     private final String version;
 
-    public Api(TreeService service, Watcher watcher, Security security, String version) {
+    public Api(TreeService service, VaultService vault, Watcher watcher, Security security, String version) {
         this.service = service;
+        this.vault = vault;
         this.watcher = watcher;
         this.security = security;
         this.version = version;
@@ -50,6 +52,10 @@ public final class Api implements HttpHandler {
             String method = ex.getRequestMethod();
             if (path.equals("/api/events") && method.equals("GET")) {
                 events(ex);
+                return;
+            }
+            if (path.equals("/api/vault/trace") && method.equals("GET")) {
+                trace(ex, query);
                 return;
             }
             Object body = route(method, path, query, ex);
@@ -93,6 +99,12 @@ public final class Api implements HttpHandler {
                     return service.config(query.get("driver"));
                 case "/api/overrides":
                     return service.overrides();
+                case "/api/vault/environments":
+                    return vault.environments();
+                case "/api/vault/diff":
+                    return vault.diff(required(query, "env"), list(query.get("driver")));
+                case "/api/vault/status":
+                    return vault.status(required(query, "env"));
                 case "/api/catalog": {
                     Map<String, Object> m = new LinkedHashMap<>();
                     m.put("operations", TreeService.catalog());
@@ -118,7 +130,100 @@ public final class Api implements HttpHandler {
             }
             return service.run(calls, Boolean.TRUE.equals(req.get("dryRun")), Boolean.TRUE.equals(req.get("force")), Json.asString(req.get("revision")));
         }
+        if (method.equals("POST") && path.startsWith("/api/vault/")) {
+            Map<String, Object> req = Json.asMap(Json.parse(new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8)));
+            String env = Json.asString(req.get("env"));
+            java.util.List<String> drivers = new java.util.ArrayList<>();
+            if (req.get("drivers") instanceof java.util.List) {
+                for (Object d : (java.util.List<?>) req.get("drivers")) {
+                    drivers.add(String.valueOf(d));
+                }
+            }
+            boolean restart = !Boolean.FALSE.equals(req.get("restart"));
+            switch (path) {
+                case "/api/vault/plan":
+                    return vault.plan(env, drivers, restart, Json.asString(req.get("secrets")));
+                case "/api/vault/deploy":
+                    return vault.deploy(env, drivers, restart, Json.asString(req.get("secrets")), Json.asString(req.get("confirm")));
+                case "/api/vault/driver":
+                    return vault.lifecycle(env, Json.asString(req.get("driver")), Json.asString(req.get("action")), Json.asString(req.get("confirm")));
+                default:
+                    break;
+            }
+        }
         throw new TreeService.NotFound("no such endpoint: " + method + " " + path);
+    }
+
+    /** A repeatable query parameter arrives joined by newlines ({@link #query}). */
+    private static java.util.List<String> list(String joined) {
+        java.util.List<String> out = new java.util.ArrayList<>();
+        if (joined != null) {
+            for (String s : joined.split("\n")) {
+                if (!s.isBlank()) {
+                    out.add(s);
+                }
+            }
+        }
+        return out;
+    }
+
+    /** A driver's trace as server-sent events, one line each, until the page closes the stream. */
+    private void trace(HttpExchange ex, Map<String, String> query) throws IOException {
+        ex.getResponseHeaders().set("Content-Type", "text/event-stream; charset=utf-8");
+        ex.getResponseHeaders().set("Cache-Control", "no-store");
+        ex.sendResponseHeaders(200, 0);
+        Thread me = Thread.currentThread();
+        OutputStream out = ex.getResponseBody();
+        Object lock = new Object();
+        // a comment line every ten seconds: an idle driver sends nothing, and a closed page is only noticed on a write
+        Thread beat = new Thread(() -> {
+            try {
+                while (true) {
+                    Thread.sleep(10_000);
+                    synchronized (lock) {
+                        write(out, ": keep-alive\n\n");
+                    }
+                }
+            } catch (IOException e) {
+                me.interrupt();
+            } catch (InterruptedException e) {
+                // the stream ended
+            }
+        }, "trace-beat");
+        beat.setDaemon(true);
+        beat.start();
+        try {
+            synchronized (lock) {
+                write(out, "event: open\ndata: {}\n\n");
+            }
+            vault.trace(required(query, "env"), required(query, "driver"), "true".equals(query.get("engine")), line -> {
+                try {
+                    synchronized (lock) {
+                        write(out, "data: " + Json.compact(line) + "\n\n");
+                    }
+                } catch (IOException e) {
+                    me.interrupt();
+                }
+            });
+        } catch (InterruptedException e) {
+            // the page closed the stream
+        } catch (Exception e) {
+            try {
+                synchronized (lock) {
+                    write(out, "event: fail\ndata: " + Json.compact(String.valueOf(e.getMessage())) + "\n\n");
+                }
+            } catch (IOException ignore) {
+                // nobody is listening
+            }
+        } finally {
+            beat.interrupt();
+            Thread.interrupted();
+            try {
+                out.close();
+            } catch (IOException ignore) {
+                // already gone
+            }
+        }
     }
 
     private static String coreVersion() {
@@ -158,7 +263,7 @@ public final class Api implements HttpHandler {
             int eq = pair.indexOf('=');
             String k = eq < 0 ? pair : pair.substring(0, eq);
             String v = eq < 0 ? "" : pair.substring(eq + 1);
-            out.put(URLDecoder.decode(k, StandardCharsets.UTF_8), URLDecoder.decode(v, StandardCharsets.UTF_8));
+            out.merge(URLDecoder.decode(k, StandardCharsets.UTF_8), URLDecoder.decode(v, StandardCharsets.UTF_8), (a, b) -> a + "\n" + b);
         }
         return out;
     }

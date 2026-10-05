@@ -9,7 +9,15 @@ IDM_HOME=${IDM_HOME:-"$HERE/../DirXMLDev"}
 WORK=$(mktemp -d)
 trap 'kill $PID 2>/dev/null || true; rm -rf "$WORK"' EXIT
 "$IDM_HOME/bin/idm" import-ldif "$IDM_HOME/src/test/resources/fixtures/synthetic/driverset.ldif" "$WORK/tree" >/dev/null
-"$HERE/bin/idmweb" serve "$WORK/tree" --no-open > "$WORK/log" 2>&1 &
+# an environment nothing listens on: the vault endpoints' gates are checked without a vault
+cat > "$WORK/environments.properties" <<'ENV'
+lab.url=ldaps://127.0.0.1:1
+lab.bindDn=cn=nobody,o=none
+lab.password=unused
+lab.driverSet=cn=DriverSet,o=synth
+lab.tier=dev
+ENV
+IDM_ENVIRONMENTS="$WORK/environments.properties" "$HERE/bin/idmweb" serve "$WORK/tree" --no-open > "$WORK/log" 2>&1 &
 PID=$!
 i=0
 while ! grep -q '#token=' "$WORK/log" 2>/dev/null; do
@@ -117,5 +125,16 @@ if "config.set-content" in names:
     check("and the wrong root is refused", not c2["ok"] and "<filter>" in c2["refusal"])
 else:
     print("skip config.set-content: this DirXMLDev does not have it")
+s, ve = call("GET", "/api/vault/environments")
+check("vault: the environments, by name and tier, without their values", s == 200 and ve["available"] and ve["environments"] == [{"name": "lab", "tier": "dev", "ready": True, "hasOverrides": False}])
+check("vault: an unknown environment is 400", call("GET", "/api/vault/diff?env=nope")[0] == 400)
+s, dep = call("POST", "/api/vault/deploy", {"env": "lab"})
+check("vault: a deploy without the typed environment name is refused before any connection", s == 200 and not dep["ok"] and "confirm" in dep["refusal"])
+s, dep = call("POST", "/api/vault/deploy", {"env": "lab", "confirm": "prod"})
+check("vault: and with another name", s == 200 and not dep["ok"] and "confirm" in dep["refusal"])
+s, lc = call("POST", "/api/vault/driver", {"env": "lab", "driver": "Loop", "action": "start"})
+check("vault: driver control without it is refused", s == 200 and not lc["ok"] and "confirm" in lc["text"])
+check("vault: an unknown driver action is 400", call("POST", "/api/vault/driver", {"env": "lab", "driver": "Loop", "action": "explode", "confirm": "lab"})[0] == 400)
+check("vault: the trace stream needs the token", call("GET", "/api/vault/trace?env=lab&driver=Loop", headers={"X-IDMWeb-Token": ""})[0] == 403)
 print("smoke: all passed")
 PY

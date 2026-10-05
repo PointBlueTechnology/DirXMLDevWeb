@@ -9,6 +9,12 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Added
 
+- W6 packages view: installed packages per driver and the Library against the catalog
+  (upgrade, uninstall, revert customized objects, adopt records, install through the review),
+  the catalog's packages, and building a package from the tree into the catalog.
+  `GET /api/packages`, `POST /api/packages/build`; `serve --catalog DIR` (or `IDM_CATALOG`),
+  supplied to every package operation the page runs.
+
 - W5 provisioning views: a PRD's workflow as a diagram with an activity panel (properties,
   links, data items, insert, rename, remove) and a details tab; a form's fields, JSON and
   bindings; the role and resource catalog. New endpoints `GET /api/prd`, `/api/form`,

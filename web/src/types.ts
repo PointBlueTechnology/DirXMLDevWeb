@@ -184,6 +184,7 @@ export type Selection =
   | { type: "prd"; driver: string; name: string }
   | { type: "form"; driver: string; name: string }
   | { type: "roles" }
+  | { type: "packages" }
   | { type: "operations" };
 
 /** An environment of the environments file, described without its values. */
@@ -372,4 +373,42 @@ export interface RoleCatalog {
   drivers: string[];
   roles: CatalogObject[];
   resources: CatalogObject[];
+}
+
+export interface CatalogPackage {
+  short: string;
+  id: string | null;
+  displayName: string | null;
+  type: number;
+  base: boolean;
+  versions: string[];
+  newest: string | null;
+}
+
+export interface InstalledPackage {
+  short: string;
+  id: string | null;
+  version: string | null;
+  base: boolean;
+  inManifest: boolean;
+  objects: number;
+  inCatalog: string | null;
+  newer: string | null;
+}
+
+export interface PackagesData {
+  catalog: { dir: string | null; available: boolean; packages: CatalogPackage[] };
+  status: { targets: { name: string; packages: InstalledPackage[]; customized: string[]; notes: string[] }[] };
+  text: string;
+}
+
+export interface BuildResult {
+  ok: boolean;
+  refusal?: string;
+  jar: string | null;
+  packageId: string | null;
+  version: string | null;
+  objects: string[];
+  notes: string[];
+  text: string;
 }

@@ -25,12 +25,14 @@ public final class Api implements HttpHandler {
     private final VaultService vault;
     private final SimService sim;
     private final ProvisioningService prov;
+    private final PackageService packages;
     private final Watcher watcher;
     private final Security security;
     private final String version;
 
-    public Api(TreeService service, VaultService vault, SimService sim, ProvisioningService prov, Watcher watcher, Security security, String version) {
+    public Api(TreeService service, VaultService vault, SimService sim, ProvisioningService prov, PackageService packages, Watcher watcher, Security security, String version) {
         this.prov = prov;
+        this.packages = packages;
         this.service = service;
         this.vault = vault;
         this.sim = sim;
@@ -109,6 +111,8 @@ public final class Api implements HttpHandler {
                     return prov.form(required(query, "driver"), required(query, "name"));
                 case "/api/roles":
                     return prov.catalog();
+                case "/api/packages":
+                    return packages.overview();
                 case "/api/sim/cases":
                     return sim.list();
                 case "/api/sim/case":
@@ -143,6 +147,9 @@ public final class Api implements HttpHandler {
                 calls.add(new TreeService.Call(path.substring("/api/op/".length()), strings(req.get("args")), strings(req.get("files"))));
             }
             return service.run(calls, Boolean.TRUE.equals(req.get("dryRun")), Boolean.TRUE.equals(req.get("force")), Json.asString(req.get("revision")));
+        }
+        if (method.equals("POST") && path.equals("/api/packages/build")) {
+            return packages.build(Json.asMap(Json.parse(new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8))));
         }
         if (method.equals("POST") && path.startsWith("/api/sim/")) {
             Map<String, Object> req = Json.asMap(Json.parse(new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8)));

@@ -63,6 +63,13 @@ public final class TreeService {
     private DriverSet cached;
     private String cachedRevision;
 
+    private String catalogArg;
+
+    /** The catalog directory package operations take when the page gives none. */
+    public void catalog(String dir) {
+        this.catalogArg = dir;
+    }
+
     public TreeService(Path tree, Watcher watcher) {
         this.tree = tree.toAbsolutePath().normalize();
         this.watcher = watcher;
@@ -367,6 +374,11 @@ public final class TreeService {
             throw new NotFound("no operation '" + c.name + "'");
         }
         Map<String, String> all = new LinkedHashMap<>(c.args);
+        // the server's package catalog stands in for --catalog when a package operation names none
+        if (c.name.startsWith("package.") && !all.containsKey("catalog") && catalogArg != null
+                && spec.args.stream().anyMatch(a -> a.name.equals("catalog"))) {
+            all.put("catalog", catalogArg);
+        }
         List<Path> temps = new ArrayList<>();
         try {
             for (Map.Entry<String, String> f : c.files.entrySet()) {

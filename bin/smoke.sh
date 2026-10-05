@@ -17,7 +17,7 @@ lab.password=unused
 lab.driverSet=cn=DriverSet,o=synth
 lab.tier=dev
 ENV
-IDM_ENVIRONMENTS="$WORK/environments.properties" "$HERE/bin/idmweb" serve "$WORK/tree" --no-open > "$WORK/log" 2>&1 &
+IDM_ENVIRONMENTS="$WORK/environments.properties" "$HERE/bin/idmweb" serve "$WORK/tree" --catalog "$WORK/catalog" --no-open > "$WORK/log" 2>&1 &
 PID=$!
 i=0
 while ! grep -q '#token=' "$WORK/log" 2>/dev/null; do
@@ -141,6 +141,16 @@ elif "WRONG_DOCUMENT" in str(fe):
     print("skip flow edit: this DirXMLDev lacks the flow fix (DirXMLDev PR #32)")
 else:
     check("provisioning: a flow edit lands", False)
+s, pk = call("GET", "/api/packages")
+check("packages: an empty catalog and the tree's installed packages (none)", s == 200 and pk["catalog"]["available"] and pk["catalog"]["packages"] == [] and [t["name"] for t in pk["status"]["targets"]] == ["Loop"] and pk["status"]["targets"][0]["packages"] == [])
+check("packages: a build needs a short name and a display name", call("POST", "/api/packages/build", {"driver": "Loop", "short": "SYNTHLOOP"})[0] == 400)
+s, bd = call("POST", "/api/packages/build", {"driver": "Loop", "short": "SYNTHLOOP", "name": "Synthetic Loop", "vendor": "Point Blue", "version": "0.1.0"})
+check("packages: a package is built from the driver into the catalog", s == 200 and bd["ok"] and bd["jar"].endswith(".jar") and any(o.startswith("drivers/Loop/") for o in bd["objects"]))
+s, pk = call("GET", "/api/packages")
+check("packages: the catalog lists it", s == 200 and [p["short"] for p in pk["catalog"]["packages"]] == ["SYNTHLOOP"] and pk["catalog"]["packages"][0]["versions"][0].startswith("0.1.0"))
+rev = call("GET", "/api/session")[1]["revision"]
+s, inst = call("POST", "/api/op/package.install", {"args": {"driver": "Loop", "package": "SYNTHLOOP"}, "dryRun": True, "revision": rev})
+check("packages: the server supplies the catalog to package operations", s == 200 and "catalog" not in str(inst.get("refusal")) and ("already exists" in str(inst.get("refusal")) or inst["ok"]))
 s, sc = call("GET", "/api/sim/cases")
 check("simulator: an empty corpus, and where it will be kept", s == 200 and sc["cases"] == [] and sc["dir"].endswith("/cases"))
 xds = '<nds dtdversion="4.0"><input><add class-name="User" src-dn="\\SYNTH\\synth\\people\\jdoe"><add-attr attr-name="Surname"><value type="string">Doe</value></add-attr><add-attr attr-name="Title"><value type="string">mgr</value></add-attr></add></input></nds>'

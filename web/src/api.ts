@@ -8,6 +8,8 @@ import type {
   OpSpec,
   Outline,
   OverridesData,
+  PackagesData,
+  BuildResult,
   PrdData,
   FormData as FormDoc,
   RoleCatalog,
@@ -88,6 +90,8 @@ export const api = {
   prd: (driver: string, name: string) => call<PrdData>("GET", `/api/prd?driver=${q(driver)}&name=${q(name)}`),
   form: (driver: string, name: string) => call<FormDoc>("GET", `/api/form?driver=${q(driver)}&name=${q(name)}`),
   roles: () => call<RoleCatalog>("GET", "/api/roles"),
+  packages: () => call<PackagesData>("GET", "/api/packages"),
+  buildPackage: (req: Record<string, unknown>) => call<BuildResult>("POST", "/api/packages/build", req),
   sim: {
     cases: () => call<SimCases>("GET", "/api/sim/cases"),
     files: (name: string) => call<SimCaseFiles>("GET", `/api/sim/case?name=${q(name)}`),

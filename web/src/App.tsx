@@ -14,6 +14,7 @@ import { SimView } from "./components/SimView";
 import { PrdView } from "./components/PrdView";
 import { FormView } from "./components/FormView";
 import { RolesView } from "./components/RolesView";
+import { PackagesView } from "./components/PackagesView";
 
 export function App() {
   const [token] = useState(() => takeToken());
@@ -158,6 +159,9 @@ export function App() {
           <button className={selection.type === "simulator" ? "navbtn active" : "navbtn"} onClick={() => setSelection({ type: "simulator" })}>
             Simulator
           </button>
+          <button className={selection.type === "packages" ? "navbtn active" : "navbtn"} onClick={() => setSelection({ type: "packages" })}>
+            Packages
+          </button>
           {outline?.drivers.some((d) => d.forms.length + d.prds.length > 0) && (
             <button className={selection.type === "roles" ? "navbtn active" : "navbtn"} onClick={() => setSelection({ type: "roles" })}>
               Roles and resources
@@ -187,6 +191,7 @@ export function App() {
           {selection.type === "prd" && <PrdView key={selection.driver + "/" + selection.name} driver={selection.driver} name={selection.name} revision={revision} onSelect={setSelection} onSaved={reload} />}
           {selection.type === "form" && <FormView key={selection.driver + "/" + selection.name} driver={selection.driver} name={selection.name} revision={revision} onSelect={setSelection} onSaved={reload} />}
           {selection.type === "roles" && <RolesView revision={revision} onSaved={reload} />}
+          {selection.type === "packages" && outline && <PackagesView drivers={outline.drivers.map((d) => d.name)} revision={revision} onSaved={reload} onOpen={open} />}
           {selection.type === "simulator" && outline && <SimView drivers={outline.drivers.map((d) => d.name)} revision={revision} />}
           {selection.type === "vault" && outline && <VaultView drivers={outline.drivers.map((d) => d.name)} revision={revision} onOpen={open} />}
         </main>

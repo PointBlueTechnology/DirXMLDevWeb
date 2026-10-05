@@ -61,6 +61,10 @@ the page follows the files.
     PRD activities that show it.
   - *Roles and resources*: the catalog, with display names and descriptions editable, add and
     remove, through `role.*` and `resource.*`.
+- **Packages** (W6): what each driver and the Library have installed against the catalog, with
+  upgrades the catalog offers, customized packaged objects (revert) and missing records
+  (adopt); install, upgrade and uninstall through the review; the catalog's packages; a
+  package built from a driver into the catalog.
 - **Simulator** (W4): a corpus of cases run through the tree's policies by the engine's own
   classes.
   - *Run all* gives each case its verdict against what it recorded, as `idm simulate` does.
@@ -96,7 +100,9 @@ bin/idmweb serve /path/to/tree
 
 The build also needs `dirxml-simulator` in `~/.m2` (`mvn install` in DirXMLSimulator), which a
 built DirXMLDev already has. Simulator cases are read from `cases/` beside the tree; name
-another place with `--cases DIR`.
+another place with `--cases DIR`. The package catalog is `--catalog DIR` (or `IDM_CATALOG`);
+without one, installed packages are still listed from the tree but nothing can be installed,
+upgraded or built.
 
 The server prints a URL and opens it. DirXMLDev is found at `IDM_HOME`, else at `../DirXMLDev`.
 The server runs on that checkout's own classes, engine jars and simulator, so the page sees
@@ -150,6 +156,8 @@ bin/smoke.sh           # every endpoint, the security gates and the write path, 
   resource-request and notification settings, a form field's other properties and owners,
   approvers and other languages of a role go through Operations (`flow.activity.set`,
   `form.field.set --prop`, `role.set`). Branches are inserted with `flow.branch.add` there.
+- Packages with prompts take their answers file through Operations → package.install;
+  `package.fetch` and `package.import` fill the catalog from the CLI.
 - Flow edits need a DirXMLDev with the `syncDefinition` fix (DirXMLDev PR #32; after 0.7.0).
 - Stage overrides and whole-document configuration editing need a DirXMLDev with
   `override.set` and `config.set-content` (after 0.7.0); without them those controls are hidden

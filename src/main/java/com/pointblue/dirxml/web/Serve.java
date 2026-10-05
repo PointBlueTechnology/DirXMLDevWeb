@@ -24,13 +24,14 @@ public final class Serve {
             return;
         }
         if (args.length < 2 || !args[0].equals("serve")) {
-            System.err.println("usage: idmweb serve <tree> [--port N] [--no-open] [--web DIR] [--cases DIR]\n       idmweb version");
+            System.err.println("usage: idmweb serve <tree> [--port N] [--no-open] [--web DIR] [--cases DIR] [--catalog DIR]\n       idmweb version");
             System.exit(2);
         }
         Path tree = Path.of(args[1]).toAbsolutePath().normalize();
         int port = 0;
         boolean open = true;
         Path cases = null;
+        Path catalog = null;
         Path web = Path.of(System.getProperty("idmweb.home", System.getProperty("user.dir")), "web", "dist");
         for (int i = 2; i < args.length; i++) {
             switch (args[i]) {
@@ -38,6 +39,7 @@ public final class Serve {
                 case "--no-open": open = false; break;
                 case "--web": web = Path.of(args[++i]); break;
                 case "--cases": cases = Path.of(args[++i]); break;
+                case "--catalog": catalog = Path.of(args[++i]); break;
                 default:
                     System.err.println("unexpected argument '" + args[i] + "'");
                     System.exit(2);
@@ -52,7 +54,9 @@ public final class Serve {
         int bound = server.getAddress().getPort();
         Security security = new Security(Security.newToken(), bound);
         TreeService service = new TreeService(tree, watcher);
-        server.createContext("/api/", new Api(service, new VaultService(tree), new SimService(tree, SimService.locate(tree, cases)), new ProvisioningService(tree), watcher, security, VERSION));
+        PackageService packageService = new PackageService(tree, PackageService.locate(catalog, System.getenv("IDM_CATALOG")));
+        service.catalog(packageService.catalogArg());
+        server.createContext("/api/", new Api(service, new VaultService(tree), new SimService(tree, SimService.locate(tree, cases)), new ProvisioningService(tree), packageService, watcher, security, VERSION));
         server.createContext("/", new StaticFiles(web));
         server.setExecutor(Executors.newCachedThreadPool(r -> {
             Thread t = new Thread(r, "idmweb-http");

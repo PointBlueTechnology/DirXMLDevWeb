@@ -51,6 +51,13 @@ the page follows the files.
   - *Drivers*: every driver's state, start option and cache; start, stop and restart behind
     the same typed confirmation.
   - *Trace*: a driver's trace, live, with a filter.
+- **Simulator** (W4): a corpus of cases run through the tree's policies by the engine's own
+  classes.
+  - *Run all* gives each case its verdict against what it recorded, as `idm simulate` does.
+  - A case opens *stage by stage*: the document before and after every policy, as a diff, with
+    that policy's trace, queries and commands.
+  - Edit the input and *run without saving*; record the output a case should keep producing.
+  - Run with a stage's override values, and compare the result with another stage's.
 - **Live follow**: any change to the tree, by anything, reloads the page within a second.
 
 ## Run it
@@ -76,6 +83,10 @@ cd web && npm ci && npm run build
 # serve a tree (import one with `idm import-live`, `import` or `import-ldif`)
 bin/idmweb serve /path/to/tree
 ```
+
+The build also needs `dirxml-simulator` in `~/.m2` (`mvn install` in DirXMLSimulator), which a
+built DirXMLDev already has. Simulator cases are read from `cases/` beside the tree; name
+another place with `--cases DIR`.
 
 The server prints a URL and opens it. DirXMLDev is found at `IDM_HOME`, else at `../DirXMLDev`.
 The server runs on that checkout's own classes, engine jars and simulator, so the page sees
@@ -134,7 +145,11 @@ bin/smoke.sh           # every endpoint, the security gates and the write path, 
   stepwise deploys and rollback stay with `idm vault.deploy` and `idm vault.rollback`; a deploy's
   result names its snapshot.
 - The trace view reads over the environment's LDAPS connection and keeps the last 5,000 lines.
-- No simulator yet (W4).
+- The simulator view creates plain cases (a driver, a channel, an input document). A case's
+  other keys (schema, a fake directory, assertions, a live query source) are honoured when run
+  but are edited in its files; comparing with another tree stays with `idm simulate --against`.
+- Cases are kept in `cases/` beside the tree (or `--cases DIR`). They are not part of the
+  tree's revision: the page reloads them after its own writes.
 - The server reaches one DirXMLDev internal by reflection (an operation's factory). A public
   method is proposed upstream; see `TreeService.factoryOf`.
 - Local mode only. The hosted mode is designed (docs/design.md) and not built.

@@ -1,6 +1,6 @@
 # DirXMLDevWeb: assessment and design
 
-Status: **decided 2026-10-05; W0–W3 built** (this repository). The note was written in DirXMLDev as `docs/web-designer.md`; this is its home now.
+Status: **decided 2026-10-05; W0–W4 built** (this repository). The note was written in DirXMLDev as `docs/web-designer.md`; this is its home now.
 
 The question: build a web version of Designer, perhaps with WebAssembly.
 The answer in one paragraph: **yes to a web workbench, no to porting Designer,

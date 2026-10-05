@@ -1024,3 +1024,23 @@ button.danger:not(:disabled) { background: var(--err); border-color: var(--err);
 .field.confirm input { font-family: var(--mono, ui-monospace, monospace); width: 12em; }
 .tracepane { display: flex; flex-direction: column; min-height: 0; height: 100%; box-sizing: border-box; }
 .tracebox { flex: 1; min-height: 240px; overflow: auto; margin: 8px 0; padding: 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; line-height: 1.4; white-space: pre; }
+
+/* simulator */
+.sim { display: flex; flex-direction: column; min-height: 0; height: 100%; }
+.simbody { display: flex; flex: 1; min-height: 0; }
+.simlist { width: 260px; flex: none; overflow: auto; padding: 8px 12px; border-right: 1px solid var(--border); }
+.simlist .leaf { width: 100%; text-align: left; }
+.simmain { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: auto; }
+.simcase { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.simstages { display: flex; flex: 1; min-height: 0; }
+.stagelist { width: 280px; flex: none; margin: 0; padding: 8px; list-style: none; overflow: auto; border-right: 1px solid var(--border); }
+.stagelist .leaf { width: 100%; text-align: left; overflow-wrap: anywhere; white-space: normal; height: auto; }
+.stagepane { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 8px 12px; }
+.stagediff { flex: 1; min-height: 280px; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.stagetrace { margin-top: 8px; }
+.stagetrace pre { max-height: 220px; overflow: auto; }
+.simtrace { margin: 12px; }
+@media (max-width: 900px) {
+  .simbody, .simstages { flex-direction: column; }
+  .simlist, .stagelist { width: auto; border-right: 0; border-bottom: 1px solid var(--border); max-height: 180px; }
+}

@@ -9,6 +9,10 @@ import type {
   Outline,
   OverridesData,
   Session,
+  SimCaseFiles,
+  SimCases,
+  SimDetail,
+  SimRun,
   TreeFile,
   Validation,
   VaultDiffResult,
@@ -78,6 +82,16 @@ export const api = {
   catalog: () => call<{ operations: OpSpec[] }>("GET", "/api/catalog"),
   config: (driver: string | null) => call<ConfigView>("GET", driver ? `/api/config?driver=${q(driver)}` : "/api/config"),
   overrides: () => call<OverridesData>("GET", "/api/overrides"),
+  sim: {
+    cases: () => call<SimCases>("GET", "/api/sim/cases"),
+    files: (name: string) => call<SimCaseFiles>("GET", `/api/sim/case?name=${q(name)}`),
+    /** The whole corpus as the gate runs it. */
+    run: (env: string | null) => call<SimRun>("POST", "/api/sim/run", { env }),
+    /** One case stage by stage; `input` replaces the case's input for this run only; `against` ("" = base values) compares with another stage. */
+    detail: (name: string, opts: { env?: string | null; input?: string; against?: string }) => call<SimDetail>("POST", "/api/sim/detail", { name, ...opts }),
+    save: (name: string, input: string, driver?: string, channel?: string) => call<{ name: string; created: boolean }>("POST", "/api/sim/save", { name, input, driver, channel }),
+    record: (name: string) => call<{ name: string; wrote: string[] }>("POST", "/api/sim/record", { name }),
+  },
   vault: {
     environments: () => call<VaultEnvironments>("GET", "/api/vault/environments"),
     diff: (env: string, drivers: string[]) => call<VaultDiffResult>("GET", `/api/vault/diff?env=${q(env)}${drivers.map((d) => `&driver=${q(d)}`).join("")}`),

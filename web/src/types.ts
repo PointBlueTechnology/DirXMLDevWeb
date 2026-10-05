@@ -180,6 +180,7 @@ export type Selection =
   | { type: "config"; driver: string | null }
   | { type: "overrides" }
   | { type: "vault" }
+  | { type: "simulator" }
   | { type: "operations" };
 
 /** An environment of the environments file, described without its values. */
@@ -255,4 +256,63 @@ export interface LifecycleResult {
   text: string;
   driver: string;
   action: string;
+}
+
+export interface SimCase {
+  name: string;
+  driver: string | null;
+  channel: string;
+  hasExpected: boolean;
+}
+
+export interface SimCases {
+  dir: string;
+  exists: boolean;
+  cases: SimCase[];
+}
+
+export interface SimCaseFiles {
+  name: string;
+  driver: string | null;
+  channel: string;
+  properties: string | null;
+  input: string | null;
+  expected: string | null;
+  assertions: string | null;
+  directory: string | null;
+}
+
+export interface SimRun {
+  ok: boolean;
+  pass: number;
+  fail: number;
+  error: number;
+  skip: number;
+  cases: { name: string; outcome: string; detail: string }[];
+  notes: string[];
+}
+
+export interface SimStage {
+  name: string;
+  input: string;
+  output: string;
+  changed: boolean;
+  trace: string | null;
+  queries: string[];
+  commands: string[];
+  error: string | null;
+}
+
+export interface SimDetail {
+  name: string;
+  ok: boolean;
+  error?: string;
+  stages?: SimStage[];
+  final?: string;
+  trace?: string;
+  warnings?: string[];
+  outcome?: string;
+  outcomeDetail?: string;
+  notes: string[];
+  against?: { environment: string | null; same?: boolean; firstDivergesAt?: string | null; finalDetail?: string; stages?: { name: string; same: boolean; detail: string }[]; error?: string };
 }

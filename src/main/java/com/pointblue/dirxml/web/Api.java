@@ -23,13 +23,15 @@ public final class Api implements HttpHandler {
 
     private final TreeService service;
     private final VaultService vault;
+    private final SimService sim;
     private final Watcher watcher;
     private final Security security;
     private final String version;
 
-    public Api(TreeService service, VaultService vault, Watcher watcher, Security security, String version) {
+    public Api(TreeService service, VaultService vault, SimService sim, Watcher watcher, Security security, String version) {
         this.service = service;
         this.vault = vault;
+        this.sim = sim;
         this.watcher = watcher;
         this.security = security;
         this.version = version;
@@ -99,6 +101,10 @@ public final class Api implements HttpHandler {
                     return service.config(query.get("driver"));
                 case "/api/overrides":
                     return service.overrides();
+                case "/api/sim/cases":
+                    return sim.list();
+                case "/api/sim/case":
+                    return sim.files(required(query, "name"));
                 case "/api/vault/environments":
                     return vault.environments();
                 case "/api/vault/diff":
@@ -129,6 +135,23 @@ public final class Api implements HttpHandler {
                 calls.add(new TreeService.Call(path.substring("/api/op/".length()), strings(req.get("args")), strings(req.get("files"))));
             }
             return service.run(calls, Boolean.TRUE.equals(req.get("dryRun")), Boolean.TRUE.equals(req.get("force")), Json.asString(req.get("revision")));
+        }
+        if (method.equals("POST") && path.startsWith("/api/sim/")) {
+            Map<String, Object> req = Json.asMap(Json.parse(new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8)));
+            String name = Json.asString(req.get("name"));
+            switch (path) {
+                case "/api/sim/run":
+                    return sim.runAll(Json.asString(req.get("env")));
+                case "/api/sim/detail":
+                    return sim.detail(name, Json.asString(req.get("env")), Json.asString(req.get("input")),
+                        req.containsKey("against") ? String.valueOf(req.get("against") == null ? "" : req.get("against")) : null);
+                case "/api/sim/save":
+                    return sim.save(name, Json.asString(req.get("driver")), Json.asString(req.get("channel")), Json.asString(req.get("input")));
+                case "/api/sim/record":
+                    return sim.record(name);
+                default:
+                    break;
+            }
         }
         if (method.equals("POST") && path.startsWith("/api/vault/")) {
             Map<String, Object> req = Json.asMap(Json.parse(new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8)));

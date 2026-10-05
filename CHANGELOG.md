@@ -9,6 +9,11 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Added
 
+- W4 simulator view: the corpus with a verdict per case, one case stage by stage (document
+  before and after each policy, trace, queries, commands), trying an input without saving it,
+  recording expected output, running with a stage's values and comparing two stages. New
+  endpoints under `/api/sim/`; `serve --cases DIR`.
+
 - W3 vault view: compare the tree with an environment's vault, plan and run a deploy, see and
   control the drivers, follow a driver's trace. New endpoints under `/api/vault/`; a write to a
   vault needs the environment's name typed into the page, checked by the server.

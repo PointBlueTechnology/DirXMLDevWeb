@@ -10,6 +10,7 @@ import { FlowView } from "./components/FlowView";
 import { OperationsView } from "./components/OperationsView";
 import { ValidationPanel } from "./components/ValidationPanel";
 import { VaultView } from "./components/VaultView";
+import { SimView } from "./components/SimView";
 
 export function App() {
   const [token] = useState(() => takeToken());
@@ -151,6 +152,9 @@ export function App() {
           <button className={selection.type === "vault" ? "navbtn active" : "navbtn"} onClick={() => setSelection({ type: "vault" })}>
             Vault
           </button>
+          <button className={selection.type === "simulator" ? "navbtn active" : "navbtn"} onClick={() => setSelection({ type: "simulator" })}>
+            Simulator
+          </button>
           {outline ? <OutlineTree outline={outline} selection={selection} onSelect={setSelection} /> : <p className="muted pad">Loading the tree…</p>}
         </nav>
         <main className="main">
@@ -172,6 +176,7 @@ export function App() {
           )}
           {selection.type === "overrides" && <OverridesView revision={revision} canEdit={opNames.has("override.set")} onSaved={reload} />}
           {selection.type === "operations" && <OperationsView onDone={reload} />}
+          {selection.type === "simulator" && outline && <SimView drivers={outline.drivers.map((d) => d.name)} revision={revision} />}
           {selection.type === "vault" && outline && <VaultView drivers={outline.drivers.map((d) => d.name)} revision={revision} onOpen={open} />}
         </main>
         <aside className="problems">

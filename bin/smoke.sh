@@ -125,6 +125,25 @@ if "config.set-content" in names:
     check("and the wrong root is refused", not c2["ok"] and "<filter>" in c2["refusal"])
 else:
     print("skip config.set-content: this DirXMLDev does not have it")
+s, sc = call("GET", "/api/sim/cases")
+check("simulator: an empty corpus, and where it will be kept", s == 200 and sc["cases"] == [] and sc["dir"].endswith("/cases"))
+xds = '<nds dtdversion="4.0"><input><add class-name="User" src-dn="\\SYNTH\\synth\\people\\jdoe"><add-attr attr-name="Surname"><value type="string">Doe</value></add-attr><add-attr attr-name="Title"><value type="string">mgr</value></add-attr></add></input></nds>'
+check("simulator: a case name cannot leave the corpus", call("POST", "/api/sim/save", {"name": "../x", "driver": "Loop", "input": xds})[0] == 400)
+check("simulator: an input that is not XML is refused", call("POST", "/api/sim/save", {"name": "bad", "driver": "Loop", "input": "<a>"})[0] == 400)
+check("simulator: a case for a driver the tree lacks is refused", call("POST", "/api/sim/save", {"name": "bad", "driver": "Nope", "input": xds})[0] == 400)
+s, sv = call("POST", "/api/sim/save", {"name": "add-user", "driver": "Loop", "channel": "subscriber", "input": xds})
+check("simulator: a case is created", s == 200 and sv["created"])
+s, det = call("POST", "/api/sim/detail", {"name": "add-user"})
+check("simulator: the case runs stage by stage through the tree's policies",
+      s == 200 and det["ok"] and [st["name"] for st in det["stages"]] == ["subscriber-command:sub-ctp-VetoSurname", "subscriber-command:lib-NormalizeTitle", "schema-mapping:smp"]
+      and [st["changed"] for st in det["stages"]] == [False, True, True] and ">Manager<" in det["final"] and det["outcome"] == "skip")
+s, rec = call("POST", "/api/sim/record", {"name": "add-user"})
+check("simulator: its output is recorded", s == 200 and rec["wrote"] == ["expected-output.xds"])
+s, run = call("POST", "/api/sim/run", {})
+check("simulator: the corpus passes", s == 200 and run["ok"] and run["pass"] == 1)
+s, det = call("POST", "/api/sim/detail", {"name": "add-user", "input": xds.replace(">mgr<", ">eng<"), "against": ""})
+check("simulator: another input is tried without saving it, and fails what was recorded",
+      s == 200 and det["outcome"] == "fail" and ">Engineer<" in det["final"] and det["against"]["same"] and ">mgr<" in call("GET", "/api/sim/case?name=add-user")[1]["input"])
 s, ve = call("GET", "/api/vault/environments")
 check("vault: the environments, by name and tier, without their values", s == 200 and ve["available"] and ve["environments"] == [{"name": "lab", "tier": "dev", "ready": True, "hasOverrides": False}])
 check("vault: an unknown environment is 400", call("GET", "/api/vault/diff?env=nope")[0] == 400)

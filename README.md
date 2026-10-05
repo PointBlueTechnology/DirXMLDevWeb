@@ -51,6 +51,16 @@ the page follows the files.
   - *Drivers*: every driver's state, start option and cache; start, stop and restart behind
     the same typed confirmation.
   - *Trace*: a driver's trace, live, with a filter.
+- **Provisioning** (W5), for the User Application driver:
+  - *PRD*: the workflow drawn as a diagram from the core's flow model. Select an activity to
+    change its name, form, addressee and timeout, its links out (add, retype, remove), its data
+    items, to insert an activity after it, rename or remove it; the process attributes and the
+    forms the PRD binds are on the Details tab. Every change is a `flow.*` operation, reviewed.
+  - *Form*: the components as a list (label, required, hidden, order, add, remove through
+    `form.field.*`), the document as JSON (saved whole through `form.set-content`), and the
+    PRD activities that show it.
+  - *Roles and resources*: the catalog, with display names and descriptions editable, add and
+    remove, through `role.*` and `resource.*`.
 - **Simulator** (W4): a corpus of cases run through the tree's policies by the engine's own
   classes.
   - *Run all* gives each case its verdict against what it recorded, as `idm simulate` does.
@@ -136,7 +146,11 @@ bin/smoke.sh           # every endpoint, the security gates and the write path, 
 - The structured policy editor covers DirXML Script. XSLT and ECMAScript are edited as source.
 - The editor's grammar table (`web/src/policy/grammar.json`) is generated from the DirXML Script
   DTD that ships with Designer by `tools/dtd2grammar.py`; regenerate it for a newer DTD.
-- Forms and PRD parts open read-only; change them through Operations (W5).
+- The PRD and form editors cover the common settings; an activity's REST, role-request,
+  resource-request and notification settings, a form field's other properties and owners,
+  approvers and other languages of a role go through Operations (`flow.activity.set`,
+  `form.field.set --prop`, `role.set`). Branches are inserted with `flow.branch.add` there.
+- Flow edits need a DirXMLDev with the `syncDefinition` fix (DirXMLDev PR #32; after 0.7.0).
 - Stage overrides and whole-document configuration editing need a DirXMLDev with
   `override.set` and `config.set-content` (after 0.7.0); without them those controls are hidden
   or read-only.

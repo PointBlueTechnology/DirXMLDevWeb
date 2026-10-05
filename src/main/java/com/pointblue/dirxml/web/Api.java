@@ -24,11 +24,13 @@ public final class Api implements HttpHandler {
     private final TreeService service;
     private final VaultService vault;
     private final SimService sim;
+    private final ProvisioningService prov;
     private final Watcher watcher;
     private final Security security;
     private final String version;
 
-    public Api(TreeService service, VaultService vault, SimService sim, Watcher watcher, Security security, String version) {
+    public Api(TreeService service, VaultService vault, SimService sim, ProvisioningService prov, Watcher watcher, Security security, String version) {
+        this.prov = prov;
         this.service = service;
         this.vault = vault;
         this.sim = sim;
@@ -101,6 +103,12 @@ public final class Api implements HttpHandler {
                     return service.config(query.get("driver"));
                 case "/api/overrides":
                     return service.overrides();
+                case "/api/prd":
+                    return prov.prd(required(query, "driver"), required(query, "name"));
+                case "/api/form":
+                    return prov.form(required(query, "driver"), required(query, "name"));
+                case "/api/roles":
+                    return prov.catalog();
                 case "/api/sim/cases":
                     return sim.list();
                 case "/api/sim/case":

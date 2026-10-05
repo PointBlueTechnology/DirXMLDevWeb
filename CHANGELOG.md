@@ -9,6 +9,12 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Added
 
+- W5 provisioning views: a PRD's workflow as a diagram with an activity panel (properties,
+  links, data items, insert, rename, remove) and a details tab; a form's fields, JSON and
+  bindings; the role and resource catalog. New endpoints `GET /api/prd`, `/api/form`,
+  `/api/roles`; every change is one of the core's `flow.*`, `form.*`, `role.*`, `resource.*`
+  operations through the review dialog.
+
 - W4 simulator view: the corpus with a verdict per case, one case stage by stage (document
   before and after each policy, trace, queries, commands), trying an input without saving it,
   recording expected output, running with a stage's values and comparing two stages. New

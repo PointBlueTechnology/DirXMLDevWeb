@@ -125,6 +125,22 @@ if "config.set-content" in names:
     check("and the wrong root is refused", not c2["ok"] and "<filter>" in c2["refusal"])
 else:
     print("skip config.set-content: this DirXMLDev does not have it")
+s, prd = call("GET", "/api/prd?driver=Loop&name=Request%20Access")
+check("provisioning: a PRD's workflow as activities and links", s == 200 and [a["kind"] for a in prd["flow"]["activities"]] == ["start", "user", "finish"]
+      and len(prd["flow"]["links"]) == 3 and prd["flow"]["activities"][1]["form"] == "Approve Access" and prd["bindings"][0]["form"] == "Request Access")
+check("provisioning: an unknown PRD is 404", call("GET", "/api/prd?driver=Loop&name=Nope")[0] == 404)
+s, frm = call("GET", "/api/form?driver=Loop&name=Request%20Access")
+check("provisioning: a form with the PRD that binds it", s == 200 and frm["kind"] == "request" and '"components"' in frm["json"] and frm["usedBy"] == [{"prd": "Request Access", "activity": None, "fields": ["reason", "submit"]}])
+s, cat = call("GET", "/api/roles")
+check("provisioning: the catalog of the driver with provisioning", s == 200 and cat["drivers"] == ["Loop"] and cat["roles"] == [] and cat["resources"] == [])
+rev = call("GET", "/api/session")[1]["revision"]
+s, fe = call("POST", "/api/op/flow.activity.set", {"args": {"prd": "Request Access", "driver": "Loop", "id": "Approval", "name": "Manager approval"}, "dryRun": False, "revision": rev})
+if s == 200 and fe.get("ok"):
+    check("provisioning: a flow edit lands and the workflow shows it", call("GET", "/api/prd?driver=Loop&name=Request%20Access")[1]["flow"]["activities"][1]["name"] == "Manager approval")
+elif "WRONG_DOCUMENT" in str(fe):
+    print("skip flow edit: this DirXMLDev lacks the flow fix (DirXMLDev PR #32)")
+else:
+    check("provisioning: a flow edit lands", False)
 s, sc = call("GET", "/api/sim/cases")
 check("simulator: an empty corpus, and where it will be kept", s == 200 and sc["cases"] == [] and sc["dir"].endswith("/cases"))
 xds = '<nds dtdversion="4.0"><input><add class-name="User" src-dn="\\SYNTH\\synth\\people\\jdoe"><add-attr attr-name="Surname"><value type="string">Doe</value></add-attr><add-attr attr-name="Title"><value type="string">mgr</value></add-attr></add></input></nds>'

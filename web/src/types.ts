@@ -181,6 +181,9 @@ export type Selection =
   | { type: "overrides" }
   | { type: "vault" }
   | { type: "simulator" }
+  | { type: "prd"; driver: string; name: string }
+  | { type: "form"; driver: string; name: string }
+  | { type: "roles" }
   | { type: "operations" };
 
 /** An environment of the environments file, described without its values. */
@@ -315,4 +318,58 @@ export interface SimDetail {
   outcomeDetail?: string;
   notes: string[];
   against?: { environment: string | null; same?: boolean; firstDivergesAt?: string | null; finalDetail?: string; stages?: { name: string; same: boolean; detail: string }[]; error?: string };
+}
+
+export interface FlowActivity {
+  id: string;
+  kind: string;
+  name: string | null;
+  attrs: Record<string, string>;
+  parts: Record<string, string>;
+  xml: string;
+  linkTypes: string[];
+  dataItems: { name: string; dataType: string | null; source: string | null; target: string | null; targetType: string | null }[];
+  form: string | null;
+}
+
+export interface FlowLink {
+  from: string;
+  to: string;
+  type: string;
+}
+
+export interface PrdData {
+  driver: string;
+  name: string;
+  dir: string;
+  status: string | null;
+  jsonForms: boolean;
+  properties: Record<string, string[]>;
+  bindings: { activity: string | null; form: string; fields: { name: string; dataType: string | null; control: string | null }[] }[];
+  forms: string[];
+  flow: { process: Record<string, string | null>; activities: FlowActivity[]; links: FlowLink[]; linkTypes: string[] } | null;
+}
+
+export interface FormData {
+  driver: string;
+  name: string;
+  kind: string;
+  file: string;
+  json: string;
+  usedBy: { prd: string; activity: string | null; fields: string[] }[];
+}
+
+export interface CatalogObject {
+  driver: string;
+  name: string;
+  path: string;
+  displayName: string | null;
+  container: string;
+  attrs: Record<string, string[]>;
+}
+
+export interface RoleCatalog {
+  drivers: string[];
+  roles: CatalogObject[];
+  resources: CatalogObject[];
 }

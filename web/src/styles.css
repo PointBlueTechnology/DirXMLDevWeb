@@ -1044,3 +1044,32 @@ button.danger:not(:disabled) { background: var(--err); border-color: var(--err);
   .simbody, .simstages { flex-direction: column; }
   .simlist, .stagelist { width: auto; border-right: 0; border-bottom: 1px solid var(--border); max-height: 180px; }
 }
+
+/* provisioning */
+.prd { display: flex; flex-direction: column; min-height: 0; height: 100%; }
+.prdbody { display: flex; flex: 1; min-height: 0; }
+.prdcanvas { flex: 1; min-width: 0; overflow: auto; }
+.prdpanel { width: 380px; flex: none; display: flex; flex-direction: column; min-height: 0; border-left: 1px solid var(--border); background: var(--surface); }
+.prdpanel h4 { margin: 16px 0 6px; }
+.prdpanel .field { display: block; margin-bottom: 8px; }
+.prdpanel .field input, .prdpanel .field select { width: 100%; box-sizing: border-box; }
+.prdpanel .addrow input { min-width: 0; flex: 1; }
+.dataitem { display: flex; gap: 8px; align-items: baseline; margin-bottom: 4px; }
+.dataitem .muted { flex: 1; overflow-wrap: anywhere; }
+.flowsvg { display: block; }
+.flownode { cursor: pointer; }
+.flownode rect { fill: var(--surface); stroke: var(--border); stroke-width: 1.5; }
+.flownode.k-start rect, .flownode.k-finish rect { fill: var(--bg); }
+.flownode.k-user rect { stroke: var(--accent); }
+.flownode.k-condition rect { stroke: var(--warn); }
+.flownode.k-provision rect, .flownode.k-role-request rect, .flownode.k-resource-request rect { stroke: var(--ok); }
+.flownode.sel rect { stroke-width: 3; }
+.flownode:hover rect { filter: brightness(0.97); }
+.nodename { font-size: 12px; font-weight: 600; fill: var(--text); }
+.nodekind { font-size: 10px; fill: var(--muted); }
+.linklabel { font-size: 10px; paint-order: stroke; stroke: var(--bg); stroke-width: 3px; }
+.attrs { display: flex; flex-wrap: wrap; gap: 8px 16px; }
+@media (max-width: 1000px) {
+  .prdbody { flex-direction: column; }
+  .prdpanel { width: auto; border-left: 0; border-top: 1px solid var(--border); max-height: 50%; }
+}

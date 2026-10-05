@@ -52,7 +52,7 @@ public final class Serve {
         int bound = server.getAddress().getPort();
         Security security = new Security(Security.newToken(), bound);
         TreeService service = new TreeService(tree, watcher);
-        server.createContext("/api/", new Api(service, new VaultService(tree), new SimService(tree, SimService.locate(tree, cases)), watcher, security, VERSION));
+        server.createContext("/api/", new Api(service, new VaultService(tree), new SimService(tree, SimService.locate(tree, cases)), new ProvisioningService(tree), watcher, security, VERSION));
         server.createContext("/", new StaticFiles(web));
         server.setExecutor(Executors.newCachedThreadPool(r -> {
             Thread t = new Thread(r, "idmweb-http");

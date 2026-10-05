@@ -174,4 +174,4 @@ bin/smoke.sh           # every endpoint, the security gates and the write path, 
   tree's revision: the page reloads them after its own writes.
 - The server reaches one DirXMLDev internal by reflection (an operation's factory). A public
   method is proposed upstream; see `TreeService.factoryOf`.
-- Local mode only. The hosted mode is designed (docs/design.md) and not built.
+- Local mode only. The hosted mode is designed (docs/hosted.md) and not built.

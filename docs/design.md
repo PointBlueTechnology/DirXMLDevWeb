@@ -191,7 +191,7 @@ Each is usable on its own and stops cleanly.
 | **W4 simulator** | Cases, run, stage-by-stage output, comparison against another tree or stage |
 | **W5 provisioning** | PRD flow diagram (read, then edit through `flow.*`), form builder embedded, roles and resources |
 | **W6 packages** | Status, install, upgrade, build |
-| **W7 hosted mode** | OIDC, workspaces as git clones, server-side secrets, per-user audit, commit and pull request from the UI. Can move earlier: the four seams exist from W0 |
+| **W7 hosted mode** | OIDC, workspaces as git clones, server-side secrets, per-user audit, commit and pull request from the UI. Designed in [hosted.md](hosted.md); decisions pending |
 | optional | The static viewer; the CheerpJ simulator spike |
 
 W0 through W3 already replace the daily Designer loop for driver work. W2 and

@@ -9,6 +9,11 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Added
 
+- Hosted mode, step 3: the container (`hosted/docker/`: image with the server, page and `idm`
+  CLI; compose with Caddy and Keycloak; `build.sh`), agent bearer tokens (`agents=`,
+  `agent.<name>.token*`) for non-browser callers, `docs/hosted-install.md`,
+  `bin/smoke-container.sh`.
+
 - Hosted mode, step 2: `identity=oidc` — OpenID Connect with discovery, authorization code with
   PKCE, the ID token verified against the provider's JWKS (RS256/384/512, ES256), groups from a
   configurable claim path with the userinfo fallback. A ready Keycloak realm

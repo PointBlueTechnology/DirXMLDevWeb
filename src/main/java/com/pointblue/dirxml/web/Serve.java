@@ -5,6 +5,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Map;
 import java.util.concurrent.Executors;
 
 /**
@@ -101,11 +102,12 @@ public final class Serve {
                 throw new IllegalArgumentException("identity is none or oidc, not '" + h.identity + "'");
         }
         HttpServer server = HttpServer.create(new InetSocketAddress(InetAddress.getByName(h.bind), h.port), 0);
-        server.createContext("/api/", new Api(workspaces, sessions, security, audit, VERSION));
+        Map<String, Session.Principal> agents = h.agents();
+        server.createContext("/api/", new Api(workspaces, sessions, security, audit, VERSION, agents));
         server.createContext("/auth/", new Auth(identity, sessions, security, audit, h.publicUrl));
         server.createContext("/", new StaticFiles(web));
         start(server);
-        System.out.println("DirXMLDevWeb " + VERSION + " hosted: " + h.publicUrl + " (bound " + h.bind + ":" + h.port + "), identity " + identity.name() + ", repository " + h.repoUrl.replaceAll("://[^@/]+@", "://") + ", data " + h.dataDir);
+        System.out.println("DirXMLDevWeb " + VERSION + " hosted: " + h.publicUrl + " (bound " + h.bind + ":" + h.port + "), identity " + identity.name() + ", " + agents.size() + " agent(s), repository " + h.repoUrl.replaceAll("://[^@/]+@", "://") + ", data " + h.dataDir);
         Thread.currentThread().join();
     }
 

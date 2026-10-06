@@ -1,6 +1,6 @@
 # W7 — Hosted mode (design note, 2026-10-05)
 
-Status: **proposed; needs Jerry's decisions in §6 before building.**
+Status: **decided 2026-10-05 (Keycloak, GitHub, container, proxy TLS, the server's bind, all at once); building in three steps: workspaces + git + audit (done), OIDC, container.**
 
 Local mode (W0–W6) is one person, one tree on their workstation, one server on loopback with
 a one-time token. Hosted mode is the same server and page for a team: it runs inside the

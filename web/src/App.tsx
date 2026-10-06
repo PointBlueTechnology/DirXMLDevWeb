@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { ApiError, api, followTree, takeToken } from "./api";
+import { ApiError, api, followTree, setCsrf, takeToken } from "./api";
+import { RepoBar } from "./components/RepoBar";
 import type { ArtifactNode, OpCall, Outline, Selection, Session, Validation } from "./types";
 import { ConfigEditor } from "./components/ConfigEditor";
 import { OverridesView } from "./components/OverridesView";
@@ -27,6 +28,9 @@ export function App() {
   const [error, setError] = useState<string | null>(null);
   const [selection, setSelection] = useState<Selection>({ type: "home" });
   const [opNames, setOpNames] = useState<Set<string>>(new Set());
+  const [noWorkspace, setNoWorkspace] = useState(false);
+  // bumped when the workspace changes: the event stream is per workspace and must be opened again
+  const [streamKey, setStreamKey] = useState(0);
 
   const reload = useCallback(async () => {
     try {
@@ -35,22 +39,42 @@ export function App() {
       setValidation(v);
       setRevision(o.revision);
       setError(null);
+      setNoWorkspace(false);
     } catch (e) {
+      if (e instanceof ApiError && e.noWorkspace) {
+        setNoWorkspace(true);
+        setError(null);
+        return;
+      }
       setError(e instanceof ApiError && e.status === 403 ? "This session is not authorised. Open the URL the server printed (it carries the token)." : String(e instanceof Error ? e.message : e));
     }
   }, []);
 
+  const loadSession = useCallback(
+    () =>
+      api
+        .session()
+        .then((s) => {
+          setCsrf(s.csrf);
+          setSession(s);
+          return s;
+        })
+        .catch(() => null),
+    [],
+  );
+
   useEffect(() => {
-    if (!token) {
+    // local mode needs the printed token; hosted mode has a cookie and no token at all
+    if (!token && !document.cookie.includes("idmweb_session") && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
+      // a hosted page: /api/session either works (cookie) or redirects to sign-in
+    } else if (!token && !document.cookie.includes("idmweb_session")) {
       setError("No session token. Open the URL that `bin/idmweb serve` printed; it ends in #token=…");
-      return;
     }
-    api.session().then(setSession).catch(() => undefined);
+    void loadSession().then(() => reload());
     api
       .catalog()
       .then((c) => setOpNames(new Set(c.operations.map((o) => o.name))))
       .catch(() => undefined);
-    void reload();
     return followTree(
       (rev) => {
         setRevision((current) => {
@@ -62,7 +86,7 @@ export function App() {
       },
       setLive,
     );
-  }, [token, reload]);
+  }, [token, reload, loadSession, streamKey]);
 
   const open = useCallback(
     (path: string) => {
@@ -134,7 +158,7 @@ export function App() {
           {outline && <span className="set">{outline.driverSet.name}</span>}
         </div>
         <div className="meta">
-          {session && <span title={session.tree}>{shorten(session.tree)}</span>}
+          {session?.tree && <span title={session.tree}>{shorten(session.tree)}</span>}
           {session && (
             <span>
               web {session.version} · core {session.core ?? "?"}
@@ -149,7 +173,27 @@ export function App() {
         </div>
       </header>
       {error && <div className="banner error">{error}</div>}
-      <div className="body">
+      {session && (
+        <RepoBar
+          session={session}
+          revision={revision}
+          onWorkspaceChanged={() => {
+            void loadSession().then(() => {
+              setStreamKey((k) => k + 1);
+              return reload();
+            });
+            setSelection({ type: "home" });
+          }}
+        />
+      )}
+      {noWorkspace && session && (
+        <div className="pad">
+          <h1>Open a branch</h1>
+          <p className="muted">You are signed in as {session.user.name}. Pick the branch to work on; a new name starts a branch from the base.</p>
+          <p className="muted small">Use the bar above.</p>
+        </div>
+      )}
+      <div className="body" style={noWorkspace ? { display: "none" } : undefined}>
         <nav className="sidebar">
           <button className={selection.type === "operations" ? "navbtn active" : "navbtn"} onClick={() => setSelection({ type: "operations" })}>
             Operations

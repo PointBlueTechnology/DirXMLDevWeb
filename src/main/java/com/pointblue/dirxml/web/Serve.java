@@ -23,8 +23,12 @@ public final class Serve {
             System.out.println("DirXMLDevWeb " + VERSION);
             return;
         }
+        if (args.length >= 3 && args[0].equals("serve") && args[1].equals("--hosted")) {
+            hosted(Path.of(args[2]));
+            return;
+        }
         if (args.length < 2 || !args[0].equals("serve")) {
-            System.err.println("usage: idmweb serve <tree> [--port N] [--no-open] [--web DIR] [--cases DIR] [--catalog DIR]\n       idmweb version");
+            System.err.println("usage: idmweb serve <tree> [--port N] [--no-open] [--web DIR] [--cases DIR] [--catalog DIR]\n       idmweb serve --hosted <hosted.properties>\n       idmweb version");
             System.exit(2);
         }
         Path tree = Path.of(args[1]).toAbsolutePath().normalize();
@@ -49,22 +53,17 @@ public final class Serve {
             System.err.println("ERROR: " + tree + " is not an IDM-as-code tree (no driverset.xml). Import one with `idm import-live`, `import` or `import-ldif`.");
             System.exit(1);
         }
-        Watcher watcher = new Watcher(tree, 750);
         HttpServer server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), port), 0);
         int bound = server.getAddress().getPort();
         Security security = new Security(Security.newToken(), bound);
-        TreeService service = new TreeService(tree, watcher);
-        PackageService packageService = new PackageService(tree, PackageService.locate(catalog, System.getenv("IDM_CATALOG")));
-        service.catalog(packageService.catalogArg());
-        server.createContext("/api/", new Api(service, new VaultService(tree), new SimService(tree, SimService.locate(tree, cases)), new ProvisioningService(tree), packageService, new CredentialService(tree), watcher, security, VERSION));
+        Workspaces workspaces = new Workspaces(null, new Git(null, null));
+        Workspace local = workspaces.local(tree, cases, PackageService.locate(catalog, System.getenv("IDM_CATALOG")));
+        Session.Store sessions = new Session.Store(365L * 24 * 3600);   // local mode: the token lives as long as the server
+        Session session = sessions.createWithId(security.token(), Session.Principal.local());
+        session.workspace = local.id;
+        server.createContext("/api/", new Api(workspaces, sessions, security, Audit.none(), VERSION));
         server.createContext("/", new StaticFiles(web));
-        server.setExecutor(Executors.newCachedThreadPool(r -> {
-            Thread t = new Thread(r, "idmweb-http");
-            t.setDaemon(true);
-            return t;
-        }));
-        watcher.start();
-        server.start();
+        start(server);
         String url = "http://127.0.0.1:" + bound + "/#token=" + security.token();
         System.out.println("DirXMLDevWeb " + VERSION + " serving " + tree);
         System.out.println(url);
@@ -73,6 +72,50 @@ public final class Serve {
             open(url);
         }
         Thread.currentThread().join();
+    }
+
+    /** {@code serve --hosted hosted.properties}: sign-in, a workspace per user and branch, audit. */
+    static void hosted(Path config) throws Exception {
+        Hosted h = Hosted.load(config);
+        Path web = Path.of(System.getProperty("idmweb.home", System.getProperty("user.dir")), "web", "dist");
+        Files.createDirectories(h.dataDir);
+        CredentialService.override = h.environmentsFile;
+        String envVar = System.getenv("IDM_ENVIRONMENTS");
+        if (envVar == null || !Path.of(envVar).toAbsolutePath().normalize().equals(h.environmentsFile.toAbsolutePath().normalize())) {
+            System.err.println("WARNING: set IDM_ENVIRONMENTS=" + h.environmentsFile + " in the server's environment so the core reads the same environments file the page edits (the launcher does this from environments.file).");
+        }
+        Git git = new Git(h.dataDir, h.repoToken());
+        Workspaces workspaces = new Workspaces(h, git);
+        Session.Store sessions = new Session.Store(h.sessionHours * 3600);
+        Security security = Security.hosted(h.publicUrl);
+        Audit audit = new Audit(h.dataDir.resolve("audit.log"));
+        Identity identity;
+        switch (h.identity) {
+            case "none":
+                identity = new NoneIdentity(h);
+                break;
+            case "oidc":
+                identity = new OidcIdentity(h);
+                break;
+            default:
+                throw new IllegalArgumentException("identity is none or oidc, not '" + h.identity + "'");
+        }
+        HttpServer server = HttpServer.create(new InetSocketAddress(InetAddress.getByName(h.bind), h.port), 0);
+        server.createContext("/api/", new Api(workspaces, sessions, security, audit, VERSION));
+        server.createContext("/auth/", new Auth(identity, sessions, security, audit, h.publicUrl));
+        server.createContext("/", new StaticFiles(web));
+        start(server);
+        System.out.println("DirXMLDevWeb " + VERSION + " hosted: " + h.publicUrl + " (bound " + h.bind + ":" + h.port + "), identity " + identity.name() + ", repository " + h.repoUrl.replaceAll("://[^@/]+@", "://") + ", data " + h.dataDir);
+        Thread.currentThread().join();
+    }
+
+    private static void start(HttpServer server) {
+        server.setExecutor(Executors.newCachedThreadPool(r -> {
+            Thread t = new Thread(r, "idmweb-http");
+            t.setDaemon(true);
+            return t;
+        }));
+        server.start();
     }
 
     private static void open(String url) {

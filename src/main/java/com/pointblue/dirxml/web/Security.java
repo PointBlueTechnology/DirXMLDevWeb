@@ -14,12 +14,37 @@ public final class Security {
 
     public static final String HEADER = "X-IDMWeb-Token";
 
-    private final String token;
+    private final String token;      // null in hosted mode: the session cookie stands in for it
     private final int port;
+    private final String publicHost; // hosted mode: the host the browser addresses
+    private final String publicOrigin;
 
     public Security(String token, int port) {
         this.token = token;
         this.port = port;
+        this.publicHost = null;
+        this.publicOrigin = null;
+    }
+
+    private Security(String publicUrl) {
+        this.token = null;
+        this.port = 0;
+        java.net.URI u = java.net.URI.create(publicUrl);
+        this.publicHost = u.getPort() == -1 ? u.getHost() : u.getHost() + ":" + u.getPort();
+        this.publicOrigin = u.getScheme() + "://" + publicHost;
+    }
+
+    /** Hosted mode: requests must address the public URL's host; the session is a cookie, not a token. */
+    public static Security hosted(String publicUrl) {
+        return new Security(publicUrl);
+    }
+
+    public boolean hostedMode() {
+        return token == null;
+    }
+
+    public String publicOrigin() {
+        return publicOrigin;
     }
 
     public static String newToken() {
@@ -38,6 +63,15 @@ public final class Security {
 
     /** Why a request is refused, or null when it may proceed. */
     public String refuse(String host, String origin, String presented) {
+        if (token == null) {
+            if (host == null || !host.equalsIgnoreCase(publicHost)) {
+                return "this server answers only as " + publicHost;
+            }
+            if (origin != null && !origin.isBlank() && !origin.equalsIgnoreCase(publicOrigin)) {
+                return "requests from another origin are refused";
+            }
+            return null;
+        }
         if (host == null || !(host.equals("127.0.0.1:" + port) || host.equals("localhost:" + port))) {
             return "this server answers only as 127.0.0.1:" + port + " or localhost:" + port;
         }

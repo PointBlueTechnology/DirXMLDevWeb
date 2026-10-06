@@ -100,6 +100,39 @@ public final class TreeService {
         set.put("name", ds.name);
         set.put("dn", ds.dn);
         set.put("config", existing(List.of("config-values.xml")));
+        // the driver set's own record: its servers, its linkage of driver-set-level objects, its package stamps
+        List<Object> servers = new ArrayList<>();
+        String primary = ds.meta.get("servers.primary");
+        for (String s : ds.servers) {
+            Map<String, Object> sv = new LinkedHashMap<>();
+            sv.put("dn", s);
+            sv.put("name", s.replaceFirst("^[^=]+=", "").replaceFirst(",.*$", ""));
+            sv.put("primary", s.equalsIgnoreCase(primary));
+            servers.add(sv);
+        }
+        set.put("servers", servers);
+        List<Object> linkage = new ArrayList<>();
+        Map<String, String> packages = new java.util.TreeMap<>();
+        Map<String, String> meta = new java.util.TreeMap<>();
+        for (Map.Entry<String, String> e : ds.meta.entrySet()) {
+            if (e.getKey().startsWith("driverset.linkage.")) {
+                String[] p = e.getValue().split("#");
+                Map<String, Object> l = new LinkedHashMap<>();
+                l.put("dn", p[0]);
+                l.put("name", p[0].replaceFirst("^[^=]+=", "").replaceFirst(",.*$", ""));
+                l.put("order", p.length > 1 ? p[1] : null);
+                l.put("type", p.length > 2 ? p[2] : null);
+                linkage.add(l);
+            } else if (e.getKey().startsWith("package.installed.")) {
+                packages.put(e.getKey().substring("package.installed.".length()), e.getValue());
+            } else if (!e.getKey().equals("objectClass") && !e.getKey().equals("servers.primary")) {
+                meta.put(e.getKey(), e.getValue());
+            }
+        }
+        set.put("linkage", linkage);
+        set.put("packages", packages);
+        set.put("meta", meta);
+        set.put("libraryItems", ds.library.policies.size() + ds.library.resources.size());
         o.put("driverSet", set);
         Map<String, Object> lib = new LinkedHashMap<>();
         lib.put("policies", nodes(ds.library.policies, files));

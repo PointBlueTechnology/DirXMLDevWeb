@@ -28,6 +28,9 @@ the page follows the files.
 - **New…** beside the Library and every driver in the outline: a policy (optionally linked into
   a policy set), an entitlement, a form, a PRD from a template; "New driver" from a base
   package, a copy, or a shim class. Each is the core's `*.add` operation through the review.
+- **Driver set**: its DN, the servers it runs on (the primary marked), its drivers, the Library,
+  what is linked at the driver-set level, the packages recorded on it, and its GCVs with the
+  env-override columns.
 - **Outline** of the driver set: Library, drivers, policies by channel, configuration files,
   entitlements, forms, PRDs.
 - **Policy flow**: the fishbone the VS Code extension draws, from the same model. Click a policy
@@ -52,7 +55,7 @@ the page follows the files.
   - *Filter*: classes and attributes with each channel's setting and the merge authority.
   - *Policy sets*: every set as an ordered list; drag or use the arrows to reorder, link, unlink.
   - *Schema map* and *mapping table* as their own structured tab on the artifact.
-  - *Stage overrides*: every environment's values in one matrix beside the base.
+  - *Env overrides*: every environment's values in one matrix beside the base.
   - Configuration files and entitlement definitions are also editable as XML.
 - **One review for every write.** An editor collects its changes; Review runs them against a
   throwaway copy of the tree and shows each file before and after with the core's verdict;
@@ -66,7 +69,9 @@ the page follows the files.
     write, restart, verify) once you type the environment's name.
   - *Drivers*: every driver's state, start option and cache; start, stop and restart behind
     the same typed confirmation.
-  - *Trace*: a driver's trace, live, with a filter.
+  - *Trace*: a driver's trace, live, with a filter — from any server of the driver set, each of
+    which keeps its own (the servers are read from the vault, their addresses from the
+    environment's `servers=` mapping or the server object).
 - **Provisioning** (W5), for the User Application driver:
   - *PRD*: the workflow drawn as a diagram from the core's flow model. Select an activity to
     change its name, form, addressee and timeout, its links out (add, retype, remove), its data

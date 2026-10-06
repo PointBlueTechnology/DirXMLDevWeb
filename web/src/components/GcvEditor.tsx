@@ -15,7 +15,7 @@ const TYPES = ["string", "boolean", "integer", "dn", "enum"];
 
 /**
  * The GCVs in a driver's scope (or the driver set's): each from the place the engine would take
- * it, editable there through `gcv.set`. A value that differs per stage is set in the environment
+ * it, editable there through `gcv.set`. A value that differs per environment is set in the environment
  * columns, which write `overrides/<env>.properties` and leave the base alone.
  */
 export function GcvEditor({ config, overrides, canOverride, pending, onOpen }: Props) {
@@ -156,10 +156,10 @@ export function GcvEditor({ config, overrides, canOverride, pending, onOpen }: P
           >
             Add column
           </button>
-          <span className="muted small">A value typed in an environment's column is that stage's override; the Value column is the base every other stage gets.</span>
+          <span className="muted small">A value typed in an environment's column is that environment's override; the Value column is the base every other stage gets.</span>
         </div>
       ) : (
-        <p className="muted small">Per-stage overrides need a DirXMLDev with the override operations (DirXMLDev 0.8.0).</p>
+        <p className="muted small">Env overrides need a DirXMLDev with the override operations (DirXMLDev 0.8.0).</p>
       )}
     </div>
   );

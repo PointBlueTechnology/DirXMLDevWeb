@@ -399,6 +399,18 @@ const MAX_LINES = 5000;
 function Trace({ env, drivers }: { env: string; drivers: string[] }) {
   const [driver, setDriver] = useState(drivers[0] ?? "");
   const [engine, setEngine] = useState(false);
+  const [servers, setServers] = useState<{ dn: string; name: string; url: string | null; primary: boolean }[] | null>(null);
+  const [server, setServer] = useState("");
+  useEffect(() => {
+    // each server of the driver set keeps its own trace: offer them, the environment's own first
+    api.vault
+      .servers(env)
+      .then((r) => {
+        setServers(r.servers);
+        setServer(r.servers.find((s) => s.primary)?.dn ?? "");
+      })
+      .catch(() => setServers([]));
+  }, [env]);
   const [state, setState] = useState<"idle" | "connecting" | "open" | "closed">("idle");
   const [failure, setFailure] = useState<string | null>(null);
   const [lines, setLines] = useState<string[]>([]);
@@ -435,6 +447,7 @@ function Trace({ env, drivers }: { env: string; drivers: string[] }) {
           setState(s);
         }
       },
+      servers?.find((s) => s.dn === server)?.primary ? undefined : server || undefined,
     );
   };
   const running = state === "connecting" || state === "open";
@@ -453,6 +466,19 @@ function Trace({ env, drivers }: { env: string; drivers: string[] }) {
             ))}
           </select>
         </label>
+        {servers && servers.length > 1 && (
+          <label className="field">
+            <em>Server</em>
+            <select value={server} onChange={(e) => setServer(e.target.value)} disabled={running} title="Each server of the driver set keeps its own trace" data-testid="trace-server">
+              {servers.map((s) => (
+                <option key={s.dn} value={s.dn} disabled={!s.url && !s.primary}>
+                  {s.name}
+                  {s.primary ? " (this connection)" : s.url ? "" : " — no address known"}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <label className="checkchip">
           <input type="checkbox" checked={engine} onChange={(e) => setEngine(e.target.checked)} disabled={running} /> engine lines too
         </label>

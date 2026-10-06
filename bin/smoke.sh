@@ -53,6 +53,7 @@ s, session = call("GET", "/api/session")
 check("session names the tree and a revision", s == 200 and session["revision"] and session["name"] == "DirXMLDevWeb")
 s, outline = call("GET", "/api/outline")
 d = outline["drivers"][0]
+check("outline: the driver set's own record (servers, linkage, packages)", "servers" in outline["driverSet"] and "linkage" in outline["driverSet"] and "packages" in outline["driverSet"] and outline["driverSet"]["libraryItems"] == 2)
 check("outline: driver, policies, forms, PRD", d["name"] == "Loop" and len(d["policies"]["subscriber"]) == 1 and len(d["forms"]) == 2 and len(d["prds"]) == 1)
 s, art = call("GET", "/api/artifact?path=library/lib-NormalizeTitle")
 check("artifact: source and the link that refers to it", art["kind"] == "dirxml-script" and "<policy>" in art["content"] and art["refs"][0]["from"] == "drivers/Loop")

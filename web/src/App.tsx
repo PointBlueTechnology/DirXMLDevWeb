@@ -21,6 +21,7 @@ import { EntitlementView } from "./components/EntitlementView";
 import { SetupView } from "./components/SetupView";
 import { NewItemView } from "./components/NewItemView";
 import { ChangesView } from "./components/ChangesView";
+import { DriverSetView } from "./components/DriverSetView";
 import { isUserApplication } from "./drivers";
 
 export function App() {
@@ -106,7 +107,7 @@ export function App() {
         ...outline.drivers.flatMap((d) => [...d.policies.driver, ...d.policies.subscriber, ...d.policies.publisher, ...d.resources]),
       ];
       if (path === "driverset") {
-        setSelection({ type: "config", driver: null });
+        setSelection({ type: "driverset" });
         return;
       }
       if (all.some((a) => a.path === path)) {
@@ -294,6 +295,7 @@ export function App() {
               onSaved={reload}
             />
           )}
+          {selection.type === "driverset" && outline && <DriverSetView outline={outline} revision={revision} canOverride={opNames.has("override.set")} linkable={artifacts} onOpen={open} onSelect={setSelection} onSaved={reload} />}
           {selection.type === "overrides" && <OverridesView revision={revision} canEdit={opNames.has("override.set")} onSaved={reload} />}
           {selection.type === "operations" && <OperationsView onDone={reload} />}
           {selection.type === "prd" && <PrdView key={selection.driver + "/" + selection.name} driver={selection.driver} name={selection.name} revision={revision} onSelect={setSelection} onSaved={reload} />}

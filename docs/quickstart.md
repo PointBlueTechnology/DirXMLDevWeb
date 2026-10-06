@@ -56,8 +56,9 @@ Without one:
 IDMWEB_IMAGE=harbor.pointbluetech.com/dirxmldev/dirxml-dev-web:0.12.0 single-user/setup.sh -
 ```
 
-`setup.sh` pulls the image, makes `~/idmweb` (`IDMWEB_PORT` and a second argument change the
-port and the directory), seeds a bare repository with your tree when you gave one, generates
+`setup.sh` pulls the image and makes one folder on your disk, `~/idmweb/`, that holds everything
+(`IDMWEB_PORT` and a second argument change the port and the folder): it seeds a bare git
+repository there with your tree when you gave one, generates
 your token and one for agents, writes the configuration and starts the container. It ends with:
 
 ```
@@ -100,15 +101,17 @@ the page uses, with the agent's name on each audit line.
 
 *Connections* on the page sets up each environment (URL, bind DN, driver set, tier, trust) with
 a connection test, and takes the password and the driver secrets a deploy needs; they are
-written to `~/idmweb/config/environments.properties` (owner-only). A credential may be a literal,
+written to `~/idmweb/config/environments.properties` on your disk (readable by you alone) —
+never into the tree, the repository or the vault. A credential may be a literal,
 a `…Command=` reference to a secret manager ([secret-managers.md](secret-managers.md)) or
 `…Env=NAME` with the value in `idmweb.env`. Keychain references do not resolve inside a container.
 
 ## Day to day
 
-- Upgrade: set `IDMWEB_IMAGE` to the new version and run `setup.sh` again (the directory, its
-  repository, token and configuration are kept).
-- Stop: `cd ~/idmweb && docker compose down`. Everything lives in the directory.
+- Upgrade: set `IDMWEB_IMAGE` to the new version and run `setup.sh` again (`~/idmweb/` — its
+  repository, token and configuration — is kept).
+- Stop: `cd ~/idmweb && docker compose down`. Everything lives in `~/idmweb/` on your disk:
+  back it up, move it, delete it, and that is the whole install.
 - Moving to a server for a team: [hosted-install.md](hosted-install.md) — the same image behind a
   proxy with TLS and your identity provider; push `~/idmweb/repo.git` to GitHub or GitLab and
   point the server's project at it.

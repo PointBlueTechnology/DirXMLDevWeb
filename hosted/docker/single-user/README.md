@@ -2,7 +2,7 @@
 
 The web UI, the `idm` CLI and the simulator in one local container, for one person, with one
 command. No Keycloak, no proxy; the page is on localhost, sign-in is one token, "the team's
-repository" is a bare git repository in the directory, and the container runs as you so every
+repository" is a bare git repository in that folder on your disk (`~/idmweb/repo.git`), and the container runs as you so every
 file it writes is yours.
 
 ```bash
@@ -51,7 +51,7 @@ DirXMLDevWeb is at http://localhost:8080
 
 Re-running `setup.sh` on an existing directory keeps the repository, token and configuration
 and just restarts the container (a new image is picked up). `docker compose down` stops it;
-the directory holds everything.
+the folder on your disk (`~/idmweb/` by default) holds everything.
 
 Sharing it with a team later is the full layout in `../compose.yml`: a proxy with TLS,
 Keycloak or your identity provider, `identity=oidc`.

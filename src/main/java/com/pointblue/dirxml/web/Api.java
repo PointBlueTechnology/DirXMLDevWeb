@@ -256,6 +256,9 @@ public final class Api implements HttpHandler {
         if (path.startsWith("/api/git/")) {
             return gitRoute(session, w, method, path, ex);
         }
+        if (path.startsWith("/api/credentials")) {
+            return credentialsRoute(credentials, method, path, query, ex);
+        }
         if (method.equals("GET")) {
             switch (path) {
                 case "/api/outline":
@@ -314,9 +317,6 @@ public final class Api implements HttpHandler {
                 calls.add(new TreeService.Call(path.substring("/api/op/".length()), strings(req.get("args")), strings(req.get("files"))));
             }
             return service.run(calls, Boolean.TRUE.equals(req.get("dryRun")), Boolean.TRUE.equals(req.get("force")), Json.asString(req.get("revision")));
-        }
-        if (path.startsWith("/api/credentials")) {
-            return credentialsRoute(credentials, method, path, query, ex);
         }
         if (method.equals("POST") && path.equals("/api/packages/build")) {
             return packages.build(Json.asMap(Json.parse(new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8))));

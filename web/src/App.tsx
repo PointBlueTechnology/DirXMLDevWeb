@@ -224,9 +224,6 @@ export function App() {
       )}
       <div className="body" style={noWorkspace ? { display: "none" } : undefined}>
         <nav className="sidebar">
-          <button className={selection.type === "operations" ? "navbtn active" : "navbtn"} onClick={() => setSelection({ type: "operations" })}>
-            Operations
-          </button>
           <button className={selection.type === "vault" ? "navbtn active" : "navbtn"} onClick={() => setSelection({ type: "vault" })}>
             Vault
           </button>
@@ -245,6 +242,9 @@ export function App() {
             </button>
           )}
           {outline ? <OutlineTree outline={outline} selection={selection} onSelect={setSelection} /> : <p className="muted pad">Loading the tree…</p>}
+          <button className={selection.type === "operations" ? "navbtn active advanced" : "navbtn advanced"} onClick={() => setSelection({ type: "operations" })} title="Every operation the core registers, as a form: what an agent runs, and what the editors above run for you">
+            Operations (advanced)
+          </button>
         </nav>
         <main className="main">
           {selection.type === "home" && <Home outline={outline} validation={validation} onSelect={setSelection} />}

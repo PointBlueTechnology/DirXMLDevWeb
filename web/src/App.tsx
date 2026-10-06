@@ -102,16 +102,25 @@ export function App() {
   // bumped when the workspace changes: the event stream is per workspace and must be opened again
   const [streamKey, setStreamKey] = useState(0);
   const [addingProject, setAddingProject] = useState(false);
+  // what the page is waiting for, when it is: opening a branch clones it on the server, then the tree
+  // is read and validated — seconds on a large driver set, so the wait is said, not hidden
+  const [loading, setLoading] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
     try {
-      const [o, v] = await Promise.all([api.outline(), api.validation()]);
+      // the outline first, so the page is usable while the (slower) validation runs
+      setLoading((l) => l ?? "Reading the tree…");
+      const o = await api.outline();
       setOutline(o);
-      setValidation(v);
       setRevision(o.revision);
       setError(null);
       setNoWorkspace(false);
+      setLoading("Validating…");
+      const v = await api.validation();
+      setValidation(v);
+      setLoading(null);
     } catch (e) {
+      setLoading(null);
       if (e instanceof ApiError && e.noWorkspace) {
         setNoWorkspace(true);
         setError(null);
@@ -250,12 +259,14 @@ export function App() {
           session={session}
           revision={revision}
           onWorkspaceChanged={() => {
+            setLoading("Reading the tree…");
             void loadSession().then(() => {
               setStreamKey((k) => k + 1);
               return reload();
             });
             setSelection({ type: "home" });
           }}
+          onBusy={(what) => setLoading(what)}
           onAddProject={() => setAddingProject(true)}
           onSelect={setSelection}
         />
@@ -276,11 +287,16 @@ export function App() {
           onCancel={() => setAddingProject(false)}
           onDone={(project) => {
             setAddingProject(false);
+            setLoading("Opening main — cloning it on the server…");
             void api.openWorkspace("main", project ?? undefined).then(() => loadSession()).then(() => {
               setStreamKey((k) => k + 1);
               setSelection({ type: "home" });
+              setLoading("Reading the tree…");
               return reload();
-            }).catch(() => loadSession());
+            }).catch(() => {
+              setLoading(null);
+              return loadSession();
+            });
           }}
           onConnections={() => setSelection({ type: "connections" })}
         />
@@ -291,10 +307,12 @@ export function App() {
           onDone={(project) => {
             void loadSession().then((s) => {
               if (s && !s.setup) {
+                setLoading("Opening main — cloning it on the server…");
                 return api.openWorkspace("main", project ?? undefined).then(() => loadSession()).then(() => {
                   setStreamKey((k) => k + 1);
+                  setLoading("Reading the tree…");
                   return reload();
-                });
+                }).catch(() => setLoading(null));
               }
               return undefined;
             });
@@ -317,6 +335,12 @@ export function App() {
           <h1>Open a branch</h1>
           <p className="muted">You are signed in as {session.user.name}. Pick the branch to work on; a new name starts a branch from the base.</p>
           <p className="muted small">Use the bar above.</p>
+        </div>
+      )}
+      {loading && (
+        <div className="loading" role="status" aria-live="polite" data-testid="loading">
+          <span className="spinner" />
+          <span>{loading}</span>
         </div>
       )}
       <div className={problemsHidden ? "body problems-hidden" : "body"} style={noWorkspace || addingProject ? { display: "none" } : undefined}>

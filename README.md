@@ -149,10 +149,27 @@ session.hours=8
 ```
 
 The session is an `HttpOnly; SameSite=Strict` cookie (`Secure` behind https); every write
-carries the session's CSRF token; requests must address `public.url`'s host. `identity=oidc`
-(OpenID Connect with discovery: Keycloak, Entra ID, Okta, OSP) and the container image are the
-next steps of [docs/hosted.md](docs/hosted.md). `bin/smoke-hosted.sh` walks the whole loop
-against a local bare repository.
+carries the session's CSRF token; requests must address `public.url`'s host.
+
+`identity=oidc` signs people in with OpenID Connect — discovery, the authorization-code flow
+with PKCE, the ID token verified here (RS256/384/512, ES256 against the provider's JWKS, issuer,
+audience, expiry, nonce), groups from `oidc.groupsClaim` (a dotted path such as
+`realm_access.roles`; the userinfo endpoint is consulted when the token lacks it):
+
+```properties
+identity=oidc
+oidc.issuer=https://login.example.com/realms/idm
+oidc.clientId=idmweb
+oidc.clientSecretKeychain=idmweb/oidc           # or .clientSecret, .clientSecretEnv, .clientSecretCommand
+oidc.groupsClaim=groups
+oidc.scopes=openid profile email
+```
+
+Register the client as confidential with redirect URI `<public.url>/auth/callback`;
+[hosted/keycloak](hosted/keycloak/README.md) has a ready realm. `bin/smoke-hosted.sh` walks the
+whole loop with the `none` provider against a local bare repository; `bin/smoke-oidc.sh` does it
+through a real Keycloak in Docker. The container image is the next step of
+[docs/hosted.md](docs/hosted.md).
 
 ## Security model
 
@@ -251,6 +268,5 @@ a follow-up (docs/design.md).
   but are edited in its files; comparing with another tree stays with `idm simulate --against`.
 - Cases are kept in `cases/` beside the tree (or `--cases DIR`). They are not part of the
   tree's revision: the page reloads them after its own writes.
-- Hosted mode has workspaces, commit, push, update, roles and the audit log; the OIDC provider
-  and the container image follow (docs/hosted.md). Until then it runs on a trusted host with
-  `identity=none` bound to loopback.
+- Hosted mode has sign-in (none, OIDC), workspaces, commit, push, update, roles and the audit
+  log; the container image and an agent token follow (docs/hosted.md).

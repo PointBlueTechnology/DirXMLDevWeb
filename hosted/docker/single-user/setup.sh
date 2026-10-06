@@ -1,23 +1,38 @@
 #!/bin/sh
 # One person, one container, one command:
-#   hosted/docker/single-user/setup.sh <tree> [<dir>]
-# Makes <dir> (default ~/idmweb): a bare repository holding your tree, the engine jars (from
-# DirXMLDev's lib/ beside this checkout, or $IDM_LIB), one access token, the configuration,
-# and starts the container. Prints the URL and where the token is. Re-running on an existing
-# <dir> keeps its repository, token and configuration and just (re)starts the container.
+#   setup.sh <tree> [<dir>]      start with an IDM-as-code tree you already have
+#   setup.sh - [<dir>]           start with nothing: the page asks where the tree comes from
+#                                (export from a vault, a Designer project or export, a repository, a remote)
+# Makes <dir> (default ~/idmweb): the engine jars (from $IDM_LIB, or DirXMLDev's lib/ beside a
+# checkout), a bare repository holding your tree when you gave one, one access token, the
+# configuration, and starts the container. Prints the URL and where the token is. Re-running on
+# an existing <dir> keeps its repository, token and configuration and just (re)starts the
+# container (a new IDMWEB_IMAGE is picked up).
+#   IDMWEB_IMAGE   the image: a registry name is pulled (harbor.pointbluetech.com/dirxmldev/dirxml-dev-web:0.12.0,
+#                  ghcr.io/pointbluetechnology/dirxml-dev-web:0.12.0); a bare name is built from the checkouts
+#   IDMWEB_PORT    the page's port on localhost (default 8080)
+#   IDM_LIB        where the engine jars are
 set -e
 HERE=$(cd "$(dirname "$0")" && pwd)
-ROOT=$(cd "$HERE/../../.." && pwd)
-TREE=${1:?usage: setup.sh <tree> [<dir>]}
-TREE=$(cd "$TREE" && pwd)
+ARG=${1:?usage: setup.sh <tree>|- [<dir>]}
+TREE=
+if [ "$ARG" != "-" ]; then
+  TREE=$(cd "$ARG" && pwd)
+  [ -f "$TREE/driverset.xml" ] || { echo "ERROR: $TREE is not an IDM-as-code tree (no driverset.xml); pass - to start without one" >&2; exit 1; }
+fi
 DIR=${2:-$HOME/idmweb}
 IMAGE=${IDMWEB_IMAGE:-dirxml-dev-web:latest}
 PORT=${IDMWEB_PORT:-8080}
-[ -f "$TREE/driverset.xml" ] || { echo "ERROR: $TREE is not an IDM-as-code tree (no driverset.xml)" >&2; exit 1; }
 docker info >/dev/null 2>&1 || { echo "ERROR: Docker is not running" >&2; exit 1; }
 if ! docker image inspect "$IMAGE" >/dev/null 2>&1; then
-  echo "building $IMAGE from the checkouts…"
-  "$ROOT/hosted/docker/build.sh" "$IMAGE" >/dev/null
+  case "$IMAGE" in
+    */*) echo "pulling $IMAGE…"; docker pull -q "$IMAGE" >/dev/null ;;
+    *) if [ -x "$HERE/../build.sh" ]; then
+         echo "building $IMAGE from the checkouts…"; "$HERE/../build.sh" "$IMAGE" >/dev/null
+       else
+         echo "ERROR: no image $IMAGE and no checkout to build one: set IDMWEB_IMAGE to a registry image, e.g. IDMWEB_IMAGE=ghcr.io/pointbluetechnology/dirxml-dev-web:latest" >&2; exit 1
+       fi ;;
+  esac
 fi
 mkdir -p "$DIR" && cd "$DIR"
 cp "$HERE/compose.yml" compose.yml
@@ -25,15 +40,17 @@ mkdir -p config data lib
 [ -f config/hosted.properties ] || cp "$HERE/config/hosted.properties" config/hosted.properties
 # the engine jars: never in the image; $DIR/lib is the volume the container reads them from
 if [ -z "$(ls lib/*.jar 2>/dev/null)" ]; then
-  SRC=${IDM_LIB:-$ROOT/../DirXMLDev/lib}
+  SRC=${IDM_LIB:-$HERE/../../../../DirXMLDev/lib}
   if [ -n "$(ls "$SRC"/*.jar 2>/dev/null)" ]; then
     cp -L "$SRC"/*.jar lib/ && echo "engine jars: $(ls lib | wc -l | tr -d ' ') copied from $SRC into $DIR/lib"
   else
     echo "NOTE: put the engine jars in $DIR/lib (or run again with IDM_LIB=/path/to/them): dirxml.jar, dirxml_misc.jar, nxsl.jar, xp.jar, CommonDriverShim.jar, jclient.jar, dhutil.jar, XDS.jar, js.jar, ldap.jar — from an IDM engine's lib/dirxml/classes (copy the files, not symlinks). Without them the page runs, but the compile check, the simulator and vault access do not." >&2
   fi
 fi
-# the repository: your tree under tree/, the corpus under cases/
-if [ ! -d repo.git ]; then
+# the repository: your tree under tree/, the corpus under cases/ (with no tree, the page makes the
+# first project on first run — from a vault, a Designer project, a repository or a remote)
+mkdir -p repo.git
+if [ -n "$TREE" ] && [ -z "$(ls repo.git 2>/dev/null)" ]; then
   rm -rf seed && mkdir -p seed/cases
   cp -R "$TREE" seed/tree
   [ -d "$TREE/../cases" ] && cp -R "$TREE/../cases/." seed/cases/
@@ -60,9 +77,16 @@ if [ ! -f config/environments.properties ]; then
   fi
 fi
 chmod 600 config/*.properties
-PROJECT=$(basename "$TREE" | sed 's#[^A-Za-z0-9._-]#-#g')
-[ "$PROJECT" = "tree" ] && PROJECT=$(basename "$(dirname "$TREE")" | sed 's#[^A-Za-z0-9._-]#-#g')
-sed -i.bak "s/^token.user=.*/token.user=${USER:-me}/; s#^public.url=.*#public.url=http://localhost:$PORT#; s/PROJECT/$PROJECT/g" config/hosted.properties && rm -f config/hosted.properties.bak
+if [ -n "$TREE" ]; then
+  PROJECT=$(basename "$TREE" | sed 's#[^A-Za-z0-9._-]#-#g')
+  [ "$PROJECT" = "tree" ] && PROJECT=$(basename "$(dirname "$TREE")" | sed 's#[^A-Za-z0-9._-]#-#g')
+  sed -i.bak "s/^token.user=.*/token.user=${USER:-me}/; s#^public.url=.*#public.url=http://localhost:$PORT#; s/PROJECT/$PROJECT/g" config/hosted.properties
+else
+  PROJECT=
+  # no project yet: the page's first run adds one (the config template's project lines go)
+  sed -i.bak "s/^token.user=.*/token.user=${USER:-me}/; s#^public.url=.*#public.url=http://localhost:$PORT#; /PROJECT/d" config/hosted.properties
+fi
+rm -f config/hosted.properties.bak
 cat > .env <<ENV
 IDMWEB_IMAGE=$IMAGE
 IDMWEB_PORT=$PORT
@@ -88,7 +112,11 @@ until curl -s "http://localhost:$PORT/api/session" >/dev/null 2>&1; do i=$((i + 
 echo
 echo "DirXMLDevWeb is at http://localhost:$PORT"
 echo "  sign in with the token in $DIR/idmweb.env   (cat $DIR/idmweb.env)"
-echo "  project '$PROJECT': open a branch (main) on the page; it is cloned under $DIR/data/workspaces/$PROJECT/"
+if [ -n "$PROJECT" ]; then
+  echo "  project '$PROJECT': open a branch (main) on the page; it is cloned under $DIR/data/workspaces/$PROJECT/"
+else
+  echo "  no tree yet: the page asks where it comes from — export from a vault (set the connection first), import a Designer project or export, use a repository, or clone a remote"
+fi
 echo "  more trees: 'add a project…' in the page's project picker (a vault, a Designer project, a repository, a directory)"
 echo "  the CLI and the simulator in that workspace:  $DIR/idm validate tree    $DIR/idm simulate tree --cases cases"
 echo "  vault connections: the page's Connections view, or $DIR/config/environments.properties"

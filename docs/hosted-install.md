@@ -1,5 +1,10 @@
 # Hosted install
 
+This is the **server** install of the [three](../README.md#three-ways-to-run-it): one host, a
+proxy with TLS, your identity provider, the team's repository. For one person on their own
+machine, [quickstart.md](quickstart.md) is the local install; [development.md](development.md)
+runs the server from a checkout.
+
 One host inside the customer's network, next to the vault. Three containers from
 [`hosted/docker/compose.yml`](../hosted/docker/compose.yml): **idmweb** (this server, the page
 and the `idm` CLI), **Keycloak** (sign-in; skip it if the customer has an identity provider and

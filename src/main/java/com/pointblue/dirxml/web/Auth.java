@@ -69,6 +69,9 @@ public final class Auth implements HttpHandler {
             }
         } catch (TreeService.BadRequest e) {
             text(ex, 400, e.getMessage());
+        } catch (IOException e) {
+            // the identity provider could not be reached or answered badly: say so, in words
+            text(ex, 502, "the identity provider could not be reached: " + e.getMessage());
         }
     }
 

@@ -10,7 +10,7 @@ services:
     environment:
       IDM_ENVIRONMENTS: /etc/idmweb/environments.properties
     volumes:
-      - ./config:/etc/idmweb:rw           # hosted.properties, environments.properties, secrets-*.properties (owner uid 1100, 0600)
+      - ./config:/etc/idmweb:rw           # hosted.properties, environments.properties, secrets-*.properties, deploy_key, idp-ca.crt (owner uid 1100, 0600)
       - ./lib:/opt/idm/lib:ro             # the customer's engine jars; never in the image
       - idmweb-data:/var/lib/idmweb       # workspaces, audit.log
       - ./catalog:/srv/idm/catalog:rw     # package catalog (optional)
@@ -20,11 +20,11 @@ services:
   keycloak:
     image: quay.io/keycloak/keycloak:26.0
     restart: unless-stopped
-    command: start --import-realm --hostname=https://${PUBLIC_HOST}/auth --http-enabled=true --proxy-headers=xforwarded
+    command: start --import-realm --hostname=https://${PUBLIC_HOST}/idp --http-enabled=true --proxy-headers=xforwarded
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
-      KC_HTTP_RELATIVE_PATH: /auth
+      KC_HTTP_RELATIVE_PATH: /idp
     volumes:
       - ./keycloak:/opt/keycloak/data/import:ro
       - keycloak-data:/opt/keycloak/data/h2

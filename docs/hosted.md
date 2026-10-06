@@ -1,6 +1,6 @@
 # W7 — Hosted mode (design note, 2026-10-05)
 
-Status: **decided 2026-10-05 (Keycloak, GitHub, container, proxy TLS, the server's bind, all at once); building in three steps: workspaces + git + audit (done), OIDC (done), container (done; lab deployment pending DNS).**
+Status: **decided 2026-10-05 (Keycloak, GitHub, container, proxy TLS, the server's bind, all at once); building in three steps: workspaces + git + audit (done), OIDC (done), container (done); live at https://idmweb.pointbluetech.com:8443 on DockerHost1 since 2026-10-06.**
 
 Local mode (W0–W6) is one person, one tree on their workstation, one server on loopback with
 a one-time token. Hosted mode is the same server and page for a team: it runs inside the

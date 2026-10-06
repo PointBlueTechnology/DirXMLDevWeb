@@ -35,6 +35,7 @@ import java.util.Properties;
  *   oidc.clientId=idmweb
  *   oidc.clientSecret=… (or Env/Command/Keychain)
  *   oidc.groupsClaim=groups                   # dotted path, e.g. realm_access.roles
+ *   oidc.caFile=/etc/idmweb/idp-ca.crt        # a private CA to trust for the provider (a proxy's internal root)
  *   roles.editor=idm-editors,idm-deployers    # groups (or *) that may read, edit and commit
  *   roles.deployer=idm-deployers              # groups (or *) that may also deploy, control drivers and trace
  *   session.hours=8

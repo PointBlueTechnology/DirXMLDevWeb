@@ -103,6 +103,8 @@ the page follows the files.
   (`bws`), a Terraform output, or any command. The page builds the command, tests that it yields
   a value, and saves only the command (the core's `…Command=` form); the value is read when
   needed, on the host that runs the server, and never shown. See "Secret managers" below.
+- **Navigation**: every view is an address (`#type=…`), so the browser's Back and Forward move
+  between views, a reload keeps the place, and a link to a policy, a PRD or a file can be shared.
 - **Live follow**: any change to the tree, by anything, reloads the page within a second.
 
 ## Run it

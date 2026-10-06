@@ -53,8 +53,9 @@ export function EntitlementView({ driver, name, file, revision, onSelect, onSave
   const base = { name, driver };
   /**
    * Stage what differs from the file. Attribute changes alone are typed operations, one each;
-   * once the value list differs the whole definition is staged instead (values may hold commas,
-   * which the typed `--values` list cannot), carrying the attributes with it.
+   * once the value list differs the whole definition is staged instead (a value is the connected
+   * system's key for the thing granted and may hold anything, commas included, which the typed
+   * `--values` list cannot), carrying the attributes with it.
    */
   const stage = (f: typeof fields, list: string[]) => {
     const valuesSame = list.length === doc.values.length && list.every((v, i) => v === doc.values[i]);
@@ -187,11 +188,11 @@ export function EntitlementView({ driver, name, file, revision, onSelect, onSave
               <p>
                 {values.length === 0 ? (
                   <>
-                    <span className="pill">no list</span> The requester supplies the value when the entitlement is granted (an account entitlement, or a value typed into the role).
+                    <span className="pill">no list</span> The requester supplies the value when the entitlement is granted — an account entitlement needs none; otherwise it is the connected system's key for the thing granted, as an association holds it.
                   </>
                 ) : (
                   <>
-                    <span className="pill">static list</span> The choices offered when the entitlement is granted.
+                    <span className="pill">static list</span> The choices offered when the entitlement is granted: each is the connected system's key for the thing (a GUID, an id, a name, a DN — whatever that system uses, as in an association).
                   </>
                 )}
               </p>
@@ -204,7 +205,7 @@ export function EntitlementView({ driver, name, file, revision, onSelect, onSave
                 ))}
               </ul>
               <div className="addrow tight">
-                <input className="wide" placeholder="a value, e.g. cn=group,ou=groups,o=org" value={newValue} onChange={(e) => setNewValue(e.target.value)} spellCheck={false} data-testid="ent-new-value" />
+                <input className="wide" placeholder="the system's key for the thing granted: a GUID, an id, a group name, a DN…" value={newValue} onChange={(e) => setNewValue(e.target.value)} spellCheck={false} data-testid="ent-new-value" />
                 <button disabled={!newValue.trim()} onClick={() => (stageValues([...values, newValue.trim()]), setNewValue(""))} data-testid="ent-add-value">
                   Add value
                 </button>

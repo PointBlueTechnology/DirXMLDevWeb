@@ -24,9 +24,12 @@ DirXMLDevWeb is at http://localhost:8080
 
 - **Web UI**: open a branch (`main`, or a new one), edit, commit and push; pushes land in
   `~/idmweb/repo.git`, which you can clone, back up, or push on to GitHub later.
-- **CLI**: `~/idmweb/idm …` is `idm` inside the container, in the workspace of `main`
-  (`IDMWEB_BRANCH=feature/x ~/idmweb/idm …` for another branch), with the same engine jars and
-  files the page uses. An agent runs the same, or calls the API with an agent token.
+- **CLI**: `~/idmweb/idm …` is `idm` inside the container, in the workspace of the first
+  project's `main` (`IDMWEB_PROJECT=customer-a IDMWEB_BRANCH=feature/x ~/idmweb/idm …` for
+  another), with the same engine jars and files the page uses. An agent runs the same, or calls
+  the API with an agent token.
+- **More trees**: a server holds any number of projects; "add a project…" in the page's project
+  picker takes a vault, a Designer project or export, a repository, a directory, or a remote.
 - **Simulator**: cases live in the repository's `cases/`; the page's Simulator view and
   `~/idmweb/idm simulate tree --cases cases` run them with the engine.
 - **Agents** (Claude Code, a script, an MCP server) on the same machine use the same container:

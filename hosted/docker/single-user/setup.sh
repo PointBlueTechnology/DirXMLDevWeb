@@ -60,7 +60,9 @@ if [ ! -f config/environments.properties ]; then
   fi
 fi
 chmod 600 config/*.properties
-sed -i.bak "s/^token.user=.*/token.user=${USER:-me}/; s#^public.url=.*#public.url=http://localhost:$PORT#" config/hosted.properties && rm -f config/hosted.properties.bak
+PROJECT=$(basename "$TREE" | sed 's#[^A-Za-z0-9._-]#-#g')
+[ "$PROJECT" = "tree" ] && PROJECT=$(basename "$(dirname "$TREE")" | sed 's#[^A-Za-z0-9._-]#-#g')
+sed -i.bak "s/^token.user=.*/token.user=${USER:-me}/; s#^public.url=.*#public.url=http://localhost:$PORT#; s/PROJECT/$PROJECT/g" config/hosted.properties && rm -f config/hosted.properties.bak
 cat > .env <<ENV
 IDMWEB_IMAGE=$IMAGE
 IDMWEB_PORT=$PORT
@@ -70,11 +72,13 @@ ENV
 # the CLI and the simulator, inside the container, in the workspace of a branch (main by default)
 cat > idm <<'SH'
 #!/bin/sh
-# idm inside the container, run in the workspace of $IDMWEB_BRANCH (default main):  ./idm validate tree
+# idm inside the container, in the workspace of $IDMWEB_PROJECT (default: the first project) and
+# $IDMWEB_BRANCH (default main):  ./idm validate tree
 cd "$(dirname "$0")"
 B=${IDMWEB_BRANCH:-main}
+P=${IDMWEB_PROJECT:-$(grep '^projects=' config/hosted.properties | cut -d= -f2 | cut -d, -f1)}
 U=$(grep '^token.user=' config/hosted.properties | cut -d= -f2)
-W="/var/lib/idmweb/workspaces/$U/$(printf '%s' "$B" | sed 's#[^A-Za-z0-9._-]#_#g')"
+W="/var/lib/idmweb/workspaces/$(printf '%s' "$P" | sed 's#[^A-Za-z0-9._-]#_#g')/$U/$(printf '%s' "$B" | sed 's#[^A-Za-z0-9._-]#_#g')"
 exec docker compose exec -T -w "$W" idmweb idm "$@"
 SH
 chmod +x idm
@@ -84,7 +88,8 @@ until curl -s "http://localhost:$PORT/api/session" >/dev/null 2>&1; do i=$((i + 
 echo
 echo "DirXMLDevWeb is at http://localhost:$PORT"
 echo "  sign in with the token in $DIR/idmweb.env   (cat $DIR/idmweb.env)"
-echo "  open a branch (main) on the page; it is cloned under $DIR/data/workspaces/"
+echo "  project '$PROJECT': open a branch (main) on the page; it is cloned under $DIR/data/workspaces/$PROJECT/"
+echo "  more trees: 'add a project…' in the page's project picker (a vault, a Designer project, a repository, a directory)"
 echo "  the CLI and the simulator in that workspace:  $DIR/idm validate tree    $DIR/idm simulate tree --cases cases"
 echo "  vault connections: the page's Connections view, or $DIR/config/environments.properties"
 echo "  an agent on this machine: the CLI above, or the API with  Authorization: Bearer \$IDMWEB_AGENT_TOKEN  (second line of idmweb.env)"

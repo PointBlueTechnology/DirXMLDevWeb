@@ -52,7 +52,9 @@ the page follows the files.
   is shown and granted, with `{attr}`, `{src-dn}` and `{association}` tokens). The XML tab
   remains for anything else.
 - **References**: what links to, includes or maps through an artifact.
-- **Validation**: the core's whole check suite, including the engine's own compiler.
+- **Validation**: the core's whole check suite, including the engine's own compiler — grouped by
+  the module each finding occurs in (driver, Library, driver set), filtered by severity, and the
+  panel folds to a strip when you want the room.
 - **Configuration editors** (W1), per driver and for the driver set:
   - *GCVs* in scope, each from the place the engine would take it, with a column per environment
     for the values that differ per stage, and *Used by*: every policy and configuration document

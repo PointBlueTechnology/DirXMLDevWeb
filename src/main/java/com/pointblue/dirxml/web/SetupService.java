@@ -39,14 +39,37 @@ public final class SetupService {
         this.audit = audit;
     }
 
-    /** Whether setup is needed, and what the host offers. */
+    /** Whether setup is needed (no project yet), and the projects there are. */
     public Map<String, Object> state() {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("needed", workspaces.needsSetup());
         m.put("dataDir", hosted.dataDir.toString());
-        m.put("repository", hosted.repoUrl == null ? null : hosted.repoUrl.replaceAll("://[^@/]+@", "://"));
-        m.put("inPlace", hosted.inPlace == null ? null : hosted.inPlace.toString());
+        m.put("projects", workspaces.projects());
         return m;
+    }
+
+    private String projectName(String given, String fallback) {
+        String n = given == null || given.isBlank() ? fallback : given.trim();
+        n = n.replaceAll("[^A-Za-z0-9._-]", "-").replaceAll("^[^A-Za-z0-9]+", "");
+        if (n.length() > 64) {
+            n = n.substring(0, 64);
+        }
+        if (!Project.validName(n)) {
+            throw new TreeService.BadRequest("a project name is letters, digits, '.', '_' and '-'");
+        }
+        if (hosted.projects.containsKey(n)) {
+            throw new TreeService.BadRequest("a project named '" + n + "' exists already");
+        }
+        return n;
+    }
+
+    /** Forget a project (its workspaces, and a repository the server made for it stay on disk). */
+    public Map<String, Object> remove(Session session, String name) throws IOException {
+        workspaces.project(name);
+        hosted.removeProject(name);
+        workspaces.projectChanged(name);
+        audit.log(session, null, "project.remove", Map.of("project", name), "ok");
+        return Map.of("removed", name);
     }
 
     private void done(Session session, String how, Map<String, Object> details) {
@@ -54,10 +77,11 @@ public final class SetupService {
     }
 
     /** A tree read from the vault of an environment the Connections view knows. */
-    public Map<String, Object> fromVault(Session session, String envName) throws IOException {
+    public Map<String, Object> fromVault(Session session, String projectName, String envName) throws IOException {
         if (envName == null || envName.isBlank()) {
             throw new TreeService.BadRequest("which environment?");
         }
+        String name = projectName(projectName, envName);
         Environments.Environment env = Environments.load().get(envName);
         List<String> notes = new ArrayList<>();
         DriverSet live = VaultDiff.readLive(env, notes::add);
@@ -66,14 +90,15 @@ public final class SetupService {
                 notes.add("'" + d + "'.shim-auth-id kept out of the tree (the secrets file supplies it)");
             }
         }
-        Map<String, Object> m = seedRepository(live, "Imported from " + envName + " (" + env.driverSetDn + ")");
+        Map<String, Object> m = seedRepository(name, live, "Imported from " + envName + " (" + env.driverSetDn + ")");
         m.put("notes", notes);
-        done(session, "vault", Map.of("env", envName, "drivers", live.drivers.size()));
+        done(session, "vault", Map.of("project", name, "env", envName, "drivers", live.drivers.size()));
         return m;
     }
 
     /** A tree read from an uploaded Designer project (a zip of the project directory) or export (an XML file). */
-    public Map<String, Object> fromUpload(Session session, String kind, String fileName, InputStream body) throws IOException {
+    public Map<String, Object> fromUpload(Session session, String projectName, String kind, String fileName, InputStream body) throws IOException {
+        String name = projectName(projectName, fileName == null ? "project" : fileName.replaceAll("\\.(zip|xml)$", ""));
         Path tmp = Files.createTempDirectory("idmweb-setup");
         try {
             DriverSet ds;
@@ -93,8 +118,8 @@ public final class SetupService {
                 ds = ProjectReader.read(project);
                 what = "Imported from the Designer project " + (fileName == null ? "" : fileName);
             }
-            Map<String, Object> m = seedRepository(ds, what);
-            done(session, kind, Map.of("file", String.valueOf(fileName), "drivers", ds.drivers.size()));
+            Map<String, Object> m = seedRepository(name, ds, what);
+            done(session, kind, Map.of("project", name, "file", String.valueOf(fileName), "drivers", ds.drivers.size()));
             return m;
         } catch (RuntimeException e) {
             throw new TreeService.BadRequest("cannot read that: " + (e.getMessage() == null ? e.toString() : e.getMessage()));
@@ -104,8 +129,9 @@ public final class SetupService {
     }
 
     /** A Designer project directory the server can see (the single-user layout mounts the person's files). */
-    public Map<String, Object> fromProjectPath(Session session, String path) throws IOException {
+    public Map<String, Object> fromProjectPath(Session session, String projectName, String path) throws IOException {
         Path p = existingDir(path);
+        String name = projectName(projectName, p.getFileName().toString());
         Path project = findProject(p);
         if (project == null) {
             throw new TreeService.BadRequest(path + " holds no Designer project (no .project file or Model/ directory)");
@@ -116,14 +142,15 @@ public final class SetupService {
         } catch (RuntimeException e) {
             throw new TreeService.BadRequest("cannot read the project: " + e.getMessage());
         }
-        Map<String, Object> m = seedRepository(ds, "Imported from the Designer project " + project.getFileName());
-        done(session, "project", Map.of("path", project.toString(), "drivers", ds.drivers.size()));
+        Map<String, Object> m = seedRepository(name, ds, "Imported from the Designer project " + project.getFileName());
+        done(session, "project", Map.of("project", name, "path", project.toString(), "drivers", ds.drivers.size()));
         return m;
     }
 
     /** A repository already on this host: bare (cloned per branch, as a remote would be) or a checkout (used in place). */
-    public Map<String, Object> existingRepository(Session session, String path) throws IOException {
+    public Map<String, Object> existingRepository(Session session, String projectName, String path) throws IOException {
         Path p = existingDir(path);
+        String name = projectName(projectName, p.getFileName().toString().replaceAll("\\.git$", ""));
         Git git = workspaces.git();
         boolean bare = "true".equals(git.run(p, "rev-parse", "--is-bare-repository").out.trim());
         boolean checkout = Files.isDirectory(p.resolve(".git"));
@@ -131,29 +158,30 @@ public final class SetupService {
             throw new TreeService.BadRequest(path + " is not a git repository (neither bare nor a checkout); 'Use a directory of files' is for a plain tree");
         }
         Map<String, Object> m = new LinkedHashMap<>();
+        m.put("project", name);
         if (bare) {
             String tree = treeIn(p, null);
-            hosted.saveRepository(p.toString(), tree, "cases", defaultBranch(p), null, null);
-            workspaces.repositoryChanged(git);
+            hosted.saveProject(new Project(name, p.toString(), null, tree, "cases", defaultBranch(p), null, null));
             m.put("repository", p.toString());
             m.put("tree", tree);
         } else {
             String tree = treeIn(null, p);
-            hosted.saveRepository(null, tree, "cases", git.run(p, "rev-parse", "--abbrev-ref", "HEAD").out.trim(), p, null);
-            workspaces.repositoryChanged(git);
+            hosted.saveProject(new Project(name, null, p, tree, "cases", git.run(p, "rev-parse", "--abbrev-ref", "HEAD").out.trim(), null, null));
             m.put("inPlace", p.toString());
             m.put("tree", tree);
         }
-        done(session, "existing", Map.of("path", p.toString(), "bare", bare));
+        workspaces.projectChanged(name);
+        done(session, "existing", Map.of("project", name, "path", p.toString(), "bare", bare));
         return m;
     }
 
     /** A plain directory holding a tree (or tree/ and cases/): made into a repository in place, then used in place. */
-    public Map<String, Object> fromDirectory(Session session, String path) throws IOException {
+    public Map<String, Object> fromDirectory(Session session, String projectName, String path) throws IOException {
         Path p = existingDir(path);
         if (Files.isDirectory(p.resolve(".git"))) {
-            return existingRepository(session, path);
+            return existingRepository(session, projectName, path);
         }
+        String name = projectName(projectName, p.getFileName().toString());
         String tree = treeIn(null, p);
         Git git = workspaces.git();
         Git.Result r = git.run(p, "init", "-q", "-b", "main");
@@ -163,21 +191,23 @@ public final class SetupService {
         Files.writeString(p.resolve(".gitignore"), "deploy-snapshots/\n.dirxmldev/\n", StandardCharsets.UTF_8);
         git.run(p, "add", "-A");
         git.run(p, "-c", "user.name=DirXMLDevWeb", "-c", "user.email=idmweb@localhost", "commit", "-q", "-m", "Initial tree");
-        hosted.saveRepository(null, tree, "cases", "main", p, null);
-        workspaces.repositoryChanged(git);
-        done(session, "directory", Map.of("path", p.toString()));
+        hosted.saveProject(new Project(name, null, p, tree, "cases", "main", null, null));
+        workspaces.projectChanged(name);
+        done(session, "directory", Map.of("project", name, "path", p.toString()));
         Map<String, Object> m = new LinkedHashMap<>();
+        m.put("project", name);
         m.put("inPlace", p.toString());
         m.put("tree", tree);
         return m;
     }
 
     /** A remote to clone, with a token for an https remote if it needs one. */
-    public Map<String, Object> cloneRemote(Session session, String url, String token, String base) throws IOException {
+    public Map<String, Object> cloneRemote(Session session, String projectName, String url, String token, String base) throws IOException {
         if (url == null || url.isBlank()) {
             throw new TreeService.BadRequest("which repository?");
         }
         url = url.trim();
+        String name = projectName(projectName, url.replaceAll("[/\\\\]+$", "").replaceAll(".*[/:]", "").replaceAll("\\.git$", ""));
         Git git = new Git(hosted.dataDir, token == null || token.isBlank() ? hosted.repoToken() : token, hosted.repoSshKey);
         Git.Result ls = git.run(null, "ls-remote", "--heads", url);
         if (!ls.ok()) {
@@ -203,10 +233,11 @@ public final class SetupService {
         } finally {
             TreeService.deleteTree(probe);
         }
-        hosted.saveRepository(url, tree, "cases", b, null, token);
-        workspaces.repositoryChanged(git);
-        done(session, "clone", Map.of("url", url.replaceAll("://[^@/]+@", "://"), "base", b));
+        hosted.saveProject(new Project(name, url, null, tree, "cases", b, token == null || token.isBlank() ? null : token, null));
+        workspaces.projectChanged(name);
+        done(session, "clone", Map.of("project", name, "url", url.replaceAll("://[^@/]+@", "://"), "base", b));
         Map<String, Object> m = new LinkedHashMap<>();
+        m.put("project", name);
         m.put("repository", url.replaceAll("://[^@/]+@", "://"));
         m.put("base", b);
         m.put("tree", tree);
@@ -216,12 +247,13 @@ public final class SetupService {
 
     // ---- helpers ------------------------------------------------------------------------------
 
-    /** Write the tree into data/repo.git (main: tree/, cases/) and point the server at it. */
-    private Map<String, Object> seedRepository(DriverSet ds, String message) throws IOException {
-        Path repo = hosted.dataDir.resolve("repo.git");
+    /** Write the tree into data/projects/<name>.git (main: tree/, cases/) and add the project. */
+    private Map<String, Object> seedRepository(String name, DriverSet ds, String message) throws IOException {
+        Path repo = hosted.dataDir.resolve("projects").resolve(name + ".git");
         if (Files.exists(repo)) {
-            throw new TreeService.BadRequest(repo + " exists already; choose 'an existing repository' for it, or move it aside");
+            throw new TreeService.BadRequest(repo + " exists already; choose 'an existing repository' for it, or another name");
         }
+        Files.createDirectories(repo.getParent());
         Path seed = Files.createTempDirectory("idmweb-seed");
         Git git = workspaces.git();
         try {
@@ -238,9 +270,10 @@ public final class SetupService {
         } finally {
             TreeService.deleteTree(seed);
         }
-        hosted.saveRepository(repo.toString(), "tree", "cases", "main", null, null);
-        workspaces.repositoryChanged(git);
+        hosted.saveProject(new Project(name, repo.toString(), null, "tree", "cases", "main", null, null));
+        workspaces.projectChanged(name);
         Map<String, Object> m = new LinkedHashMap<>();
+        m.put("project", name);
         m.put("repository", repo.toString());
         m.put("tree", "tree");
         m.put("drivers", ds.drivers.size());

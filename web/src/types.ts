@@ -7,6 +7,7 @@ export interface Session {
   mode: "local" | "hosted";
   /** Hosted mode with no repository yet: the first-run setup is needed. */
   setup?: boolean;
+  project?: string | null;
   csrf: string;
   user: { subject: string; name: string; email: string | null; editor: boolean; deployer: boolean };
   workspace: string | null;
@@ -15,9 +16,19 @@ export interface Session {
   revision: string | null;
 }
 
+export interface ProjectInfo {
+  name: string;
+  repository: string | null;
+  inPlace: string | null;
+  base: string;
+  tree: string;
+}
+
 export interface WorkspacesInfo {
   mode: "local" | "hosted";
   setup?: boolean;
+  projects?: ProjectInfo[];
+  project?: string;
   inPlace?: boolean;
   open: { id: string; branch: string | null; tree: string }[];
   current: string | null;
@@ -492,6 +503,7 @@ export interface EnvSecrets {
 }
 
 export interface SetupResult {
+  project?: string;
   repository?: string;
   inPlace?: string;
   tree?: string;

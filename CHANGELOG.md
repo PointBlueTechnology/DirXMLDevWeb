@@ -9,6 +9,11 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Added
 
+- Projects: one hosted server holds any number of trees (`projects=` with `project.<name>.repo.*`;
+  the single `repo.*` keys still describe one). A project picker in the repository bar, "add a
+  project…" through the setup ways, workspaces under `workspaces/<project>/<user>/<branch>`,
+  `/api/workspaces?project=`, `POST /api/workspaces/open {project, branch}`, `POST /api/setup/remove`.
+
 - First-run setup for a hosted server without a repository: export from a vault, import a
   Designer project (zip upload or a directory) or export, use an existing repository (bare,
   cloned per branch; or a checkout used in place), use a plain directory of files, or clone a

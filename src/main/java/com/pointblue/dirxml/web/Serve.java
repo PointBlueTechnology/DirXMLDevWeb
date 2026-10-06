@@ -111,7 +111,7 @@ public final class Serve {
         server.createContext("/auth/", new Auth(identity, sessions, security, audit, h.publicUrl));
         server.createContext("/", new StaticFiles(web));
         start(server);
-        System.out.println("DirXMLDevWeb " + VERSION + " hosted: " + h.publicUrl + " (bound " + h.bind + ":" + h.port + "), identity " + identity.name() + ", " + agents.size() + " agent(s), repository " + (h.inPlace != null ? h.inPlace + " (in place)" : h.repoUrl == null ? "none yet (setup on first visit)" : h.repoUrl.replaceAll("://[^@/]+@", "://")) + ", data " + h.dataDir);
+        System.out.println("DirXMLDevWeb " + VERSION + " hosted: " + h.publicUrl + " (bound " + h.bind + ":" + h.port + "), identity " + identity.name() + ", " + agents.size() + " agent(s), projects " + (h.projects.isEmpty() ? "none yet (setup on first visit)" : String.join(", ", h.projects.keySet())) + ", data " + h.dataDir);
         Thread.currentThread().join();
     }
 

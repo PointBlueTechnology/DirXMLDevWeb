@@ -72,7 +72,7 @@ check("without a token the container asks for a sign-in", call("GET", "/api/sess
 s, sess = call("GET", "/api/session")
 check("the agent has a session in the container", s == 200 and sess["mode"] == "hosted" and sess["user"]["subject"] == "agent:ci" and sess["core"] is not None)
 s, o = call("POST", "/api/workspaces/open", {"branch": "feature/container"})
-check("a branch is cloned inside the container", s == 200 and os.path.isdir(os.path.join(work, "data", "workspaces", "agent_ci", "feature_container", ".git")))
+check("a branch is cloned inside the container", s == 200 and os.path.isdir(os.path.join(work, "data", "workspaces", "repo", "agent_ci", "feature_container", ".git")))
 s, v = call("GET", "/api/validate")
 check("the tree validates with the mounted engine (the compile check ran)", s == 200 and v["ok"] and v["counts"]["error"] == 0)
 rev = call("GET", "/api/session")[1]["revision"]
@@ -80,7 +80,7 @@ s, op = call("POST", "/api/op/gcv.set", {"args": {"name": "synth.company", "valu
 check("an edit lands", s == 200 and op["written"])
 s, c = call("POST", "/api/git/commit", {"message": "From the container", "push": True})
 check("commit and push reach the host's repository", s == 200 and c["pushed"] and "From the container" in subprocess.run(["git", "--git-dir", os.path.join(work, "repo.git"), "log", "feature/container", "-1", "--format=%s"], capture_output=True, text=True).stdout)
-cli = subprocess.run(["docker", "exec", name, "idm", "validate", "/var/lib/idmweb/workspaces/agent_ci/feature_container/tree", "--json"], capture_output=True, text=True)
+cli = subprocess.run(["docker", "exec", name, "idm", "validate", "/var/lib/idmweb/workspaces/repo/agent_ci/feature_container/tree", "--json"], capture_output=True, text=True)
 check("the idm CLI inside the container validates the same workspace", cli.returncode == 0 and '"ok":true' in cli.stdout.replace(" ", ""))
 with open(os.path.join(work, "data", "audit.log")) as f:
     lines = [json.loads(l) for l in f if l.strip()]

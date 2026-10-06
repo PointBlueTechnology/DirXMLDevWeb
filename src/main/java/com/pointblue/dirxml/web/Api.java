@@ -145,7 +145,7 @@ public final class Api implements HttpHandler {
                 return;
             }
             if (path.equals("/api/session") || path.startsWith("/api/workspaces")) {
-                send(ex, 200, path.equals("/api/session") ? sessionInfo(session) : workspaceRoute(session, method, path, ex));
+                send(ex, 200, path.equals("/api/session") ? sessionInfo(session) : workspaceRoute(session, method, path, query, ex));
                 return;
             }
             if (path.startsWith("/api/setup") && setup != null) {
@@ -207,6 +207,8 @@ public final class Api implements HttpHandler {
         u.put("deployer", session.principal.deployer);
         m.put("user", u);
         m.put("setup", workspaces.needsSetup());
+        Project p = w == null ? null : workspaces.projectOf(w);
+        m.put("project", p == null ? null : p.name);
         m.put("workspace", w == null ? null : w.id);
         m.put("branch", w == null ? null : w.branch);
         m.put("tree", w == null ? null : w.tree.toString());
@@ -214,18 +216,26 @@ public final class Api implements HttpHandler {
         return m;
     }
 
-    private Object workspaceRoute(Session session, String method, String path, HttpExchange ex) throws IOException {
+    private Object workspaceRoute(Session session, String method, String path, Map<String, String> query, HttpExchange ex) throws IOException {
         if (method.equals("GET") && path.equals("/api/workspaces")) {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("mode", security.hostedMode() ? "hosted" : "local");
             m.put("setup", workspaces.needsSetup());
-            m.put("inPlace", workspaces.hosted() && workspaces.config().inPlace != null);
             m.put("open", workspaces.describe(session.principal));
             m.put("current", session.workspace);
             if (workspaces.hosted()) {
-                m.put("repository", workspaces.config().repoUrl.replaceAll("://[^@/]+@", "://"));
-                m.put("base", workspaces.config().repoBase);
-                m.put("branches", workspaces.branches());
+                m.put("projects", workspaces.projects());
+                Workspace cur = workspaces.get(session.workspace);
+                Project p = cur != null ? workspaces.projectOf(cur) : null;
+                String which = query.get("project") != null ? query.get("project") : p != null ? p.name : workspaces.needsSetup() ? null : workspaces.config().projects.keySet().iterator().next();
+                if (which != null) {
+                    Project chosen = workspaces.project(which);
+                    m.put("project", chosen.name);
+                    m.put("repository", chosen.shownUrl());
+                    m.put("inPlace", chosen.inPlace != null);
+                    m.put("base", chosen.base);
+                    m.put("branches", workspaces.branches(which));
+                }
             }
             return m;
         }
@@ -235,11 +245,13 @@ public final class Api implements HttpHandler {
             }
             Map<String, Object> req = Json.asMap(Json.parse(new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8)));
             String branch = Json.asString(req.get("branch"));
-            Workspace w = workspaces.openBranch(session.principal, branch);
+            Workspace w = workspaces.openBranch(session.principal, Json.asString(req.get("project")), branch);
             session.workspace = w.id;
-            audit.log(session, w, "workspace.open", Map.of("branch", branch), "ok");
+            Project p = workspaces.projectOf(w);
+            audit.log(session, w, "workspace.open", Map.of("project", p == null ? "" : p.name, "branch", String.valueOf(branch)), "ok");
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("workspace", w.id);
+            m.put("project", p == null ? null : p.name);
             m.put("branch", w.branch);
             return m;
         }
@@ -494,20 +506,23 @@ public final class Api implements HttpHandler {
             throw new TreeService.BadRequest("setup needs an account with a role");
         }
         if (path.equals("/api/setup/upload")) {
-            return setup.fromUpload(session, query.get("kind"), query.get("name"), ex.getRequestBody());
+            return setup.fromUpload(session, query.get("project"), query.get("kind"), query.get("name"), ex.getRequestBody());
         }
         Map<String, Object> req = SetupService.json(ex.getRequestBody());
+        String project = Json.asString(req.get("project"));
         switch (path) {
             case "/api/setup/vault":
-                return setup.fromVault(session, Json.asString(req.get("env")));
+                return setup.fromVault(session, project, Json.asString(req.get("env")));
             case "/api/setup/project":
-                return setup.fromProjectPath(session, Json.asString(req.get("path")));
+                return setup.fromProjectPath(session, project, Json.asString(req.get("path")));
             case "/api/setup/existing":
-                return setup.existingRepository(session, Json.asString(req.get("path")));
+                return setup.existingRepository(session, project, Json.asString(req.get("path")));
             case "/api/setup/directory":
-                return setup.fromDirectory(session, Json.asString(req.get("path")));
+                return setup.fromDirectory(session, project, Json.asString(req.get("path")));
             case "/api/setup/clone":
-                return setup.cloneRemote(session, Json.asString(req.get("url")), Json.asString(req.get("token")), Json.asString(req.get("base")));
+                return setup.cloneRemote(session, project, Json.asString(req.get("url")), Json.asString(req.get("token")), Json.asString(req.get("base")));
+            case "/api/setup/remove":
+                return setup.remove(session, project);
             default:
                 throw new TreeService.NotFound("no such endpoint: " + method + " " + path);
         }
@@ -538,8 +553,9 @@ public final class Api implements HttpHandler {
     }
 
     private Object gitRoute(Session session, Workspace w, String method, String path, HttpExchange ex) throws IOException {
-        Git git = workspaces.git();
-        String base = workspaces.hosted() ? workspaces.config().repoBase : null;
+        Project project = workspaces.projectOf(w);
+        Git git = project == null ? workspaces.git() : workspaces.gitFor(project);
+        String base = project == null ? null : project.base;
         if (method.equals("GET") && path.equals("/api/git/status")) {
             Map<String, Object> m = git.status(w.root, base);
             if (base == null && Boolean.TRUE.equals(m.get("repository"))) {

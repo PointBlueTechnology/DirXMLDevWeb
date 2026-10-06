@@ -9,6 +9,11 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Added
 
+- Hosted mode, step 2: `identity=oidc` — OpenID Connect with discovery, authorization code with
+  PKCE, the ID token verified against the provider's JWKS (RS256/384/512, ES256), groups from a
+  configurable claim path with the userinfo fallback. A ready Keycloak realm
+  (`hosted/keycloak/`) and `bin/smoke-oidc.sh`, which signs in through a real Keycloak in Docker.
+
 - Hosted mode (W7, first step): `serve --hosted hosted.properties`. Sign-in (the `none`
   provider on loopback; OIDC next), a session cookie with CSRF protection, roles from groups
   (editor, deployer), a workspace per user and branch cloned from the team's repository, commit

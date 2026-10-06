@@ -9,6 +9,19 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Added
 
+- `docs/quickstart.md`: one person, one container, from the release bundle — no checkout.
+  `setup.sh` pulls the image when `IDMWEB_IMAGE` names a registry and starts without a tree
+  (`setup.sh -`, the page's first run takes it from there); every release carries
+  `dirxml-dev-web-single-user-<version>.zip` (attached by the image workflow).
+
+### Changed
+
+- The README is an overview; its sections moved to `docs/`: features, hosted-mode
+  configuration, security model, secret managers, development (run from a checkout, layout,
+  tests, releasing), known limits.
+
+### Added
+
 - The image on GHCR: `ghcr.io/pointbluetechnology/dirxml-dev-web:<version>` (+ `latest`, amd64 +
   arm64), built by `.github/workflows/image.yml` when a release is published (or by hand for a
   version). Everything comes from GitHub releases — this repo's jar and page, DirXMLDev's jar and

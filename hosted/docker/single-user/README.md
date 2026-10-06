@@ -6,13 +6,17 @@ repository" is a bare git repository in the directory, and the container runs as
 file it writes is yours.
 
 ```bash
-hosted/docker/single-user/setup.sh /path/to/your/tree          # default directory ~/idmweb
+IDMWEB_IMAGE=ghcr.io/pointbluetechnology/dirxml-dev-web:0.12.0 setup.sh /path/to/your/tree   # default directory ~/idmweb
+IDMWEB_IMAGE=ghcr.io/pointbluetechnology/dirxml-dev-web:0.12.0 setup.sh -                    # no tree yet: the page asks
 ```
 
-It builds the image if there is none (from this checkout and DirXMLDev's beside it, or
-`docker load` a release tarball first), copies the engine jars from DirXMLDev's `lib/` (or
-`IDM_LIB`), makes `repo.git` with your tree under `tree/` (and `cases/` beside your tree, if
-there is one), generates the token, writes the configuration, starts the container and prints:
+The walk-through is [docs/quickstart.md](../../../docs/quickstart.md); the bundle on every
+release (`dirxml-dev-web-single-user-<version>.zip`) holds this directory, so no checkout is
+needed. `setup.sh` pulls the image when its name has a registry (a bare name is built from the
+checkouts, for developers), copies the engine jars from `IDM_LIB` (or DirXMLDev's `lib/` beside a
+checkout), makes `repo.git` with your tree under `tree/` (and `cases/` beside your tree, if
+there is one) — or leaves the first project to the page's first run when you passed `-` —
+generates the token, writes the configuration, starts the container and prints:
 
 ```
 DirXMLDevWeb is at http://localhost:8080

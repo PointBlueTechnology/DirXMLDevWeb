@@ -8,14 +8,16 @@ const POLICY_CHIP_H = 22;
 /** Chip rect is drawn at centerY - POLICY_CHIP_TOP. */
 const POLICY_CHIP_TOP = 10;
 
+// Chips are 150 wide on ribs 150 apart, so the Command Transformation stack (rib 850) must not
+// meet the Input/Output stacks: those sit 190 further right, leaving a 40px gutter between them.
 const LAYOUT = {
-  width: 1240,
+  width: 1300,
   spineY: 320,
   ribXs: [250, 400, 550, 700, 850] as const,
   idvX: 80,
-  appX: 1165,
-  schemaX: 990,
-  ioX: 990,
+  appX: 1220,
+  schemaX: 1040,
+  ioX: 1040,
   ribOffset: 118,
   boxHalf: 22,
   stackFromBox: 36,

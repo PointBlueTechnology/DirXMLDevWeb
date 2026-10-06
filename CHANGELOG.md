@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-10-06
+
 ### Fixed
 
 - Home: a driver card's shim class ran past the card; it is one line with an ellipsis (hover for

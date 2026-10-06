@@ -7,7 +7,8 @@ import type { GitStatus, Session, WorkspacesInfo } from "../types";
  * commit, commit and push, update from the base branch, the pull-request link, and in hosted
  * mode who is signed in. Local mode shows it only when the tree sits in a git checkout.
  */
-export function RepoBar({ session, revision, onWorkspaceChanged }: { session: Session; revision: string; onWorkspaceChanged: () => void }) {
+export function RepoBar({ session, revision, onWorkspaceChanged, onAddProject }: { session: Session; revision: string; onWorkspaceChanged: () => void; onAddProject: () => void }) {
+  const [project, setProject] = useState<string>(session.project ?? "");
   const [status, setStatus] = useState<GitStatus | null>(null);
   const [info, setInfo] = useState<WorkspacesInfo | null>(null);
   const [message, setMessage] = useState("");
@@ -27,10 +28,11 @@ export function RepoBar({ session, revision, onWorkspaceChanged }: { session: Se
         .catch(() => setStatus(null));
     }
     if (hosted) {
-      api.workspaces().then(setInfo).catch(() => undefined);
+      api.workspaces(project || undefined).then(setInfo).catch(() => undefined);
     }
   };
-  useEffect(load, [session.workspace, revision, hosted]);
+  useEffect(load, [session.workspace, revision, hosted, project]);
+  useEffect(() => setProject(session.project ?? ""), [session.project]);
 
   const run = (what: string, fn: () => Promise<{ text: string; ok: boolean }>) => {
     setBusy(what);
@@ -55,10 +57,10 @@ export function RepoBar({ session, revision, onWorkspaceChanged }: { session: Se
     });
   const openBranch = () =>
     run("Opening…", async () => {
-      await api.openWorkspace(branch.trim());
+      await api.openWorkspace(branch.trim(), project || undefined);
       setOpen(false);
       onWorkspaceChanged();
-      return { ok: true, text: `opened ${branch.trim()}` };
+      return { ok: true, text: `opened ${project ? project + " / " : ""}${branch.trim()}` };
     });
 
   if (!hosted && (!status || !status.repository)) {
@@ -68,6 +70,32 @@ export function RepoBar({ session, revision, onWorkspaceChanged }: { session: Se
 
   return (
     <div className="repobar" data-testid="repobar">
+      {hosted && (info?.projects?.length ?? 0) > 0 && (
+        <span className="projectpick">
+          <select
+            value={project}
+            onChange={(e) => {
+              if (e.target.value === "__add") {
+                onAddProject();
+                return;
+              }
+              setProject(e.target.value);
+              setOpen(true);
+              setPick("");
+              setBranch("");
+            }}
+            title="Project: one tree with its repository"
+            data-testid="repo-project"
+          >
+            {(info?.projects ?? []).map((p) => (
+              <option key={p.name} value={p.name}>
+                {p.name}
+              </option>
+            ))}
+            <option value="__add">add a project…</option>
+          </select>
+        </span>
+      )}
       {hosted && (
         <span className="branchpick">
           <strong>{session.branch ?? "no branch open"}</strong>
@@ -93,7 +121,7 @@ export function RepoBar({ session, revision, onWorkspaceChanged }: { session: Se
                 <option value={NEW}>new branch…</option>
               </select>
               {pick === NEW && <input value={branch} onChange={(e) => setBranch(e.target.value)} placeholder={`name (starts from ${info?.base ?? "main"})`} spellCheck={false} autoFocus data-testid="repo-branch" />}
-              <button onClick={openBranch} disabled={!branch.trim() || busy !== null} data-testid="repo-open">
+              <button onClick={openBranch} disabled={(!branch.trim() && !info?.inPlace) || busy !== null} data-testid="repo-open">
                 Open
               </button>
             </span>

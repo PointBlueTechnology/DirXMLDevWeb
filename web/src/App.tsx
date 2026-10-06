@@ -34,6 +34,7 @@ export function App() {
   const [noWorkspace, setNoWorkspace] = useState(false);
   // bumped when the workspace changes: the event stream is per workspace and must be opened again
   const [streamKey, setStreamKey] = useState(0);
+  const [addingProject, setAddingProject] = useState(false);
 
   const reload = useCallback(async () => {
     try {
@@ -187,14 +188,31 @@ export function App() {
             });
             setSelection({ type: "home" });
           }}
+          onAddProject={() => setAddingProject(true)}
+        />
+      )}
+      {addingProject && session && (
+        <SetupView
+          first={false}
+          onCancel={() => setAddingProject(false)}
+          onDone={(project) => {
+            setAddingProject(false);
+            void api.openWorkspace("main", project ?? undefined).then(() => loadSession()).then(() => {
+              setStreamKey((k) => k + 1);
+              setSelection({ type: "home" });
+              return reload();
+            }).catch(() => loadSession());
+          }}
+          onConnections={() => setSelection({ type: "connections" })}
         />
       )}
       {noWorkspace && session?.setup && selection.type !== "connections" && (
         <SetupView
-          onDone={() => {
+          first
+          onDone={(project) => {
             void loadSession().then((s) => {
               if (s && !s.setup) {
-                return api.openWorkspace(s.branch ?? "main").then(() => loadSession()).then(() => {
+                return api.openWorkspace("main", project ?? undefined).then(() => loadSession()).then(() => {
                   setStreamKey((k) => k + 1);
                   return reload();
                 });
@@ -222,7 +240,7 @@ export function App() {
           <p className="muted small">Use the bar above.</p>
         </div>
       )}
-      <div className="body" style={noWorkspace ? { display: "none" } : undefined}>
+      <div className="body" style={noWorkspace || addingProject ? { display: "none" } : undefined}>
         <nav className="sidebar">
           <button className={selection.type === "vault" ? "navbtn active" : "navbtn"} onClick={() => setSelection({ type: "vault" })}>
             Vault

@@ -103,7 +103,7 @@ check("a write without the CSRF token is refused", alice.call("POST", "/api/work
 s, ws, _ = alice.call("GET", "/api/workspaces")
 check("the workspaces list names the repository, base and branches", s == 200 and ws["base"] == "main" and ws["branches"] == ["main"] and ws["repository"].endswith("repo.git"))
 s, opened, _ = alice.call("POST", "/api/workspaces/open", {"branch": "feature/x"})
-check("a new branch is cloned from main and opened", s == 200 and opened["branch"] == "feature/x" and os.path.isdir(os.path.join(work, "data", "workspaces", "alice", "feature_x", ".git")))
+check("a new branch is cloned from main and opened", s == 200 and opened["branch"] == "feature/x" and os.path.isdir(os.path.join(work, "data", "workspaces", "repo", "alice", "feature_x", ".git")))
 s, outline, _ = alice.call("GET", "/api/outline")
 check("the workspace's tree is served", s == 200 and outline["drivers"][0]["name"] == "Loop")
 s, st, _ = alice.call("GET", "/api/git/status")
@@ -127,7 +127,7 @@ check("so does changing a connection", alice.call("POST", "/api/credentials/envi
 bob = Client()
 bob.sign_in("bob")
 s, opened, _ = bob.call("POST", "/api/workspaces/open", {"branch": "feature/x"})
-check("another user opens the same branch in a workspace of his own", s == 200 and os.path.isdir(os.path.join(work, "data", "workspaces", "bob", "feature_x")))
+check("another user opens the same branch in a workspace of his own", s == 200 and os.path.isdir(os.path.join(work, "data", "workspaces", "repo", "bob", "feature_x")))
 s, cfg, _ = bob.call("GET", "/api/config")
 check("and sees her pushed change", s == 200 and any(g["name"] == "synth.company" and g["value"] == "Hosted Corp" for g in cfg["gcvs"]))
 s, dep, _ = bob.call("POST", "/api/vault/deploy", {"env": "nope", "confirm": "nope"})
@@ -190,13 +190,31 @@ try:
     s, sess, _ = call2("GET", "/api/session")
     check("first run: setup is done and remembered in the configuration", not sess["setup"] and "repo.inPlace=" + plain in open(os.path.join(work, "hosted2.properties")).read())
     s, o, _ = call2("POST", "/api/workspaces/open", {"branch": "main"})
-    check("first run: the in-place checkout is the workspace", s == 200 and o["workspace"] == "in-place")
+    check("first run: the in-place checkout is the workspace", s == 200 and o["workspace"] == "plain/in-place")
     check("first run: the tree is served from it", call2("GET", "/api/outline")[1]["drivers"][0]["name"] == "Loop")
     rev = call2("GET", "/api/session")[1]["revision"]
     s, c = call2("POST", "/api/op/policy.add", {"args": {"name": "sub-ctp-New", "driver": "Loop", "scope": "subscriber", "link": "subscriber-command"}, "dryRun": False, "revision": rev})[:2]
     check("a policy is created and linked (the New menu's operation)", s == 200 and c["written"] and any(f.endswith("sub-ctp-New.policy.xml") for f in c["changedFiles"]))
     s, st, _ = call2("GET", "/api/git/status")
     check("git status in place sees the new policy", s == 200 and st["branch"] == "main" and any("sub-ctp-New" in x["file"] for x in st["changed"]))
+    # a second project on the same server: the bare repository of the first server, named
+    s, r = call2("POST", "/api/setup/existing", {"project": "second", "path": os.path.join(work, "repo.git")})[:2]
+    check("a second project is added (a bare repository, cloned per branch)", s == 200 and r["project"] == "second" and r["tree"] == "tree")
+    s, ws, _ = call2("GET", "/api/workspaces?project=second")
+    check("the server lists both projects and the second's branches", [p["name"] for p in ws["projects"]] == ["plain", "second"] and "feature/x" in ws["branches"] and ws["project"] == "second")
+    s, o, _ = call2("POST", "/api/workspaces/open", {"project": "second", "branch": "feature/x"})
+    check("a branch of the second project opens in its own workspace", s == 200 and o["workspace"] == "second/solo/feature_x" and os.path.isdir(os.path.join(work, "data2", "workspaces", "second", "solo", "feature_x", ".git")))
+    s, cfg, _ = call2("GET", "/api/config")
+    check("and holds that project's tree (Alice's pushed value)", s == 200 and any(g["name"] == "synth.company" and g["value"] == "Hosted Corp" for g in cfg["gcvs"]))
+    s, sess, _ = call2("GET", "/api/session")
+    check("the session says which project is open", sess["project"] == "second")
+    s, o, _ = call2("POST", "/api/workspaces/open", {"project": "plain", "branch": "main"})
+    check("switching back to the first project's in-place workspace", s == 200 and o["workspace"] == "plain/in-place")
+    conf = open(os.path.join(work, "hosted2.properties")).read()
+    check("both projects are in the configuration", "projects=plain,second" in conf and "project.second.repo.url=" in conf and "project.plain.repo.inPlace=" in conf)
+    check("a duplicate project name is refused", "exists already" in call2("POST", "/api/setup/directory", {"project": "plain", "path": plain})[1]["error"])
+    s, rm = call2("POST", "/api/setup/remove", {"project": "second"})[:2]
+    check("a project can be removed (its files stay)", s == 200 and rm["removed"] == "second" and "projects=plain\n" in open(os.path.join(work, "hosted2.properties")).read())
 finally:
     p2.terminate()
 

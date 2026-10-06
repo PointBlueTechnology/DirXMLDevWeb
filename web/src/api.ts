@@ -107,17 +107,18 @@ export const api = {
   form: (driver: string, name: string) => call<FormDoc>("GET", `/api/form?driver=${q(driver)}&name=${q(name)}`),
   roles: () => call<RoleCatalog>("GET", "/api/roles"),
   packages: () => call<PackagesData>("GET", "/api/packages"),
-  workspaces: () => call<WorkspacesInfo>("GET", "/api/workspaces"),
+  workspaces: (project?: string) => call<WorkspacesInfo>("GET", project ? `/api/workspaces?project=${q(project)}` : "/api/workspaces"),
   setup: {
     state: () => call<{ needed: boolean; dataDir: string; repository: string | null; inPlace: string | null }>("GET", "/api/setup"),
-    vault: (env: string) => call<SetupResult>("POST", "/api/setup/vault", { env }),
-    project: (path: string) => call<SetupResult>("POST", "/api/setup/project", { path }),
-    existing: (path: string) => call<SetupResult>("POST", "/api/setup/existing", { path }),
-    directory: (path: string) => call<SetupResult>("POST", "/api/setup/directory", { path }),
-    clone: (url: string, token: string, base: string) => call<SetupResult>("POST", "/api/setup/clone", { url, token, base }),
+    vault: (project: string, env: string) => call<SetupResult>("POST", "/api/setup/vault", { project, env }),
+    project: (project: string, path: string) => call<SetupResult>("POST", "/api/setup/project", { project, path }),
+    existing: (project: string, path: string) => call<SetupResult>("POST", "/api/setup/existing", { project, path }),
+    directory: (project: string, path: string) => call<SetupResult>("POST", "/api/setup/directory", { project, path }),
+    clone: (project: string, url: string, token: string, base: string) => call<SetupResult>("POST", "/api/setup/clone", { project, url, token, base }),
+    remove: (project: string) => call<{ removed: string }>("POST", "/api/setup/remove", { project }),
     /** A Designer project (zip) or export (xml), streamed as the request body. */
-    upload: async (kind: "project" | "export", file: File): Promise<SetupResult> => {
-      const res = await fetch(`/api/setup/upload?kind=${kind}&name=${encodeURIComponent(file.name)}`, {
+    upload: async (project: string, kind: "project" | "export", file: File): Promise<SetupResult> => {
+      const res = await fetch(`/api/setup/upload?kind=${kind}&project=${encodeURIComponent(project)}&name=${encodeURIComponent(file.name)}`, {
         method: "POST",
         headers: { "X-IDMWeb-Token": token(), ...(csrf ? { "X-IDMWeb-CSRF": csrf } : {}), "Content-Type": "application/octet-stream" },
         body: file,
@@ -129,7 +130,7 @@ export const api = {
       return data;
     },
   },
-  openWorkspace: (branch: string) => call<{ workspace: string; branch: string }>("POST", "/api/workspaces/open", { branch }),
+  openWorkspace: (branch: string, project?: string) => call<{ workspace: string; project: string | null; branch: string }>("POST", "/api/workspaces/open", { branch, project }),
   git: {
     status: () => call<GitStatus>("GET", "/api/git/status"),
     commit: (message: string, push: boolean) => call<{ committed: boolean; hash?: string; pushed?: boolean; message?: string }>("POST", "/api/git/commit", { message, push }),

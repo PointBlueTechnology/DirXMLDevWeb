@@ -86,7 +86,8 @@ export function parseEntitlement(xml: string): EntitlementDoc {
 /**
  * The definition with the editor's attributes and a static value list written back into it; the
  * rest of the document (a query, comments, order) is kept. Values go through the document, not
- * the `--values` list, because entitlement values are usually DNs and hold commas.
+ * the `--values` list: a value is the connected system's own key for the thing granted, as in an
+ * association — a GUID, an id, a name, sometimes a DN — and the typed list is comma-separated.
  */
 export function writeEntitlement(xml: string, fields: { displayName: string; description: string; conflict: string; multiValued: boolean }, values: string[] | null): string {
   const doc = new DOMParser().parseFromString(xml, "application/xml");

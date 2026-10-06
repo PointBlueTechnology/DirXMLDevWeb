@@ -7,6 +7,19 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- Connections view: environments (vault URL, bind DN, driver set, tier, trust, SSH) created and
+  edited from the page with a connection test; the password and each driver secret the tree's
+  drivers need, stored in the macOS Keychain or an owner-only file and never shown again. Reached
+  from the Vault view's picker, its empty state, and any connection or credential error.
+  `GET /api/credentials`, `/api/credentials/secrets`; `POST /api/credentials/{test,environment,environment/remove,secret}`.
+- Secret managers: a password or driver secret as a reference to AWS Secrets Manager, Azure Key
+  Vault, Google Cloud Secret Manager, CyberArk CCP, BeyondTrust Password Safe, Bitwarden, Bitwarden
+  Secrets Manager, a Terraform output or any command, built from a preset, tested
+  (`POST /api/credentials/resolve`) and saved as the core's `…Command=` line; helper scripts
+  `bin/secrets/cyberark-ccp.sh` and `bin/secrets/beyondtrust.sh`; a *Check* per configured secret.
+
 ## [0.2.0] - 2026-10-05
 
 The first release: local mode complete (W0–W6). 0.1.0 was the unreleased spike.

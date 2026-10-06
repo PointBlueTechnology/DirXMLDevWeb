@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
 import type { ConnectionEnv, Connections, EnvSecrets } from "../types";
+import { ManagerPicker } from "./ManagerPicker";
 
 const TIERS = ["dev", "stg", "prd"];
 
@@ -89,11 +90,11 @@ export function ConnectionsView({ initialEnv }: { initialEnv: string | null }) {
           </tbody>
         </table>
         {data.environments.length === 0 && <p className="muted">No environments yet. Add one: the vault's LDAPS URL, the account to bind as and its password, and the driver set's DN.</p>}
-        {editing === "new" && <EnvForm key="new" env={null} keychain={data.keychain} onDone={(name) => (void load(), setEditing(name))} onCancel={() => setEditing(null)} />}
+        {editing === "new" && <EnvForm key="new" env={null} keychain={data.keychain} helpers={data.helpers} onDone={(name) => (void load(), setEditing(name))} onCancel={() => setEditing(null)} />}
         {current && (
           <>
-            <EnvForm key={current.name} env={current} keychain={data.keychain} onDone={() => void load()} onCancel={() => setEditing(null)} onRemoved={() => (void load(), setEditing(null))} />
-            <SecretsPanel key={"s" + current.name} env={current.name} keychain={data.keychain} />
+            <EnvForm key={current.name} env={current} keychain={data.keychain} helpers={data.helpers} onDone={() => void load()} onCancel={() => setEditing(null)} onRemoved={() => (void load(), setEditing(null))} />
+            <SecretsPanel key={"s" + current.name} env={current.name} keychain={data.keychain} helpers={data.helpers} />
           </>
         )}
       </div>
@@ -104,12 +105,14 @@ export function ConnectionsView({ initialEnv }: { initialEnv: string | null }) {
 function EnvForm({
   env,
   keychain,
+  helpers,
   onDone,
   onCancel,
   onRemoved,
 }: {
   env: ConnectionEnv | null;
   keychain: boolean;
+  helpers: string;
   onDone: (name: string) => void;
   onCancel: () => void;
   onRemoved?: () => void;
@@ -133,9 +136,9 @@ function EnvForm({
   const [notes, setNotes] = useState<string[]>([]);
   const [confirmRemove, setConfirmRemove] = useState(false);
   const isNew = env === null;
-  const refStore = f.store === "env" || f.store === "command";
+  const refStore = f.store === "env" || f.store === "command" || f.store === "manager";
   const passwordGiven = f.password.length > 0;
-  const storeArg = refStore ? `${f.store}:${f.ref}` : f.store;
+  const storeArg = f.store === "manager" ? `command:${f.ref}` : refStore ? `${f.store}:${f.ref}` : f.store;
   const canSave = /^[A-Za-z0-9][A-Za-z0-9_.-]*$/.test(f.name) && f.url.length > 8 && f.bindDn && f.driverSet && (isNew ? passwordGiven || (refStore && f.ref) : true);
 
   const runTest = () => {
@@ -227,15 +230,17 @@ function EnvForm({
         <select value={f.store} onChange={(e) => setF({ ...f, store: e.target.value })} data-testid="conn-store">
           {keychain && <option value="keychain">keep it in the macOS Keychain</option>}
           <option value="file">keep it in the environments file (readable by you only)</option>
+          <option value="manager">read it from a secret manager (AWS, Azure, GCP, CyberArk, BeyondTrust, Bitwarden…)</option>
           <option value="env">read it from an environment variable</option>
           <option value="command">read it from a command's output</option>
         </select>
-        {refStore ? (
+        {f.store === "manager" ? null : refStore ? (
           <input className="wide" value={f.ref} onChange={(e) => setF({ ...f, ref: e.target.value })} placeholder={f.store === "env" ? "VARIABLE_NAME" : "op read op://vault/item/password"} spellCheck={false} />
         ) : (
           <input type="password" value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} placeholder={isNew ? "password" : "new password"} autoComplete="new-password" data-testid="conn-password" />
         )}
       </div>
+      {f.store === "manager" && <ManagerPicker helpers={helpers} onCommand={(c) => setF((cur) => ({ ...cur, ref: c }))} />}
       <div className="addrow">
         <button onClick={runTest} disabled={busy !== null || !f.url || !f.bindDn || (!passwordGiven && isNew)} data-testid="conn-test">
           Test connection
@@ -273,7 +278,7 @@ function EnvForm({
   );
 }
 
-function SecretsPanel({ env, keychain }: { env: string; keychain: boolean }) {
+function SecretsPanel({ env, keychain, helpers }: { env: string; keychain: boolean; helpers: string }) {
   const [data, setData] = useState<EnvSecrets | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [values, setValues] = useState<Record<string, string>>({});
@@ -281,6 +286,7 @@ function SecretsPanel({ env, keychain }: { env: string; keychain: boolean }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [extra, setExtra] = useState({ key: "", value: "" });
+  const [ref, setRef] = useState({ key: "", command: "" });
 
   const load = () =>
     api.connections
@@ -302,6 +308,16 @@ function SecretsPanel({ env, keychain }: { env: string; keychain: boolean }) {
         setValues({ ...values, [key]: "" });
         return load();
       })
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setBusy(null));
+  };
+
+  const check = (key: string) => {
+    setBusy(key);
+    setNote(null);
+    api.connections
+      .resolve({ env, key })
+      .then((r) => setNote((r.ok ? "✓ " : "✗ ") + r.message))
       .catch((e: Error) => setError(e.message))
       .finally(() => setBusy(null));
   };
@@ -354,9 +370,14 @@ function SecretsPanel({ env, keychain }: { env: string; keychain: boolean }) {
                   Save
                 </button>{" "}
                 {n.configured && (
-                  <button disabled={busy !== null} onClick={() => set(n.key, "", "remove")}>
-                    Remove
-                  </button>
+                  <>
+                    <button disabled={busy !== null} onClick={() => check(n.key)} title="Read it and say whether a value came back">
+                      Check
+                    </button>{" "}
+                    <button disabled={busy !== null} onClick={() => set(n.key, "", "remove")}>
+                      Remove
+                    </button>
+                  </>
                 )}
               </td>
             </tr>
@@ -388,6 +409,22 @@ function SecretsPanel({ env, keychain }: { env: string; keychain: boolean }) {
         <input type="password" placeholder="value" value={extra.value} onChange={(e) => setExtra({ ...extra, value: e.target.value })} autoComplete="new-password" />
         <button disabled={!extra.key || !extra.value || busy !== null} onClick={() => (set(extra.key, extra.value, store), setExtra({ key: "", value: "" }))}>
           Save
+        </button>
+      </div>
+      <h4>A secret read from a secret manager</h4>
+      <div className="addrow tight">
+        <span className="small">Secret</span>
+        <input list="secretkeys" className="wide" placeholder="key, e.g. AD Driver.shim-auth-password" value={ref.key} onChange={(e) => setRef({ ...ref, key: e.target.value })} spellCheck={false} data-testid="secret-ref-key" />
+        <datalist id="secretkeys">
+          {data.needs.map((n) => (
+            <option key={n.key} value={n.key} />
+          ))}
+        </datalist>
+      </div>
+      <ManagerPicker helpers={helpers} onCommand={(c) => setRef((cur) => ({ ...cur, command: c }))} />
+      <div className="addrow tight">
+        <button disabled={!ref.key || !ref.command || busy !== null} onClick={() => (set(ref.key, "", `command:${ref.command}`), setRef({ key: "", command: ref.command }))} data-testid="secret-ref-save">
+          Save the reference
         </button>
       </div>
       {note && <p className="ok-text small">{note}</p>}

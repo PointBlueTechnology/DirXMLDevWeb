@@ -8,8 +8,9 @@ type Way = "vault" | "project" | "export" | "existing" | "directory" | "clone";
  * The first run of a hosted server: no repository yet, so where does the tree come from? Each
  * way ends with a repository the server then works from; the choice is kept for the next start.
  */
-export function SetupView({ onDone, onConnections }: { onDone: () => void; onConnections: () => void }) {
+export function SetupView({ first, onDone, onConnections, onCancel }: { first: boolean; onDone: (project: string | null) => void; onConnections: () => void; onCancel?: () => void }) {
   const [way, setWay] = useState<Way | null>(null);
+  const [project, setProject] = useState("");
   const [conns, setConns] = useState<Connections | null>(null);
   const [env, setEnv] = useState("");
   const [path, setPath] = useState("");
@@ -34,7 +35,7 @@ export function SetupView({ onDone, onConnections }: { onDone: () => void; onCon
     fn()
       .then((r) => {
         setResult(r);
-        setTimeout(onDone, 1200);
+        setTimeout(() => onDone(r.project ?? null), 1200);
       })
       .catch((e: Error) => setError(e.message))
       .finally(() => setBusy(null));
@@ -70,8 +71,23 @@ export function SetupView({ onDone, onConnections }: { onDone: () => void; onCon
 
   return (
     <div className="pad setup" data-testid="setup">
-      <h1>Where does the tree come from?</h1>
-      <p className="muted">This server has no repository yet. Pick one way; it is remembered for next time, and you can change it in the configuration later.</p>
+      <h1>{first ? "Where does the tree come from?" : "Add a project"}</h1>
+      <p className="muted">
+        {first ? "This server has no project yet. " : "A project is one tree with its repository; this server holds any number. "}
+        Pick one way; it is remembered for next time.
+        {onCancel && (
+          <>
+            {" "}
+            <button className="link" onClick={onCancel}>
+              Cancel
+            </button>
+          </>
+        )}
+      </p>
+      <label className="field">
+        <em>Project name (default: taken from the source)</em>
+        <input value={project} onChange={(e) => setProject(e.target.value)} placeholder="customer-a" spellCheck={false} data-testid="setup-project" />
+      </label>
       <div className="cards">
         {ways.map((w) => (
           <button key={w.id} className={"card" + (way === w.id ? " active" : "")} onClick={() => (setWay(w.id), setError(null))} data-testid={"setup-" + w.id}>
@@ -95,7 +111,7 @@ export function SetupView({ onDone, onConnections }: { onDone: () => void; onCon
                   </option>
                 ))}
               </select>
-              <button className="primary" disabled={!env || busy !== null} onClick={() => run("Reading the vault…", () => api.setup.vault(env))} data-testid="setup-vault-go">
+              <button className="primary" disabled={!env || busy !== null} onClick={() => run("Reading the vault…", () => api.setup.vault(project, env))} data-testid="setup-vault-go">
                 Read the driver set
               </button>
               <button className="link" onClick={onConnections}>
@@ -119,7 +135,7 @@ export function SetupView({ onDone, onConnections }: { onDone: () => void; onCon
           <h3>{way === "project" ? "Import a Designer project" : "Import a Designer export"}</h3>
           <div className="addrow">
             <input type="file" accept={way === "project" ? ".zip" : ".xml"} onChange={(e) => setFile(e.target.files?.[0] ?? null)} data-testid="setup-file" />
-            <button className="primary" disabled={!file || busy !== null} onClick={() => run("Importing…", () => api.setup.upload(way, file!))} data-testid="setup-upload-go">
+            <button className="primary" disabled={!file || busy !== null} onClick={() => run("Importing…", () => api.setup.upload(project, way, file!))} data-testid="setup-upload-go">
               Import {file ? file.name : ""}
             </button>
           </div>
@@ -127,7 +143,7 @@ export function SetupView({ onDone, onConnections }: { onDone: () => void; onCon
             <div className="addrow">
               <span className="muted small">or a project directory this server can see:</span>
               <input className="wide" value={path} onChange={(e) => setPath(e.target.value)} placeholder="/path/to/the/designer/project" spellCheck={false} />
-              <button disabled={!path.trim() || busy !== null} onClick={() => run("Importing…", () => api.setup.project(path))}>
+              <button disabled={!path.trim() || busy !== null} onClick={() => run("Importing…", () => api.setup.project(project, path))}>
                 Import
               </button>
             </div>
@@ -141,7 +157,7 @@ export function SetupView({ onDone, onConnections }: { onDone: () => void; onCon
           <h3>{way === "existing" ? "Use an existing repository" : "Use a directory of files"}</h3>
           <div className="addrow">
             <input className="wide" value={path} onChange={(e) => setPath(e.target.value)} placeholder={way === "existing" ? "/path/to/repo.git or /path/to/a/checkout" : "/path/to/the/tree"} spellCheck={false} data-testid="setup-path" />
-            <button className="primary" disabled={!path.trim() || busy !== null} onClick={() => run("Checking…", () => (way === "existing" ? api.setup.existing(path) : api.setup.directory(path)))} data-testid="setup-path-go">
+            <button className="primary" disabled={!path.trim() || busy !== null} onClick={() => run("Checking…", () => (way === "existing" ? api.setup.existing(project, path) : api.setup.directory(project, path)))} data-testid="setup-path-go">
               Use it
             </button>
           </div>
@@ -166,7 +182,7 @@ export function SetupView({ onDone, onConnections }: { onDone: () => void; onCon
               <input value={base} onChange={(e) => setBase(e.target.value)} placeholder="main" spellCheck={false} />
             </label>
           </div>
-          <button className="primary" disabled={!url.trim() || busy !== null} onClick={() => run("Cloning…", () => api.setup.clone(url, token, base))} data-testid="setup-clone-go">
+          <button className="primary" disabled={!url.trim() || busy !== null} onClick={() => run("Cloning…", () => api.setup.clone(project, url, token, base))} data-testid="setup-clone-go">
             Clone
           </button>
           <p className="muted small">A git@ remote uses the deploy key named in the configuration (repo.sshKey). The tree must sit at the top of the base branch or under tree/.</p>

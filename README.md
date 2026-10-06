@@ -18,6 +18,9 @@ the page follows the files.
 
 ## What it does
 
+- **Projects** (hosted): one server holds any number of trees, each a project with its own
+  repository (or a checkout used in place); a picker in the repository bar switches, "add a
+  project…" takes any of the first-run ways. Workspaces, branches and audit lines are per project.
 - **First run** (hosted): with no repository configured the page asks where the tree comes
   from — export from an Identity Vault, import a Designer project (zip or directory) or a
   Designer export, use an existing repository (bare, or a checkout in place), use a directory
@@ -147,11 +150,13 @@ public.url=https://idm.example.com      # what the browser sees; TLS terminates 
 bind=127.0.0.1                          # the proxy's side (0.0.0.0 in a container)
 port=8080
 data.dir=/var/lib/idmweb                # workspaces, audit.log
-repo.url=https://github.com/org/idm-config.git
-repo.tokenKeychain=idm-repo/token       # or repo.token, .tokenEnv, .tokenCommand
-repo.base=main
-repo.tree=tree                          # the tree's directory inside the repository
-repo.cases=cases
+projects=idm-lab,customer-a             # the trees this server holds (the single repo.* keys still work for one)
+project.idm-lab.repo.url=https://github.com/org/idm-config.git
+project.idm-lab.repo.tree=tree          # the tree's directory inside the repository
+project.idm-lab.repo.cases=cases
+project.idm-lab.repo.base=main
+project.customer-a.repo.inPlace=/srv/customer-a   # a checkout used in place instead
+repo.tokenKeychain=idm-repo/token       # a token for https remotes (project.<name>.repo.token for one project's own)
 catalog.dir=/srv/idm/catalog
 environments.file=/etc/idmweb/environments.properties
 identity=none                           # none (loopback only, for a trusted host) or oidc

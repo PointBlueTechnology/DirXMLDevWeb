@@ -1125,3 +1125,5 @@ table.grid tr.selected td { background: var(--bg); }
 .newitem .attrs { max-width: 760px; }
 
 .navbtn.advanced { margin-top: 12px; color: var(--muted); font-size: 12px; }
+
+.projectpick select { font-weight: 600; }

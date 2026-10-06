@@ -123,7 +123,7 @@ export function EntitlementView({ driver, name, file, revision, onSelect, onSave
             </label>
             <label className="field wide">
               <em>Description</em>
-              <input value={fields.description} onChange={(e) => update({ ...fields, description: e.target.value })} />
+              <textarea value={fields.description} rows={Math.min(6, Math.max(2, Math.ceil(fields.description.length / 90)))} onChange={(e) => update({ ...fields, description: e.target.value.replace(/\r?\n/g, " ") })} data-testid="ent-description" />
             </label>
             <label className="field">
               <em>Conflict resolution</em>

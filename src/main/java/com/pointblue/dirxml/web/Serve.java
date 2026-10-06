@@ -85,7 +85,7 @@ public final class Serve {
         if (envVar == null || !Path.of(envVar).toAbsolutePath().normalize().equals(h.environmentsFile.toAbsolutePath().normalize())) {
             System.err.println("WARNING: set IDM_ENVIRONMENTS=" + h.environmentsFile + " in the server's environment so the core reads the same environments file the page edits (the launcher does this from environments.file).");
         }
-        Git git = new Git(h.dataDir, h.repoToken());
+        Git git = new Git(h.dataDir, h.repoToken(), h.repoSshKey);
         Workspaces workspaces = new Workspaces(h, git);
         Session.Store sessions = new Session.Store(h.sessionHours * 3600);
         Security security = Security.hosted(h.publicUrl);

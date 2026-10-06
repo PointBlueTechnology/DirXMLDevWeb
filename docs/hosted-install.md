@@ -38,7 +38,8 @@ token, the OIDC client secret, agent tokens. Nothing else holds a value.
 
 - `.env`: `PUBLIC_HOST` (the DNS name), `ACME_EMAIL`, the Keycloak admin credentials.
 - `hosted.properties`: `public.url=https://<PUBLIC_HOST>`, `bind=0.0.0.0`, the repository
-  (`repo.url`, `repo.tokenEnv=IDMWEB_REPO_TOKEN`, `repo.base`, `repo.tree`), `identity=oidc` with
+  (`repo.url`, `repo.tokenEnv=IDMWEB_REPO_TOKEN` for an https remote or `repo.sshKey=/etc/idmweb/deploy_key`
+  with a `git@github.com:…` remote, `repo.base`, `repo.tree`), `identity=oidc` with
   `oidc.issuer=https://<PUBLIC_HOST>/auth/realms/idm`, the role groups, and the agents.
 - Keycloak: the realm's client redirect URI must be `https://<PUBLIC_HOST>/auth/callback`; map
   the customer's directory (LDAP federation) or create users; groups `idm-editors` and

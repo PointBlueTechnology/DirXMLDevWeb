@@ -3,7 +3,8 @@ import Editor from "@monaco-editor/react";
 import { api } from "../api";
 import { monacoTheme } from "../monaco";
 import { usePending } from "../pending";
-import { parseEntitlement, writeEntitlement } from "../prov/entitlement";
+import { defaultQuery, parseEntitlement, writeEntitlement } from "../prov/entitlement";
+import type { EntitlementQuery } from "../prov/entitlement";
 import type { Selection, TreeFile } from "../types";
 import { PendingBar } from "./PendingBar";
 
@@ -13,6 +14,13 @@ import { PendingBar } from "./PendingBar";
  * application. The attributes and the static list change through `entitlement.set`; the query
  * is read here and edited as XML, which `entitlement.set --definition-file` saves whole.
  */
+function list(csv: string): string[] {
+  return csv
+    .split(",")
+    .map((x) => x.trim())
+    .filter(Boolean);
+}
+
 export function EntitlementView({ driver, name, file, revision, onSelect, onSaved }: { driver: string; name: string; file: string; revision: string; onSelect: (s: Selection) => void; onSaved: () => void }) {
   const [data, setData] = useState<TreeFile | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -21,6 +29,8 @@ export function EntitlementView({ driver, name, file, revision, onSelect, onSave
   const [fields, setFields] = useState({ displayName: "", description: "", conflict: "priority", multiValued: false });
   const [values, setValues] = useState<string[]>([]);
   const [newValue, setNewValue] = useState("");
+  const [mode, setMode] = useState<"none" | "static" | "query">("none");
+  const [query, setQuery] = useState<EntitlementQuery>(defaultQuery());
   const pending = usePending();
 
   useEffect(() => {
@@ -35,6 +45,8 @@ export function EntitlementView({ driver, name, file, revision, onSelect, onSave
           const e = parseEntitlement(f.content);
           setFields({ displayName: e.displayName, description: e.description, conflict: e.conflict, multiValued: e.multiValued ?? false });
           setValues(e.values);
+          setMode(e.mode);
+          setQuery(e.query ?? defaultQuery());
         }
       })
       .catch((e: Error) => !gone && setError(e.message));
@@ -57,17 +69,19 @@ export function EntitlementView({ driver, name, file, revision, onSelect, onSave
    * system's key for the thing granted and may hold anything, commas included, which the typed
    * `--values` list cannot), carrying the attributes with it.
    */
-  const stage = (f: typeof fields, list: string[]) => {
-    const valuesSame = list.length === doc.values.length && list.every((v, i) => v === doc.values[i]);
+  const sameQuery = (a: EntitlementQuery | null, b: EntitlementQuery | null) => JSON.stringify(a) === JSON.stringify(b);
+  const stage = (f: typeof fields, m: typeof mode, list: string[], q: EntitlementQuery) => {
+    const valuesSame = m === doc.mode && (m === "query" ? sameQuery(q, doc.query) : list.length === doc.values.length && list.every((v, i) => v === doc.values[i]));
     for (const k of ["display", "descr", "conflict", "multi", "definition"]) {
       pending.put(`ent:${k}`, null);
     }
     if (!valuesSame) {
+      const what = m === "query" ? "values from a query" : m === "static" && list.length > 0 ? `${list.length} value${list.length === 1 ? "" : "s"}` : "no value list";
       pending.put("ent:definition", {
         name: "entitlement.set",
         args: base,
-        files: { "definition-file": writeEntitlement(data.content, f, list) },
-        label: `${name}: ${list.length} value${list.length === 1 ? "" : "s"}${f.displayName !== doc.displayName ? ", display name" : ""}${f.conflict !== doc.conflict ? ", conflict resolution" : ""}`,
+        files: { "definition-file": writeEntitlement(data.content, f, m === "query" ? null : m === "static" ? list : [], m === "query" ? q : null) },
+        label: `${name}: ${what}${f.displayName !== doc.displayName ? ", display name" : ""}${f.conflict !== doc.conflict ? ", conflict resolution" : ""}`,
       });
       return;
     }
@@ -86,11 +100,22 @@ export function EntitlementView({ driver, name, file, revision, onSelect, onSave
   };
   const update = (f: typeof fields) => {
     setFields(f);
-    stage(f, values);
+    stage(f, mode, values, query);
   };
   const stageValues = (list: string[]) => {
     setValues(list);
-    stage(fields, list);
+    stage(fields, list.length === 0 && mode === "static" ? "none" : mode, list, query);
+    if (list.length === 0 && mode === "static") {
+      setMode("none");
+    }
+  };
+  const switchMode = (m: typeof mode) => {
+    setMode(m);
+    stage(fields, m, values, query);
+  };
+  const updateQuery = (q: EntitlementQuery) => {
+    setQuery(q);
+    stage(fields, "query", values, q);
   };
   const jsonDirty = draft !== null && draft !== data.content;
 
@@ -139,63 +164,19 @@ export function EntitlementView({ driver, name, file, revision, onSelect, onSave
           </div>
 
           <h3>Values</h3>
-          {doc.mode === "query" && doc.query && (
-            <div className="block">
-              <p>
-                <span className="pill">queried from the application</span> The driver asks the connected system for the choices when an entitlement is granted or a role is designed.
-              </p>
-              <table className="grid">
-                <tbody>
-                  <tr>
-                    <th>Query</th>
-                    <td>
-                      class <code>{doc.query.className ?? "?"}</code>, scope <code>{doc.query.scope ?? "subtree"}</code>
-                      {doc.query.searchClasses.length > 0 && (
-                        <>
-                          , search class{doc.query.searchClasses.length === 1 ? "" : "es"} <code>{doc.query.searchClasses.join(", ")}</code>
-                        </>
-                      )}
-                    </td>
-                  </tr>
-                  <tr>
-                    <th>Attributes read</th>
-                    <td>{doc.query.readAttrs.length === 0 ? <span className="muted">none</span> : doc.query.readAttrs.map((a) => <code key={a}>{a} </code>)}</td>
-                  </tr>
-                  <tr>
-                    <th>Shown as</th>
-                    <td>
-                      name <code>{doc.query.displayName ?? "—"}</code>
-                      {doc.query.description && (
-                        <>
-                          , description <code>{doc.query.description}</code>
-                        </>
-                      )}
-                    </td>
-                  </tr>
-                  <tr>
-                    <th>Value granted</th>
-                    <td>
-                      <code>{doc.query.value ?? "—"}</code>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-              <p className="muted small">The query and its result tokens are edited in the XML tab (<code>&lt;query-app&gt;</code>); the core has no typed operation for them yet.</p>
-            </div>
+          <div className="addrow tight modes" data-testid="ent-mode">
+            {(["none", "static", "query"] as const).map((m) => (
+              <label key={m} className={"checkchip" + (mode === m ? " on" : "")}>
+                <input type="radio" name="ent-mode" checked={mode === m} onChange={() => switchMode(m)} /> {m === "none" ? "the requester gives the value" : m === "static" ? "a fixed list" : "queried from the application"}
+              </label>
+            ))}
+          </div>
+          {mode === "none" && (
+            <p className="muted small">No list: an account entitlement needs none; otherwise the person or role supplies the connected system's key for the thing granted, as an association holds it.</p>
           )}
-          {doc.mode !== "query" && (
+          {mode === "static" && (
             <div className="block">
-              <p>
-                {values.length === 0 ? (
-                  <>
-                    <span className="pill">no list</span> The requester supplies the value when the entitlement is granted — an account entitlement needs none; otherwise it is the connected system's key for the thing granted, as an association holds it.
-                  </>
-                ) : (
-                  <>
-                    <span className="pill">static list</span> The choices offered when the entitlement is granted: each is the connected system's key for the thing (a GUID, an id, a name, a DN — whatever that system uses, as in an association).
-                  </>
-                )}
-              </p>
+              <p className="muted small">The choices offered when the entitlement is granted: each is the connected system's key for the thing (a GUID, an id, a name, a DN — whatever that system uses, as in an association).</p>
               <ul className="filelist" data-testid="ent-values">
                 {values.map((v, i) => (
                   <li key={i} className="dataitem">
@@ -210,7 +191,51 @@ export function EntitlementView({ driver, name, file, revision, onSelect, onSave
                   Add value
                 </button>
               </div>
-              <p className="muted small">A query against the application instead of a list is written in the XML tab as <code>&lt;values&gt;&lt;query-app&gt;…</code>.</p>
+            </div>
+          )}
+          {mode === "query" && (
+            <div className="block" data-testid="ent-query">
+              <p className="muted small">The driver asks the connected system for the choices (when a role is designed, or an entitlement granted). Say what to search for, what to read, and how each result is shown and granted.</p>
+              <div className="attrs">
+                <label className="field">
+                  <em>Class to query</em>
+                  <input value={query.className ?? ""} onChange={(e) => updateQuery({ ...query, className: e.target.value })} placeholder="group" spellCheck={false} data-testid="ent-q-class" />
+                </label>
+                <label className="field">
+                  <em>Scope</em>
+                  <select value={query.scope ?? "subtree"} onChange={(e) => updateQuery({ ...query, scope: e.target.value })}>
+                    <option value="subtree">subtree</option>
+                    <option value="subordinates">subordinates</option>
+                    <option value="entry">entry</option>
+                  </select>
+                </label>
+                <label className="field">
+                  <em>Search classes (comma-separated; empty = the class)</em>
+                  <input value={query.searchClasses.join(", ")} onChange={(e) => updateQuery({ ...query, searchClasses: list(e.target.value) })} placeholder="group" spellCheck={false} />
+                </label>
+                <label className="field">
+                  <em>Attributes to read (comma-separated)</em>
+                  <input value={query.readAttrs.join(", ")} onChange={(e) => updateQuery({ ...query, readAttrs: list(e.target.value) })} placeholder="CN, description" spellCheck={false} data-testid="ent-q-attrs" />
+                </label>
+              </div>
+              <h4>Each result</h4>
+              <p className="muted small">
+                Write <code>{"{attr}"}</code> for an attribute read above, <code>{"{src-dn}"}</code> for the object's DN, <code>{"{association}"}</code> for its association; other text is kept as written.
+              </p>
+              <div className="attrs">
+                <label className="field">
+                  <em>Shown as (name)</em>
+                  <input value={query.displayName ?? ""} onChange={(e) => updateQuery({ ...query, displayName: e.target.value || null })} placeholder="{CN}" spellCheck={false} data-testid="ent-q-name" />
+                </label>
+                <label className="field">
+                  <em>Description</em>
+                  <input value={query.description ?? ""} onChange={(e) => updateQuery({ ...query, description: e.target.value || null })} placeholder="{description}" spellCheck={false} />
+                </label>
+                <label className="field">
+                  <em>Value granted</em>
+                  <input value={query.value ?? ""} onChange={(e) => updateQuery({ ...query, value: e.target.value || null })} placeholder="{association}" spellCheck={false} data-testid="ent-q-value" />
+                </label>
+              </div>
             </div>
           )}
           <p className="muted small">

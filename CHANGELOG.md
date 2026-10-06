@@ -9,8 +9,9 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Added
 
-- Entitlement editor: display name, description, conflict resolution, multi-valued and the static
-  value list, with a query's shape read out; the XML tab for the rest.
+- Entitlement editor: display name, description, conflict resolution, multi-valued, and the
+  values switchable between the requester's, a fixed list, and a query against the application
+  (class, scope, search classes, attributes, result tokens); the XML tab for the rest.
 
 ### Changed
 

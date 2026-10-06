@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-10-06
+
 ### Added
 
 - `docs/quickstart.md`: one person, one container, from the release bundle — no checkout.

@@ -9,7 +9,8 @@ import { ArtifactView } from "./components/ArtifactView";
 import { FileView } from "./components/FileView";
 import { FlowView } from "./components/FlowView";
 import { OperationsView } from "./components/OperationsView";
-import { ValidationPanel } from "./components/ValidationPanel";
+import { SEVERITIES, ValidationPanel, ValidationSummary } from "./components/ValidationPanel";
+import type { Severity } from "./components/ValidationPanel";
 import { VaultView } from "./components/VaultView";
 import { SimView } from "./components/SimView";
 import { PrdView } from "./components/PrdView";
@@ -30,6 +31,55 @@ export function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [outline, setOutline] = useState<Outline | null>(null);
   const [validation, setValidation] = useState<Validation | null>(null);
+  // the findings list is optional (the counts always show in the top bar) and filtered by severity;
+  // both choices are this browser's
+  const [problemsHidden, setProblemsHidden] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem("idmweb.validation.hidden") === "1";
+    } catch {
+      return false;
+    }
+  });
+  const [severities, setSeverities] = useState<Set<Severity>>(() => {
+    try {
+      const raw = localStorage.getItem("idmweb.validation.severities");
+      if (raw) {
+        const list = JSON.parse(raw) as string[];
+        return new Set(SEVERITIES.filter((s) => list.includes(s)));
+      }
+    } catch {
+      // no storage: every severity
+    }
+    return new Set(SEVERITIES);
+  });
+  const remember = (key: string, value: string) => {
+    try {
+      localStorage.setItem(key, value);
+    } catch {
+      // per-viewer convenience only
+    }
+  };
+  const hideProblems = (hidden: boolean) => {
+    setProblemsHidden(hidden);
+    remember("idmweb.validation.hidden", hidden ? "1" : "0");
+  };
+  const showSeverities = (set: Set<Severity>) => {
+    setSeverities(set);
+    remember("idmweb.validation.severities", JSON.stringify([...set]));
+  };
+  // a bubble in the top bar: open the list at that severity alone; the word: toggle the list, unfiltered
+  const pickSeverity = (only: Severity | null) => {
+    if (only === null) {
+      if (!problemsHidden && severities.size === SEVERITIES.length) {
+        hideProblems(true);
+        return;
+      }
+      showSeverities(new Set(SEVERITIES));
+    } else {
+      showSeverities(new Set([only]));
+    }
+    hideProblems(false);
+  };
   const [revision, setRevision] = useState<string>("");
   const [live, setLive] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -179,6 +229,7 @@ export function App() {
           {outline && <span className="set">{outline.driverSet.name}</span>}
         </div>
         <div className="meta">
+          {session && !noWorkspace && !addingProject && <ValidationSummary validation={validation} open={!problemsHidden} onPick={pickSeverity} />}
           {session?.tree && <span title={session.tree}>{shorten(session.tree)}</span>}
           {session && (
             <span>
@@ -268,7 +319,7 @@ export function App() {
           <p className="muted small">Use the bar above.</p>
         </div>
       )}
-      <div className="body" style={noWorkspace || addingProject ? { display: "none" } : undefined}>
+      <div className={problemsHidden ? "body problems-hidden" : "body"} style={noWorkspace || addingProject ? { display: "none" } : undefined}>
         <nav className="sidebar">
           <button className={selection.type === "vault" ? "navbtn active" : "navbtn"} onClick={() => setSelection({ type: "vault" })}>
             Vault
@@ -323,9 +374,25 @@ export function App() {
           {selection.type === "simulator" && outline && <SimView drivers={outline.drivers.map((d) => d.name)} revision={revision} />}
           {selection.type === "vault" && outline && <VaultView drivers={outline.drivers.map((d) => d.name)} revision={revision} onOpen={open} onSelect={setSelection} />}
         </main>
-        <aside className="problems">
-          <ValidationPanel validation={validation} onOpen={open} />
-        </aside>
+        {!problemsHidden && (
+          <aside className="problems">
+            <ValidationPanel
+              validation={validation}
+              show={severities}
+              onToggle={(s) => {
+                const next = new Set(severities);
+                if (next.has(s)) {
+                  next.delete(s);
+                } else {
+                  next.add(s);
+                }
+                showSeverities(next);
+              }}
+              onOpen={open}
+              onHide={() => hideProblems(true)}
+            />
+          </aside>
+        )}
       </div>
     </div>
   );

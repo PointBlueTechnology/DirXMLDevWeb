@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { ApiError, api, followTree, takeToken } from "./api";
-import type { Outline, Selection, Session, Validation } from "./types";
+import type { ArtifactNode, OpCall, Outline, Selection, Session, Validation } from "./types";
+import { ConfigEditor } from "./components/ConfigEditor";
+import { OverridesView } from "./components/OverridesView";
 import { OutlineTree } from "./components/OutlineTree";
 import { ArtifactView } from "./components/ArtifactView";
 import { FileView } from "./components/FileView";
@@ -17,6 +19,7 @@ export function App() {
   const [live, setLive] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selection, setSelection] = useState<Selection>({ type: "home" });
+  const [opNames, setOpNames] = useState<Set<string>>(new Set());
 
   const reload = useCallback(async () => {
     try {
@@ -36,6 +39,10 @@ export function App() {
       return;
     }
     api.session().then(setSession).catch(() => undefined);
+    api
+      .catalog()
+      .then((c) => setOpNames(new Set(c.operations.map((o) => o.name))))
+      .catch(() => undefined);
     void reload();
     return followTree(
       (rev) => {
@@ -61,6 +68,10 @@ export function App() {
         ...outline.library.resources,
         ...outline.drivers.flatMap((d) => [...d.policies.driver, ...d.policies.subscriber, ...d.policies.publisher, ...d.resources]),
       ];
+      if (path === "driverset") {
+        setSelection({ type: "config", driver: null });
+        return;
+      }
       if (all.some((a) => a.path === path)) {
         setSelection({ type: "artifact", path });
         return;
@@ -76,6 +87,37 @@ export function App() {
     },
     [outline],
   );
+
+  const artifacts: ArtifactNode[] = outline
+    ? [...outline.library.policies, ...outline.library.resources, ...outline.drivers.flatMap((d) => [...d.policies.driver, ...d.policies.subscriber, ...d.policies.publisher, ...d.resources])]
+    : [];
+
+  /** The operation that saves a whole file, for the files the core can replace in one call. */
+  const saveOpFor = (file: string): ((content: string) => OpCall) | null => {
+    if (!outline) {
+      return null;
+    }
+    const kinds = ["config-values", "shim-config-info", "driver-filter", "engine-control-values"];
+    if (opNames.has("config.set-content")) {
+      if (file === "config-values.xml") {
+        return (content) => ({ name: "config.set-content", args: { kind: "config-values" }, files: { "content-file": content }, label: "replace the driver set's config-values" });
+      }
+      for (const d of outline.drivers) {
+        for (const kind of kinds) {
+          if (file === `${d.dir}/${kind}.xml`) {
+            return (content) => ({ name: "config.set-content", args: { kind, driver: d.name }, files: { "content-file": content }, label: `replace ${d.name}'s ${kind}` });
+          }
+        }
+      }
+    }
+    for (const d of outline.drivers) {
+      const ent = d.entitlements.find((e) => e.file === file);
+      if (ent && opNames.has("entitlement.set")) {
+        return (content) => ({ name: "entitlement.set", args: { name: ent.name, driver: d.name }, files: { "definition-file": content }, label: `replace the definition of entitlement ${ent.name}` });
+      }
+    }
+    return null;
+  };
 
   return (
     <div className="app">
@@ -111,8 +153,21 @@ export function App() {
           {selection.type === "home" && <Home outline={outline} validation={validation} onSelect={setSelection} />}
           {selection.type === "flow" && <FlowView key={selection.driver} driver={selection.driver} revision={revision} onOpen={open} onOpenFile={(file) => setSelection({ type: "file", file })} />}
           {selection.type === "artifact" && <ArtifactView key={selection.path} path={selection.path} revision={revision} onOpen={open} onSaved={reload} />}
-          {selection.type === "file" && <FileView key={selection.file} file={selection.file} revision={revision} />}
-          {selection.type === "operations" && <OperationsView revision={revision} onDone={reload} />}
+          {selection.type === "file" && <FileView key={selection.file} file={selection.file} revision={revision} saveOp={saveOpFor(selection.file)} onSaved={reload} />}
+          {selection.type === "config" && outline && (
+            <ConfigEditor
+              key={selection.driver ?? "__set"}
+              driver={selection.driver === null ? null : (outline.drivers.find((d) => d.name === selection.driver) ?? null)}
+              setName={outline.driverSet.name}
+              revision={revision}
+              canOverride={opNames.has("override.set")}
+              linkable={artifacts}
+              onOpen={open}
+              onSaved={reload}
+            />
+          )}
+          {selection.type === "overrides" && <OverridesView revision={revision} canEdit={opNames.has("override.set")} onSaved={reload} />}
+          {selection.type === "operations" && <OperationsView onDone={reload} />}
         </main>
         <aside className="problems">
           <ValidationPanel validation={validation} onOpen={open} />

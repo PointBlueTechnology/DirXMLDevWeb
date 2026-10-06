@@ -647,3 +647,211 @@ textarea {
   padding: 4px 16px;
   border-top: 1px solid var(--border);
 }
+
+/* W1 editors */
+.scroll {
+  overflow: auto;
+  min-height: 0;
+  flex: 1;
+}
+.spacer {
+  flex: 1;
+}
+.ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.pendingbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 20px;
+  background: var(--warn-bg);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+table.defs {
+  margin-bottom: 8px;
+}
+table.defs td {
+  vertical-align: middle;
+}
+table.defs .dname {
+  font-weight: 600;
+}
+table.defs code {
+  color: var(--muted);
+}
+.vcell input,
+.vcell select {
+  width: 100%;
+  min-width: 90px;
+}
+select {
+  font: inherit;
+  color: inherit;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 6px;
+}
+tr.changed > td,
+.changed-line {
+  background: var(--warn-bg);
+}
+input.changed,
+select.changed {
+  border-color: var(--warn);
+}
+tr.removed > td,
+.fclass.removed {
+  opacity: 0.45;
+  text-decoration: line-through;
+}
+button.mini {
+  padding: 1px 7px;
+  font-size: 12px;
+}
+button.danger:hover:not(:disabled) {
+  border-color: var(--err);
+  color: var(--err);
+}
+.addrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 10px 0;
+}
+.addrow.tight {
+  margin: 6px 0 0;
+}
+.addrow input.wide {
+  flex: 1;
+  min-width: 260px;
+}
+.fclass {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 14px;
+  padding: 0 12px 6px;
+}
+.fclass > header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 0;
+  flex-wrap: wrap;
+}
+.fclass.changed {
+  border-color: var(--warn);
+}
+.chaingroup {
+  margin-bottom: 18px;
+}
+.chaingroup > h3 {
+  margin-bottom: 8px;
+}
+.chains {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 10px;
+}
+.chain {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+.chain.changed {
+  border-color: var(--warn);
+}
+.chain header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+.chain ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  min-height: 26px;
+}
+.chain li {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 0;
+  border-top: 1px solid var(--border);
+}
+.chain li.empty {
+  border-top: none;
+}
+.chain li.dragging {
+  opacity: 0.4;
+}
+.chain .grip {
+  cursor: grab;
+  color: var(--muted);
+  font-size: 11px;
+}
+.chain .grow {
+  flex: 1;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chain select {
+  flex: 1;
+  min-width: 0;
+}
+.modal-body {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  min-height: 200px;
+}
+.modal-side {
+  border-right: 1px solid var(--border);
+  overflow: auto;
+  padding: 10px 12px;
+}
+.modal-side h4 {
+  margin-top: 8px;
+}
+.oplist {
+  margin: 0 0 8px;
+  padding-left: 20px;
+  font-size: 12px;
+}
+.oplist li {
+  margin: 3px 0;
+  overflow-wrap: anywhere;
+}
+.filelist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.badge.st-added {
+  color: var(--ok);
+  border-color: var(--ok);
+}
+.badge.st-deleted {
+  color: var(--err);
+  border-color: var(--err);
+}
+.badge.st-changed {
+  color: var(--warn);
+  border-color: var(--warn);
+}
+.pad h3 {
+  margin: 16px 0 8px;
+}
+.pad h3:first-child {
+  margin-top: 0;
+}

@@ -1,12 +1,13 @@
 # DirXMLDevWeb
 
 A browser workbench for NetIQ / OpenText Identity Manager driver sets, over the
-[DirXMLDev](https://github.com/PointBlueTechnology/DirXMLDev) core. It runs on your workstation:
-one command serves a page for one IDM-as-code tree.
+[DirXMLDev](https://github.com/PointBlueTechnology/DirXMLDev) core: Designer's job, done on an
+IDM-as-code tree in git. It runs as a container on your own machine for one person, on a server
+for a team, or from a checkout on a workstation — see [Three ways to run it](#three-ways-to-run-it).
 
 Status: released (see [CHANGELOG.md](CHANGELOG.md)); every phase of
-[docs/design.md](docs/design.md) is built — local and hosted mode, editors, vault, simulator,
-provisioning, packages.
+[docs/design.md](docs/design.md) is built — editors, vault, simulator, provisioning, packages,
+hosted mode. **New here? [docs/quickstart.md](docs/quickstart.md)** — one container, one command.
 
 ## A look
 

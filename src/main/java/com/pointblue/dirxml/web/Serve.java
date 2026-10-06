@@ -5,6 +5,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Map;
 import java.util.concurrent.Executors;
 
 /**
@@ -84,7 +85,7 @@ public final class Serve {
         if (envVar == null || !Path.of(envVar).toAbsolutePath().normalize().equals(h.environmentsFile.toAbsolutePath().normalize())) {
             System.err.println("WARNING: set IDM_ENVIRONMENTS=" + h.environmentsFile + " in the server's environment so the core reads the same environments file the page edits (the launcher does this from environments.file).");
         }
-        Git git = new Git(h.dataDir, h.repoToken());
+        Git git = new Git(h.dataDir, h.repoToken(), h.repoSshKey);
         Workspaces workspaces = new Workspaces(h, git);
         Session.Store sessions = new Session.Store(h.sessionHours * 3600);
         Security security = Security.hosted(h.publicUrl);
@@ -101,11 +102,12 @@ public final class Serve {
                 throw new IllegalArgumentException("identity is none or oidc, not '" + h.identity + "'");
         }
         HttpServer server = HttpServer.create(new InetSocketAddress(InetAddress.getByName(h.bind), h.port), 0);
-        server.createContext("/api/", new Api(workspaces, sessions, security, audit, VERSION));
+        Map<String, Session.Principal> agents = h.agents();
+        server.createContext("/api/", new Api(workspaces, sessions, security, audit, VERSION, agents));
         server.createContext("/auth/", new Auth(identity, sessions, security, audit, h.publicUrl));
         server.createContext("/", new StaticFiles(web));
         start(server);
-        System.out.println("DirXMLDevWeb " + VERSION + " hosted: " + h.publicUrl + " (bound " + h.bind + ":" + h.port + "), identity " + identity.name() + ", repository " + h.repoUrl.replaceAll("://[^@/]+@", "://") + ", data " + h.dataDir);
+        System.out.println("DirXMLDevWeb " + VERSION + " hosted: " + h.publicUrl + " (bound " + h.bind + ":" + h.port + "), identity " + identity.name() + ", " + agents.size() + " agent(s), repository " + h.repoUrl.replaceAll("://[^@/]+@", "://") + ", data " + h.dataDir);
         Thread.currentThread().join();
     }
 

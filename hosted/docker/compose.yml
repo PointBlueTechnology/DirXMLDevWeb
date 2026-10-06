@@ -1,0 +1,52 @@
+# DirXMLDevWeb hosted, as decided: the server behind a Caddy reverse proxy that terminates TLS,
+# Keycloak for sign-in, a volume for workspaces and the audit log. Copy compose.env.example to
+# .env and fill it; put hosted.properties and environments.properties in ./config; mount the
+# engine jars from ./lib. `docker compose up -d`.
+services:
+  idmweb:
+    image: ${IDMWEB_IMAGE:-dirxml-dev-web:latest}
+    restart: unless-stopped
+    env_file: ./idmweb.env                 # IDMWEB_REPO_TOKEN, IDMWEB_OIDC_SECRET, IDMWEB_AGENT_* (0600)
+    environment:
+      IDM_ENVIRONMENTS: /etc/idmweb/environments.properties
+    volumes:
+      - ./config:/etc/idmweb:rw           # hosted.properties, environments.properties, secrets-*.properties, deploy_key, idp-ca.crt (owner uid 1100, 0600)
+      - ./lib:/opt/idm/lib:ro             # the customer's engine jars; never in the image
+      - idmweb-data:/var/lib/idmweb       # workspaces, audit.log
+      - ./catalog:/srv/idm/catalog:rw     # package catalog (optional)
+    expose:
+      - "8080"
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    restart: unless-stopped
+    command: start --import-realm --hostname=https://${PUBLIC_HOST}/idp --http-enabled=true --proxy-headers=xforwarded
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KC_HTTP_RELATIVE_PATH: /idp
+    volumes:
+      - ./keycloak:/opt/keycloak/data/import:ro
+      - keycloak-data:/opt/keycloak/data/h2
+    expose:
+      - "8080"
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      PUBLIC_HOST: ${PUBLIC_HOST}
+      ACME_EMAIL: ${ACME_EMAIL}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  idmweb-data:
+  keycloak-data:
+  caddy-data:
+  caddy-config:

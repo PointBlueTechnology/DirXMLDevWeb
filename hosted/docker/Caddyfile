@@ -1,0 +1,18 @@
+# TLS from Let's Encrypt for PUBLIC_HOST (ports 80 and 443 must reach this host from the
+# internet); for an internal name add `tls internal` (or your certificate) inside the site block.
+{
+    email {$ACME_EMAIL}
+}
+
+{$PUBLIC_HOST} {
+    encode gzip
+    # Keycloak under /idp on the same name: one certificate, no cross-origin anything
+    handle /idp/* {
+        reverse_proxy keycloak:8080
+    }
+    handle {
+        reverse_proxy idmweb:8080 {
+            flush_interval -1
+        }
+    }
+}

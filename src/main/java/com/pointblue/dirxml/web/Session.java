@@ -45,6 +45,8 @@ public final class Session {
     public final Instant created = Instant.now();
     public volatile Instant lastSeen = Instant.now();
     public volatile String workspace;
+    /** An agent's session, made for its bearer token: no cookie, so the CSRF check does not apply. */
+    public volatile boolean bearer;
 
     Session(String id, Principal principal) {
         this.id = id;

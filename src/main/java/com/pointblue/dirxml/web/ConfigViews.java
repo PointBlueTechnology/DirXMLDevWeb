@@ -81,6 +81,18 @@ final class ConfigViews {
             row.put("owner", owner);
             row.put("overrideKey", owner.equals("driverset") && d == null ? "driverset.gcv." + name
                 : d != null ? "drivers/" + d.name + ".gcv." + name : "driverset.gcv." + name);
+            // where it is read: policies by artifact path, configuration documents by their file
+            List<Object> uses = new ArrayList<>();
+            for (GcvOps.Use u : GcvOps.usage(ds, d, name)) {
+                Map<String, Object> um = new LinkedHashMap<>();
+                um.put("kind", u.kind);
+                um.put("path", u.path);
+                if (!"policy".equals(u.kind) && u.driver != null) {
+                    um.put("file", "drivers/" + com.pointblue.dirxml.dev.ascode.AsCodeWriter.fileSafe(u.driver) + "/" + u.kind + ".xml");
+                }
+                uses.add(um);
+            }
+            row.put("usedBy", uses);
             out.add(row);
         }
         return out;

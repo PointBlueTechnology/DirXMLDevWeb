@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { ArtifactNode, DriverOutline, Outline, Selection } from "../types";
+import type { ArtifactNode, DriverOutline, NewWhat, Outline, Selection } from "../types";
 import { isUserApplication } from "../drivers";
 
 interface Props {
@@ -67,20 +67,12 @@ export function OutlineTree({ outline, selection, onSelect }: Props) {
         {d.name}
         <NewMenu
           items={
-            // forms and PRDs exist only on the User Application driver, known by its shim class
+            // forms, PRDs and the role catalog exist only on the User Application driver, known by its shim class
             isUserApplication(d)
-              ? [
-                  ["policy", "Policy"],
-                  ["entitlement", "Entitlement"],
-                  ["form", "Form"],
-                  ["prd", "Provisioning request (PRD)"],
-                ]
-              : [
-                  ["policy", "Policy"],
-                  ["entitlement", "Entitlement"],
-                ]
+              ? [...ARTIFACT_ITEMS, ["entitlement", "entitlement"], ["form", "form"], ["prd", "provisioning request (PRD)"], ["role", "role"], ["resource", "resource"], ["entity", "entity (directory abstraction)"]]
+              : [...ARTIFACT_ITEMS, ["entitlement", "entitlement"]]
           }
-          onPick={(what) => onSelect({ type: "new", what, driver: d.name })}
+          onPick={(what) => onSelect(what === "role" || what === "resource" ? { type: "roles" } : { type: "new", what, driver: d.name })}
         />
       </summary>
       <div className="indent">
@@ -180,18 +172,17 @@ export function OutlineTree({ outline, selection, onSelect }: Props) {
         "Driver set files",
         outline.driverSet.config.map((f) => ({ name: f, file: f })),
       )}
-      {(outline.library.policies.length > 0 || outline.library.resources.length > 0) && (
-        <details open>
-          <summary className="driver">
-            Library
-            <NewMenu items={[["policy", "Policy"]]} onPick={(what) => onSelect({ type: "new", what, driver: null })} />
-          </summary>
-          <div className="indent">
-            {artifacts("Policies", outline.library.policies)}
-            {artifacts("Resources", outline.library.resources)}
-          </div>
-        </details>
-      )}
+      <details open={outline.library.policies.length > 0 || outline.library.resources.length > 0}>
+        <summary className="driver">
+          Library
+          <NewMenu items={ARTIFACT_ITEMS} onPick={(what) => onSelect({ type: "new", what: what as NewWhat, driver: null })} />
+        </summary>
+        <div className="indent">
+          {artifacts("Policies", outline.library.policies)}
+          {artifacts("Resources", outline.library.resources)}
+          {outline.library.policies.length === 0 && outline.library.resources.length === 0 && <p className="muted small">empty — the + adds a shared policy or resource</p>}
+        </div>
+      </details>
       {outline.drivers.map(driver)}
       <button className="leaf newdriver" onClick={() => onSelect({ type: "new", what: "driver", driver: null })} data-testid="new-driver">
         <span className="badge">+</span>New driver
@@ -200,10 +191,19 @@ export function OutlineTree({ outline, selection, onSelect }: Props) {
   );
 }
 
-type NewWhat = "policy" | "entitlement" | "form" | "prd" | "driver";
+/** Roles and resources are made in the Roles view, so the menu routes there. */
+type MenuWhat = NewWhat | "role" | "resource";
+
+/** What a driver and the Library both hold: policies and the three resource kinds. */
+const ARTIFACT_ITEMS: [MenuWhat, string][] = [
+  ["policy", "policy"],
+  ["mapping-table", "mapping table"],
+  ["ecmascript", "ECMAScript resource"],
+  ["gcv", "GCV resource"],
+];
 
 /** A small "+" beside a heading that opens the list of things to create there. */
-function NewMenu({ items, onPick }: { items: [NewWhat, string][]; onPick: (what: NewWhat) => void }) {
+function NewMenu({ items, onPick }: { items: [MenuWhat, string][]; onPick: (what: MenuWhat) => void }) {
   const [open, setOpen] = useState(false);
   return (
     <span className="newmenu" onClick={(e) => e.preventDefault()}>
@@ -230,7 +230,7 @@ function NewMenu({ items, onPick }: { items: [NewWhat, string][]; onPick: (what:
               }}
               data-testid={"new-" + what}
             >
-              New {label.toLowerCase()}
+              New {label}
             </button>
           ))}
         </span>

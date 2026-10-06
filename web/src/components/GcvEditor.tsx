@@ -97,6 +97,7 @@ export function GcvEditor({ config, overrides, canOverride, pending, onOpen }: P
         extraHead={
           <>
             <th>Defined in</th>
+            <th>Used by</th>
             {canOverride &&
               envs.map((e) => (
                 <th key={e} title={`overrides/${e}.properties`}>
@@ -118,6 +119,19 @@ export function GcvEditor({ config, overrides, canOverride, pending, onOpen }: P
                 <button className="link" title="Shared: a GCV resource. Changing it changes every driver that links it" onClick={() => row.owner && onOpen(row.owner)}>
                   {row.owner}
                 </button>
+              )}
+            </td>
+            <td className="small usedby" data-testid={"gcv-usedby-" + row.name}>
+              {!row.usedBy || row.usedBy.length === 0 ? (
+                <span className="muted" title="No policy or configuration document in this scope reads it">
+                  —
+                </span>
+              ) : (
+                row.usedBy.map((u) => (
+                  <button key={u.path} className="link" title={u.kind === "policy" ? u.path : `${u.kind} of ${u.path.split("/")[1]} (~${row.name}~)`} onClick={() => onOpen(u.file ?? u.path)}>
+                    {u.kind === "policy" ? u.path.split("/").pop() : u.kind}
+                  </button>
+                ))
               )}
             </td>
             {canOverride &&

@@ -1,35 +1,4 @@
-import type {
-  Artifact,
-  BuildResult,
-  ConfigView,
-  Connections,
-  DeployResult,
-  EnvSecrets,
-  FormData as FormDoc,
-  GitDiff,
-  GitStatus,
-  LifecycleResult,
-  OpCall,
-  OpResult,
-  OpSpec,
-  Outline,
-  OverridesData,
-  PackagesData,
-  PrdData,
-  RoleCatalog,
-  Session,
-  SetupResult,
-  SimCaseFiles,
-  SimCases,
-  SimDetail,
-  SimRun,
-  TreeFile,
-  Validation,
-  VaultDiffResult,
-  VaultEnvironments,
-  VaultStatus,
-  WorkspacesInfo,
-} from "./types";
+import type { Artifact, BuildResult, ConfigView, Connections, DeployResult, EnvSecrets, FetchResult, FormData as FormDoc, GitDiff, GitStatus, LifecycleResult, OpCall, OpResult, OpSpec, Outline, OverridesData, PackagesData, PrdData, RoleCatalog, Session, SetupResult, SimCaseFiles, SimCases, SimDetail, SimRun, SiteListing, TreeFile, UpdateSites, Validation, VaultDiffResult, VaultEnvironments, VaultStatus, WorkspacesInfo } from "./types";
 import type { FishboneModel } from "./fishbone/types";
 
 /**
@@ -151,6 +120,9 @@ export const api = {
     setSecret: (req: { env: string; key: string; store: string; value?: string }) => call<{ key: string; file: string; notes: string[] }>("POST", "/api/credentials/secret", req),
   },
   buildPackage: (req: Record<string, unknown>) => call<BuildResult>("POST", "/api/packages/build", req),
+  packageSites: () => call<UpdateSites>("GET", "/api/packages/sites"),
+  packageSite: (site: string) => call<SiteListing>("GET", `/api/packages/site?site=${q(site)}`),
+  fetchPackages: (req: { site: string; packages: string[]; allVersions?: boolean; dryRun?: boolean }) => call<FetchResult>("POST", "/api/packages/fetch", req),
   sim: {
     cases: () => call<SimCases>("GET", "/api/sim/cases"),
     files: (name: string) => call<SimCaseFiles>("GET", `/api/sim/case?name=${q(name)}`),

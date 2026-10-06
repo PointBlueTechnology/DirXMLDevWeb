@@ -185,6 +185,7 @@ export type Selection =
   | { type: "form"; driver: string; name: string }
   | { type: "roles" }
   | { type: "packages" }
+  | { type: "connections"; env?: string }
   | { type: "operations" };
 
 /** An environment of the environments file, described without its values. */
@@ -411,4 +412,45 @@ export interface BuildResult {
   objects: string[];
   notes: string[];
   text: string;
+}
+
+export interface ConnectionEnv {
+  name: string;
+  url: string | null;
+  bindDn: string | null;
+  driverSet: string | null;
+  tier: string | null;
+  trustAll: string | null;
+  requires: string | null;
+  sshHost: string | null;
+  sshUser: string | null;
+  secrets: string | null;
+  /** How the password is configured: literal, env, command, keychain, or null for none. */
+  password: string | null;
+  secretsFile: string;
+  secretsFileExists: boolean;
+  ready: boolean;
+}
+
+export interface Connections {
+  file: string;
+  exists: boolean;
+  keychain: boolean;
+  environments: ConnectionEnv[];
+}
+
+export interface SecretNeed {
+  driver: string;
+  key: string;
+  kind: string;
+  because: string;
+  configured: string | null;
+}
+
+export interface EnvSecrets {
+  environment: string;
+  file: string;
+  exists: boolean;
+  needs: SecretNeed[];
+  others: { key: string; configured: string | null }[];
 }

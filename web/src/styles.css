@@ -560,6 +560,14 @@ th {
   text-align: left;
   padding: 12px 14px;
   border-radius: 8px;
+  min-width: 0;
+}
+/* a shim class is long: one line, cut with an ellipsis (the full name is the hover text) */
+.card > strong,
+.card > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* operations */

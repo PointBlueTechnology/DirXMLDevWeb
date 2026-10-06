@@ -7,6 +7,18 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-10-06
+
+### Fixed
+
+- Home: a driver card's shim class ran past the card; it is one line with an ellipsis (hover for
+  the whole name).
+- `hosted/docker/build.sh` takes the jars the poms name, not the newest files in `target/` — a
+  rebuild of an older core had put core 0.10.0 into the 0.9.1 lab image.
+- Policy flow: "Command Transformation" overran its box, and its policy stacks overlapped the
+  Input/Output Transformation stacks (the boxes touched). Set boxes are 170 wide on ribs 180
+  apart now, with a gutter before the Input/Output column.
+
 ## [0.9.1] - 2026-10-06
 
 ### Fixed

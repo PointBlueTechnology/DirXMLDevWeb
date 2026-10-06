@@ -45,7 +45,7 @@ while ! grep -q 'hosted:' "$WORK/log" 2>/dev/null; do
   [ $i -gt 60 ] && { echo "server did not start:"; cat "$WORK/log"; exit 1; }
   sleep 0.25
 done
-python3 - "http://127.0.0.1:$PORT" "$WORK" <<'PY'
+HERE="$HERE" python3 - "http://127.0.0.1:$PORT" "$WORK" <<'PY'
 import json, os, subprocess, sys, urllib.request, urllib.error, urllib.parse
 base, work = sys.argv[1], sys.argv[2]
 
@@ -149,6 +149,56 @@ check("an agent without a role reads only", s == 403)
 s, _, h = alice.call("GET", "/auth/logout")
 check("sign-out clears the cookie", s == 303 and "Max-Age=0" in h.get("set-cookie", ""))
 check("and the session is gone", alice.call("GET", "/api/session")[0] == 401)
+
+# a second server with no repository: the first-run setup
+import subprocess as sp, socket, time
+s2 = socket.socket(); s2.bind(("127.0.0.1", 0)); port2 = s2.getsockname()[1]; s2.close()
+os.makedirs(os.path.join(work, "data2"))
+with open(os.path.join(work, "hosted2.properties"), "w") as f:
+    f.write("public.url=http://127.0.0.1:%d\nbind=127.0.0.1\nport=%d\ndata.dir=%s/data2\nenvironments.file=%s/data2/environments.properties\nidentity=token\ntoken.value=smoke-setup-token-0123456789\ntoken.user=solo\nroles.editor=*\nroles.deployer=*\n" % (port2, port2, work, work))
+here = os.environ["HERE"]
+p2 = sp.Popen([os.path.join(here, "bin", "idmweb"), "serve", "--hosted", os.path.join(work, "hosted2.properties")], stdout=open(os.path.join(work, "log2"), "w"), stderr=sp.STDOUT, env={**os.environ, "IDM_ENVIRONMENTS": os.path.join(work, "data2", "environments.properties")})
+try:
+    for _ in range(80):
+        if os.path.exists(os.path.join(work, "log2")) and "hosted:" in open(os.path.join(work, "log2")).read():
+            break
+        time.sleep(0.25)
+    base2 = "http://127.0.0.1:%d" % port2
+    solo = Client()
+    def call2(method, path, body=None, headers=None, raw=False, csrf=True):
+        h = {"Content-Type": "application/json"}
+        if solo.cookie: h["Cookie"] = solo.cookie
+        if csrf and solo.csrf and method != "GET": h["X-IDMWeb-CSRF"] = solo.csrf
+        h.update(headers or {})
+        data = None if body is None else (body if raw else json.dumps(body).encode())
+        req = urllib.request.Request(base2 + path, method=method, headers=h, data=data)
+        try:
+            with urllib.request.build_opener(NoRedirect()).open(req) as r:
+                t = r.read().decode(); return r.status, (json.loads(t) if t.startswith("{") else t), {k.lower(): v for k, v in r.headers.items()}
+        except urllib.error.HTTPError as e:
+            t = e.read().decode(); return e.code, (json.loads(t) if t.startswith("{") else t), {k.lower(): v for k, v in e.headers.items()}
+    s, _, h = call2("POST", "/auth/callback", body=b"token=smoke-setup-token-0123456789&next=/", raw=True, headers={"Content-Type": "application/x-www-form-urlencoded"})
+    check("first run: the token provider signs the person in", s == 303 and "idmweb_session=" in h.get("set-cookie", ""))
+    solo.cookie = h["set-cookie"].split(";")[0]
+    s, sess, _ = call2("GET", "/api/session"); solo.csrf = sess["csrf"]
+    check("first run: the session says setup is needed", s == 200 and sess["setup"] and sess["workspace"] is None)
+    check("first run: /api/setup agrees and the connections view is reachable", call2("GET", "/api/setup")[1]["needed"] and call2("GET", "/api/credentials")[0] == 200)
+    check("first run: a bad directory is refused in words", "not a directory" in call2("POST", "/api/setup/directory", {"path": "/nope/nope"})[1]["error"])
+    plain = os.path.join(work, "plain"); import shutil; shutil.copytree(os.path.join(work, "seed", "tree"), os.path.join(plain, "tree"))
+    s, r = call2("POST", "/api/setup/directory", {"path": plain})[:2]
+    check("first run: a plain directory becomes a repository in place", s == 200 and r["inPlace"] == plain and r["tree"] == "tree" and os.path.isdir(os.path.join(plain, ".git")))
+    s, sess, _ = call2("GET", "/api/session")
+    check("first run: setup is done and remembered in the configuration", not sess["setup"] and "repo.inPlace=" + plain in open(os.path.join(work, "hosted2.properties")).read())
+    s, o, _ = call2("POST", "/api/workspaces/open", {"branch": "main"})
+    check("first run: the in-place checkout is the workspace", s == 200 and o["workspace"] == "in-place")
+    check("first run: the tree is served from it", call2("GET", "/api/outline")[1]["drivers"][0]["name"] == "Loop")
+    rev = call2("GET", "/api/session")[1]["revision"]
+    s, c = call2("POST", "/api/op/policy.add", {"args": {"name": "sub-ctp-New", "driver": "Loop", "scope": "subscriber", "link": "subscriber-command"}, "dryRun": False, "revision": rev})[:2]
+    check("a policy is created and linked (the New menu's operation)", s == 200 and c["written"] and any(f.endswith("sub-ctp-New.policy.xml") for f in c["changedFiles"]))
+    s, st, _ = call2("GET", "/api/git/status")
+    check("git status in place sees the new policy", s == 200 and st["branch"] == "main" and any("sub-ctp-New" in x["file"] for x in st["changed"]))
+finally:
+    p2.terminate()
 
 with open(os.path.join(work, "data", "audit.log")) as f:
     lines = [json.loads(l) for l in f if l.strip()]

@@ -54,12 +54,15 @@ public final class Hosted {
     public final String bind;
     public final int port;
     public final Path dataDir;
-    public final String repoUrl;
+    /** The repository; null until the first-run setup chooses one. */
+    public volatile String repoUrl;
+    public volatile String repoTree;
+    public volatile String repoCases;
+    public volatile String repoBase;
+    /** A checkout used in place as the one workspace (the "existing repository" choice of setup), or null. */
+    public volatile Path inPlace;
     public final String repoUser;
-    public final Path repoSshKey;
-    public final String repoBase;
-    public final String repoTree;
-    public final String repoCases;
+    public volatile Path repoSshKey;
     public final Path catalog;
     public final Path environmentsFile;
     public final String identity;
@@ -74,7 +77,10 @@ public final class Hosted {
         this.bind = p.getProperty("bind", "127.0.0.1").trim();
         this.port = Integer.parseInt(p.getProperty("port", "8080").trim());
         this.dataDir = Path.of(p.getProperty("data.dir", "data").trim()).toAbsolutePath().normalize();
-        this.repoUrl = required(p, "repo.url");
+        String ru = p.getProperty("repo.url");
+        this.repoUrl = ru == null || ru.isBlank() ? null : ru.trim();
+        String ip = p.getProperty("repo.inPlace");
+        this.inPlace = ip == null || ip.isBlank() ? null : Path.of(ip.trim());
         this.repoUser = p.getProperty("repo.user", "x-access-token").trim();
         String key = p.getProperty("repo.sshKey");
         this.repoSshKey = key == null || key.isBlank() ? null : Path.of(key.trim());
@@ -106,6 +112,32 @@ public final class Hosted {
             throw new IllegalArgumentException("hosted configuration needs " + key);
         }
         return v.trim();
+    }
+
+    /** Setup's outcome, written to the configuration so the next start has it too. */
+    public synchronized void saveRepository(String url, String tree, String cases, String base, Path inPlace, String token) throws IOException {
+        PropertiesFile pf = new PropertiesFile(file);
+        pf.set("repo.url", url);
+        pf.set("repo.tree", tree);
+        pf.set("repo.cases", cases);
+        pf.set("repo.base", base);
+        pf.set("repo.inPlace", inPlace == null ? null : inPlace.toString());
+        if (token != null && !token.isBlank()) {
+            pf.set("repo.token", token);
+            for (String f : SecretSource.FORMS) {
+                pf.remove("repo.token" + f);
+            }
+        }
+        pf.save();
+        this.repoUrl = url;
+        this.repoTree = tree;
+        this.repoCases = cases;
+        this.repoBase = base;
+        this.inPlace = inPlace;
+        props.setProperty("repo.url", url == null ? "" : url);
+        if (token != null && !token.isBlank()) {
+            props.setProperty("repo.token", token);
+        }
     }
 
     static List<String> list(String csv) {

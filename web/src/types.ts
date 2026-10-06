@@ -5,6 +5,8 @@ export interface Session {
   version: string;
   core: string | null;
   mode: "local" | "hosted";
+  /** Hosted mode with no repository yet: the first-run setup is needed. */
+  setup?: boolean;
   csrf: string;
   user: { subject: string; name: string; email: string | null; editor: boolean; deployer: boolean };
   workspace: string | null;
@@ -15,6 +17,8 @@ export interface Session {
 
 export interface WorkspacesInfo {
   mode: "local" | "hosted";
+  setup?: boolean;
+  inPlace?: boolean;
   open: { id: string; branch: string | null; tree: string }[];
   current: string | null;
   repository?: string;
@@ -215,6 +219,7 @@ export type Selection =
   | { type: "packages" }
   | { type: "connections"; env?: string }
   | { type: "entitlement"; driver: string; name: string; file: string }
+  | { type: "new"; what: "policy" | "entitlement" | "form" | "prd" | "driver"; driver: string | null }
   | { type: "operations" };
 
 /** An environment of the environments file, described without its values. */
@@ -484,4 +489,14 @@ export interface EnvSecrets {
   exists: boolean;
   needs: SecretNeed[];
   others: { key: string; configured: string | null }[];
+}
+
+export interface SetupResult {
+  repository?: string;
+  inPlace?: string;
+  tree?: string;
+  base?: string;
+  drivers?: number;
+  branches?: string[];
+  notes?: string[];
 }

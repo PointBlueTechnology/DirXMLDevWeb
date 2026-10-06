@@ -7,6 +7,11 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-06
+
+Hosted mode (W7): a team on one repository, with sign-in, workspaces, commit and push, roles,
+an audit log, the container, and agents. Live on the Point Blue lab.
+
 ### Added
 
 - Hosted mode, step 3: the container (`hosted/docker/`: image with the server, page and `idm`

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseEntitlement, writeEntitlement } from "./entitlement";
+import { defaultQuery, parseEntitlement, writeEntitlement } from "./entitlement";
 
 describe("entitlement definitions", () => {
   it("reads a static list", () => {
@@ -29,6 +29,21 @@ describe("entitlement definitions", () => {
     expect(out).toContain("<!-- kept -->");
     expect(out.startsWith('<?xml version="1.0" encoding="UTF-8"?>')).toBe(true);
     expect(parseEntitlement(writeEntitlement(xml, { displayName: "G", description: "d", conflict: "union", multiValued: true }, null)).values).toEqual(["cn=a,o=x"]);
+  });
+
+  it("writes a query with its tokens, and a list replaces a query", () => {
+    const base = '<entitlement conflict-resolution="priority" display-name="G"><values multi-valued="true"><value>x</value></values></entitlement>';
+    const q = { ...defaultQuery(), className: "group", scope: "subtree", searchClasses: ["group"], readAttrs: ["CN", "description"], displayName: "{CN}", description: "Group {description} in AD", value: "{association}" };
+    const withQuery = writeEntitlement(base, { displayName: "G", description: "", conflict: "priority", multiValued: true }, null, q);
+    const back = parseEntitlement(withQuery);
+    expect(back.mode).toBe("query");
+    expect(back.query).toEqual({ className: "group", scope: "subtree", searchClasses: ["group"], readAttrs: ["CN", "description"], displayName: "{CN}", description: "Group {description} in AD", value: "{association}" });
+    expect(withQuery).toContain('<nds dtdversion="2.0">');
+    expect(withQuery).toContain("<token-association/>");
+    const backToList = parseEntitlement(writeEntitlement(withQuery, { displayName: "G", description: "", conflict: "priority", multiValued: true }, ["a", "b"]));
+    expect(backToList.mode).toBe("static");
+    expect(backToList.values).toEqual(["a", "b"]);
+    expect(parseEntitlement(writeEntitlement(withQuery, { displayName: "G", description: "", conflict: "priority", multiValued: true }, [])).mode).toBe("none");
   });
 
   it("says when the document is not an entitlement", () => {

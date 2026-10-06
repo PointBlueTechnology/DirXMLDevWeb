@@ -33,11 +33,11 @@ function tokenText(el: Element | null): string | null {
     if (n.nodeType === 1) {
       const e = n as Element;
       parts.push(e.tagName === "token-attr" ? `{${e.getAttribute("attr-name") ?? ""}}` : e.tagName === "token-src-dn" ? "{src-dn}" : e.tagName === "token-association" ? "{association}" : `{${e.tagName}}`);
-    } else if (n.nodeType === 3 && (n.nodeValue ?? "").trim()) {
-      parts.push((n.nodeValue ?? "").trim());
+    } else if (n.nodeType === 3) {
+      parts.push(n.nodeValue ?? "");
     }
   }
-  return parts.join("");
+  return parts.join("").trim();
 }
 
 export function parseEntitlement(xml: string): EntitlementDoc {
@@ -89,7 +89,82 @@ export function parseEntitlement(xml: string): EntitlementDoc {
  * the `--values` list: a value is the connected system's own key for the thing granted, as in an
  * association — a GUID, an id, a name, sometimes a DN — and the typed list is comma-separated.
  */
-export function writeEntitlement(xml: string, fields: { displayName: string; description: string; conflict: string; multiValued: boolean }, values: string[] | null): string {
+/** A result token as the editor edits it: `{attr}` reads an attribute, `{src-dn}` the object's DN, `{association}` its association, anything else is literal text. */
+function tokenElements(doc: Document, text: string): Node[] {
+  const out: Node[] = [];
+  const re = /\{([^}]*)\}/g;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) {
+      out.push(doc.createTextNode(text.slice(last, m.index)));
+    }
+    const name = m[1]!;
+    if (name === "src-dn") {
+      out.push(doc.createElement("token-src-dn"));
+    } else if (name === "association") {
+      out.push(doc.createElement("token-association"));
+    } else {
+      const e = doc.createElement("token-attr");
+      e.setAttribute("attr-name", name);
+      out.push(e);
+    }
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) {
+    out.push(doc.createTextNode(text.slice(last)));
+  }
+  return out;
+}
+
+export function queryElement(doc: Document, q: EntitlementQuery): Element {
+  const app = doc.createElement("query-app");
+  const qx = doc.createElement("query-xml");
+  const nds = doc.createElement("nds");
+  nds.setAttribute("dtdversion", "2.0");
+  const input = doc.createElement("input");
+  const query = doc.createElement("query");
+  query.setAttribute("class-name", q.className ?? "");
+  query.setAttribute("scope", q.scope ?? "subtree");
+  for (const c of q.searchClasses) {
+    const e = doc.createElement("search-class");
+    e.setAttribute("class-name", c);
+    query.appendChild(e);
+  }
+  for (const a of q.readAttrs) {
+    const e = doc.createElement("read-attr");
+    e.setAttribute("attr-name", a);
+    query.appendChild(e);
+  }
+  input.appendChild(query);
+  nds.appendChild(input);
+  qx.appendChild(nds);
+  app.appendChild(qx);
+  const rs = doc.createElement("result-set");
+  for (const [tag, text] of [["display-name", q.displayName], ["description", q.description], ["ent-value", q.value]] as const) {
+    if (text) {
+      const e = doc.createElement(tag);
+      for (const n of tokenElements(doc, text)) {
+        e.appendChild(n);
+      }
+      rs.appendChild(e);
+    }
+  }
+  app.appendChild(rs);
+  return app;
+}
+
+/** The query as it starts when a static list or nothing becomes a query. */
+export function defaultQuery(): EntitlementQuery {
+  return { className: "", scope: "subtree", searchClasses: [], readAttrs: [], displayName: "{CN}", description: null, value: "{association}" };
+}
+
+export function writeEntitlement(
+  xml: string,
+  fields: { displayName: string; description: string; conflict: string; multiValued: boolean },
+  values: string[] | null,
+  query?: EntitlementQuery | null,
+): string {
   const doc = new DOMParser().parseFromString(xml, "application/xml");
   const root = doc.documentElement;
   root.setAttribute("display-name", fields.displayName);
@@ -105,7 +180,13 @@ export function writeEntitlement(xml: string, fields: { displayName: string; des
     root.appendChild(valuesEl);
   }
   valuesEl.setAttribute("multi-valued", String(fields.multiValued));
-  if (values !== null) {
+  if (query) {
+    // a query replaces whatever the values held
+    for (const c of Array.from(valuesEl.childNodes)) {
+      valuesEl.removeChild(c);
+    }
+    valuesEl.appendChild(queryElement(doc, query));
+  } else if (values !== null) {
     for (const c of Array.from(valuesEl.childNodes)) {
       valuesEl.removeChild(c);
     }

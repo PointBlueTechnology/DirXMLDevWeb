@@ -1108,3 +1108,5 @@ table.grid tr.selected td { background: var(--bg); }
 .repobar { display: flex; align-items: center; gap: 10px; padding: 6px 16px; border-bottom: 1px solid var(--border); background: var(--surface); flex-wrap: wrap; }
 .repobar .commitmsg { flex: 1; min-width: 160px; max-width: 420px; }
 .repobar .branchpick { display: inline-flex; align-items: center; gap: 8px; }
+
+.modes .checkchip.on { border-color: var(--accent); }

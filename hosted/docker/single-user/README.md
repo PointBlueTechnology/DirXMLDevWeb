@@ -1,4 +1,4 @@
-# One person, one container
+# One person, one container (the local install — reference)
 
 The web UI, the `idm` CLI and the simulator in one local container, for one person, with one
 command. No Keycloak, no proxy; the page is on localhost, sign-in is one token, "the team's

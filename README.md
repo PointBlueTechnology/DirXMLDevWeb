@@ -70,15 +70,22 @@ and pull requests, sign-in and audit. Every write goes through one review (a dry
 of the tree, file by file) and is applied as one transaction, or not at all. The whole list,
 view by view: [docs/features.md](docs/features.md).
 
-## Get it
+## Three ways to run it
 
-- **One person, one container** — [docs/quickstart.md](docs/quickstart.md): the image from the
-  registry, your engine jars, one command; the web UI, the `idm` CLI, the simulator and your
-  agents against the same container.
-- **A team** — [docs/hosted-install.md](docs/hosted-install.md) (the container behind a proxy
-  with Keycloak) and [docs/hosted-mode.md](docs/hosted-mode.md) (configuration, identity, roles).
-- **From a checkout** — [docs/development.md](docs/development.md): `bin/idmweb serve <tree>`
-  on DirXMLDev's class path, the layout, the tests, releasing.
+| | **Local** — one person, one container | **Server** — a team | **Workstation** — from a checkout |
+|---|---|---|---|
+| Where | Docker on your own machine, `http://localhost:8080` | a host behind a proxy with TLS, `https://idm.example.com` | your machine, `bin/idmweb serve <tree>`, loopback only |
+| Sign-in | one token (yours) and one for your agents | your identity provider (OpenID Connect: Keycloak, Entra, Okta …), groups → roles | none: the URL carries a one-time token |
+| The tree | a git repository in the directory (or none yet: the page asks) | the team's repository on GitHub or GitLab; a branch per person as a workspace | one tree on disk, edited in place; git is yours to run |
+| Projects, branches, commit & push, audit | yes | yes | no — one tree, no sign-in, no audit |
+| Vault credentials | in the directory, owner-only (or a secret manager) | on the server (or a secret manager) | the `idm` CLI's files and your Keychain |
+| Engine jars | a volume in the directory | a volume on the host | DirXMLDev's `lib/` |
+| CLI and simulator | `~/idmweb/idm …` inside the container | `docker exec idmweb idm …` | `bin/idm …` from the checkout |
+| Get it | [docs/quickstart.md](docs/quickstart.md) | [docs/hosted-install.md](docs/hosted-install.md), [docs/hosted-mode.md](docs/hosted-mode.md) | [docs/development.md](docs/development.md) |
+
+The first two are the same image and the same hosted server (`serve --hosted`), one configured
+for one person on localhost and one for a team; the third is the server in its local mode,
+for developing it or for a quick look at a tree. Upgrading an install is pulling the next image.
 
 ## Documentation
 

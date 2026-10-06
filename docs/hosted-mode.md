@@ -1,6 +1,11 @@
-# Hosted mode
+# Hosted mode: configuration
 
-One server for a team: sign-in, a branch per person as a workspace, commits and pushes from the page, the vault credentials held by the server, an audit line per action. This page is the configuration reference; [hosted-install.md](hosted-install.md) is the container install, [quickstart.md](quickstart.md) the one-person container, [hosted.md](hosted.md) the design.
+`serve --hosted` is what both the local (one person) and the server (team) installs run: sign-in,
+projects, a branch per person as a workspace, commits and pushes from the page, the vault
+credentials held by the server, an audit line per action. This page is the configuration
+reference for both; [quickstart.md](quickstart.md) sets it up for one person on localhost
+(`identity=token`), [hosted-install.md](hosted-install.md) for a team on a host
+(`identity=oidc`), [hosted.md](hosted.md) is the design.
 
 `bin/idmweb serve --hosted hosted.properties` runs the same server for a team: people sign in,
 each opens a **branch** of the team's git repository as a workspace of their own (a checkout

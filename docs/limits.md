@@ -8,9 +8,7 @@
   approvers and other languages of a role go through Operations (`flow.activity.set`,
   `form.field.set --prop`, `role.set`). Branches are inserted with `flow.branch.add` there.
 - Packages with prompts take their answers file through Operations → package.install;
-  `package.fetch` and `package.import` fill the catalog from the CLI.
-- With a DirXMLDev older than 0.8.0 the stage-override and whole-document configuration
-  controls are hidden or read-only, and flow edits fail.
+  `package.import` (a jar from disk) is CLI-only — Update sites covers repositories.
 - A setting cannot be cleared to empty from the Settings tab; do that in the document's XML.
 - Deploy from the page covers the common case. Secrets, deleting a driver, drift capture,
   stepwise deploys and rollback stay with `idm vault.deploy` and `idm vault.rollback`; a deploy's

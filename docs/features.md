@@ -1,11 +1,11 @@
 # What it does
 
-Every view of the page, by area. The core's operations behind each are the same ones the `idm` CLI and the MCP server run.
+Every view of the page, by area, in every install; the items marked *local and server installs* need the hosted server (sign-in, projects, branches), which the workstation install does not run. The core's operations behind each are the same ones the `idm` CLI and the MCP server run.
 
-- **Projects** (hosted): one server holds any number of trees, each a project with its own
+- **Projects** (local and server installs): one server holds any number of trees, each a project with its own
   repository (or a checkout used in place); a picker in the repository bar switches, "add a
   project…" takes any of the first-run ways. Workspaces, branches and audit lines are per project.
-- **First run** (hosted): with no repository configured the page asks where the tree comes
+- **First run** (local and server installs): with no repository configured the page asks where the tree comes
   from — export from an Identity Vault, import a Designer project (zip or directory) or a
   Designer export, use an existing repository (bare, or a checkout in place), use a directory
   of files, or clone a remote — and remembers the answer.
@@ -24,7 +24,7 @@ Every view of the page, by area. The core's operations behind each are the same 
   for its description; click it to open it. Click a policy set to open it beside the picture:
   reorder its policies (▲ ▼), unlink one, or link an existing policy or resource — one reviewed
   change (`policy.reorder`, `policy.link`, `policy.unlink`).
-- **Policy editor in two modes** (W2). *Rules* is a structured editor for a DirXML Script
+- **Policy editor in two modes**. *Rules* is a structured editor for a DirXML Script
   policy: rules, condition groups, actions, arguments and tokens, with every element of the
   language available and each node's attributes, order and nesting taken from the grammar.
   *Source* is the XML. Both edit one draft. A pause in editing sends the draft through the
@@ -39,7 +39,7 @@ Every view of the page, by area. The core's operations behind each are the same 
 - **Validation**: the core's whole check suite, including the engine's own compiler — grouped by
   the module each finding occurs in (driver, Library, driver set), filtered by severity, and the
   panel folds to a strip when you want the room.
-- **Configuration editors** (W1), per driver and for the driver set:
+- **Configuration editors**, per driver and for the driver set:
   - *GCVs* in scope, each from the place the engine would take it, with a column per environment
     for the values that differ per stage, and *Used by*: every policy and configuration document
     (shim parameters, engine controls, filter) that reads the GCV, each a link.
@@ -54,7 +54,7 @@ Every view of the page, by area. The core's operations behind each are the same 
   Apply writes them as one transaction, or nothing.
 - **Operations**: every edit operation the core registers with a form generated from its
   declared arguments, through the same review.
-- **Vault** (W3), against any environment the `idm` CLI knows:
+- **Vault**, against any environment the `idm` CLI knows:
   - *Compare*: the tree against the vault, for the driver set or one driver, with the stage's
     overrides applied; each difference opens its detail.
   - *Deploy*: the plan step by step with nothing written, then the deploy itself (snapshot,
@@ -64,7 +64,7 @@ Every view of the page, by area. The core's operations behind each are the same 
   - *Trace*: a driver's trace, live, with a filter — from any server of the driver set, each of
     which keeps its own (the servers are read from the vault, their addresses from the
     environment's `servers=` mapping or the server object).
-- **Provisioning** (W5), for the User Application driver:
+- **Provisioning**, for the User Application driver:
   - *PRD*: the workflow drawn as a diagram from the core's flow model. Select an activity to
     change its name, form, addressee and timeout, its links out (add, retype, remove), its data
     items, to insert an activity after it, rename or remove it; the process attributes and the
@@ -74,14 +74,14 @@ Every view of the page, by area. The core's operations behind each are the same 
     PRD activities that show it.
   - *Roles and resources*: the catalog, with display names and descriptions editable, add and
     remove, through `role.*` and `resource.*`.
-- **Packages** (W6): what each driver and the Library have installed against the catalog, with
+- **Packages**: what each driver and the Library have installed against the catalog, with
   upgrades the catalog offers, customized packaged objects (revert) and missing records
   (adopt); install, upgrade and uninstall through the review; the catalog's packages; *Update
   sites*: browse a package repository (Designer's public sites from the catalog's
   `sites.properties`, or any update-site URL) against the catalog and fetch chosen packages, or
   every newer version of what the tree has installed, so the Installed tab can offer the
   upgrade; a package built from a driver into the catalog.
-- **Simulator** (W4): a corpus of cases run through the tree's policies by the engine's own
+- **Simulator**: a corpus of cases run through the tree's policies by the engine's own
   classes.
   - *Run all* gives each case its verdict against what it recorded, as `idm simulate` does.
   - A case opens *stage by stage*: the document before and after every policy, as a diff, with

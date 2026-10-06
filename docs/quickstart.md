@@ -1,7 +1,10 @@
-# Quickstart: one person, one container
+# Quickstart: the local install (one person, one container)
 
 Ten minutes from nothing to the web UI, the `idm` CLI and the simulator on your own machine,
 all in one container, with your agents able to use it too. No Keycloak, no proxy, no build.
+This is the **local** install of the [three](../README.md#three-ways-to-run-it): the same image
+and server as a team's, configured for one person on localhost. For a team on a host, see
+[hosted-install.md](hosted-install.md); to run from a checkout, [development.md](development.md).
 
 ## You need
 
@@ -106,8 +109,9 @@ a `…Command=` reference to a secret manager ([secret-managers.md](secret-manag
 - Upgrade: set `IDMWEB_IMAGE` to the new version and run `setup.sh` again (the directory, its
   repository, token and configuration are kept).
 - Stop: `cd ~/idmweb && docker compose down`. Everything lives in the directory.
-- Sharing it with a team later: [hosted-install.md](hosted-install.md) — the same image behind a
-  proxy with TLS and your identity provider.
+- Moving to a server for a team: [hosted-install.md](hosted-install.md) — the same image behind a
+  proxy with TLS and your identity provider; push `~/idmweb/repo.git` to GitHub or GitLab and
+  point the server's project at it.
 
 The reference for everything `setup.sh` writes is
 [hosted/docker/single-user/README.md](../hosted/docker/single-user/README.md).

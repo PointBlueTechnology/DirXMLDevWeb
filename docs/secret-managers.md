@@ -23,6 +23,4 @@ them in the Keychain and export them from it, e.g. `BT_API_KEY=$(security find-g
 
 **With Terraform**: have Terraform provision the secret into the manager (`aws_secretsmanager_secret_version`,
 `azurerm_key_vault_secret`, `google_secret_manager_secret_version`, …) and reference it from
-here by name; nothing is copied, and a rotation in Terraform is picked up on the next read. A
-Terraform module that writes the environments and secrets files and runs `idm vault.deploy` is
-a follow-up (docs/design.md).
+here by name; nothing is copied, and a rotation in Terraform is picked up on the next read. DirXMLDev's Terraform module (`terraform/modules/idm-environment`, [docs/terraform.md](https://github.com/PointBlueTechnology/DirXMLDev/blob/master/docs/terraform.md)) writes the environments and secrets files and runs the deploy from Terraform.

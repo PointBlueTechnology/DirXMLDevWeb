@@ -1,11 +1,16 @@
-# Running from a checkout, and developing
+# The workstation install: from a checkout, and developing
 
-The workstation mode: the server on your own machine, on DirXMLDev's class path, serving one tree. For a container see [quickstart.md](quickstart.md); for a team see [hosted-install.md](hosted-install.md).
+The third of the [three ways to run it](../README.md#three-ways-to-run-it): the server on your
+own machine, on DirXMLDev's class path, in its *local mode* — one tree on disk, no sign-in, no
+projects or branches (git is yours to run). It is how the server is developed and the quickest
+look at a tree. For one person in a container see [quickstart.md](quickstart.md); for a team,
+[hosted-install.md](hosted-install.md).
 
 ## Run it
 
-Prerequisites: a built [DirXMLDev](https://github.com/PointBlueTechnology/DirXMLDev) 0.8.0 or
-newer (its `bin/idm doctor` is green), JDK 21, Maven 3.9, Node 20 or newer.
+Prerequisites: a built [DirXMLDev](https://github.com/PointBlueTechnology/DirXMLDev) at the
+version `pom.xml` names (`dirxmldev.version`, 0.11.0 now; its `bin/idm doctor` is green), JDK 21,
+Maven 3.9, Node 20 or newer.
 
 ```bash
 # once, in the DirXMLDev checkout: make its jar available to this build

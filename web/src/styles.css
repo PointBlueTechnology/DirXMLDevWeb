@@ -1087,3 +1087,8 @@ table.grid tr.selected td { background: var(--bg); }
 
 .managerpicker { border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; margin: 6px 0; }
 .managerpicker .field.wide input, input.mono { font-family: var(--mono, ui-monospace, monospace); width: 100%; box-sizing: border-box; }
+
+/* repository bar */
+.repobar { display: flex; align-items: center; gap: 10px; padding: 6px 16px; border-bottom: 1px solid var(--border); background: var(--surface); flex-wrap: wrap; }
+.repobar .commitmsg { flex: 1; min-width: 160px; max-width: 420px; }
+.repobar .branchpick { display: inline-flex; align-items: center; gap: 8px; }

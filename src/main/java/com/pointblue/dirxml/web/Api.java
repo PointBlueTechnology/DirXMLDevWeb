@@ -15,36 +15,60 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 /**
- * The HTTP face of {@link TreeService}. Reads are GETs; a write is {@code POST /api/op/<name>}
+ * The HTTP face of a workspace's services. Reads are GETs; a write is {@code POST /api/op/<name>}
  * with the operation's arguments, exactly the CLI's, and {@code dryRun} to preview. Every request
- * passes {@link Security} first. {@code /api/events} is a server-sent stream of tree revisions.
+ * passes {@link Security} first, then resolves its {@link Session} (the token in local mode, the
+ * cookie in hosted mode) and the session's open {@link Workspace}. {@code /api/events} is a
+ * server-sent stream of tree revisions.
  */
 public final class Api implements HttpHandler {
 
-    private final TreeService service;
-    private final VaultService vault;
-    private final SimService sim;
-    private final ProvisioningService prov;
-    private final PackageService packages;
-    private final CredentialService credentials;
-    private final Watcher watcher;
+    public static final String COOKIE = "idmweb_session";
+    public static final String CSRF_HEADER = "X-IDMWeb-CSRF";
+    /** POST routes only a deployer may call: they reach a vault or hold its credentials. */
+    private static final java.util.List<String> DEPLOYER_ONLY = java.util.List.of("/api/vault/deploy", "/api/vault/driver", "/api/credentials/environment", "/api/credentials/environment/remove", "/api/credentials/secret");
+
+    private final Workspaces workspaces;
+    private final Session.Store sessions;
     private final Security security;
+    private final Audit audit;
     private final String version;
 
-    public Api(TreeService service, VaultService vault, SimService sim, ProvisioningService prov, PackageService packages, CredentialService credentials, Watcher watcher, Security security, String version) {
-        this.prov = prov;
-        this.credentials = credentials;
-        this.packages = packages;
-        this.service = service;
-        this.vault = vault;
-        this.sim = sim;
-        this.watcher = watcher;
+    public Api(Workspaces workspaces, Session.Store sessions, Security security, Audit audit, String version) {
+        this.workspaces = workspaces;
+        this.sessions = sessions;
         this.security = security;
+        this.audit = audit;
         this.version = version;
+    }
+
+    static String cookie(HttpExchange ex, String name) {
+        for (String header : ex.getRequestHeaders().getOrDefault("Cookie", java.util.List.of())) {
+            for (String part : header.split(";")) {
+                String t = part.trim();
+                if (t.startsWith(name + "=")) {
+                    return t.substring(name.length() + 1);
+                }
+            }
+        }
+        return null;
+    }
+
+    /** The session a request belongs to, or null. */
+    private Session session(HttpExchange ex, Map<String, String> query) {
+        if (security.hostedMode()) {
+            return sessions.get(cookie(ex, COOKIE));
+        }
+        String presented = ex.getRequestHeaders().getFirst(Security.HEADER);
+        if (presented == null) {
+            presented = query.get("token");
+        }
+        return sessions.get(presented);
     }
 
     @Override
     public void handle(HttpExchange ex) throws IOException {
+        Workspace w = null;
         try {
             Map<String, String> query = query(ex.getRequestURI().getRawQuery());
             String presented = ex.getRequestHeaders().getFirst(Security.HEADER);
@@ -56,17 +80,56 @@ public final class Api implements HttpHandler {
                 send(ex, 403, error(refusal));
                 return;
             }
+            Session session = session(ex, query);
+            if (session == null) {
+                Map<String, Object> m = error(security.hostedMode() ? "sign in first" : "missing or wrong session token");
+                if (security.hostedMode()) {
+                    m.put("login", "/auth/login");
+                }
+                send(ex, 401, m);
+                return;
+            }
             String path = ex.getRequestURI().getPath();
             String method = ex.getRequestMethod();
+            if (security.hostedMode() && !method.equals("GET")) {
+                String csrf = ex.getRequestHeaders().getFirst(CSRF_HEADER);
+                if (csrf == null || !java.security.MessageDigest.isEqual(csrf.getBytes(StandardCharsets.UTF_8), session.csrf.getBytes(StandardCharsets.UTF_8))) {
+                    send(ex, 403, error("missing or wrong CSRF token"));
+                    return;
+                }
+            }
+            if (!method.equals("GET") && !session.principal.editor) {
+                send(ex, 403, error("your account may read but not change anything"));
+                return;
+            }
+            if (!session.principal.deployer && (DEPLOYER_ONLY.contains(path) || path.equals("/api/vault/trace"))) {
+                send(ex, 403, error("this needs the deployer role"));
+                return;
+            }
+            if (path.equals("/api/session") || path.startsWith("/api/workspaces")) {
+                send(ex, 200, path.equals("/api/session") ? sessionInfo(session) : workspaceRoute(session, method, path, ex));
+                return;
+            }
+            w = workspaces.get(session.workspace);
+            if (w == null) {
+                Map<String, Object> m = error("no workspace is open; open a branch first");
+                m.put("noWorkspace", true);
+                send(ex, 409, m);
+                return;
+            }
             if (path.equals("/api/events") && method.equals("GET")) {
-                events(ex);
+                events(ex, w);
                 return;
             }
             if (path.equals("/api/vault/trace") && method.equals("GET")) {
-                trace(ex, query);
+                audit.log(session, w, "trace", Map.of("env", String.valueOf(query.get("env")), "driver", String.valueOf(query.get("driver"))), "started");
+                trace(ex, w, query);
                 return;
             }
-            Object body = route(method, path, query, ex);
+            Object body = route(session, w, method, path, query, ex);
+            if (!method.equals("GET") && !path.startsWith("/api/git/") && !path.startsWith("/api/sim/detail")) {
+                audit.log(session, w, path.substring("/api/".length()), summary(body), outcome(body));
+            }
             send(ex, 200, body);
         } catch (TreeService.NotFound e) {
             send(ex, 404, error(e.getMessage()));
@@ -74,25 +137,77 @@ public final class Api implements HttpHandler {
             send(ex, 400, error(e.getMessage()));
         } catch (TreeService.Stale e) {
             Map<String, Object> m = error(e.getMessage());
-            m.put("revision", watcher.revision());
+            m.put("revision", w == null ? null : w.watcher.revision());
             send(ex, 409, m);
         } catch (Exception e) {
             send(ex, 500, error(e.getClass().getSimpleName() + ": " + e.getMessage()));
         }
     }
 
-    private Object route(String method, String path, Map<String, String> query, HttpExchange ex) throws IOException {
+    private Map<String, Object> sessionInfo(Session session) {
+        Workspace w = workspaces.get(session.workspace);
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("name", "DirXMLDevWeb");
+        m.put("version", version);
+        m.put("core", coreVersion());
+        m.put("mode", security.hostedMode() ? "hosted" : "local");
+        m.put("csrf", session.csrf);
+        Map<String, Object> u = new LinkedHashMap<>();
+        u.put("subject", session.principal.subject);
+        u.put("name", session.principal.name);
+        u.put("email", session.principal.email);
+        u.put("editor", session.principal.editor);
+        u.put("deployer", session.principal.deployer);
+        m.put("user", u);
+        m.put("workspace", w == null ? null : w.id);
+        m.put("branch", w == null ? null : w.branch);
+        m.put("tree", w == null ? null : w.tree.toString());
+        m.put("revision", w == null ? null : w.watcher.revision());
+        return m;
+    }
+
+    private Object workspaceRoute(Session session, String method, String path, HttpExchange ex) throws IOException {
+        if (method.equals("GET") && path.equals("/api/workspaces")) {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("mode", security.hostedMode() ? "hosted" : "local");
+            m.put("open", workspaces.describe(session.principal));
+            m.put("current", session.workspace);
+            if (workspaces.hosted()) {
+                m.put("repository", workspaces.config().repoUrl.replaceAll("://[^@/]+@", "://"));
+                m.put("base", workspaces.config().repoBase);
+                m.put("branches", workspaces.branches());
+            }
+            return m;
+        }
+        if (method.equals("POST") && path.equals("/api/workspaces/open")) {
+            if (!workspaces.hosted()) {
+                throw new TreeService.BadRequest("local mode has one workspace, the tree on the command line");
+            }
+            Map<String, Object> req = Json.asMap(Json.parse(new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8)));
+            String branch = Json.asString(req.get("branch"));
+            Workspace w = workspaces.openBranch(session.principal, branch);
+            session.workspace = w.id;
+            audit.log(session, w, "workspace.open", Map.of("branch", branch), "ok");
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("workspace", w.id);
+            m.put("branch", w.branch);
+            return m;
+        }
+        throw new TreeService.NotFound("no such endpoint: " + method + " " + path);
+    }
+
+    private Object route(Session session, Workspace w, String method, String path, Map<String, String> query, HttpExchange ex) throws IOException {
+        TreeService service = w.service;
+        VaultService vault = w.vault;
+        SimService sim = w.sim;
+        ProvisioningService prov = w.prov;
+        PackageService packages = w.packages;
+        CredentialService credentials = w.credentials;
+        if (path.startsWith("/api/git/")) {
+            return gitRoute(session, w, method, path, ex);
+        }
         if (method.equals("GET")) {
             switch (path) {
-                case "/api/session": {
-                    Map<String, Object> m = new LinkedHashMap<>();
-                    m.put("name", "DirXMLDevWeb");
-                    m.put("version", version);
-                    m.put("core", coreVersion());
-                    m.put("tree", service.tree().toString());
-                    m.put("revision", watcher.revision());
-                    return m;
-                }
                 case "/api/outline":
                     return service.outline();
                 case "/api/artifact":
@@ -229,7 +344,8 @@ public final class Api implements HttpHandler {
     }
 
     /** A driver's trace as server-sent events, one line each, until the page closes the stream. */
-    private void trace(HttpExchange ex, Map<String, String> query) throws IOException {
+    private void trace(HttpExchange ex, Workspace w, Map<String, String> query) throws IOException {
+        VaultService vault = w.vault;
         ex.getResponseHeaders().set("Content-Type", "text/event-stream; charset=utf-8");
         ex.getResponseHeaders().set("Cache-Control", "no-store");
         ex.sendResponseHeaders(200, 0);
@@ -307,6 +423,72 @@ public final class Api implements HttpHandler {
         return out;
     }
 
+    /** What an audit line keeps of a response: names and flags, never contents. */
+    private static Map<String, Object> summary(Object body) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        if (body instanceof Map) {
+            for (String k : new String[] {"operation", "environment", "driver", "action", "name", "dryRun", "written", "changedFiles", "done", "snapshot", "refusal"}) {
+                Object v = ((Map<?, ?>) body).get(k);
+                if (v != null && !(v instanceof java.util.List && ((java.util.List<?>) v).isEmpty())) {
+                    out.put(k, v);
+                }
+            }
+        }
+        return out;
+    }
+
+    private static String outcome(Object body) {
+        if (body instanceof Map) {
+            Object ok = ((Map<?, ?>) body).get("ok");
+            if (ok instanceof Boolean) {
+                return (Boolean) ok ? "ok" : "refused";
+            }
+        }
+        return "ok";
+    }
+
+    private Object gitRoute(Session session, Workspace w, String method, String path, HttpExchange ex) throws IOException {
+        Git git = workspaces.git();
+        String base = workspaces.hosted() ? workspaces.config().repoBase : null;
+        if (method.equals("GET") && path.equals("/api/git/status")) {
+            Map<String, Object> m = git.status(w.root, base);
+            if (base == null && Boolean.TRUE.equals(m.get("repository"))) {
+                // local mode: the branch the tree sits on is compared with main or master, whichever exists
+                for (String b : new String[] {"main", "master"}) {
+                    if (git.run(w.root, "rev-parse", "--verify", "--quiet", "refs/remotes/origin/" + b).ok()) {
+                        m.put("base", b);
+                        m.put("compareUrl", Git.compareUrl((String) m.get("remote"), b, (String) m.get("branch")));
+                        break;
+                    }
+                }
+            }
+            return m;
+        }
+        if (method.equals("POST")) {
+            Map<String, Object> req = Json.asMap(Json.parse(new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8)));
+            switch (path) {
+                case "/api/git/commit": {
+                    boolean push = Boolean.TRUE.equals(req.get("push"));
+                    Map<String, Object> r = git.commit(w.root, Json.asString(req.get("message")), session.principal.name, session.principal.email, push);
+                    audit.log(session, w, push ? "commit+push" : "commit", Map.of("message", String.valueOf(req.get("message")), "hash", String.valueOf(r.get("hash"))), "ok");
+                    return r;
+                }
+                case "/api/git/update": {
+                    String b = base != null ? base : Json.asString(req.get("base"));
+                    if (b == null || b.isBlank()) {
+                        throw new TreeService.BadRequest("which branch to update from?");
+                    }
+                    Map<String, Object> r = git.update(w.root, b);
+                    audit.log(session, w, "update", Map.of("from", b), Boolean.TRUE.equals(r.get("merged")) ? "ok" : "conflict");
+                    return r;
+                }
+                default:
+                    break;
+            }
+        }
+        throw new TreeService.NotFound("no such endpoint: " + method + " " + path);
+    }
+
     private static String required(Map<String, String> query, String key) {
         String v = query.get(key);
         if (v == null || v.isBlank()) {
@@ -347,7 +529,8 @@ public final class Api implements HttpHandler {
     }
 
     /** One revision per change, and a comment line every fifteen seconds so a dead client is noticed. */
-    private void events(HttpExchange ex) throws IOException {
+    private void events(HttpExchange ex, Workspace w) throws IOException {
+        Watcher watcher = w.watcher;
         ex.getResponseHeaders().set("Content-Type", "text/event-stream; charset=utf-8");
         ex.getResponseHeaders().set("Cache-Control", "no-store");
         ex.sendResponseHeaders(200, 0);

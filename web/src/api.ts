@@ -1,19 +1,20 @@
 import type {
   Artifact,
+  BuildResult,
   ConfigView,
+  Connections,
   DeployResult,
+  EnvSecrets,
+  FormData as FormDoc,
+  GitStatus,
   LifecycleResult,
   OpCall,
   OpResult,
   OpSpec,
   Outline,
   OverridesData,
-  Connections,
-  EnvSecrets,
   PackagesData,
-  BuildResult,
   PrdData,
-  FormData as FormDoc,
   RoleCatalog,
   Session,
   SimCaseFiles,
@@ -25,6 +26,7 @@ import type {
   VaultDiffResult,
   VaultEnvironments,
   VaultStatus,
+  WorkspacesInfo,
 } from "./types";
 import type { FishboneModel } from "./fishbone/types";
 
@@ -48,11 +50,18 @@ function token(): string {
   return sessionStorage.getItem(KEY) ?? "";
 }
 
+/** Hosted mode: the session's CSRF token, learned from /api/session and sent on every write. */
+let csrf = "";
+export function setCsrf(value: string): void {
+  csrf = value;
+}
+
 /** An API error: the server's message, and the HTTP status (409 = the tree moved under a write). */
 export class ApiError extends Error {
   constructor(
     message: string,
     readonly status: number,
+    readonly noWorkspace = false,
   ) {
     super(message);
   }
@@ -61,7 +70,7 @@ export class ApiError extends Error {
 async function call<T>(method: string, path: string, body?: unknown): Promise<T> {
   const res = await fetch(path, {
     method,
-    headers: { "X-IDMWeb-Token": token(), ...(body === undefined ? {} : { "Content-Type": "application/json" }) },
+    headers: { "X-IDMWeb-Token": token(), ...(csrf ? { "X-IDMWeb-CSRF": csrf } : {}), ...(body === undefined ? {} : { "Content-Type": "application/json" }) },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   let data: unknown = null;
@@ -72,7 +81,11 @@ async function call<T>(method: string, path: string, body?: unknown): Promise<T>
   }
   if (!res.ok) {
     const message = data && typeof data === "object" && "error" in data ? String((data as { error: unknown }).error) : `HTTP ${res.status}`;
-    throw new ApiError(message, res.status);
+    if (res.status === 401 && data && typeof data === "object" && "login" in data) {
+      // hosted mode without a session: go and sign in, then come back here
+      window.location.assign(`${String((data as { login: string }).login)}?next=${encodeURIComponent(window.location.pathname)}`);
+    }
+    throw new ApiError(message, res.status, !!data && typeof data === "object" && "noWorkspace" in data);
   }
   return data as T;
 }
@@ -93,6 +106,13 @@ export const api = {
   form: (driver: string, name: string) => call<FormDoc>("GET", `/api/form?driver=${q(driver)}&name=${q(name)}`),
   roles: () => call<RoleCatalog>("GET", "/api/roles"),
   packages: () => call<PackagesData>("GET", "/api/packages"),
+  workspaces: () => call<WorkspacesInfo>("GET", "/api/workspaces"),
+  openWorkspace: (branch: string) => call<{ workspace: string; branch: string }>("POST", "/api/workspaces/open", { branch }),
+  git: {
+    status: () => call<GitStatus>("GET", "/api/git/status"),
+    commit: (message: string, push: boolean) => call<{ committed: boolean; hash?: string; pushed?: boolean; message?: string }>("POST", "/api/git/commit", { message, push }),
+    update: (base?: string) => call<{ merged: boolean; message: string; conflicts?: string[] }>("POST", "/api/git/update", base ? { base } : {}),
+  },
   connections: {
     list: () => call<Connections>("GET", "/api/credentials"),
     /** The parameters as typed; a password given here is used once and not kept. */

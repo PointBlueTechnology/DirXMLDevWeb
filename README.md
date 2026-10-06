@@ -118,6 +118,42 @@ The server prints a URL and opens it. DirXMLDev is found at `IDM_HOME`, else at 
 The server runs on that checkout's own classes, engine jars and simulator, so the page sees
 exactly what `bin/idm` sees.
 
+## Hosted mode
+
+`bin/idmweb serve --hosted hosted.properties` runs the same server for a team: people sign in,
+each opens a **branch** of the team's git repository as a workspace of their own (a checkout
+under the server's data directory, cloned on first use), edits it with every view above, and
+commits and pushes from the bar at the top; a pull request is one click away on GitHub or
+GitLab. The server holds the vault credentials (its environments file and secrets files, the
+same ones the CLI reads) and writes an audit line per sign-in, write, deploy, driver action,
+trace, commit and push. Roles come from groups: *editors* read, edit and commit; *deployers*
+also deploy, control drivers, trace and change connections.
+
+```properties
+public.url=https://idm.example.com      # what the browser sees; TLS terminates at a reverse proxy
+bind=127.0.0.1                          # the proxy's side (0.0.0.0 in a container)
+port=8080
+data.dir=/var/lib/idmweb                # workspaces, audit.log
+repo.url=https://github.com/org/idm-config.git
+repo.tokenKeychain=idm-repo/token       # or repo.token, .tokenEnv, .tokenCommand
+repo.base=main
+repo.tree=tree                          # the tree's directory inside the repository
+repo.cases=cases
+catalog.dir=/srv/idm/catalog
+environments.file=/etc/idmweb/environments.properties
+identity=none                           # none (loopback only, for a trusted host) or oidc
+none.users=alice:Alice:alice@example.com:idm-editors;bob:Bob:bob@example.com:idm-deployers
+roles.editor=idm-editors,idm-deployers
+roles.deployer=idm-deployers
+session.hours=8
+```
+
+The session is an `HttpOnly; SameSite=Strict` cookie (`Secure` behind https); every write
+carries the session's CSRF token; requests must address `public.url`'s host. `identity=oidc`
+(OpenID Connect with discovery: Keycloak, Entra ID, Okta, OSP) and the container image are the
+next steps of [docs/hosted.md](docs/hosted.md). `bin/smoke-hosted.sh` walks the whole loop
+against a local bare repository.
+
 ## Security model
 
 - The server binds to loopback only.
@@ -215,4 +251,6 @@ a follow-up (docs/design.md).
   but are edited in its files; comparing with another tree stays with `idm simulate --against`.
 - Cases are kept in `cases/` beside the tree (or `--cases DIR`). They are not part of the
   tree's revision: the page reloads them after its own writes.
-- Local mode only. The hosted mode is designed (docs/hosted.md) and not built.
+- Hosted mode has workspaces, commit, push, update, roles and the audit log; the OIDC provider
+  and the container image follow (docs/hosted.md). Until then it runs on a trusted host with
+  `identity=none` bound to loopback.

@@ -9,6 +9,15 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Added
 
+- First-run setup for a hosted server without a repository: export from a vault, import a
+  Designer project (zip upload or a directory) or export, use an existing repository (bare,
+  cloned per branch; or a checkout used in place), use a plain directory of files, or clone a
+  remote; the choice is written to the configuration. `GET /api/setup`, `POST /api/setup/*`;
+  the Connections view works before a workspace exists.
+- "+ New" in the outline: policy (with policy-set linking), entitlement, form, PRD from a
+  template, and a new driver (base package, copy, or shim class), each through the review and
+  opening the new thing afterwards.
+
 - One person, one container: `hosted/docker/single-user/setup.sh <tree>` builds or takes the
   image, makes a bare repository from the tree, copies the engine jars into the `lib` volume,
   mints a sign-in token and an agent token, writes the configuration, starts the container as

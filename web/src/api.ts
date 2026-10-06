@@ -17,6 +17,7 @@ import type {
   PrdData,
   RoleCatalog,
   Session,
+  SetupResult,
   SimCaseFiles,
   SimCases,
   SimDetail,
@@ -107,6 +108,27 @@ export const api = {
   roles: () => call<RoleCatalog>("GET", "/api/roles"),
   packages: () => call<PackagesData>("GET", "/api/packages"),
   workspaces: () => call<WorkspacesInfo>("GET", "/api/workspaces"),
+  setup: {
+    state: () => call<{ needed: boolean; dataDir: string; repository: string | null; inPlace: string | null }>("GET", "/api/setup"),
+    vault: (env: string) => call<SetupResult>("POST", "/api/setup/vault", { env }),
+    project: (path: string) => call<SetupResult>("POST", "/api/setup/project", { path }),
+    existing: (path: string) => call<SetupResult>("POST", "/api/setup/existing", { path }),
+    directory: (path: string) => call<SetupResult>("POST", "/api/setup/directory", { path }),
+    clone: (url: string, token: string, base: string) => call<SetupResult>("POST", "/api/setup/clone", { url, token, base }),
+    /** A Designer project (zip) or export (xml), streamed as the request body. */
+    upload: async (kind: "project" | "export", file: File): Promise<SetupResult> => {
+      const res = await fetch(`/api/setup/upload?kind=${kind}&name=${encodeURIComponent(file.name)}`, {
+        method: "POST",
+        headers: { "X-IDMWeb-Token": token(), ...(csrf ? { "X-IDMWeb-CSRF": csrf } : {}), "Content-Type": "application/octet-stream" },
+        body: file,
+      });
+      const data = (await res.json()) as SetupResult & { error?: string };
+      if (!res.ok) {
+        throw new ApiError(data.error ?? `HTTP ${res.status}`, res.status);
+      }
+      return data;
+    },
+  },
   openWorkspace: (branch: string) => call<{ workspace: string; branch: string }>("POST", "/api/workspaces/open", { branch }),
   git: {
     status: () => call<GitStatus>("GET", "/api/git/status"),

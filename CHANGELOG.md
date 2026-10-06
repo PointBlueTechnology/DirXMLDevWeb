@@ -7,6 +7,14 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- The image on GHCR: `ghcr.io/pointbluetechnology/dirxml-dev-web:<version>` (+ `latest`, amd64 +
+  arm64), built by `.github/workflows/image.yml` when a release is published (or by hand for a
+  version). Everything comes from GitHub releases — this repo's jar and page, DirXMLDev's jar and
+  tag (helpers, Terraform module), the simulator's jar (now attached to its release) — so the
+  image is reproducible from the tags alone and the engine-jar check runs there too.
+
 ## [0.12.0] - 2026-10-06
 
 ### Changed

@@ -34,9 +34,16 @@ from a Linux host that trusts it instead — ship the gathered context and run
 it makes a buildx builder that knows the certificate and installs binfmt for arm64 once.
 
 The hosts then run `docker compose pull && docker compose up -d` with `IDMWEB_IMAGE` naming the
-registry image. When the project is public the same image goes to GHCR
-(`ghcr.io/pointbluetechnology/dirxml-dev-web`) from a workflow on the release tag; only the name
-changes.
+registry image.
+
+**GHCR**: every published release also lands on `ghcr.io/pointbluetechnology/dirxml-dev-web:<version>`
+(and `latest`, amd64 + arm64) through `.github/workflows/image.yml`, which downloads the jars and
+the page from the releases (this repo's, DirXMLDev's, the simulator's), checks out DirXMLDev at
+its tag for the helpers and the Terraform module, and runs the same `build.sh` — the engine-jar
+check included. Nothing is built from source there, so the image is reproducible from the tags.
+The package is private while the repository is; making the repository public makes it pullable
+without a login (`docker compose pull` then needs no credentials). To build one by hand:
+`gh workflow run image.yml -f version=0.12.0`.
 
 ## 2. Lay out the host
 

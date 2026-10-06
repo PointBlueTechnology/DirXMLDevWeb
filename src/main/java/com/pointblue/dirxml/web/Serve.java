@@ -56,7 +56,7 @@ public final class Serve {
         TreeService service = new TreeService(tree, watcher);
         PackageService packageService = new PackageService(tree, PackageService.locate(catalog, System.getenv("IDM_CATALOG")));
         service.catalog(packageService.catalogArg());
-        server.createContext("/api/", new Api(service, new VaultService(tree), new SimService(tree, SimService.locate(tree, cases)), new ProvisioningService(tree), packageService, watcher, security, VERSION));
+        server.createContext("/api/", new Api(service, new VaultService(tree), new SimService(tree, SimService.locate(tree, cases)), new ProvisioningService(tree), packageService, new CredentialService(tree), watcher, security, VERSION));
         server.createContext("/", new StaticFiles(web));
         server.setExecutor(Executors.newCachedThreadPool(r -> {
             Thread t = new Thread(r, "idmweb-http");

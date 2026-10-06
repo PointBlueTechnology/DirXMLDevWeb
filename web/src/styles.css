@@ -1078,3 +1078,9 @@ button.danger:not(:disabled) { background: var(--err); border-color: var(--err);
 .pkgtarget { margin-bottom: 18px; }
 .pkgtarget h3 { margin: 0 0 6px; }
 .pkgtarget .filelist { list-style: none; padding: 0; margin: 0 0 8px; }
+
+/* connections */
+.connform .attrs .field.wide { flex-basis: 100%; }
+.connform .attrs .field.wide input { width: 100%; box-sizing: border-box; }
+.connform h4 { margin: 14px 0 4px; }
+table.grid tr.selected td { background: var(--bg); }

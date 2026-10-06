@@ -8,6 +8,8 @@ import type {
   OpSpec,
   Outline,
   OverridesData,
+  Connections,
+  EnvSecrets,
   PackagesData,
   BuildResult,
   PrdData,
@@ -91,6 +93,15 @@ export const api = {
   form: (driver: string, name: string) => call<FormDoc>("GET", `/api/form?driver=${q(driver)}&name=${q(name)}`),
   roles: () => call<RoleCatalog>("GET", "/api/roles"),
   packages: () => call<PackagesData>("GET", "/api/packages"),
+  connections: {
+    list: () => call<Connections>("GET", "/api/credentials"),
+    /** The parameters as typed; a password given here is used once and not kept. */
+    test: (req: Record<string, unknown>) => call<{ ok: boolean; message: string; driverSetFound?: boolean }>("POST", "/api/credentials/test", req),
+    save: (req: Record<string, unknown>) => call<{ name: string; file: string; notes: string[] }>("POST", "/api/credentials/environment", req),
+    remove: (name: string) => call<{ name: string; removed: number }>("POST", "/api/credentials/environment/remove", { name }),
+    secrets: (env: string) => call<EnvSecrets>("GET", `/api/credentials/secrets?env=${q(env)}`),
+    setSecret: (req: { env: string; key: string; store: string; value?: string }) => call<{ key: string; file: string; notes: string[] }>("POST", "/api/credentials/secret", req),
+  },
   buildPackage: (req: Record<string, unknown>) => call<BuildResult>("POST", "/api/packages/build", req),
   sim: {
     cases: () => call<SimCases>("GET", "/api/sim/cases"),

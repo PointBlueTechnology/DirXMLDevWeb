@@ -1123,3 +1123,5 @@ table.grid tr.selected td { background: var(--bg); }
 .newmenu .menu button:hover { background: var(--bg); }
 .leaf.newdriver { margin-top: 8px; color: var(--muted); }
 .newitem .attrs { max-width: 760px; }
+
+.navbtn.advanced { margin-top: 12px; color: var(--muted); font-size: 12px; }

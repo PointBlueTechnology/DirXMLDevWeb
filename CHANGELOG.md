@@ -7,6 +7,12 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-10-06
+
+### Fixed
+
+- The server announced itself as 0.8.1 in 0.9.0 (`Serve.VERSION` was not bumped); a test now pins it to the pom.
+
 ## [0.9.0] - 2026-10-06
 
 Needs DirXMLDev 0.11.0.

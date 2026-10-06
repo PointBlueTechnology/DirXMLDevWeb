@@ -1,0 +1,103 @@
+# What it does
+
+Every view of the page, by area, in every install; the items marked *local and server installs* need the hosted server (sign-in, projects, branches), which the workstation install does not run. The core's operations behind each are the same ones the `idm` CLI and the MCP server run.
+
+- **Projects** (local and server installs): one server holds any number of trees, each a project with its own
+  repository (or a checkout used in place); a picker in the repository bar switches, "add a
+  project…" takes any of the first-run ways. Workspaces, branches and audit lines are per project.
+- **First run** (local and server installs): with no repository configured the page asks where the tree comes
+  from — export from an Identity Vault, import a Designer project (zip or directory) or a
+  Designer export, use an existing repository (bare, or a checkout in place), use a directory
+  of files, or clone a remote — and remembers the answer.
+- **New…** beside the Library and every driver in the outline: a policy (linked into a policy
+  set at a chosen position — first, last, before or after a policy there — or left unlinked), a
+  mapping table, an ECMAScript or GCV resource (linked into the driver's set), an entitlement;
+  on the User Application driver also a form, a PRD from a template, a role, a resource and a
+  directory-abstraction entity; "New driver" from a base package, a copy, or a shim class. Each
+  is the core's `*.add` operation through the review.
+- **Driver set**: its DN, the servers it runs on (the primary marked), its drivers, the Library,
+  what is linked at the driver-set level, the packages recorded on it, and its GCVs with the
+  env-override columns.
+- **Outline** of the driver set: Library, drivers, policies by channel, configuration files,
+  entitlements, forms, PRDs.
+- **Policy flow**: the fishbone the VS Code extension draws, from the same model. Hover a policy
+  for its description; click it to open it. Click a policy set to open it beside the picture:
+  reorder its policies (▲ ▼), unlink one, or link an existing policy or resource — one reviewed
+  change (`policy.reorder`, `policy.link`, `policy.unlink`).
+- **Policy editor in two modes**. *Rules* is a structured editor for a DirXML Script
+  policy: rules, condition groups, actions, arguments and tokens, with every element of the
+  language available and each node's attributes, order and nesting taken from the grammar.
+  *Source* is the XML. Both edit one draft. A pause in editing sends the draft through the
+  engine's compiler and the rest of validation, so a mistake is named while it is on screen.
+- **Entitlements**: Designer's editor — display name, description, conflict resolution,
+  multi-valued, and the values, switchable between none (the requester's), a fixed list of the
+  connected system's keys (as an association holds them — GUIDs, ids, names, DNs), and a query
+  against the application (class, scope, search classes, attributes read, and how each result
+  is shown and granted, with `{attr}`, `{src-dn}` and `{association}` tokens). The XML tab
+  remains for anything else.
+- **References**: what links to, includes or maps through an artifact.
+- **Validation**: the core's whole check suite, including the engine's own compiler — grouped by
+  the module each finding occurs in (driver, Library, driver set), filtered by severity, and the
+  panel folds to a strip when you want the room.
+- **Configuration editors**, per driver and for the driver set:
+  - *GCVs* in scope, each from the place the engine would take it, with a column per environment
+    for the values that differ per stage, and *Used by*: every policy and configuration document
+    (shim parameters, engine controls, filter) that reads the GCV, each a link.
+  - *Settings*: shim class and authentication, shim parameters, engine control values.
+  - *Filter*: classes and attributes with each channel's setting and the merge authority.
+  - *Policy sets*: every set as an ordered list; drag or use the arrows to reorder, link, unlink.
+  - *Schema map* and *mapping table* as their own structured tab on the artifact.
+  - *Env overrides*: every environment's values in one matrix beside the base.
+  - Configuration files and entitlement definitions are also editable as XML.
+- **One review for every write.** An editor collects its changes; Review runs them against a
+  throwaway copy of the tree and shows each file before and after with the core's verdict;
+  Apply writes them as one transaction, or nothing.
+- **Operations**: every edit operation the core registers with a form generated from its
+  declared arguments, through the same review.
+- **Vault**, against any environment the `idm` CLI knows:
+  - *Compare*: the tree against the vault, for the driver set or one driver, with the stage's
+    overrides applied; each difference opens its detail.
+  - *Deploy*: the plan step by step with nothing written, then the deploy itself (snapshot,
+    write, restart, verify) once you type the environment's name.
+  - *Drivers*: every driver's state, start option and cache; start, stop and restart behind
+    the same typed confirmation.
+  - *Trace*: a driver's trace, live, with a filter — from any server of the driver set, each of
+    which keeps its own (the servers are read from the vault, their addresses from the
+    environment's `servers=` mapping or the server object).
+- **Provisioning**, for the User Application driver:
+  - *PRD*: the workflow drawn as a diagram from the core's flow model. Select an activity to
+    change its name, form, addressee and timeout, its links out (add, retype, remove), its data
+    items, to insert an activity after it, rename or remove it; the process attributes and the
+    forms the PRD binds are on the Details tab. Every change is a `flow.*` operation, reviewed.
+  - *Form*: the components as a list (label, required, hidden, order, add, remove through
+    `form.field.*`), the document as JSON (saved whole through `form.set-content`), and the
+    PRD activities that show it.
+  - *Roles and resources*: the catalog, with display names and descriptions editable, add and
+    remove, through `role.*` and `resource.*`.
+- **Packages**: what each driver and the Library have installed against the catalog, with
+  upgrades the catalog offers, customized packaged objects (revert) and missing records
+  (adopt); install, upgrade and uninstall through the review; the catalog's packages; *Update
+  sites*: browse a package repository (Designer's public sites from the catalog's
+  `sites.properties`, or any update-site URL) against the catalog and fetch chosen packages, or
+  every newer version of what the tree has installed, so the Installed tab can offer the
+  upgrade; a package built from a driver into the catalog.
+- **Simulator**: a corpus of cases run through the tree's policies by the engine's own
+  classes.
+  - *Run all* gives each case its verdict against what it recorded, as `idm simulate` does.
+  - A case opens *stage by stage*: the document before and after every policy, as a diff, with
+    that policy's trace, queries and commands.
+  - Edit the input and *run without saving*; record the output a case should keep producing.
+  - Run with a stage's override values, and compare the result with another stage's.
+- **Connections**: the environments the `idm` CLI reads, set up from the page — vault URL, bind
+  DN, driver set, tier, trust, SSH host — with a connection test before saving; the password
+  and each driver secret a deploy needs (shim, Remote Loader, named passwords, read off the
+  tree) typed once and kept in the macOS Keychain or an owner-only file, never shown again.
+- **Secret managers**: a password or driver secret can be a *reference* instead of a stored
+  value — AWS Secrets Manager, Azure Key Vault, Google Cloud Secret Manager, CyberArk CCP,
+  BeyondTrust Password Safe, Bitwarden (`bw`, for a workstation) and Bitwarden Secrets Manager
+  (`bws`), a Terraform output, or any command. The page builds the command, tests that it yields
+  a value, and saves only the command (the core's `…Command=` form); the value is read when
+  needed, on the host that runs the server, and never shown. See "Secret managers" below.
+- **Navigation**: every view is an address (`#type=…`), so the browser's Back and Forward move
+  between views, a reload keeps the place, and a link to a policy, a PRD or a file can be shared.
+- **Live follow**: any change to the tree, by anything, reloads the page within a second.

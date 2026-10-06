@@ -12,7 +12,7 @@ on:
         description: "DirXMLDevWeb version with a release (e.g. 0.12.0)"
         required: true
 permissions:
-  contents: read
+  contents: write
   packages: write
 jobs:
   image:
@@ -62,3 +62,10 @@ jobs:
           PUSH: "1"
           ALSO_TAG: latest
         run: hosted/docker/build.sh ghcr.io/pointbluetechnology/dirxml-dev-web:${{ steps.v.outputs.ver }}
+      - name: The single-user bundle on the release (setup.sh, compose, config, README — no checkout needed)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          Z="dirxml-dev-web-single-user-${{ steps.v.outputs.ver }}.zip"
+          (cd hosted/docker && zip -qr "../../$Z" single-user -x '*/.DS_Store')
+          gh release upload "v${{ steps.v.outputs.ver }}" "$Z" --clobber

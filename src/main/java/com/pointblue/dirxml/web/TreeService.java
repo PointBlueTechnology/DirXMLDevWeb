@@ -341,34 +341,43 @@ public final class TreeService {
         if (revision == null || !revision.equals(current)) {
             throw new Stale("the tree changed since this was planned (planned against " + revision + ", now " + current + "); reload and try again");
         }
-        List<Operation> ops = new ArrayList<>();
-        for (Call c : calls) {
-            ops.add(operation(c));
-        }
-        Operation op = new Batch(ops);
-        if (!dryRun) {
-            Result r = Transaction.open(tree).run(op, false, force);
-            Map<String, Object> m = new LinkedHashMap<>(Json.asMap(Json.parse(r.json())));
-            cached = null;
-            m.put("revision", watcher.refreshNow());
-            return m;
-        }
-        Path copy = Files.createTempDirectory("idmweb-preview-");
+        // a file argument lives in a temp file until the transaction has run: some operations read it when
+        // they are built, others (entitlement.set --definition-file) when they apply
+        List<Path> temps = new ArrayList<>();
         try {
-            copyTree(tree, copy);
-            Result r = Transaction.open(copy).run(op, false, force);
-            Map<String, Object> m = new LinkedHashMap<>(Json.asMap(Json.parse(r.json())));
-            m.put("dryRun", true);
-            m.put("written", false);
-            m.put("diffs", diffs(copy, r));
-            m.put("revision", current);
-            return m;
+            List<Operation> ops = new ArrayList<>();
+            for (Call c : calls) {
+                ops.add(operation(c, temps));
+            }
+            Operation op = new Batch(ops);
+            if (!dryRun) {
+                Result r = Transaction.open(tree).run(op, false, force);
+                Map<String, Object> m = new LinkedHashMap<>(Json.asMap(Json.parse(r.json())));
+                cached = null;
+                m.put("revision", watcher.refreshNow());
+                return m;
+            }
+            Path copy = Files.createTempDirectory("idmweb-preview-");
+            try {
+                copyTree(tree, copy);
+                Result r = Transaction.open(copy).run(op, false, force);
+                Map<String, Object> m = new LinkedHashMap<>(Json.asMap(Json.parse(r.json())));
+                m.put("dryRun", true);
+                m.put("written", false);
+                m.put("diffs", diffs(copy, r));
+                m.put("revision", current);
+                return m;
+            } finally {
+                deleteTree(copy);
+            }
         } finally {
-            deleteTree(copy);
+            for (Path t : temps) {
+                Files.deleteIfExists(t);
+            }
         }
     }
 
-    private Operation operation(Call c) throws IOException {
+    private Operation operation(Call c, List<Path> temps) throws IOException {
         Registry.Spec spec = Registry.get(c.name);
         if (spec == null) {
             throw new NotFound("no operation '" + c.name + "'");
@@ -379,27 +388,20 @@ public final class TreeService {
                 && spec.args.stream().anyMatch(a -> a.name.equals("catalog"))) {
             all.put("catalog", catalogArg);
         }
-        List<Path> temps = new ArrayList<>();
+        for (Map.Entry<String, String> f : c.files.entrySet()) {
+            Path t = Files.createTempFile("idmweb-", "-" + f.getKey());
+            Files.writeString(t, f.getValue(), StandardCharsets.UTF_8);
+            temps.add(t);
+            all.put(f.getKey(), t.toString());
+        }
+        String missing = Registry.missing(spec, all);
+        if (missing != null) {
+            throw new BadRequest(c.name + ": " + missing);
+        }
         try {
-            for (Map.Entry<String, String> f : c.files.entrySet()) {
-                Path t = Files.createTempFile("idmweb-", "-" + f.getKey());
-                Files.writeString(t, f.getValue(), StandardCharsets.UTF_8);
-                temps.add(t);
-                all.put(f.getKey(), t.toString());
-            }
-            String missing = Registry.missing(spec, all);
-            if (missing != null) {
-                throw new BadRequest(c.name + ": " + missing);
-            }
-            try {
-                return spec.create(all);   // a file argument is read here, so the temp file can go
-            } catch (IllegalArgumentException e) {
-                throw new BadRequest(c.name + ": " + e.getMessage());
-            }
-        } finally {
-            for (Path t : temps) {
-                Files.deleteIfExists(t);
-            }
+            return spec.create(all);
+        } catch (IllegalArgumentException e) {
+            throw new BadRequest(c.name + ": " + e.getMessage());
         }
     }
 

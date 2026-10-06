@@ -125,6 +125,10 @@ if "config.set-content" in names:
     check("and the wrong root is refused", not c2["ok"] and "<filter>" in c2["refusal"])
 else:
     print("skip config.set-content: this DirXMLDev does not have it")
+rev = call("GET", "/api/session")[1]["revision"]
+ent = '<entitlement conflict-resolution="union" description="Membership" display-name="Group membership"><values multi-valued="true"><value>cn=synth-users,ou=groups,o=synth</value><value>cn=synth-admins,ou=groups,o=synth</value></values></entitlement>'
+s, es = call("POST", "/api/op/entitlement.set", {"args": {"name": "GroupMembership", "driver": "Loop"}, "files": {"definition-file": ent}, "dryRun": False, "revision": rev})
+check("an entitlement definition saves whole (the file argument lives until the operation runs)", s == 200 and es["written"] and "synth-admins" in call("GET", "/api/file?file=drivers/Loop/entitlements/GroupMembership.xml")[1]["content"])
 s, prd = call("GET", "/api/prd?driver=Loop&name=Request%20Access")
 check("provisioning: a PRD's workflow as activities and links", s == 200 and [a["kind"] for a in prd["flow"]["activities"]] == ["start", "user", "finish"]
       and len(prd["flow"]["links"]) == 3 and prd["flow"]["activities"][1]["form"] == "Approve Access" and prd["bindings"][0]["form"] == "Request Access")

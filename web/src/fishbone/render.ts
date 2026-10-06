@@ -153,6 +153,7 @@ function spineBox(
 ): string {
   const empty = count === 0 ? " empty" : "";
   return `<g class="bone spine-node ${klass}${empty}" data-node="${escAttr(id)}" tabindex="0">
+    <title>${esc(label)}: ${count === 0 ? "nothing linked" : count === 1 ? "1 policy" : `${count} policies`}. Click to link, unlink or reorder.</title>
     <rect x="${cx - 62}" y="${cy - 22}" width="124" height="44" rx="6"/>
     <text class="bone-title" x="${cx}" y="${cy - 2}" text-anchor="middle">${esc(label)}</text>
     <text class="count" x="${cx}" y="${cy + 14}" text-anchor="middle">${count} polic${count === 1 ? "y" : "ies"}</text>
@@ -166,6 +167,7 @@ function ioBone(cx: number, spineY: number, dir: number, bone: FishboneBone): st
   const empty = bone.policies.length === 0 ? " empty" : "";
   const klass = dir < 0 ? "pub" : "sub";
   return `<g class="bone ${klass}${empty}" data-node="${escAttr(bone.id)}" tabindex="0">
+    <title>${esc(boneTip(bone))}</title>
     <line class="rib" x1="${cx}" y1="${spineY + dir * LAYOUT.boxHalf}" x2="${cx}" y2="${boxY - dir * LAYOUT.boxHalf}"/>
     <rect x="${cx - 70}" y="${boxY - LAYOUT.boxHalf}" width="140" height="${LAYOUT.boxHalf * 2}" rx="6"/>
     <text class="bone-title" x="${cx}" y="${boxY - 4}" text-anchor="middle">${esc(bone.label)}</text>
@@ -179,6 +181,7 @@ function rib(cx: number, spineY: number, dir: number, bone: FishboneBone): strin
   const empty = bone.policies.length === 0 ? " empty" : "";
   const klass = dir < 0 ? "pub" : "sub";
   return `<g class="bone ${klass}${empty}" data-node="${escAttr(bone.id)}" tabindex="0">
+    <title>${esc(boneTip(bone))}</title>
     <line class="rib" x1="${cx}" y1="${spineY}" x2="${cx}" y2="${boxY - dir * LAYOUT.boxHalf}"/>
     <rect x="${cx - 68}" y="${boxY - LAYOUT.boxHalf}" width="136" height="${LAYOUT.boxHalf * 2}" rx="6"/>
     <text class="bone-title" x="${cx}" y="${boxY - 4}" text-anchor="middle">${esc(bone.label)}</text>
@@ -195,6 +198,7 @@ function policyStack(cx: number, startY: number, bone: FishboneBone, dir: number
       const clipId = clipIdFor(p.id);
       const klass = p.unresolved ? "policy unresolved" : "policy";
       return `<g class="${klass}" data-node="${escAttr(p.id)}">
+        <title>${esc(policyTip(p))}</title>
         <clipPath id="${escAttr(clipId)}"><rect x="${cx - w / 2}" y="${y - POLICY_CHIP_TOP}" width="${w}" height="${POLICY_CHIP_H}" rx="4"/></clipPath>
         <rect x="${cx - w / 2}" y="${y - POLICY_CHIP_TOP}" width="${w}" height="${POLICY_CHIP_H}" rx="4"/>
         <text x="${cx}" y="${y + 5}" text-anchor="middle" clip-path="url(#${escAttr(clipId)})">${esc(shortName(p))}</text>
@@ -208,11 +212,23 @@ function resourceBone(x: number, y: number, w: number, bone: FishboneBone): stri
   const cx = x + w / 2;
   const n = bone.policies.length;
   return `<g class="bone resource${empty}" data-node="${escAttr(bone.id)}" tabindex="0">
+    <title>${esc(boneTip(bone))}</title>
     <rect x="${x}" y="${y}" width="${w}" height="${LAYOUT.resourceTileH}" rx="6"/>
     <text class="bone-title" x="${x + 10}" y="${y + 20}" text-anchor="start">${esc(bone.label)}</text>
     <text class="count" x="${x + 10}" y="${y + 38}" text-anchor="start">${n} ${n === 1 ? "item" : "items"}</text>
     ${policyStack(cx, y + LAYOUT.resourceStackFromTile, bone, 1)}
   </g>`;
+}
+
+/** The hover text of a policy chip: its full name and kind, then its description when it has one. */
+export function policyTip(p: FishbonePolicy): string {
+  const head = p.unresolved ? `${p.name} — not in the tree (unresolved link)` : `${p.name} (${p.kind})`;
+  return p.description ? `${head}\n${p.description}` : head;
+}
+
+function boneTip(bone: FishboneBone): string {
+  const n = bone.policies.length;
+  return `${bone.label}: ${n === 0 ? "nothing linked" : n === 1 ? "1 policy" : `${n} policies`}. Click to link, unlink or reorder.`;
 }
 
 function clipIdFor(nodeId: string): string {

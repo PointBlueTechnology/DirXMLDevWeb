@@ -87,6 +87,13 @@ names = {o["name"] for o in cat["operations"]}
 s, cfg = call("GET", "/api/config?driver=Loop")
 gcv = {g["name"]: g for g in cfg["gcvs"]}
 check("config: GCVs in scope with where each is defined", gcv["drv.users"]["owner"] == "drivers/Loop" and gcv["synth.company"]["owner"] == "driverset" and gcv["drv.veto.surname"]["type"] == "boolean")
+check("config: where each GCV is read", [u["path"] for u in gcv["drv.veto.surname"]["usedBy"]] == ["drivers/Loop/subscriber/sub-ctp-VetoSurname"] and gcv["drv.veto.surname"]["usedBy"][0]["kind"] == "policy")
+s, sites = call("GET", "/api/packages/sites")
+check("packages: the catalog's update sites (Designer's by default)", s == 200 and sites["available"] and [x["name"] for x in sites["sites"]] == ["Novell Public", "Novell Public 2.0"] and sites["sites"][0]["url"].startswith("https://nu.novell.com/"))
+s, bad = call("GET", "/api/packages/site?site=http://127.0.0.1:9/nothing/")
+check("packages: an unreachable site is reported, not an error", s == 200 and not bad["ok"] and bad["error"] and bad["packages"] == [])
+check("packages: a site must be a known name or a URL", call("GET", "/api/packages/site?site=nowhere")[0] == 400)
+check("packages: fetch needs packages", call("POST", "/api/packages/fetch", {"site": "Novell Public", "packages": []})[0] == 400)
 check("config: shim parameters and engine control values", cfg["params"][0]["name"] == "pub-heartbeat-interval" and cfg["ecvs"][0]["name"] == "dirxml.engine.retry-interval")
 s, setcfg = call("GET", "/api/config")
 check("config: the driver set's own GCVs", [g["name"] for g in setcfg["gcvs"]] == ["synth.company"])

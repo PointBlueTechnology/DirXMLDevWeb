@@ -6,7 +6,7 @@
 
     <groupId>com.pointblue.dirxml</groupId>
     <artifactId>dirxml-dev-web</artifactId>
-    <version>0.9.1</version>
+    <version>0.10.0</version>
     <packaging>jar</packaging>
     <name>DirXMLDevWeb</name>
     <description>A browser workbench over the DirXMLDev core, served from the workstation.</description>

@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-05
+
+The first release: local mode complete (W0–W6). 0.1.0 was the unreleased spike.
+
 ### Changed
 
 - Built against DirXMLDev 0.8.0: the operation factory is reached through the public

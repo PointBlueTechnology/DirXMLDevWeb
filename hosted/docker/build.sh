@@ -16,5 +16,7 @@ cp "$HOME/.m2/repository/com/pointblue/dirxml/dirxml-simulator/$SIM_VER/dirxml-s
 cp -R "$HERE/web/dist" "$CTX/artifacts/dist"
 cp -R "$IDM_HOME/bin/secrets" "$CTX/artifacts/secrets"
 cp -R "$IDM_HOME/terraform" "$CTX/artifacts/terraform"
+find "$CTX/artifacts/terraform" -name .terraform -prune -exec rm -rf {} + 2>/dev/null || true
+find "$CTX/artifacts/terraform" \( -name '*.tfstate*' -o -name '.terraform.lock.hcl' \) -delete 2>/dev/null || true
 docker build ${PLATFORM:+--platform "$PLATFORM"} -t "$TAG" "$CTX"
 echo "built $TAG"

@@ -6,8 +6,8 @@
 
 {$PUBLIC_HOST} {
     encode gzip
-    # Keycloak under /auth on the same name: one certificate, no cross-origin anything
-    handle /auth/* {
+    # Keycloak under /idp on the same name: one certificate, no cross-origin anything
+    handle /idp/* {
         reverse_proxy keycloak:8080
     }
     handle {

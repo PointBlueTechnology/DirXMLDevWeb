@@ -40,10 +40,17 @@ token, the OIDC client secret, agent tokens. Nothing else holds a value.
 - `hosted.properties`: `public.url=https://<PUBLIC_HOST>`, `bind=0.0.0.0`, the repository
   (`repo.url`, `repo.tokenEnv=IDMWEB_REPO_TOKEN` for an https remote or `repo.sshKey=/etc/idmweb/deploy_key`
   with a `git@github.com:…` remote, `repo.base`, `repo.tree`), `identity=oidc` with
-  `oidc.issuer=https://<PUBLIC_HOST>/auth/realms/idm`, the role groups, and the agents.
+  `oidc.issuer=https://<PUBLIC_HOST>/idp/realms/idm`, the role groups, and the agents.
 - Keycloak: the realm's client redirect URI must be `https://<PUBLIC_HOST>/auth/callback`; map
   the customer's directory (LDAP federation) or create users; groups `idm-editors` and
   `idm-deployers` (or whatever `roles.*` name).
+
+Engine jars: copy them out of the customer's engine host or container (`docker cp -L` — some
+of them are symlinks there; a 40-byte `jclient.jar` is the link, not the jar). DirXMLDev's
+`docs/install.md` lists the ten.
+
+Keycloak's own trust: when Caddy uses `tls internal` or a private CA, give the server the root
+with `oidc.caFile=/etc/idmweb/idp-ca.crt` (`docker compose cp caddy:/data/caddy/pki/authorities/local/root.crt`).
 
 ## 3. DNS and TLS
 
@@ -71,7 +78,16 @@ An agent (CI, an MCP server, a coding agent) does not install anything:
   any other `idm` command, with the same files and engine jars the server uses. Workspaces are
   under `/var/lib/idmweb/workspaces/<user>/<branch>`.
 
-## 6. Operate
+## 6. The lab (Point Blue)
+
+`https://idmweb.pointbluetech.com:8443` on DockerHost1 (`192.168.103.99`, `~/idmweb/`): Caddy on
+8443 with an internal certificate (443 is Harbor's; the name is private), Keycloak under
+`/idp` with the example realm, the server on the `edir-test3_default` network so `edir3` is
+`ldaps://edir-test3-engine:636`, the engine jars from that container, the repository
+`PointBlueTechnology/idm-lab-config` (synthetic tree) through a deploy key. The generated
+secrets are in Jerry's Keychain under service `idmweb-lab`. Deployed 2026-10-06.
+
+## 7. Operate
 
 - `docker compose pull && docker compose up -d` (or `docker load` a new tarball) upgrades.
 - Workspaces and `audit.log` live in the `idmweb-data` volume; the configuration in `./config`.

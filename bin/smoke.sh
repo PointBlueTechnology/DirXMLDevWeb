@@ -27,8 +27,8 @@ while ! grep -q '#token=' "$WORK/log" 2>/dev/null; do
 done
 BASE=$(grep -oE 'http://127.0.0.1:[0-9]+' "$WORK/log" | head -1)
 TOKEN=$(grep -oE 'token=[0-9a-f]+' "$WORK/log" | head -1 | cut -d= -f2)
-python3 - "$BASE" "$TOKEN" <<'PY'
-import json, sys, urllib.request, urllib.error
+python3 - "$BASE" "$TOKEN" "$WORK/environments.properties" <<'PY'
+import json, os, sys, urllib.request, urllib.error
 base, token = sys.argv[1], sys.argv[2]
 
 def call(method, path, body=None, headers=None):
@@ -141,6 +141,23 @@ elif "WRONG_DOCUMENT" in str(fe):
     print("skip flow edit: this DirXMLDev is older than 0.8.0")
 else:
     check("provisioning: a flow edit lands", False)
+s, cn = call("GET", "/api/credentials")
+check("connections: the environments file, each environment by what is configured, never a value",
+      s == 200 and cn["file"].endswith("environments.properties") and cn["environments"][0]["name"] == "lab" and cn["environments"][0]["password"] == "literal" and "unused" not in json.dumps(cn))
+s, t = call("POST", "/api/credentials/test", {"url": "ldaps://127.0.0.1:1", "bindDn": "cn=nobody,o=none", "trustAll": True, "password": "x"})
+check("connections: a test says why it failed, without the password", s == 200 and not t["ok"] and "127.0.0.1:1" in t["message"])
+check("connections: a password store that is not one is refused", call("POST", "/api/credentials/environment", {"name": "new", "url": "ldaps://h:636", "bindDn": "cn=a", "driverSet": "cn=d", "password": "p", "passwordStore": "cloud"})[0] == 400)
+s, sv = call("POST", "/api/credentials/environment", {"name": "new", "url": "ldaps://h:636", "bindDn": "cn=a", "driverSet": "cn=d", "tier": "stg", "password": "p", "passwordStore": "file"})
+with open(sys.argv[3]) as fh:
+    envtext = fh.read()
+check("connections: a new environment is written to the file, owner-only", s == 200 and "new.url=ldaps://h:636" in envtext and "new.password=p" in envtext and "lab.url=ldaps://127.0.0.1:1" in envtext and oct(os.stat(sys.argv[3]).st_mode)[-3:] == "600")
+s, sec = call("GET", "/api/credentials/secrets?env=new")
+check("connections: the secrets the tree's drivers need", s == 200 and sec["file"].endswith("secrets-new.properties") and not sec["exists"] and isinstance(sec["needs"], list))
+s, ss = call("POST", "/api/credentials/secret", {"env": "new", "key": "Loop Driver.named.svc", "store": "file", "value": "s3"})
+s2, sec = call("GET", "/api/credentials/secrets?env=new")
+check("connections: a secret is stored in the environment's secrets file and listed by kind only", s == 200 and sec["exists"] and any(o["key"] == "Loop Driver.named.svc" and o["configured"] == "literal" for o in sec["others"] + sec["needs"]) and "s3" not in json.dumps(sec))
+s, rm = call("POST", "/api/credentials/environment/remove", {"name": "new"})
+check("connections: an environment is removed", s == 200 and rm["removed"] >= 5 and "new" not in [e["name"] for e in call("GET", "/api/credentials")[1]["environments"]])
 s, pk = call("GET", "/api/packages")
 check("packages: an empty catalog and the tree's installed packages (none)", s == 200 and pk["catalog"]["available"] and pk["catalog"]["packages"] == [] and [t["name"] for t in pk["status"]["targets"]] == ["Loop"] and pk["status"]["targets"][0]["packages"] == [])
 check("packages: a build needs a short name and a display name", call("POST", "/api/packages/build", {"driver": "Loop", "short": "SYNTHLOOP"})[0] == 400)

@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import { api, followTrace } from "../api";
-import type { DeployResult, VaultDiffResult, VaultEnvironments, VaultStatus } from "../types";
+import type { DeployResult, Selection, VaultDiffResult, VaultEnvironments, VaultStatus } from "../types";
 
 type Tab = "compare" | "drivers" | "trace";
 
@@ -9,7 +9,7 @@ type Tab = "compare" | "drivers" | "trace";
  * control, a driver's live trace. The environments are the ones the `idm` CLI knows; a write
  * to a vault happens only after the person types that environment's name.
  */
-export function VaultView({ drivers, revision, onOpen }: { drivers: string[]; revision: string; onOpen: (path: string) => void }) {
+export function VaultView({ drivers, revision, onOpen, onSelect }: { drivers: string[]; revision: string; onOpen: (path: string) => void; onSelect: (s: Selection) => void }) {
   const [envs, setEnvs] = useState<VaultEnvironments | null>(null);
   const [env, setEnv] = useState("");
   const [tab, setTab] = useState<Tab>("compare");
@@ -37,8 +37,13 @@ export function VaultView({ drivers, revision, onOpen }: { drivers: string[]; re
         <h1>Vault</h1>
         <p>No environments are configured, so there is no vault to compare with.</p>
         <p className="muted">{envs.why ?? "The environments file names none."}</p>
+        <p>
+          <button className="primary" onClick={() => onSelect({ type: "connections" })} data-testid="vault-setup">
+            Set up a connection
+          </button>
+        </p>
         <p className="muted small">
-          Environments come from the file the <code>idm</code> CLI reads: <code>IDM_ENVIRONMENTS</code>, <code>./environments.properties</code> or <code>~/.idm/environments.properties</code>. Start the server with one in place.
+          Environments are the file the <code>idm</code> CLI reads: <code>IDM_ENVIRONMENTS</code>, <code>./environments.properties</code> or <code>~/.idm/environments.properties</code>.
         </p>
       </div>
     );
@@ -62,6 +67,9 @@ export function VaultView({ drivers, revision, onOpen }: { drivers: string[]; re
         </label>
         {chosen && <span className={chosen.tier === "prod" ? "pill err" : "pill"}>{chosen.tier}</span>}
         {chosen?.hasOverrides && <span className="pill ok" title="overrides/<env>.properties is applied to the tree before it is compared or deployed">overrides</span>}
+        <button className="link" onClick={() => onSelect({ type: "connections", env: chosen?.name })} title="Connection parameters, password and driver secrets">
+          {chosen ? "Connection and secrets" : "Connections"}
+        </button>
         <span className="spacer" />
         <div className="tabs">
           {(["compare", "drivers", "trace"] as Tab[]).map((t) => (
@@ -74,9 +82,9 @@ export function VaultView({ drivers, revision, onOpen }: { drivers: string[]; re
       {!chosen ? (
         <p className="muted pad">Choose an environment. Nothing is read from a vault until you ask.</p>
       ) : tab === "compare" ? (
-        <Compare key={chosen.name} env={chosen.name} drivers={drivers} revision={revision} onOpen={onOpen} />
+        <Compare key={chosen.name} env={chosen.name} drivers={drivers} revision={revision} onOpen={onOpen} onFix={() => onSelect({ type: "connections", env: chosen.name })} />
       ) : tab === "drivers" ? (
-        <Drivers key={chosen.name} env={chosen.name} />
+        <Drivers key={chosen.name} env={chosen.name} onFix={() => onSelect({ type: "connections", env: chosen.name })} />
       ) : (
         <Trace key={chosen.name} env={chosen.name} drivers={drivers} />
       )}
@@ -95,7 +103,25 @@ function Confirm({ env, value, onChange }: { env: string; value: string; onChang
   );
 }
 
-function Compare({ env, drivers, revision, onOpen }: { env: string; drivers: string[]; revision: string; onOpen: (path: string) => void }) {
+/** An error from a vault call, with a way to the connection when it looks like one. */
+function VaultError({ message, onFix }: { message: string; onFix: () => void }) {
+  const connection = /connect |password|authentication|bind|environment '|secrets?/i.test(message);
+  return (
+    <div className="banner error">
+      {message}
+      {connection && (
+        <>
+          {" "}
+          <button className="link" onClick={onFix} data-testid="vault-fix">
+            Fix the connection or credentials
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
+function Compare({ env, drivers, revision, onOpen, onFix }: { env: string; drivers: string[]; revision: string; onOpen: (path: string) => void; onFix: () => void }) {
   const [only, setOnly] = useState<string>("");
   const [restart, setRestart] = useState(true);
   const [diff, setDiff] = useState<VaultDiffResult | null>(null);
@@ -164,7 +190,7 @@ function Compare({ env, drivers, revision, onOpen }: { env: string; drivers: str
         </button>
         {busy && <span className="muted">{busy}</span>}
       </div>
-      {error && <div className="banner error">{error}</div>}
+      {error && <VaultError message={error} onFix={onFix} />}
       {stale && <div className="banner warn">The tree changed since this comparison. Compare again before deploying.</div>}
       {diff && (
         <>
@@ -281,7 +307,7 @@ function subject(kind: string): string {
     .replace(/_/g, " ");
 }
 
-function Drivers({ env }: { env: string }) {
+function Drivers({ env, onFix }: { env: string; onFix: () => void }) {
   const [status, setStatus] = useState<VaultStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -324,7 +350,7 @@ function Drivers({ env }: { env: string }) {
         <Confirm env={env} value={confirm} onChange={setConfirm} />
         {busy && <span className="muted">{busy}</span>}
       </div>
-      {error && <div className="banner error">{error}</div>}
+      {error && <VaultError message={error} onFix={onFix} />}
       {last && <pre className={last.ok ? "outcome" : "outcome err-text"}>{last.text}</pre>}
       {status && (
         <table className="grid" data-testid="vault-drivers">

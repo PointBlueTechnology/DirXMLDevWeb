@@ -436,6 +436,8 @@ export interface Connections {
   file: string;
   exists: boolean;
   keychain: boolean;
+  /** The directory of the helper scripts a secret-manager reference may call. */
+  helpers: string;
   environments: ConnectionEnv[];
 }
 

@@ -99,6 +99,8 @@ export const api = {
     test: (req: Record<string, unknown>) => call<{ ok: boolean; message: string; driverSetFound?: boolean }>("POST", "/api/credentials/test", req),
     save: (req: Record<string, unknown>) => call<{ name: string; file: string; notes: string[] }>("POST", "/api/credentials/environment", req),
     remove: (name: string) => call<{ name: string; removed: number }>("POST", "/api/credentials/environment/remove", { name }),
+    /** Does a reference yield a value? A configured one (env, optional key) or a command not yet saved. */
+    resolve: (req: { env?: string; key?: string; command?: string }) => call<{ ok: boolean; message: string }>("POST", "/api/credentials/resolve", req),
     secrets: (env: string) => call<EnvSecrets>("GET", `/api/credentials/secrets?env=${q(env)}`),
     setSecret: (req: { env: string; key: string; store: string; value?: string }) => call<{ key: string; file: string; notes: string[] }>("POST", "/api/credentials/secret", req),
   },

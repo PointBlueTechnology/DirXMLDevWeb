@@ -33,13 +33,38 @@ public final class Api implements HttpHandler {
     private final Security security;
     private final Audit audit;
     private final String version;
+    private final Map<String, Session.Principal> agents;
+    private final Map<String, String> agentSessions = new java.util.concurrent.ConcurrentHashMap<>();
 
     public Api(Workspaces workspaces, Session.Store sessions, Security security, Audit audit, String version) {
+        this(workspaces, sessions, security, audit, version, Map.of());
+    }
+
+    public Api(Workspaces workspaces, Session.Store sessions, Security security, Audit audit, String version, Map<String, Session.Principal> agents) {
         this.workspaces = workspaces;
         this.sessions = sessions;
         this.security = security;
         this.audit = audit;
         this.version = version;
+        this.agents = agents;
+    }
+
+    /** An agent's session for its bearer token, made on first use and kept while the server runs. */
+    private Session agentSession(String token) {
+        for (Map.Entry<String, Session.Principal> e : agents.entrySet()) {
+            if (java.security.MessageDigest.isEqual(e.getKey().getBytes(StandardCharsets.UTF_8), token.getBytes(StandardCharsets.UTF_8))) {
+                String id = agentSessions.get(e.getKey());
+                Session s = id == null ? null : sessions.get(id);
+                if (s == null) {
+                    s = sessions.create(e.getValue());
+                    s.bearer = true;
+                    agentSessions.put(e.getKey(), s.id);
+                    audit.log(s, null, "sign-in", Map.of("provider", "bearer"), "ok");
+                }
+                return s;
+            }
+        }
+        return null;
     }
 
     static String cookie(HttpExchange ex, String name) {
@@ -57,6 +82,10 @@ public final class Api implements HttpHandler {
     /** The session a request belongs to, or null. */
     private Session session(HttpExchange ex, Map<String, String> query) {
         if (security.hostedMode()) {
+            String auth = ex.getRequestHeaders().getFirst("Authorization");
+            if (auth != null && auth.regionMatches(true, 0, "Bearer ", 0, 7)) {
+                return agentSession(auth.substring(7).trim());
+            }
             return sessions.get(cookie(ex, COOKIE));
         }
         String presented = ex.getRequestHeaders().getFirst(Security.HEADER);
@@ -91,7 +120,7 @@ public final class Api implements HttpHandler {
             }
             String path = ex.getRequestURI().getPath();
             String method = ex.getRequestMethod();
-            if (security.hostedMode() && !method.equals("GET")) {
+            if (security.hostedMode() && !method.equals("GET") && !session.bearer) {
                 String csrf = ex.getRequestHeaders().getFirst(CSRF_HEADER);
                 if (csrf == null || !java.security.MessageDigest.isEqual(csrf.getBytes(StandardCharsets.UTF_8), session.csrf.getBytes(StandardCharsets.UTF_8))) {
                     send(ex, 403, error("missing or wrong CSRF token"));

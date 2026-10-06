@@ -33,6 +33,9 @@ identity=none
 none.users=alice:Alice Example:alice@example.com:idm-editors;bob:Bob Deployer:bob@example.com:idm-deployers;carol:Carol Reader:carol@example.com:
 roles.editor=idm-editors,idm-deployers
 roles.deployer=idm-deployers
+agents=ci:idm-deployers;reader:
+agent.ci.token=ci-agent-token-0123456789
+agent.reader.token=reader-agent-token-0123456789
 ENV
 IDM_ENVIRONMENTS="$WORK/data/environments.properties" "$HERE/bin/idmweb" serve --hosted "$WORK/hosted.properties" > "$WORK/log" 2>&1 &
 PID=$!
@@ -134,6 +137,15 @@ carol = Client()
 carol.sign_in("carol")
 check("a user with no role may read but not write", carol.call("GET", "/api/workspaces")[0] == 200 and carol.call("POST", "/api/workspaces/open", {"branch": "main"})[0] == 403)
 
+ci = Client()
+s, sess, _ = ci.call("GET", "/api/session", headers={"Authorization": "Bearer ci-agent-token-0123456789"})
+check("an agent's bearer token gives it a session with its roles", s == 200 and sess["user"]["subject"] == "agent:ci" and sess["user"]["deployer"])
+s, opened, _ = ci.call("POST", "/api/workspaces/open", {"branch": "feature/x"}, headers={"Authorization": "Bearer ci-agent-token-0123456789"}, csrf=False)
+check("and it writes without a CSRF token (no cookie, no CSRF)", s == 200 and opened["branch"] == "feature/x")
+check("a wrong token is refused", ci.call("GET", "/api/session", headers={"Authorization": "Bearer nope-nope-nope-nope"})[0] == 401)
+s, _, _ = ci.call("POST", "/api/workspaces/open", {"branch": "feature/x"}, headers={"Authorization": "Bearer reader-agent-token-0123456789"}, csrf=False)
+check("an agent without a role reads only", s == 403)
+
 s, _, h = alice.call("GET", "/auth/logout")
 check("sign-out clears the cookie", s == 303 and "Max-Age=0" in h.get("set-cookie", ""))
 check("and the session is gone", alice.call("GET", "/api/session")[0] == 401)
@@ -142,7 +154,7 @@ with open(os.path.join(work, "data", "audit.log")) as f:
     lines = [json.loads(l) for l in f if l.strip()]
 events = [(l["user"], l["event"], l["outcome"]) for l in lines]
 check("the audit log has sign-ins, the workspace, the edit, the commit and the sign-out, per user",
-      ("alice", "sign-in", "ok") in events and ("alice", "workspace.open", "ok") in events and ("alice", "op/gcv.set", "ok") in events and ("alice", "commit+push", "ok") in events and ("bob", "workspace.open", "ok") in events and ("alice", "sign-out", "ok") in events)
+      ("alice", "sign-in", "ok") in events and ("alice", "workspace.open", "ok") in events and ("alice", "op/gcv.set", "ok") in events and ("alice", "commit+push", "ok") in events and ("bob", "workspace.open", "ok") in events and ("alice", "sign-out", "ok") in events and ("agent:ci", "workspace.open", "ok") in events)
 check("and no line carries a file's contents", all("Hosted Corp" not in json.dumps(l["details"]) for l in lines))
 print("smoke-hosted: all passed")
 PY

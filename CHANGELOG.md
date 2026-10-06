@@ -7,6 +7,14 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-10-06
+
+### Fixed
+
+- "Add a project" → "add or edit a connection" did nothing: the Connections view now opens
+  inside the add-project flow with a way back, and the "Open a branch" block no longer shows
+  underneath it.
+
 ## [0.6.0] - 2026-10-06
 
 ### Added

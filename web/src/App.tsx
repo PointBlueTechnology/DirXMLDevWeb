@@ -191,7 +191,17 @@ export function App() {
           onAddProject={() => setAddingProject(true)}
         />
       )}
-      {addingProject && session && (
+      {addingProject && session && selection.type === "connections" && (
+        <div className="setupconn">
+          <p className="pad-x small">
+            <button className="link" onClick={() => setSelection({ type: "home" })}>
+              ← back to adding the project
+            </button>
+          </p>
+          <ConnectionsView initialEnv={null} />
+        </div>
+      )}
+      {addingProject && session && selection.type !== "connections" && (
         <SetupView
           first={false}
           onCancel={() => setAddingProject(false)}
@@ -233,7 +243,7 @@ export function App() {
           <ConnectionsView initialEnv={null} />
         </div>
       )}
-      {noWorkspace && session && !session.setup && (
+      {noWorkspace && session && !session.setup && !addingProject && (
         <div className="pad">
           <h1>Open a branch</h1>
           <p className="muted">You are signed in as {session.user.name}. Pick the branch to work on; a new name starts a branch from the base.</p>

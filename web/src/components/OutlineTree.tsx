@@ -78,10 +78,46 @@ export function OutlineTree({ outline, selection, onSelect }: Props) {
         {artifacts("Publisher", d.policies.publisher)}
         {artifacts("Resources", d.resources)}
         {files("Entitlements", d.entitlements)}
-        {files("Forms", d.forms)}
-        {files(
-          "PRDs",
-          d.prds.flatMap((p) => p.files.map((f) => ({ name: `${p.name} / ${leafName(f)}`, file: f }))),
+        {d.forms.length > 0 && (
+          <details>
+            <summary>
+              Forms <span className="count">{d.forms.length}</span>
+            </summary>
+            <ul>
+              {d.forms.map((f) => (
+                <li key={f.kind + "/" + f.name}>
+                  <button
+                    className={selection.type === "form" && selection.driver === d.name && selection.name === f.name ? "leaf active" : "leaf"}
+                    onClick={() => onSelect({ type: "form", driver: d.name, name: f.name })}
+                    title={f.file ?? ""}
+                  >
+                    <span className="badge">{f.kind === "approval" ? "AP" : f.kind === "request" ? "RQ" : "TP"}</span>
+                    {f.name}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
+        {d.prds.length > 0 && (
+          <details>
+            <summary>
+              PRDs <span className="count">{d.prds.length}</span>
+            </summary>
+            <ul>
+              {d.prds.map((p) => (
+                <li key={p.name}>
+                  <button
+                    className={selection.type === "prd" && selection.driver === d.name && selection.name === p.name ? "leaf active" : "leaf"}
+                    onClick={() => onSelect({ type: "prd", driver: d.name, name: p.name })}
+                  >
+                    <span className="badge">WF</span>
+                    {p.name}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </details>
         )}
       </div>
     </details>

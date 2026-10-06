@@ -1,5 +1,5 @@
 #!/bin/sh
-# DirXMLDevWeb launcher: bin/idmweb serve <tree> [--port N] [--no-open]
+# DirXMLDevWeb launcher: bin/idmweb serve <tree> [--port N] [--no-open] [--cases DIR] [--catalog DIR]
 # Runs this repo's server on the DirXMLDev checkout's own class path — its classes, its
 # lib/*.jar engine jars and the simulator in ~/.m2 — so the page sees exactly what bin/idm sees.
 # DirXMLDev is found at IDM_HOME, else beside this checkout (../DirXMLDev).

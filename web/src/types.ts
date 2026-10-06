@@ -231,6 +231,7 @@ export type Selection =
   | { type: "connections"; env?: string }
   | { type: "entitlement"; driver: string; name: string; file: string }
   | { type: "new"; what: "policy" | "entitlement" | "form" | "prd" | "driver"; driver: string | null }
+  | { type: "changes"; against?: "head" | "base" | "upstream" }
   | { type: "operations" };
 
 /** An environment of the environments file, described without its values. */
@@ -511,4 +512,10 @@ export interface SetupResult {
   drivers?: number;
   branches?: string[];
   notes?: string[];
+}
+
+export interface GitDiff {
+  against: string;
+  ref: string;
+  files: { file: string; status: string; from?: string | null; language?: string; before?: string; after?: string }[];
 }

@@ -266,7 +266,7 @@ public final class Api implements HttpHandler {
         PackageService packages = w.packages;
         CredentialService credentials = w.credentials;
         if (path.startsWith("/api/git/")) {
-            return gitRoute(session, w, method, path, ex);
+            return gitRoute(session, w, method, path, query, ex);
         }
         if (path.startsWith("/api/credentials")) {
             return credentialsRoute(credentials, method, path, query, ex);
@@ -555,10 +555,33 @@ public final class Api implements HttpHandler {
         return "ok";
     }
 
-    private Object gitRoute(Session session, Workspace w, String method, String path, HttpExchange ex) throws IOException {
+    private Object gitRoute(Session session, Workspace w, String method, String path, Map<String, String> query, HttpExchange ex) throws IOException {
         Project project = workspaces.projectOf(w);
         Git git = project == null ? workspaces.git() : workspaces.gitFor(project);
         String base = project == null ? null : project.base;
+        if (method.equals("GET") && path.equals("/api/git/diff")) {
+            String against = query.getOrDefault("against", "head");
+            String ref;
+            switch (against) {
+                case "head": ref = "HEAD"; break;
+                case "upstream": ref = "@{upstream}"; break;
+                case "base": {
+                    String b = base != null ? base : query.get("base");
+                    if (b == null || b.isBlank()) {
+                        throw new TreeService.BadRequest("which base branch?");
+                    }
+                    ref = git.run(w.root, "rev-parse", "--verify", "--quiet", "refs/remotes/origin/" + b).ok() ? "origin/" + b : b;
+                    break;
+                }
+                default:
+                    throw new TreeService.BadRequest("against is head, base or upstream");
+            }
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("against", against);
+            m.put("ref", ref);
+            m.put("files", git.diff(w.root, ref, 200));
+            return m;
+        }
         if (method.equals("GET") && path.equals("/api/git/status")) {
             Map<String, Object> m = git.status(w.root, base);
             if (base == null && Boolean.TRUE.equals(m.get("repository"))) {

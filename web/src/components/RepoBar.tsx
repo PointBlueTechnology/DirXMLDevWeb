@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
-import type { GitStatus, Session, WorkspacesInfo } from "../types";
+import type { GitStatus, Selection, Session, WorkspacesInfo } from "../types";
 
 /**
  * The repository side of the workspace: which branch is open, what has changed since the last
  * commit, commit and push, update from the base branch, the pull-request link, and in hosted
  * mode who is signed in. Local mode shows it only when the tree sits in a git checkout.
  */
-export function RepoBar({ session, revision, onWorkspaceChanged, onAddProject }: { session: Session; revision: string; onWorkspaceChanged: () => void; onAddProject: () => void }) {
+export function RepoBar({ session, revision, onWorkspaceChanged, onAddProject, onSelect }: { session: Session; revision: string; onWorkspaceChanged: () => void; onAddProject: () => void; onSelect: (s: Selection) => void }) {
   const [project, setProject] = useState<string>(session.project ?? "");
   const [status, setStatus] = useState<GitStatus | null>(null);
   const [info, setInfo] = useState<WorkspacesInfo | null>(null);
@@ -132,9 +132,26 @@ export function RepoBar({ session, revision, onWorkspaceChanged, onAddProject }:
         <>
           <span className="muted small" title={status.last ? `${status.last.hash} ${status.last.author}, ${status.last.when}: ${status.last.subject}` : ""}>
             {!hosted && <>on <strong>{status.branch}</strong> · </>}
-            {changed === 0 ? "nothing to commit" : `${changed} file${changed === 1 ? "" : "s"} changed`}
-            {status.ahead ? ` · ${status.ahead} to push` : ""}
+            <button className="link" onClick={() => onSelect({ type: "changes", against: "head" })} title="What differs from the last commit, file by file" data-testid="repo-changes">
+              {changed === 0 ? "nothing to commit" : `${changed} file${changed === 1 ? "" : "s"} changed`}
+            </button>
+            {status.ahead ? (
+              <>
+                {" · "}
+                <button className="link" onClick={() => onSelect({ type: "changes", against: "upstream" })} title="What is not pushed yet">
+                  {status.ahead} to push
+                </button>
+              </>
+            ) : ""}
             {status.behind ? ` · ${status.behind} behind ${status.upstream}` : ""}
+            {status.base && status.base !== status.branch ? (
+              <>
+                {" · "}
+                <button className="link" onClick={() => onSelect({ type: "changes", against: "base" })} title={`What a pull request against ${status.base} would carry`}>
+                  vs {status.base}
+                </button>
+              </>
+            ) : ""}
           </span>
           <input className="commitmsg" value={message} onChange={(e) => setMessage(e.target.value)} placeholder="commit message" disabled={changed === 0 || busy !== null} data-testid="repo-message" />
           <button onClick={() => commit(false)} disabled={changed === 0 || !message.trim() || busy !== null} data-testid="repo-commit">

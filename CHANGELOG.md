@@ -7,6 +7,14 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- One person, one container: `hosted/docker/single-user/setup.sh <tree>` builds or takes the
+  image, makes a bare repository from the tree, copies the engine jars into the `lib` volume,
+  mints a sign-in token and an agent token, writes the configuration, starts the container as
+  the host user and prints the URL; `~/idmweb/idm …` runs the CLI and the simulator inside it.
+- `identity=token`: one shared secret as the sign-in for a trusted single-user host.
+
 ## [0.5.0] - 2026-10-06
 
 ### Added

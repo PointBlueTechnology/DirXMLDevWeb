@@ -1,0 +1,20 @@
+# DirXMLDevWeb for one person, in a container: no Keycloak, no proxy. The page is on
+# http://localhost:8080, sign-in is one token, the repository is a bare git repo in ./repo.git,
+# the engine jars come from ./lib, workspaces and the audit log in ./data. The container runs
+# as your own user so every file it writes is yours. setup.sh writes .env and starts it.
+services:
+  idmweb:
+    image: ${IDMWEB_IMAGE:-dirxml-dev-web:latest}
+    restart: unless-stopped
+    user: "${IDMWEB_UID:-1000}:${IDMWEB_GID:-1000}"
+    env_file: ./idmweb.env
+    environment:
+      HOME: /var/lib/idmweb
+      IDM_ENVIRONMENTS: /etc/idmweb/environments.properties
+    volumes:
+      - ./config:/etc/idmweb:rw
+      - ./lib:/opt/idm/lib:ro
+      - ./repo.git:/srv/repo.git:rw
+      - ./data:/var/lib/idmweb:rw
+    ports:
+      - "127.0.0.1:${IDMWEB_PORT:-8080}:8080"

@@ -75,12 +75,12 @@ view by view: [docs/features.md](docs/features.md).
 
 | | **Local** — one person, one container | **Server** — a team | **Workstation** — from a checkout |
 |---|---|---|---|
-| Where | Docker on your own machine, `http://localhost:8080` | a host behind a proxy with TLS, `https://idm.example.com` | your machine, `bin/idmweb serve <tree>`, loopback only |
+| Where | Docker on your own machine, `http://localhost:8080`; everything it keeps is in one folder on your disk (`~/idmweb/`) | a host behind a proxy with TLS, `https://idm.example.com` | your machine, `bin/idmweb serve <tree>`, loopback only |
 | Sign-in | one token (yours) and one for your agents | your identity provider (OpenID Connect: Keycloak, Entra, Okta …), groups → roles | none: the URL carries a one-time token |
-| The tree | a git repository in the directory (or none yet: the page asks) | the team's repository on GitHub or GitLab; a branch per person as a workspace | one tree on disk, edited in place; git is yours to run |
+| The tree | a git repository in that folder, `~/idmweb/repo.git` (or none yet: the page asks) | the team's repository on GitHub or GitLab; a branch per person as a workspace | one tree on disk, edited in place; git is yours to run |
 | Projects, branches, commit & push, audit | yes | yes | no — one tree, no sign-in, no audit |
-| Vault credentials | in the directory, owner-only (or a secret manager) | on the server (or a secret manager) | the `idm` CLI's files and your Keychain |
-| Engine jars | a volume in the directory | a volume on the host | DirXMLDev's `lib/` |
+| Vault credentials | a file on your disk, `~/idmweb/config/environments.properties`, readable by you alone — or a reference to a secret manager; never in the tree, never in eDirectory | files on the server's disk, owner-only — or a secret manager | the `idm` CLI's files and your Keychain |
+| Engine jars | `~/idmweb/lib/`, mounted into the container | a folder on the host, mounted into the container | DirXMLDev's `lib/` |
 | CLI and simulator | `~/idmweb/idm …` inside the container | `docker exec idmweb idm …` | `bin/idm …` from the checkout |
 | Get it | [docs/quickstart.md](docs/quickstart.md) | [docs/hosted-install.md](docs/hosted-install.md), [docs/hosted-mode.md](docs/hosted-mode.md) | [docs/development.md](docs/development.md) |
 

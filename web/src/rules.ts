@@ -54,6 +54,19 @@ export function describeAction(e: Element): string {
   return [e.tagName, attrs(e)].filter(Boolean).join(" ") + (tokens.length ? " ← " + tokens.slice(0, 4).join(" + ") + (tokens.length > 4 ? " …" : "") : "") + disabled;
 }
 
+/** One line for any element of a policy: a condition, an action, a token, an argument. */
+export function describeNode(e: Element): string {
+  if (e.tagName.startsWith("if-")) {
+    return describeCondition(e);
+  }
+  if (e.tagName.startsWith("do-")) {
+    return describeAction(e);
+  }
+  const own = e.children.length === 0 ? text(e) : "";
+  const inner = e.children.length > 0 ? ` (${Array.from(e.children).map((c) => c.tagName.replace(/^(token|arg)-/, "")).slice(0, 5).join(", ")}${e.children.length > 5 ? ", …" : ""})` : "";
+  return [e.tagName, attrs(e), own ? `"${own}"` : ""].filter(Boolean).join(" ") + inner;
+}
+
 function describe(d: Element | undefined, i: number): string {
   const t = d ? (d.textContent ?? "").replace(/\s+/g, " ").trim() : "";
   return t || `rule ${i + 1}`;

@@ -9,7 +9,15 @@ IDM_HOME=${IDM_HOME:-"$HERE/../DirXMLDev"}
 WORK=$(mktemp -d)
 trap 'kill $PID 2>/dev/null || true; rm -rf "$WORK"' EXIT
 "$IDM_HOME/bin/idm" import-ldif "$IDM_HOME/src/test/resources/fixtures/synthetic/driverset.ldif" "$WORK/tree" >/dev/null
-"$HERE/bin/idmweb" serve "$WORK/tree" --no-open > "$WORK/log" 2>&1 &
+# an environment nothing listens on: the vault endpoints' gates are checked without a vault
+cat > "$WORK/environments.properties" <<'ENV'
+lab.url=ldaps://127.0.0.1:1
+lab.bindDn=cn=nobody,o=none
+lab.password=unused
+lab.driverSet=cn=DriverSet,o=synth
+lab.tier=dev
+ENV
+IDM_ENVIRONMENTS="$WORK/environments.properties" "$HERE/bin/idmweb" serve "$WORK/tree" --catalog "$WORK/catalog" --no-open > "$WORK/log" 2>&1 &
 PID=$!
 i=0
 while ! grep -q '#token=' "$WORK/log" 2>/dev/null; do
@@ -117,5 +125,61 @@ if "config.set-content" in names:
     check("and the wrong root is refused", not c2["ok"] and "<filter>" in c2["refusal"])
 else:
     print("skip config.set-content: this DirXMLDev does not have it")
+s, prd = call("GET", "/api/prd?driver=Loop&name=Request%20Access")
+check("provisioning: a PRD's workflow as activities and links", s == 200 and [a["kind"] for a in prd["flow"]["activities"]] == ["start", "user", "finish"]
+      and len(prd["flow"]["links"]) == 3 and prd["flow"]["activities"][1]["form"] == "Approve Access" and prd["bindings"][0]["form"] == "Request Access")
+check("provisioning: an unknown PRD is 404", call("GET", "/api/prd?driver=Loop&name=Nope")[0] == 404)
+s, frm = call("GET", "/api/form?driver=Loop&name=Request%20Access")
+check("provisioning: a form with the PRD that binds it", s == 200 and frm["kind"] == "request" and '"components"' in frm["json"] and frm["usedBy"] == [{"prd": "Request Access", "activity": None, "fields": ["reason", "submit"]}])
+s, cat = call("GET", "/api/roles")
+check("provisioning: the catalog of the driver with provisioning", s == 200 and cat["drivers"] == ["Loop"] and cat["roles"] == [] and cat["resources"] == [])
+rev = call("GET", "/api/session")[1]["revision"]
+s, fe = call("POST", "/api/op/flow.activity.set", {"args": {"prd": "Request Access", "driver": "Loop", "id": "Approval", "name": "Manager approval"}, "dryRun": False, "revision": rev})
+if s == 200 and fe.get("ok"):
+    check("provisioning: a flow edit lands and the workflow shows it", call("GET", "/api/prd?driver=Loop&name=Request%20Access")[1]["flow"]["activities"][1]["name"] == "Manager approval")
+elif "WRONG_DOCUMENT" in str(fe):
+    print("skip flow edit: this DirXMLDev is older than 0.8.0")
+else:
+    check("provisioning: a flow edit lands", False)
+s, pk = call("GET", "/api/packages")
+check("packages: an empty catalog and the tree's installed packages (none)", s == 200 and pk["catalog"]["available"] and pk["catalog"]["packages"] == [] and [t["name"] for t in pk["status"]["targets"]] == ["Loop"] and pk["status"]["targets"][0]["packages"] == [])
+check("packages: a build needs a short name and a display name", call("POST", "/api/packages/build", {"driver": "Loop", "short": "SYNTHLOOP"})[0] == 400)
+s, bd = call("POST", "/api/packages/build", {"driver": "Loop", "short": "SYNTHLOOP", "name": "Synthetic Loop", "vendor": "Point Blue", "version": "0.1.0"})
+check("packages: a package is built from the driver into the catalog", s == 200 and bd["ok"] and bd["jar"].endswith(".jar") and any(o.startswith("drivers/Loop/") for o in bd["objects"]))
+s, pk = call("GET", "/api/packages")
+check("packages: the catalog lists it", s == 200 and [p["short"] for p in pk["catalog"]["packages"]] == ["SYNTHLOOP"] and pk["catalog"]["packages"][0]["versions"][0].startswith("0.1.0"))
+rev = call("GET", "/api/session")[1]["revision"]
+s, inst = call("POST", "/api/op/package.install", {"args": {"driver": "Loop", "package": "SYNTHLOOP"}, "dryRun": True, "revision": rev})
+check("packages: the server supplies the catalog to package operations", s == 200 and "catalog" not in str(inst.get("refusal")) and ("already exists" in str(inst.get("refusal")) or inst["ok"]))
+s, sc = call("GET", "/api/sim/cases")
+check("simulator: an empty corpus, and where it will be kept", s == 200 and sc["cases"] == [] and sc["dir"].endswith("/cases"))
+xds = '<nds dtdversion="4.0"><input><add class-name="User" src-dn="\\SYNTH\\synth\\people\\jdoe"><add-attr attr-name="Surname"><value type="string">Doe</value></add-attr><add-attr attr-name="Title"><value type="string">mgr</value></add-attr></add></input></nds>'
+check("simulator: a case name cannot leave the corpus", call("POST", "/api/sim/save", {"name": "../x", "driver": "Loop", "input": xds})[0] == 400)
+check("simulator: an input that is not XML is refused", call("POST", "/api/sim/save", {"name": "bad", "driver": "Loop", "input": "<a>"})[0] == 400)
+check("simulator: a case for a driver the tree lacks is refused", call("POST", "/api/sim/save", {"name": "bad", "driver": "Nope", "input": xds})[0] == 400)
+s, sv = call("POST", "/api/sim/save", {"name": "add-user", "driver": "Loop", "channel": "subscriber", "input": xds})
+check("simulator: a case is created", s == 200 and sv["created"])
+s, det = call("POST", "/api/sim/detail", {"name": "add-user"})
+check("simulator: the case runs stage by stage through the tree's policies",
+      s == 200 and det["ok"] and [st["name"] for st in det["stages"]] == ["subscriber-command:sub-ctp-VetoSurname", "subscriber-command:lib-NormalizeTitle", "schema-mapping:smp"]
+      and [st["changed"] for st in det["stages"]] == [False, True, True] and ">Manager<" in det["final"] and det["outcome"] == "skip")
+s, rec = call("POST", "/api/sim/record", {"name": "add-user"})
+check("simulator: its output is recorded", s == 200 and rec["wrote"] == ["expected-output.xds"])
+s, run = call("POST", "/api/sim/run", {})
+check("simulator: the corpus passes", s == 200 and run["ok"] and run["pass"] == 1)
+s, det = call("POST", "/api/sim/detail", {"name": "add-user", "input": xds.replace(">mgr<", ">eng<"), "against": ""})
+check("simulator: another input is tried without saving it, and fails what was recorded",
+      s == 200 and det["outcome"] == "fail" and ">Engineer<" in det["final"] and det["against"]["same"] and ">mgr<" in call("GET", "/api/sim/case?name=add-user")[1]["input"])
+s, ve = call("GET", "/api/vault/environments")
+check("vault: the environments, by name and tier, without their values", s == 200 and ve["available"] and ve["environments"] == [{"name": "lab", "tier": "dev", "ready": True, "hasOverrides": False}])
+check("vault: an unknown environment is 400", call("GET", "/api/vault/diff?env=nope")[0] == 400)
+s, dep = call("POST", "/api/vault/deploy", {"env": "lab"})
+check("vault: a deploy without the typed environment name is refused before any connection", s == 200 and not dep["ok"] and "confirm" in dep["refusal"])
+s, dep = call("POST", "/api/vault/deploy", {"env": "lab", "confirm": "prod"})
+check("vault: and with another name", s == 200 and not dep["ok"] and "confirm" in dep["refusal"])
+s, lc = call("POST", "/api/vault/driver", {"env": "lab", "driver": "Loop", "action": "start"})
+check("vault: driver control without it is refused", s == 200 and not lc["ok"] and "confirm" in lc["text"])
+check("vault: an unknown driver action is 400", call("POST", "/api/vault/driver", {"env": "lab", "driver": "Loop", "action": "explode", "confirm": "lab"})[0] == 400)
+check("vault: the trace stream needs the token", call("GET", "/api/vault/trace?env=lab&driver=Loop", headers={"X-IDMWeb-Token": ""})[0] == 403)
 print("smoke: all passed")
 PY

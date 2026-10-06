@@ -9,6 +9,12 @@ import { FileView } from "./components/FileView";
 import { FlowView } from "./components/FlowView";
 import { OperationsView } from "./components/OperationsView";
 import { ValidationPanel } from "./components/ValidationPanel";
+import { VaultView } from "./components/VaultView";
+import { SimView } from "./components/SimView";
+import { PrdView } from "./components/PrdView";
+import { FormView } from "./components/FormView";
+import { RolesView } from "./components/RolesView";
+import { PackagesView } from "./components/PackagesView";
 
 export function App() {
   const [token] = useState(() => takeToken());
@@ -147,6 +153,20 @@ export function App() {
           <button className={selection.type === "operations" ? "navbtn active" : "navbtn"} onClick={() => setSelection({ type: "operations" })}>
             Operations
           </button>
+          <button className={selection.type === "vault" ? "navbtn active" : "navbtn"} onClick={() => setSelection({ type: "vault" })}>
+            Vault
+          </button>
+          <button className={selection.type === "simulator" ? "navbtn active" : "navbtn"} onClick={() => setSelection({ type: "simulator" })}>
+            Simulator
+          </button>
+          <button className={selection.type === "packages" ? "navbtn active" : "navbtn"} onClick={() => setSelection({ type: "packages" })}>
+            Packages
+          </button>
+          {outline?.drivers.some((d) => d.forms.length + d.prds.length > 0) && (
+            <button className={selection.type === "roles" ? "navbtn active" : "navbtn"} onClick={() => setSelection({ type: "roles" })}>
+              Roles and resources
+            </button>
+          )}
           {outline ? <OutlineTree outline={outline} selection={selection} onSelect={setSelection} /> : <p className="muted pad">Loading the tree…</p>}
         </nav>
         <main className="main">
@@ -168,6 +188,12 @@ export function App() {
           )}
           {selection.type === "overrides" && <OverridesView revision={revision} canEdit={opNames.has("override.set")} onSaved={reload} />}
           {selection.type === "operations" && <OperationsView onDone={reload} />}
+          {selection.type === "prd" && <PrdView key={selection.driver + "/" + selection.name} driver={selection.driver} name={selection.name} revision={revision} onSelect={setSelection} onSaved={reload} />}
+          {selection.type === "form" && <FormView key={selection.driver + "/" + selection.name} driver={selection.driver} name={selection.name} revision={revision} onSelect={setSelection} onSaved={reload} />}
+          {selection.type === "roles" && <RolesView revision={revision} onSaved={reload} />}
+          {selection.type === "packages" && outline && <PackagesView drivers={outline.drivers.map((d) => d.name)} revision={revision} onSaved={reload} onOpen={open} />}
+          {selection.type === "simulator" && outline && <SimView drivers={outline.drivers.map((d) => d.name)} revision={revision} />}
+          {selection.type === "vault" && outline && <VaultView drivers={outline.drivers.map((d) => d.name)} revision={revision} onOpen={open} />}
         </main>
         <aside className="problems">
           <ValidationPanel validation={validation} onOpen={open} />

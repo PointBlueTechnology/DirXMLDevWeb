@@ -65,7 +65,7 @@ export function OverridesView({ revision, canEdit, onSaved }: { revision: string
         </div>
       </div>
       <PendingBar pending={pending} title="Review override changes" onSaved={onSaved} />
-      {!canEdit && <div className="banner warn">Read-only: this DirXMLDev has no override operations (they follow 0.7.0).</div>}
+      {!canEdit && <div className="banner warn">Read-only: this DirXMLDev has no override operations (DirXMLDev 0.8.0 has them).</div>}
       <div className="pad scroll">
         {data.overrides.length === 0 && envs.length === 0 ? (
           <p className="muted">No overrides: every environment gets the tree's values. Add one below, or from a driver's GCV table.</p>

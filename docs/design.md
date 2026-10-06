@@ -1,6 +1,6 @@
 # DirXMLDevWeb: assessment and design
 
-Status: **decided 2026-10-05; W0 spike built** (this repository). The note was written in DirXMLDev as `docs/web-designer.md`; this is its home now.
+Status: **decided 2026-10-05; W0–W6 built** (this repository). The note was written in DirXMLDev as `docs/web-designer.md`; this is its home now.
 
 The question: build a web version of Designer, perhaps with WebAssembly.
 The answer in one paragraph: **yes to a web workbench, no to porting Designer,
@@ -187,11 +187,11 @@ Each is usable on its own and stops cleanly.
 | **W0 spike** | `idm serve` and a read-only explorer: outline, artifact view, fishbone, validation panel, references. Proves the catalog-as-API, the watcher and the token model |
 | **W1 configuration editing** | GCVs, filter, schema map, mapping tables, link order by drag, stage overrides; raw XML editing with validate-on-save; every write previewed as a diff |
 | **W2 policy builder** | Rules, conditions, actions and tokens as structured editors over the DirXML Script grammar, with the engine's compile check live |
-| **W3 compare, deploy, operate** | Vault diff per stage, plan review, confirm, progress, verify, rollback; driver state and control; live trace |
+| **W3 compare, deploy, operate** | Vault diff per stage, plan review, confirm, verify; driver state and control; live trace. Built; rollback, secrets and driver deletion stay with the CLI |
 | **W4 simulator** | Cases, run, stage-by-stage output, comparison against another tree or stage |
 | **W5 provisioning** | PRD flow diagram (read, then edit through `flow.*`), form builder embedded, roles and resources |
 | **W6 packages** | Status, install, upgrade, build |
-| **W7 hosted mode** | OIDC, workspaces as git clones, server-side secrets, per-user audit, commit and pull request from the UI. Can move earlier: the four seams exist from W0 |
+| **W7 hosted mode** | OIDC, workspaces as git clones, server-side secrets, per-user audit, commit and pull request from the UI. Designed in [hosted.md](hosted.md); decisions pending |
 | optional | The static viewer; the CheerpJ simulator spike |
 
 W0 through W3 already replace the daily Designer loop for driver work. W2 and
@@ -220,6 +220,13 @@ W5 are where most of the effort sits.
 4. **No wasm viewer now.**
 5. **Its own repository**: this one.
 6. **Name: DirXMLDevWeb.**
+
+W2 (2026-10-05) is the structured policy editor. It is generic rather than a form per action: a
+grammar table generated from the DirXML Script DTD says what each element may hold, in what order
+and how many, and one recursive node editor renders any of the 148 elements from it. The document
+stays the XML string, so the Rules and Source tabs are two views of one draft, saved through
+`artifact.set-content`. The live check reuses the review's preview endpoint, so the engine's own
+compiler answers while editing.
 
 W1 (2026-10-05) added the configuration editors of section 2 — GCVs with per-stage columns,
 driver settings, the filter, policy-set order, the schema map, mapping tables, the override

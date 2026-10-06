@@ -179,4 +179,236 @@ export type Selection =
   | { type: "file"; file: string }
   | { type: "config"; driver: string | null }
   | { type: "overrides" }
+  | { type: "vault" }
+  | { type: "simulator" }
+  | { type: "prd"; driver: string; name: string }
+  | { type: "form"; driver: string; name: string }
+  | { type: "roles" }
+  | { type: "packages" }
   | { type: "operations" };
+
+/** An environment of the environments file, described without its values. */
+export interface VaultEnvironment {
+  name: string;
+  tier: string;
+  ready: boolean;
+  hasOverrides: boolean;
+}
+
+export interface VaultEnvironments {
+  available: boolean;
+  why?: string;
+  file?: string;
+  environments: VaultEnvironment[];
+}
+
+export interface VaultChange {
+  kind: string;
+  driver: string | null;
+  path: string;
+  what: string | null;
+  summary: string;
+  detail?: string | null;
+}
+
+export interface VaultDiffResult {
+  empty: boolean;
+  changes: VaultChange[];
+  affectedDrivers: string[];
+  environment: string;
+  tier: string;
+  text: string;
+  overrides: string | null;
+}
+
+export interface DeployResult {
+  ok: boolean;
+  environment: string;
+  refusal?: string | null;
+  failure?: string | null;
+  plan?: string | null;
+  diff?: string | null;
+  done?: string[];
+  skipped?: string[];
+  restarted?: string[];
+  secretsSet?: string[];
+  snapshot?: string | null;
+  verified?: boolean;
+  verify?: string | null;
+  text?: string;
+}
+
+export interface DriverState {
+  name: string;
+  dn: string;
+  state: string;
+  startOption: string;
+  cacheSize?: string;
+  unprocessedSize?: string;
+  traceLevel?: string;
+}
+
+export interface VaultStatus {
+  environment: string;
+  ok: boolean;
+  drivers: DriverState[];
+  text: string;
+}
+
+export interface LifecycleResult {
+  ok: boolean;
+  text: string;
+  driver: string;
+  action: string;
+}
+
+export interface SimCase {
+  name: string;
+  driver: string | null;
+  channel: string;
+  hasExpected: boolean;
+}
+
+export interface SimCases {
+  dir: string;
+  exists: boolean;
+  cases: SimCase[];
+}
+
+export interface SimCaseFiles {
+  name: string;
+  driver: string | null;
+  channel: string;
+  properties: string | null;
+  input: string | null;
+  expected: string | null;
+  assertions: string | null;
+  directory: string | null;
+}
+
+export interface SimRun {
+  ok: boolean;
+  pass: number;
+  fail: number;
+  error: number;
+  skip: number;
+  cases: { name: string; outcome: string; detail: string }[];
+  notes: string[];
+}
+
+export interface SimStage {
+  name: string;
+  input: string;
+  output: string;
+  changed: boolean;
+  trace: string | null;
+  queries: string[];
+  commands: string[];
+  error: string | null;
+}
+
+export interface SimDetail {
+  name: string;
+  ok: boolean;
+  error?: string;
+  stages?: SimStage[];
+  final?: string;
+  trace?: string;
+  warnings?: string[];
+  outcome?: string;
+  outcomeDetail?: string;
+  notes: string[];
+  against?: { environment: string | null; same?: boolean; firstDivergesAt?: string | null; finalDetail?: string; stages?: { name: string; same: boolean; detail: string }[]; error?: string };
+}
+
+export interface FlowActivity {
+  id: string;
+  kind: string;
+  name: string | null;
+  attrs: Record<string, string>;
+  parts: Record<string, string>;
+  xml: string;
+  linkTypes: string[];
+  dataItems: { name: string; dataType: string | null; source: string | null; target: string | null; targetType: string | null }[];
+  form: string | null;
+}
+
+export interface FlowLink {
+  from: string;
+  to: string;
+  type: string;
+}
+
+export interface PrdData {
+  driver: string;
+  name: string;
+  dir: string;
+  status: string | null;
+  jsonForms: boolean;
+  properties: Record<string, string[]>;
+  bindings: { activity: string | null; form: string; fields: { name: string; dataType: string | null; control: string | null }[] }[];
+  forms: string[];
+  flow: { process: Record<string, string | null>; activities: FlowActivity[]; links: FlowLink[]; linkTypes: string[] } | null;
+}
+
+export interface FormData {
+  driver: string;
+  name: string;
+  kind: string;
+  file: string;
+  json: string;
+  usedBy: { prd: string; activity: string | null; fields: string[] }[];
+}
+
+export interface CatalogObject {
+  driver: string;
+  name: string;
+  path: string;
+  displayName: string | null;
+  container: string;
+  attrs: Record<string, string[]>;
+}
+
+export interface RoleCatalog {
+  drivers: string[];
+  roles: CatalogObject[];
+  resources: CatalogObject[];
+}
+
+export interface CatalogPackage {
+  short: string;
+  id: string | null;
+  displayName: string | null;
+  type: number;
+  base: boolean;
+  versions: string[];
+  newest: string | null;
+}
+
+export interface InstalledPackage {
+  short: string;
+  id: string | null;
+  version: string | null;
+  base: boolean;
+  inManifest: boolean;
+  objects: number;
+  inCatalog: string | null;
+  newer: string | null;
+}
+
+export interface PackagesData {
+  catalog: { dir: string | null; available: boolean; packages: CatalogPackage[] };
+  status: { targets: { name: string; packages: InstalledPackage[]; customized: string[]; notes: string[] }[] };
+  text: string;
+}
+
+export interface BuildResult {
+  ok: boolean;
+  refusal?: string;
+  jar: string | null;
+  packageId: string | null;
+  version: string | null;
+  objects: string[];
+  notes: string[];
+  text: string;
+}

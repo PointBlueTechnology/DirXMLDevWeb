@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Editor from "@monaco-editor/react";
 import { api } from "../api";
 import { monacoTheme } from "../monaco";
 import { usePending } from "../pending";
-import { summarize } from "../rules";
-import type { Artifact } from "../types";
+import { PolicyEditor } from "../policy/PolicyEditor";
+import type { Artifact, OpResult } from "../types";
 import { PendingBar } from "./PendingBar";
 import { ReviewDialog } from "./ReviewDialog";
 import { SchemaMapEditor } from "./SchemaMapEditor";
@@ -23,9 +23,9 @@ const STRUCTURED: Record<string, string> = { "dirxml-script": "Rules", "schema-m
 
 /**
  * One policy or resource, two ways. The structured tab fits the kind: a DirXML Script policy's
- * rules (read-only for now), a schema map's name pairs, a mapping table's grid — the last two
- * editable through their typed operations. Source is the document itself: edit it, review the
- * change as a diff with the core's verdict, apply it through `artifact.set-content`.
+ * rules, conditions, actions and tokens; a schema map's name pairs; a mapping table's grid.
+ * Source is the document itself. For a policy the two tabs edit one draft, checked by the
+ * engine's compiler as you go, reviewed as a diff, and saved through `artifact.set-content`.
  */
 export function ArtifactView({ path, revision, onOpen, onSaved }: Props) {
   const [artifact, setArtifact] = useState<Artifact | null>(null);
@@ -35,6 +35,9 @@ export function ArtifactView({ path, revision, onOpen, onSaved }: Props) {
   const [editing, setEditing] = useState(false);
   const [reviewing, setReviewing] = useState(false);
   const [changedOnDisk, setChangedOnDisk] = useState(false);
+  const [check, setCheck] = useState<{ state: "idle" | "checking" | "done"; result?: OpResult; error?: string }>({ state: "idle" });
+  const [showCheck, setShowCheck] = useState(false);
+  const checkSeq = useRef(0);
   const pending = usePending();
 
   const dirty = draft !== null && artifact !== null && draft !== artifact.content;
@@ -67,7 +70,31 @@ export function ArtifactView({ path, revision, onOpen, onSaved }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [path, revision]);
 
-  const summary = useMemo(() => (artifact && artifact.kind === "dirxml-script" ? summarize(draft ?? artifact.content) : null), [artifact, draft]);
+  // the live check: a pause in editing sends the draft through the same preview a review runs,
+  // so the engine's compiler and every other check answer while the change is still on screen
+  useEffect(() => {
+    if (!dirty || !artifact || draft === null) {
+      setCheck({ state: "idle" });
+      return;
+    }
+    const seq = ++checkSeq.current;
+    setCheck((c) => ({ ...c, state: "checking" }));
+    const timer = setTimeout(async () => {
+      try {
+        const revision = (await api.session()).revision;
+        const result = await api.batch([{ name: "artifact.set-content", args: { path: artifact.path }, files: { "content-file": draft }, label: "check" }], true, revision);
+        if (seq === checkSeq.current) {
+          setCheck({ state: "done", result });
+        }
+      } catch (e) {
+        if (seq === checkSeq.current) {
+          setCheck({ state: "done", error: e instanceof Error ? e.message : String(e) });
+        }
+      }
+    }, 1200);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft, dirty]);
 
   if (error) {
     return <div className="banner error">{error}</div>;
@@ -112,6 +139,15 @@ export function ArtifactView({ path, revision, onOpen, onSaved }: Props) {
               Edit source
             </button>
           )}
+          {editing && dirty && (
+            <button
+              className={"checkchip" + (check.state === "done" ? (check.result?.ok ? " good" : " bad") : "")}
+              title="The draft, run through the engine's compiler and the rest of validation"
+              onClick={() => setShowCheck((v) => !v)}
+            >
+              {check.state === "checking" ? "checking…" : check.state === "done" ? (check.error ? "check failed" : check.result?.ok ? "✓ valid" : `✗ ${check.result?.newErrors.length || 1} problem${(check.result?.newErrors.length ?? 1) === 1 ? "" : "s"}`) : "…"}
+            </button>
+          )}
           {editing && (
             <>
               <button
@@ -132,6 +168,32 @@ export function ArtifactView({ path, revision, onOpen, onSaved }: Props) {
           )}
         </div>
       </div>
+      {editing && dirty && check.state === "done" && (showCheck || !(check.result?.ok ?? false)) && (check.error || (check.result && !check.result.ok)) && (
+        <ul className="findings checklist">
+          {check.error && (
+            <li className="finding error">
+              <div>
+                <span className="msg">{check.error}</span>
+              </div>
+            </li>
+          )}
+          {check.result && !check.result.ok && check.result.newErrors.length === 0 && (
+            <li className="finding error">
+              <div>
+                <span className="msg">{check.result.refusal}</span>
+              </div>
+            </li>
+          )}
+          {check.result?.newErrors.map((e, i) => (
+            <li key={i} className="finding error">
+              <div>
+                <span className="code">{e.code}</span>
+                <span className="msg">{e.message}</span>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
       {changedOnDisk && <div className="banner warn">The tree changed on disk while you were editing. Your edit is kept; applying it will be refused until you reload.</div>}
       {artifact.packaged && (editing || pending.ops.length > 0) && <div className="banner warn">This artifact came from a package. Saving marks it customized, as Designer does.</div>}
       <PendingBar
@@ -165,50 +227,15 @@ export function ArtifactView({ path, revision, onOpen, onSaved }: Props) {
           <TableEditor path={artifact.path} content={artifact.content} pending={pending} />
         </div>
       )}
-      {tab === "structured" && summary && (
-        <div className="rules">
-          {summary.error && <div className="banner error">The source is not well-formed: {summary.error}</div>}
-          {summary.rules.length === 0 && !summary.error && <p className="muted pad">This policy has no rules.</p>}
-          {summary.rules.map((r) => (
-            <section key={r.index} className={r.disabled ? "rule disabled" : "rule"}>
-              <header>
-                <span className="num">{r.index}</span>
-                <h3>{r.description}</h3>
-                {r.disabled && <span className="pill warn">disabled</span>}
-              </header>
-              <div className="cols">
-                <div>
-                  <h4>When {r.conditions.length > 0 ? `(${r.logic})` : ""}</h4>
-                  {r.conditions.length === 0 ? (
-                    <p className="muted">always</p>
-                  ) : (
-                    <ul>
-                      {r.conditions.map((c, i) => (
-                        <li key={i}>
-                          <code>{c}</code>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-                <div>
-                  <h4>Do</h4>
-                  {r.actions.length === 0 ? (
-                    <p className="muted">nothing</p>
-                  ) : (
-                    <ol>
-                      {r.actions.map((a, i) => (
-                        <li key={i}>
-                          <code>{a}</code>
-                        </li>
-                      ))}
-                    </ol>
-                  )}
-                </div>
-              </div>
-            </section>
-          ))}
-          <p className="muted small pad">The rule view is read-only for now. Edit in Source; the list follows what you type.</p>
+      {tab === "structured" && artifact.kind === "dirxml-script" && (
+        <div className="scroll">
+          <PolicyEditor
+            xml={draft ?? artifact.content}
+            onChange={(xml) => {
+              setDraft(xml);
+              setEditing(true);
+            }}
+          />
         </div>
       )}
       {tab === "source" && (

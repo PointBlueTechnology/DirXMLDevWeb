@@ -9,6 +9,7 @@
     "noUncheckedIndexedAccess": true,
     "noUnusedLocals": true,
     "skipLibCheck": true,
+    "resolveJsonModule": true,
     "types": ["vite/client"]
   },
   "include": ["src"]

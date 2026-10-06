@@ -159,7 +159,7 @@ export function GcvEditor({ config, overrides, canOverride, pending, onOpen }: P
           <span className="muted small">A value typed in an environment's column is that stage's override; the Value column is the base every other stage gets.</span>
         </div>
       ) : (
-        <p className="muted small">Per-stage overrides need a DirXMLDev with the override operations (after 0.7.0).</p>
+        <p className="muted small">Per-stage overrides need a DirXMLDev with the override operations (DirXMLDev 0.8.0).</p>
       )}
     </div>
   );

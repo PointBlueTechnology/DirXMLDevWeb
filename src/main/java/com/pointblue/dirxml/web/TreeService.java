@@ -63,6 +63,13 @@ public final class TreeService {
     private DriverSet cached;
     private String cachedRevision;
 
+    private String catalogArg;
+
+    /** The catalog directory package operations take when the page gives none. */
+    public void catalog(String dir) {
+        this.catalogArg = dir;
+    }
+
     public TreeService(Path tree, Watcher watcher) {
         this.tree = tree.toAbsolutePath().normalize();
         this.watcher = watcher;
@@ -367,6 +374,11 @@ public final class TreeService {
             throw new NotFound("no operation '" + c.name + "'");
         }
         Map<String, String> all = new LinkedHashMap<>(c.args);
+        // the server's package catalog stands in for --catalog when a package operation names none
+        if (c.name.startsWith("package.") && !all.containsKey("catalog") && catalogArg != null
+                && spec.args.stream().anyMatch(a -> a.name.equals("catalog"))) {
+            all.put("catalog", catalogArg);
+        }
         List<Path> temps = new ArrayList<>();
         try {
             for (Map.Entry<String, String> f : c.files.entrySet()) {
@@ -380,7 +392,7 @@ public final class TreeService {
                 throw new BadRequest(c.name + ": " + missing);
             }
             try {
-                return factoryOf(spec).create(all);   // a file argument is read here, so the temp file can go
+                return spec.create(all);   // a file argument is read here, so the temp file can go
             } catch (IllegalArgumentException e) {
                 throw new BadRequest(c.name + ": " + e.getMessage());
             }
@@ -515,18 +527,5 @@ public final class TreeService {
         return m;
     }
 
-    /**
-     * The registry keeps an operation's factory package-private (DirXMLDev 0.7.0); a public
-     * {@code Spec.create} is proposed upstream. Until that release, this is the one place that
-     * reaches for it.
-     */
-    private static Registry.Factory factoryOf(Registry.Spec spec) {
-        try {
-            java.lang.reflect.Field f = Registry.Spec.class.getDeclaredField("factory");
-            f.setAccessible(true);
-            return (Registry.Factory) f.get(spec);
-        } catch (ReflectiveOperationException e) {
-            throw new IllegalStateException("this DirXMLDev does not expose operation factories: " + e.getMessage(), e);
-        }
-    }
+    
 }

@@ -76,23 +76,73 @@ public final class SetupService {
         audit.log(session, null, "setup." + how, details, "ok");
     }
 
-    /** A tree read from the vault of an environment the Connections view knows. */
-    public Map<String, Object> fromVault(Session session, String projectName, String envName) throws IOException {
+    /** The driver sets a vault holds, for the person to choose from; the environment's own is marked. */
+    public Map<String, Object> driverSets(String envName) throws IOException {
         if (envName == null || envName.isBlank()) {
             throw new TreeService.BadRequest("which environment?");
         }
-        String name = projectName(projectName, envName);
         Environments.Environment env = Environments.load().get(envName);
+        List<Object> sets = new ArrayList<>();
+        try (com.pointblue.dirxml.dev.deploy.Vault v = com.pointblue.dirxml.dev.deploy.Vault.connect(env.vaultConfig())) {
+            List<com.pointblue.dirxml.dev.deploy.Vault.Entry> found = new ArrayList<>();
+            try {
+                found.addAll(v.search("", "(objectClass=DirXML-DriverSet)", javax.naming.directory.SearchControls.SUBTREE_SCOPE));
+            } catch (RuntimeException e) {
+                // a tree that refuses a search from its root: try each naming context
+                for (com.pointblue.dirxml.dev.deploy.Vault.Entry root : v.search("", "(objectClass=*)", javax.naming.directory.SearchControls.OBJECT_SCOPE)) {
+                    for (byte[] nc : root.attrs.getOrDefault("namingContexts", List.of())) {
+                        try {
+                            found.addAll(v.search(new String(nc, java.nio.charset.StandardCharsets.UTF_8), "(objectClass=DirXML-DriverSet)", javax.naming.directory.SearchControls.SUBTREE_SCOPE));
+                        } catch (RuntimeException ignore) {
+                            // not every context is readable
+                        }
+                    }
+                }
+            }
+            for (com.pointblue.dirxml.dev.deploy.Vault.Entry e : found) {
+                Map<String, Object> m = new LinkedHashMap<>();
+                m.put("dn", e.dn);
+                m.put("name", e.dn.replaceFirst("^[^=]+=", "").replaceFirst(",.*$", ""));
+                int drivers = 0;
+                try {
+                    drivers = v.search(e.dn, "(objectClass=DirXML-Driver)", javax.naming.directory.SearchControls.ONELEVEL_SCOPE).size();
+                } catch (RuntimeException ignore) {
+                    // the count is a courtesy
+                }
+                m.put("drivers", drivers);
+                m.put("default", e.dn.equalsIgnoreCase(env.driverSetDn));
+                sets.add(m);
+            }
+        } catch (RuntimeException e) {
+            throw new TreeService.BadRequest("cannot read the vault of '" + envName + "': " + (e.getMessage() == null ? e.toString() : e.getMessage()));
+        }
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("environment", envName);
+        m.put("configured", env.driverSetDn);
+        m.put("driverSets", sets);
+        return m;
+    }
+
+    /** A tree read from the vault of an environment the Connections view knows: its configured driver set, or another one named. */
+    public Map<String, Object> fromVault(Session session, String projectName, String envName, String driverSetDn) throws IOException {
+        if (envName == null || envName.isBlank()) {
+            throw new TreeService.BadRequest("which environment?");
+        }
+        Environments.Environment env = Environments.load().get(envName);
+        String dn = driverSetDn == null || driverSetDn.isBlank() ? env.driverSetDn : driverSetDn.trim();
+        String setName = dn.replaceFirst("^[^=]+=", "").replaceFirst(",.*$", "");
+        String name = projectName(projectName, dn.equalsIgnoreCase(env.driverSetDn) ? envName : envName + "-" + setName);
         List<String> notes = new ArrayList<>();
-        DriverSet live = VaultDiff.readLive(env, notes::add);
+        DriverSet live = dn.equalsIgnoreCase(env.driverSetDn) ? VaultDiff.readLive(env, notes::add) : VaultDiff.readLive(env.vaultConfig(), dn);
         if (env.secretsFile != null) {
             for (String d : Overrides.stripSecretShimAuthIds(live, Secrets.load(env.secretsFile))) {
                 notes.add("'" + d + "'.shim-auth-id kept out of the tree (the secrets file supplies it)");
             }
         }
-        Map<String, Object> m = seedRepository(name, live, "Imported from " + envName + " (" + env.driverSetDn + ")");
+        Map<String, Object> m = seedRepository(name, live, "Imported from " + envName + " (" + dn + ")");
         m.put("notes", notes);
-        done(session, "vault", Map.of("project", name, "env", envName, "drivers", live.drivers.size()));
+        m.put("driverSet", dn);
+        done(session, "vault", Map.of("project", name, "env", envName, "driverSet", dn, "drivers", live.drivers.size()));
         return m;
     }
 

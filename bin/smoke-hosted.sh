@@ -212,6 +212,10 @@ try:
     check("switching back to the first project's in-place workspace", s == 200 and o["workspace"] == "plain/in-place")
     conf = open(os.path.join(work, "hosted2.properties")).read()
     check("both projects are in the configuration", "projects=plain,second" in conf and "project.second.repo.url=" in conf and "project.plain.repo.inPlace=" in conf)
+    # the first server's configuration used the single repo.* keys: adding a project there keeps the first one
+    s, r, _ = bob.call("POST", "/api/setup/existing", {"project": "extra", "path": os.path.join(work, "repo.git")})
+    conf1 = open(os.path.join(work, "hosted.properties")).read()
+    check("adding a project to a server set up with the old repo.* keys keeps its first project", s == 200 and "projects=repo,extra" in conf1 and "project.repo.repo.url=" in conf1 and "repo.url=" not in conf1.replace("project.repo.repo.url=", "").replace("project.extra.repo.url=", ""))
     check("a duplicate project name is refused", "exists already" in call2("POST", "/api/setup/directory", {"project": "plain", "path": plain})[1]["error"])
     s, rm = call2("POST", "/api/setup/remove", {"project": "second"})[:2]
     check("a project can be removed (its files stay)", s == 200 and rm["removed"] == "second" and "projects=plain\n" in open(os.path.join(work, "hosted2.properties")).read())

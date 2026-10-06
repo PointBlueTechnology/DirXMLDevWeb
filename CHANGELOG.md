@@ -7,6 +7,16 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- "Export from an Identity Vault" lists the driver sets the vault holds (name, driver count,
+  the connection's own preselected) and reads the chosen one; `GET /api/setup/driversets?env=`.
+
+### Fixed
+
+- Adding a project to a server configured with the single `repo.*` keys dropped the first
+  project from the file; every project is written when one is saved.
+
 ## [0.6.1] - 2026-10-06
 
 ### Fixed

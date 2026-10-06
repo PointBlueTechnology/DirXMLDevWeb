@@ -23,6 +23,7 @@ import { NewItemView } from "./components/NewItemView";
 import { ChangesView } from "./components/ChangesView";
 import { DriverSetView } from "./components/DriverSetView";
 import { isUserApplication } from "./drivers";
+import { fromHash, toHash } from "./route";
 
 export function App() {
   const [token] = useState(() => takeToken());
@@ -32,7 +33,20 @@ export function App() {
   const [revision, setRevision] = useState<string>("");
   const [live, setLive] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selection, setSelection] = useState<Selection>({ type: "home" });
+  const [selection, setSelectionState] = useState<Selection>(() => fromHash(window.location.hash) ?? { type: "home" });
+  // every selection is an entry in the browser's history: Back and Forward move between views
+  const setSelection = useCallback((s: Selection) => {
+    setSelectionState(s);
+    const hash = toHash(s);
+    if (window.location.hash !== hash) {
+      history.pushState(s, "", hash);
+    }
+  }, []);
+  useEffect(() => {
+    const onPop = () => setSelectionState(fromHash(window.location.hash) ?? { type: "home" });
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
   const [opNames, setOpNames] = useState<Set<string>>(new Set());
   const [noWorkspace, setNoWorkspace] = useState(false);
   // bumped when the workspace changes: the event stream is per workspace and must be opened again

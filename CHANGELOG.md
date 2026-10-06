@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-06
+
 ### Added
 
 - Entitlement editor: display name, description, conflict resolution, multi-valued, and the

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
 import { usePending } from "../pending";
-import type { BuildResult, CatalogPackage, PackagesData } from "../types";
+import type { BuildResult, CatalogPackage, FetchResult, PackagesData, SiteListing } from "../types";
 import { PendingBar } from "./PendingBar";
 
 const LIBRARY = "library";
@@ -14,7 +14,7 @@ const LIBRARY = "library";
 export function PackagesView({ drivers, revision, onSaved, onOpen }: { drivers: string[]; revision: string; onSaved: () => void; onOpen: (path: string) => void }) {
   const [data, setData] = useState<PackagesData | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<"installed" | "catalog" | "build">("installed");
+  const [tab, setTab] = useState<"installed" | "catalog" | "sites" | "build">("installed");
   const [install, setInstall] = useState({ target: drivers[0] ?? LIBRARY, pkg: "", version: "" });
   const pending = usePending();
 
@@ -51,6 +51,9 @@ export function PackagesView({ drivers, revision, onSaved, onOpen }: { drivers: 
           </button>
           <button className={tab === "catalog" ? "tab active" : "tab"} onClick={() => setTab("catalog")} data-testid="pkg-tab-catalog">
             Catalog {catalog.packages.length}
+          </button>
+          <button className={tab === "sites" ? "tab active" : "tab"} onClick={() => setTab("sites")} data-testid="pkg-tab-sites">
+            Update sites
           </button>
           <button className={tab === "build" ? "tab active" : "tab"} onClick={() => setTab("build")} data-testid="pkg-tab-build">
             Build
@@ -222,12 +225,145 @@ export function PackagesView({ drivers, revision, onSaved, onOpen }: { drivers: 
             </table>
           )}
           <p className="muted small">
-            The catalog is a directory of package jars with an index; <code>idm package.fetch</code> fills it from an update site, <code>package.import</code> from a jar, and Build from this tree.
+            The catalog is a directory of package jars with an index; Update sites fills it from a package repository (<code>idm package.fetch</code>), <code>package.import</code> from a jar, and Build from this tree.
           </p>
         </div>
       )}
 
+      {tab === "sites" && <Sites catalogAvailable={catalog.available} installed={new Set(data.status.targets.flatMap((t) => t.packages.map((p) => p.short)))} onFetched={load} />}
       {tab === "build" && <Build drivers={drivers} catalogAvailable={catalog.available} catalog={catalog.packages} onBuilt={load} />}
+    </div>
+  );
+}
+
+const CUSTOM = "custom";
+
+/**
+ * Package repositories (Designer's update sites, from the catalog's sites.properties, or any URL):
+ * what one offers against the catalog, fetched in by package — or every newer version of what the
+ * tree has installed — so the Installed tab can offer the upgrade.
+ */
+function Sites({ catalogAvailable, installed, onFetched }: { catalogAvailable: boolean; installed: Set<string>; onFetched: () => void }) {
+  const [sites, setSites] = useState<{ name: string; url: string }[]>([]);
+  const [site, setSite] = useState("");
+  const [custom, setCustom] = useState("");
+  const [listing, setListing] = useState<SiteListing | null>(null);
+  const [picked, setPicked] = useState<string[]>([]);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [result, setResult] = useState<FetchResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    api
+      .packageSites()
+      .then((s) => {
+        setSites(s.sites);
+        setSite((cur) => cur || s.sites[0]?.url || CUSTOM);
+      })
+      .catch((e: Error) => setError(e.message));
+  }, []);
+  const url = site === CUSTOM ? custom.trim() : site;
+  const browse = () => {
+    setBusy("browse");
+    setError(null);
+    setResult(null);
+    api
+      .packageSite(url)
+      .then((l) => {
+        setListing(l);
+        setPicked([]);
+      })
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setBusy(null));
+  };
+  const fetch = (specs: string[], what: string) => {
+    setBusy(what);
+    setError(null);
+    api
+      .fetchPackages({ site: url, packages: specs })
+      .then((r) => {
+        setResult(r);
+        setPicked([]);
+        onFetched();
+        // the listing's "in catalog" column follows
+        return api.packageSite(url).then(setListing);
+      })
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setBusy(null));
+  };
+  const updates = listing?.packages.filter((p) => installed.has(p.short) && p.newer) ?? [];
+  const toggle = (s: string) => setPicked(picked.includes(s) ? picked.filter((x) => x !== s) : [...picked, s]);
+  return (
+    <div className="pad scroll" data-testid="pkg-sites">
+      <p className="muted small">A package repository is an Eclipse update site (Designer's, or one rendered from another catalog with <code>package.site</code>). Fetching puts the jar in this catalog — installing or upgrading on a driver is reviewed on the Installed tab.</p>
+      {!catalogAvailable && <div className="banner error">No catalog on this server: start it with --catalog DIR (or IDM_CATALOG) to fetch packages.</div>}
+      <div className="addrow">
+        <select value={site} onChange={(e) => setSite(e.target.value)} data-testid="pkg-site">
+          {sites.map((s) => (
+            <option key={s.name} value={s.url}>
+              {s.name} — {s.url}
+            </option>
+          ))}
+          <option value={CUSTOM}>another URL…</option>
+        </select>
+        {site === CUSTOM && <input value={custom} onChange={(e) => setCustom(e.target.value)} placeholder="https://host/path/to/updatesite/" spellCheck={false} data-testid="pkg-site-url" />}
+        <button onClick={browse} disabled={!catalogAvailable || !url || busy !== null} data-testid="pkg-site-browse">
+          {busy === "browse" ? "Reading…" : "Browse"}
+        </button>
+      </div>
+      {error && <div className="banner error">{error}</div>}
+      {listing && !listing.ok && <div className="banner error">Could not read the site: {listing.error}</div>}
+      {listing && listing.ok && (
+        <>
+          <div className="addrow">
+            <button className="primary" disabled={picked.length === 0 || busy !== null} onClick={() => fetch(picked, "picked")} data-testid="pkg-fetch-picked">
+              {busy === "picked" ? "Fetching…" : `Fetch selected (${picked.length})`}
+            </button>
+            <button disabled={updates.length === 0 || busy !== null} onClick={() => fetch(updates.map((p) => p.short), "updates")} title="Every installed package the site has a newer version of" data-testid="pkg-fetch-updates">
+              {busy === "updates" ? "Fetching…" : `Fetch updates for installed packages (${updates.length})`}
+            </button>
+            <span className="muted small">{listing.packages.length} packages on the site</span>
+          </div>
+          <table className="grid" data-testid="pkg-site-listing">
+            <thead>
+              <tr>
+                <th />
+                <th>Short name</th>
+                <th>Display name</th>
+                <th>Newest on the site</th>
+                <th>In the catalog</th>
+                <th>Installed</th>
+              </tr>
+            </thead>
+            <tbody>
+              {listing.packages.map((p) => (
+                <tr key={p.short} className={p.newer ? "newer" : ""}>
+                  <td>
+                    <input type="checkbox" checked={picked.includes(p.short)} onChange={() => toggle(p.short)} />
+                  </td>
+                  <td>
+                    <code>{p.short}</code>
+                  </td>
+                  <td>{p.displayName ?? ""}</td>
+                  <td className="small">
+                    {p.newest}
+                    {p.versions.length > 1 && <span className="muted"> (+{p.versions.length - 1} older)</span>}
+                  </td>
+                  <td className="small">{p.inCatalog.length === 0 ? <span className="muted">—</span> : p.newer ? <span className="warn-text">{p.inCatalog.join(", ")} — site is newer</span> : p.inCatalog.join(", ")}</td>
+                  <td className="small">{installed.has(p.short) ? "yes" : ""}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
+      {result && (
+        <div className={result.ok ? "banner" : "banner error"} data-testid="pkg-fetch-result">
+          {result.error && <div>{result.error}</div>}
+          {result.added.length > 0 && <div>Added: {result.added.join(", ")}</div>}
+          {result.skipped.length > 0 && <div className="muted">Already in the catalog: {result.skipped.join(", ")}</div>}
+          {result.refused.length > 0 && <div className="warn-text">Refused: {result.refused.join("; ")}</div>}
+        </div>
+      )}
     </div>
   );
 }

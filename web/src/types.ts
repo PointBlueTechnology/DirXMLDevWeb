@@ -179,6 +179,8 @@ export interface Definition {
   choices: { value: string; label: string }[];
   owner?: string;
   overrideKey?: string;
+  /** Where the GCV is read: policies by artifact path, a driver's configuration documents by file. */
+  usedBy?: { kind: string; path: string; file?: string }[];
 }
 
 export interface ConfigView {
@@ -223,6 +225,10 @@ export interface OpResult {
   diffs?: FileDiff[];
 }
 
+/** The things the New menus create (roles and resources are made in the Roles view). */
+export type NewWhat = "policy" | "mapping-table" | "ecmascript" | "gcv" | "entitlement" | "form" | "prd" | "entity" | "driver";
+export const NEW_WHATS: NewWhat[] = ["policy", "mapping-table", "ecmascript", "gcv", "entitlement", "form", "prd", "entity", "driver"];
+
 /** What the main pane shows. */
 export type Selection =
   | { type: "home" }
@@ -240,7 +246,7 @@ export type Selection =
   | { type: "packages" }
   | { type: "connections"; env?: string }
   | { type: "entitlement"; driver: string; name: string; file: string }
-  | { type: "new"; what: "policy" | "entitlement" | "form" | "prd" | "driver"; driver: string | null }
+  | { type: "new"; what: NewWhat; driver: string | null }
   | { type: "changes"; against?: "head" | "base" | "upstream" }
   | { type: "operations" };
 
@@ -457,6 +463,26 @@ export interface PackagesData {
   catalog: { dir: string | null; available: boolean; packages: CatalogPackage[] };
   status: { targets: { name: string; packages: InstalledPackage[]; customized: string[]; notes: string[] }[] };
   text: string;
+}
+
+export interface UpdateSites {
+  available: boolean;
+  sites: { name: string; url: string }[];
+}
+
+export interface SiteListing {
+  url: string;
+  ok: boolean;
+  error?: string;
+  packages: { short: string; displayName: string | null; versions: string[]; newest: string; inCatalog: string[]; newer: boolean }[];
+}
+
+export interface FetchResult {
+  ok: boolean;
+  error?: string;
+  added: string[];
+  skipped: string[];
+  refused: string[];
 }
 
 export interface BuildResult {

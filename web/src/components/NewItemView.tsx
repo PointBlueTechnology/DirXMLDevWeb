@@ -1,12 +1,22 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
 import { writeEntitlement } from "../prov/entitlement";
-import type { CatalogPackage, OpCall, Outline, Selection } from "../types";
+import type { CatalogPackage, NewWhat, OpCall, Outline, Selection } from "../types";
 import { ReviewDialog } from "./ReviewDialog";
 
-type What = "policy" | "entitlement" | "form" | "prd" | "driver";
+type What = NewWhat;
 
-const TITLES: Record<What, string> = { policy: "New policy", entitlement: "New entitlement", form: "New form", prd: "New provisioning request definition", driver: "New driver" };
+const TITLES: Record<What, string> = {
+  policy: "New policy",
+  "mapping-table": "New mapping table",
+  ecmascript: "New ECMAScript resource",
+  gcv: "New GCV resource",
+  entitlement: "New entitlement",
+  form: "New form",
+  prd: "New provisioning request definition",
+  entity: "New entity (directory abstraction)",
+  driver: "New driver",
+};
 
 /**
  * Creating things: a policy (linked into a policy set, or left for later), an entitlement, a
@@ -33,6 +43,8 @@ export function NewItemView({ what, driver, outline, onSelect, onSaved }: { what
       </div>
       <div className="pad scroll">
         {what === "policy" && <NewPolicy driver={driver} onStage={stage} />}
+        {(what === "mapping-table" || what === "ecmascript" || what === "gcv") && <NewResource driver={driver} kind={what} onStage={stage} />}
+        {what === "entity" && d && <NewEntity driver={d.name} onStage={stage} />}
         {what === "entitlement" && d && <NewEntitlement driver={d.name} onStage={stage} />}
         {what === "form" && d && <NewForm driver={d.name} forms={d.forms.map((f) => ({ name: f.name, kind: f.kind ?? "request" }))} onStage={stage} />}
         {what === "prd" && d && <NewPrd driver={d.name} forms={d.forms.map((f) => ({ name: f.name, kind: f.kind ?? "request" }))} prds={d.prds.map((p) => p.name)} onStage={stage} />}
@@ -73,14 +85,21 @@ function NewPolicy({ driver, onStage }: { driver: string | null; onStage: Stage 
   const [scope, setScope] = useState(driver ? "subscriber" : "library");
   const [link, setLink] = useState("");
   const [at, setAt] = useState("last");
-  const [sets, setSets] = useState<{ key: string; label: string; channel: string }[]>([]);
+  const [sets, setSets] = useState<{ key: string; label: string; channel: string; members: { ref: string; name: string }[] }[]>([]);
   useEffect(() => {
     if (driver) {
       api
         .fishbone(driver)
-        .then((m) => setSets([...m.spine, ...m.subscriber, ...m.publisher].map((b) => ({ key: b.key, label: b.label, channel: b.channel }))))
+        .then((m) => {
+          const all = [...m.spine, ...m.subscriber, ...m.publisher].map((b) => ({ key: b.key, label: b.label, channel: b.channel, members: b.policies.map((p) => ({ ref: p.ref, name: p.name })) }));
+          setSets(all);
+          // start on the channel's first set (Designer's Event Transformation) so a new policy is linked, not left loose
+          setLink((cur) => cur || (all.find((s) => s.channel === scope)?.key ?? ""));
+        })
         .catch(() => setSets([]));
     }
+    // the preselection follows the first load only
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [driver]);
   const chosen = sets.find((s) => s.key === link);
   const ok = NAME.test(name.trim());
@@ -111,22 +130,39 @@ function NewPolicy({ driver, onStage }: { driver: string | null; onStage: Stage 
       {driver && (
         <label className="field">
           <em>Link into a policy set</em>
-          <select value={link} onChange={(e) => setLink(e.target.value)} data-testid="new-link">
-            <option value="">not yet (link it from the policy flow later)</option>
+          <select
+            value={link}
+            onChange={(e) => {
+              setLink(e.target.value);
+              setAt("last");
+            }}
+            data-testid="new-link"
+          >
             {sets.map((s) => (
               <option key={s.key} value={s.key}>
-                {s.channel}: {s.label}
+                {s.channel}: {s.label} ({s.members.length})
               </option>
             ))}
+            <option value="">none — leave it unlinked (link it from the policy flow later)</option>
           </select>
         </label>
       )}
       {link && (
         <label className="field">
           <em>Position in {chosen?.label}</em>
-          <select value={at} onChange={(e) => setAt(e.target.value)}>
-            <option value="last">last</option>
+          <select value={at} onChange={(e) => setAt(e.target.value)} data-testid="new-at">
+            <option value="last">last{chosen && chosen.members.length > 0 ? ` (after ${chosen.members[chosen.members.length - 1]!.name})` : ""}</option>
             <option value="first">first</option>
+            {chosen?.members.map((m) => (
+              <option key={"b" + m.ref} value={"before:" + m.ref}>
+                before {m.name}
+              </option>
+            ))}
+            {chosen?.members.slice(0, -1).map((m) => (
+              <option key={"a" + m.ref} value={"after:" + m.ref}>
+                after {m.name}
+              </option>
+            ))}
           </select>
         </label>
       )}
@@ -150,7 +186,125 @@ function NewPolicy({ driver, onStage }: { driver: string | null; onStage: Stage 
           Create
         </button>
       </div>
-      <p className="muted small">A skeleton is written (one empty rule for a policy); edit it in the structured editor next. A policy set is a fixed slot on the driver — new policies are linked into one, not the other way round.</p>
+      <p className="muted small">A skeleton is written (one empty rule for a policy); edit it in the structured editor next. A policy set is a fixed slot on the driver — new policies are linked into one, not the other way round; the policy flow reorders a set.</p>
+    </div>
+  );
+}
+
+const RESOURCE_WORDS: Record<string, { noun: string; set: string | null; note: string }> = {
+  "mapping-table": { noun: "mapping table", set: null, note: "A table with one column is written; add columns and rows in the table editor next. Policies read it with the Map token." },
+  ecmascript: { noun: "ECMAScript resource", set: "ecmascript", note: "An empty script is written; edit it next. Linked into the driver's ECMAScript set, its functions are callable from policies." },
+  gcv: { noun: "GCV resource", set: "gcv", note: "An empty definition list is written; add GCVs in the Configuration view. Linked into the driver's GCV set, the driver reads its values." },
+};
+
+/** A mapping table, ECMAScript or GCV-definition resource — `artifact.add`, linked into the driver-level set where one exists. */
+function NewResource({ driver, kind, onStage }: { driver: string | null; kind: "mapping-table" | "ecmascript" | "gcv"; onStage: Stage }) {
+  const words = RESOURCE_WORDS[kind]!;
+  const [name, setName] = useState("");
+  const [scope, setScope] = useState(driver ? "driver" : "library");
+  const [link, setLink] = useState(!!driver && !!words.set);
+  const ok = NAME.test(name.trim());
+  return (
+    <div className="attrs">
+      <label className="field">
+        <em>Name</em>
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder={kind === "mapping-table" ? "CodeMap" : kind === "ecmascript" ? "lib-Helpers" : "drv-Settings"} spellCheck={false} data-testid="new-name" />
+      </label>
+      {driver && (
+        <label className="field">
+          <em>Kept under</em>
+          <select value={scope} onChange={(e) => setScope(e.target.value)}>
+            <option value="driver">the driver (driver scope)</option>
+            <option value="subscriber">the Subscriber channel</option>
+            <option value="publisher">the Publisher channel</option>
+          </select>
+        </label>
+      )}
+      {driver && words.set && (
+        <label className="checkchip">
+          <input type="checkbox" checked={link} onChange={(e) => setLink(e.target.checked)} data-testid="new-link-set" /> link it into the driver's {kind === "gcv" ? "GCV" : "ECMAScript"} set
+        </label>
+      )}
+      <div className="addrow">
+        <button
+          className="primary"
+          disabled={!ok}
+          onClick={() => {
+            const args: Record<string, string> = { name: name.trim(), kind, scope };
+            if (driver) {
+              args.driver = driver;
+            }
+            if (driver && link && words.set) {
+              args.link = words.set;
+            }
+            onStage({ name: "artifact.add", args, label: `create ${words.noun} ${name.trim()}${driver && link && words.set ? ` and link it into the ${words.set} set` : ""}` }, (o) => findArtifact(o, driver, name.trim()));
+          }}
+          data-testid="new-go"
+        >
+          Create
+        </button>
+      </div>
+      <p className="muted small">{words.note}</p>
+    </div>
+  );
+}
+
+/** A directory-abstraction entity on the User Application driver — `entity.add`; attributes are added through Operations (entity.attr.add). */
+function NewEntity({ driver, onStage }: { driver: string; onStage: Stage }) {
+  const [f, setF] = useState({ key: "", objectClass: "", display: "", aux: "", searchRoot: "%user-root%", naming: "" });
+  const ok = NAME.test(f.key.trim()) && !!f.objectClass.trim();
+  return (
+    <div className="attrs">
+      <label className="field">
+        <em>Key (cn)</em>
+        <input value={f.key} onChange={(e) => setF({ ...f, key: e.target.value })} placeholder="contractor" spellCheck={false} data-testid="new-name" />
+      </label>
+      <label className="field">
+        <em>LDAP object class</em>
+        <input value={f.objectClass} onChange={(e) => setF({ ...f, objectClass: e.target.value })} placeholder="inetOrgPerson" spellCheck={false} />
+      </label>
+      <label className="field">
+        <em>Display name</em>
+        <input value={f.display} onChange={(e) => setF({ ...f, display: e.target.value })} />
+      </label>
+      <label className="field">
+        <em>Auxiliary classes (comma-separated, optional)</em>
+        <input value={f.aux} onChange={(e) => setF({ ...f, aux: e.target.value })} spellCheck={false} />
+      </label>
+      <label className="field">
+        <em>Search root</em>
+        <input value={f.searchRoot} onChange={(e) => setF({ ...f, searchRoot: e.target.value })} spellCheck={false} />
+      </label>
+      <label className="field">
+        <em>Naming attribute (default cn)</em>
+        <input value={f.naming} onChange={(e) => setF({ ...f, naming: e.target.value })} spellCheck={false} />
+      </label>
+      <div className="addrow">
+        <button
+          className="primary"
+          disabled={!ok}
+          onClick={() => {
+            const args: Record<string, string> = { key: f.key.trim(), "object-class": f.objectClass.trim(), driver };
+            if (f.display) {
+              args.display = f.display;
+            }
+            if (f.aux.trim()) {
+              args["aux-class"] = f.aux.trim();
+            }
+            if (f.searchRoot.trim()) {
+              args["search-root"] = f.searchRoot.trim();
+            }
+            if (f.naming.trim()) {
+              args["naming-attribute"] = f.naming.trim();
+            }
+            onStage({ name: "entity.add", args, label: `create entity ${f.key.trim()} (${f.objectClass.trim()})` }, () => ({ type: "roles" }));
+          }}
+          data-testid="new-go"
+        >
+          Create
+        </button>
+      </div>
+      <p className="muted small">The entity is written with no attributes; add them with Operations → entity.attr.add (or let an agent do it).</p>
     </div>
   );
 }

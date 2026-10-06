@@ -168,8 +168,13 @@ oidc.scopes=openid profile email
 Register the client as confidential with redirect URI `<public.url>/auth/callback`;
 [hosted/keycloak](hosted/keycloak/README.md) has a ready realm. `bin/smoke-hosted.sh` walks the
 whole loop with the `none` provider against a local bare repository; `bin/smoke-oidc.sh` does it
-through a real Keycloak in Docker. The container image is the next step of
-[docs/hosted.md](docs/hosted.md).
+through a real Keycloak in Docker.
+
+The **container** ([docs/hosted-install.md](docs/hosted-install.md)): `hosted/docker/build.sh`
+builds an image with the server, the page and the `idm` CLI on a JRE with git; the engine jars
+are mounted, never shipped. `hosted/docker/compose.yml` runs it behind Caddy (TLS) with Keycloak.
+**Agents** (CI, an MCP server) use the same server with `Authorization: Bearer <token>` from
+`agents=`, or the CLI with `docker exec idmweb idm …`; `bin/smoke-container.sh` proves the image.
 
 ## Security model
 
@@ -268,5 +273,5 @@ a follow-up (docs/design.md).
   but are edited in its files; comparing with another tree stays with `idm simulate --against`.
 - Cases are kept in `cases/` beside the tree (or `--cases DIR`). They are not part of the
   tree's revision: the page reloads them after its own writes.
-- Hosted mode has sign-in (none, OIDC), workspaces, commit, push, update, roles and the audit
-  log; the container image and an agent token follow (docs/hosted.md).
+- Hosted sessions live in memory: a restart signs everyone out. Pull requests are a link to the
+  provider's compare page; creating them through an API is a follow-up.

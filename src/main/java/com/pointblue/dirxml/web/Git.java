@@ -35,8 +35,16 @@ public final class Git {
 
     private final Path askpass;     // null without a token
     private final String token;
+    private final Path sshKey;      // an SSH deploy key for a git@ remote, or null
+    private final Path knownHosts;
 
     public Git(Path dataDir, String token) throws IOException {
+        this(dataDir, token, null);
+    }
+
+    public Git(Path dataDir, String token, Path sshKey) throws IOException {
+        this.sshKey = sshKey;
+        this.knownHosts = dataDir == null ? null : dataDir.resolve("known_hosts");
         this.token = token == null || token.isBlank() ? null : token;
         if (this.token == null || dataDir == null) {
             this.askpass = null;
@@ -63,6 +71,10 @@ public final class Git {
         if (askpass != null) {
             env.put("GIT_ASKPASS", askpass.toString());
             env.put("IDMWEB_GIT_TOKEN", token);
+        }
+        if (sshKey != null) {
+            // the deploy key, and a known_hosts of our own that learns a host on first contact
+            env.put("GIT_SSH_COMMAND", "ssh -i " + sshKey + " -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=" + knownHosts + " -o BatchMode=yes");
         }
         try {
             Process p = pb.start();

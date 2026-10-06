@@ -44,7 +44,7 @@ public final class OidcIdentity implements Identity {
     private final String scopes;
     private final String groupsClaim;
     private final String redirect;
-    private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).followRedirects(HttpClient.Redirect.NEVER).build();
+    private final HttpClient http;
     private volatile Map<String, Object> discovery;
     private volatile Map<String, Map<String, Object>> keys = Map.of();   // kid -> JWK
     private final Map<String, Pending> pending = new ConcurrentHashMap<>();
@@ -70,6 +70,62 @@ public final class OidcIdentity implements Identity {
         this.scopes = hosted.props.getProperty("oidc.scopes", "openid profile email").trim();
         this.groupsClaim = hosted.props.getProperty("oidc.groupsClaim", "groups").trim();
         this.redirect = hosted.publicUrl + "/auth/callback";
+        HttpClient.Builder b = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).followRedirects(HttpClient.Redirect.NEVER);
+        String ca = hosted.props.getProperty("oidc.caFile");
+        if (ca != null && !ca.isBlank()) {
+            b.sslContext(trusting(java.nio.file.Path.of(ca.trim())));
+        }
+        this.http = b.build();
+    }
+
+    /** The JDK's trust plus the certificates in {@code pem} (a private CA, a reverse proxy's internal root). */
+    static javax.net.ssl.SSLContext trusting(java.nio.file.Path pem) throws IOException {
+        try {
+            java.security.cert.CertificateFactory cf = java.security.cert.CertificateFactory.getInstance("X.509");
+            java.security.KeyStore ks = java.security.KeyStore.getInstance(java.security.KeyStore.getDefaultType());
+            ks.load(null, null);
+            int n = 0;
+            try (java.io.InputStream in = java.nio.file.Files.newInputStream(pem)) {
+                for (java.security.cert.Certificate c : cf.generateCertificates(in)) {
+                    ks.setCertificateEntry("extra-" + n++, c);
+                }
+            }
+            javax.net.ssl.TrustManagerFactory extra = javax.net.ssl.TrustManagerFactory.getInstance(javax.net.ssl.TrustManagerFactory.getDefaultAlgorithm());
+            extra.init(ks);
+            javax.net.ssl.TrustManagerFactory dflt = javax.net.ssl.TrustManagerFactory.getInstance(javax.net.ssl.TrustManagerFactory.getDefaultAlgorithm());
+            dflt.init((java.security.KeyStore) null);
+            javax.net.ssl.X509TrustManager a = (javax.net.ssl.X509TrustManager) dflt.getTrustManagers()[0];
+            javax.net.ssl.X509TrustManager x = (javax.net.ssl.X509TrustManager) extra.getTrustManagers()[0];
+            javax.net.ssl.X509TrustManager both = new javax.net.ssl.X509TrustManager() {
+                @Override
+                public void checkClientTrusted(java.security.cert.X509Certificate[] chain, String authType) throws java.security.cert.CertificateException {
+                    a.checkClientTrusted(chain, authType);
+                }
+
+                @Override
+                public void checkServerTrusted(java.security.cert.X509Certificate[] chain, String authType) throws java.security.cert.CertificateException {
+                    try {
+                        a.checkServerTrusted(chain, authType);
+                    } catch (java.security.cert.CertificateException e) {
+                        x.checkServerTrusted(chain, authType);
+                    }
+                }
+
+                @Override
+                public java.security.cert.X509Certificate[] getAcceptedIssuers() {
+                    java.security.cert.X509Certificate[] p = a.getAcceptedIssuers();
+                    java.security.cert.X509Certificate[] q = x.getAcceptedIssuers();
+                    java.security.cert.X509Certificate[] all = java.util.Arrays.copyOf(p, p.length + q.length);
+                    System.arraycopy(q, 0, all, p.length, q.length);
+                    return all;
+                }
+            };
+            javax.net.ssl.SSLContext ctx = javax.net.ssl.SSLContext.getInstance("TLS");
+            ctx.init(null, new javax.net.ssl.TrustManager[] {both}, null);
+            return ctx;
+        } catch (java.security.GeneralSecurityException e) {
+            throw new IOException("oidc.caFile " + pem + ": " + e.getMessage(), e);
+        }
     }
 
     private static String need(Hosted h, String key) {

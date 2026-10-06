@@ -384,7 +384,23 @@ button.link {
 }
 .editor {
   flex: 1;
+  /* Monaco takes 100% of this box, so it needs a resolved height, not only a minimum:
+     a flex child gets one from its column; a plain block gets it from the viewport */
   min-height: 320px;
+  height: calc(100vh - 240px);
+}
+.formjson {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+.field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+  resize: vertical;
+  min-height: 2.6em;
 }
 .rules {
   overflow: auto;
@@ -1080,8 +1096,8 @@ button.danger:not(:disabled) { background: var(--err); border-color: var(--err);
 .pkgtarget .filelist { list-style: none; padding: 0; margin: 0 0 8px; }
 
 /* connections */
-.connform .attrs .field.wide { flex-basis: 100%; }
-.connform .attrs .field.wide input { width: 100%; box-sizing: border-box; }
+.attrs .field.wide { flex-basis: 100%; }
+.attrs .field.wide input, .attrs .field.wide textarea { width: 100%; box-sizing: border-box; }
 .connform h4 { margin: 14px 0 4px; }
 table.grid tr.selected td { background: var(--bg); }
 
@@ -1092,3 +1108,5 @@ table.grid tr.selected td { background: var(--bg); }
 .repobar { display: flex; align-items: center; gap: 10px; padding: 6px 16px; border-bottom: 1px solid var(--border); background: var(--surface); flex-wrap: wrap; }
 .repobar .commitmsg { flex: 1; min-width: 160px; max-width: 420px; }
 .repobar .branchpick { display: inline-flex; align-items: center; gap: 8px; }
+
+.modes .checkchip.on { border-color: var(--accent); }

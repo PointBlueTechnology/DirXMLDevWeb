@@ -214,6 +214,7 @@ export type Selection =
   | { type: "roles" }
   | { type: "packages" }
   | { type: "connections"; env?: string }
+  | { type: "entitlement"; driver: string; name: string; file: string }
   | { type: "operations" };
 
 /** An environment of the environments file, described without its values. */

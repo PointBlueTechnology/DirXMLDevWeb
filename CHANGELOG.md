@@ -7,6 +7,11 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Fixed
+
+- Policy flow: the Command Transformation stacks overlapped the Input/Output Transformation
+  stacks (and their boxes touched); the Input/Output column and the Application cap moved right.
+
 ## [0.9.1] - 2026-10-06
 
 ### Fixed

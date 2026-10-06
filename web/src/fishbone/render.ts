@@ -8,16 +8,17 @@ const POLICY_CHIP_H = 22;
 /** Chip rect is drawn at centerY - POLICY_CHIP_TOP. */
 const POLICY_CHIP_TOP = 10;
 
-// Chips are 150 wide on ribs 150 apart, so the Command Transformation stack (rib 850) must not
-// meet the Input/Output stacks: those sit 190 further right, leaving a 40px gutter between them.
+// Set boxes are BOX_W wide ("Command Transformation" at 13px semibold is ~160px) on ribs 180
+// apart; chips (150) sit under them. The Input/Output column is a box-and-gutter past the last rib.
+const BOX_W = 170;
 const LAYOUT = {
-  width: 1300,
+  width: 1440,
   spineY: 320,
-  ribXs: [250, 400, 550, 700, 850] as const,
+  ribXs: [250, 430, 610, 790, 970] as const,
   idvX: 80,
-  appX: 1220,
-  schemaX: 1040,
-  ioX: 1040,
+  appX: 1360,
+  schemaX: 1170,
+  ioX: 1170,
   ribOffset: 118,
   boxHalf: 22,
   stackFromBox: 36,
@@ -91,8 +92,8 @@ export function renderSvg(model: FishboneModel): string {
 
   const parts: string[] = [];
   parts.push(`<svg viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Policy flow fishbone">`);
-  parts.push(`<text class="channel-label pub" x="530" y="36" text-anchor="middle">Publisher channel</text>`);
-  parts.push(`<text class="channel-label sub" x="530" y="${height - 16}" text-anchor="middle">Subscriber channel</text>`);
+  parts.push(`<text class="channel-label pub" x="610" y="36" text-anchor="middle">Publisher channel</text>`);
+  parts.push(`<text class="channel-label sub" x="610" y="${height - 16}" text-anchor="middle">Subscriber channel</text>`);
 
   // spine
   parts.push(`<line class="spine" x1="${idvX + 48}" y1="${spineY}" x2="${appX - 48}" y2="${spineY}"/>`);
@@ -171,7 +172,7 @@ function ioBone(cx: number, spineY: number, dir: number, bone: FishboneBone): st
   return `<g class="bone ${klass}${empty}" data-node="${escAttr(bone.id)}" tabindex="0">
     <title>${esc(boneTip(bone))}</title>
     <line class="rib" x1="${cx}" y1="${spineY + dir * LAYOUT.boxHalf}" x2="${cx}" y2="${boxY - dir * LAYOUT.boxHalf}"/>
-    <rect x="${cx - 70}" y="${boxY - LAYOUT.boxHalf}" width="140" height="${LAYOUT.boxHalf * 2}" rx="6"/>
+    <rect x="${cx - BOX_W / 2}" y="${boxY - LAYOUT.boxHalf}" width="${BOX_W}" height="${LAYOUT.boxHalf * 2}" rx="6"/>
     <text class="bone-title" x="${cx}" y="${boxY - 4}" text-anchor="middle">${esc(bone.label)}</text>
     <text class="count" x="${cx}" y="${boxY + 14}" text-anchor="middle">${bone.policies.length} polic${bone.policies.length === 1 ? "y" : "ies"}</text>
     ${policyStack(cx, boxY + dir * LAYOUT.stackFromBox, bone, dir)}
@@ -185,7 +186,7 @@ function rib(cx: number, spineY: number, dir: number, bone: FishboneBone): strin
   return `<g class="bone ${klass}${empty}" data-node="${escAttr(bone.id)}" tabindex="0">
     <title>${esc(boneTip(bone))}</title>
     <line class="rib" x1="${cx}" y1="${spineY}" x2="${cx}" y2="${boxY - dir * LAYOUT.boxHalf}"/>
-    <rect x="${cx - 68}" y="${boxY - LAYOUT.boxHalf}" width="136" height="${LAYOUT.boxHalf * 2}" rx="6"/>
+    <rect x="${cx - BOX_W / 2}" y="${boxY - LAYOUT.boxHalf}" width="${BOX_W}" height="${LAYOUT.boxHalf * 2}" rx="6"/>
     <text class="bone-title" x="${cx}" y="${boxY - 4}" text-anchor="middle">${esc(bone.label)}</text>
     <text class="count" x="${cx}" y="${boxY + 14}" text-anchor="middle">${bone.policies.length} polic${bone.policies.length === 1 ? "y" : "ies"}</text>
     ${policyStack(cx, boxY + dir * LAYOUT.stackFromBox, bone, dir)}

@@ -9,8 +9,9 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Fixed
 
-- Policy flow: the Command Transformation stacks overlapped the Input/Output Transformation
-  stacks (and their boxes touched); the Input/Output column and the Application cap moved right.
+- Policy flow: "Command Transformation" overran its box, and its policy stacks overlapped the
+  Input/Output Transformation stacks (the boxes touched). Set boxes are 170 wide on ribs 180
+  apart now, with a gutter before the Input/Output column.
 
 ## [0.9.1] - 2026-10-06
 

@@ -154,14 +154,17 @@ public final class Hosted {
         projects.put(pr.name, pr);
         PropertiesFile pf = new PropertiesFile(file);
         pf.set("projects", String.join(",", projects.keySet()));
-        String pre = "project." + pr.name + ".repo.";
-        pf.set(pre + "url", pr.url);
-        pf.set(pre + "inPlace", pr.inPlace == null ? null : pr.inPlace.toString());
-        pf.set(pre + "tree", pr.tree);
-        pf.set(pre + "cases", pr.cases);
-        pf.set(pre + "base", pr.base);
-        if (pr.token != null && !pr.token.isBlank()) {
-            pf.set(pre + "token", pr.token);
+        // every project is written: one read from the older single repo.* keys gets its own lines now
+        for (Project each : projects.values()) {
+            String pre = "project." + each.name + ".repo.";
+            pf.set(pre + "url", each.url);
+            pf.set(pre + "inPlace", each.inPlace == null ? null : each.inPlace.toString());
+            pf.set(pre + "tree", each.tree);
+            pf.set(pre + "cases", each.cases);
+            pf.set(pre + "base", each.base);
+            if (each.token != null && !each.token.isBlank()) {
+                pf.set(pre + "token", each.token);
+            }
         }
         // the older single-repository keys are superseded by the list
         for (String k : new String[] {"repo.url", "repo.inPlace", "repo.tree", "repo.cases", "repo.base", "repo.name"}) {

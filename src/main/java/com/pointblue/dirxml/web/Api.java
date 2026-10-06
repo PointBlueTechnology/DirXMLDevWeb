@@ -499,6 +499,9 @@ public final class Api implements HttpHandler {
         if (method.equals("GET") && path.equals("/api/setup")) {
             return setup.state();
         }
+        if (method.equals("GET") && path.equals("/api/setup/driversets")) {
+            return setup.driverSets(required(query, "env"));
+        }
         if (!method.equals("POST")) {
             throw new TreeService.NotFound("no such endpoint: " + method + " " + path);
         }
@@ -512,7 +515,7 @@ public final class Api implements HttpHandler {
         String project = Json.asString(req.get("project"));
         switch (path) {
             case "/api/setup/vault":
-                return setup.fromVault(session, project, Json.asString(req.get("env")));
+                return setup.fromVault(session, project, Json.asString(req.get("env")), Json.asString(req.get("driverSet")));
             case "/api/setup/project":
                 return setup.fromProjectPath(session, project, Json.asString(req.get("path")));
             case "/api/setup/existing":

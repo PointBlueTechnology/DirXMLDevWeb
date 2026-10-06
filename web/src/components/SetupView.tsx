@@ -13,6 +13,9 @@ export function SetupView({ first, onDone, onConnections, onCancel }: { first: b
   const [project, setProject] = useState("");
   const [conns, setConns] = useState<Connections | null>(null);
   const [env, setEnv] = useState("");
+  const [sets, setSets] = useState<{ dn: string; name: string; drivers: number; default: boolean }[] | null>(null);
+  const [setsError, setSetsError] = useState<string | null>(null);
+  const [driverSet, setDriverSet] = useState("");
   const [path, setPath] = useState("");
   const [url, setUrl] = useState("");
   const [token, setToken] = useState("");
@@ -28,6 +31,28 @@ export function SetupView({ first, onDone, onConnections, onCancel }: { first: b
       .then(setConns)
       .catch(() => setConns(null));
   }, [way]);
+  useEffect(() => {
+    // the driver sets a vault holds, once an environment is chosen
+    setSets(null);
+    setSetsError(null);
+    setDriverSet("");
+    if (!env) {
+      return;
+    }
+    let gone = false;
+    api.setup
+      .driverSets(env)
+      .then((r) => {
+        if (!gone) {
+          setSets(r.driverSets);
+          setDriverSet(r.driverSets.find((d) => d.default)?.dn ?? r.driverSets[0]?.dn ?? "");
+        }
+      })
+      .catch((e: Error) => !gone && setSetsError(e.message));
+    return () => {
+      gone = true;
+    };
+  }, [env]);
 
   const run = (what: string, fn: () => Promise<SetupResult>) => {
     setBusy(what);
@@ -111,8 +136,19 @@ export function SetupView({ first, onDone, onConnections, onCancel }: { first: b
                   </option>
                 ))}
               </select>
-              <button className="primary" disabled={!env || busy !== null} onClick={() => run("Reading the vault…", () => api.setup.vault(project, env))} data-testid="setup-vault-go">
-                Read the driver set
+              {env && sets === null && !setsError && <span className="muted small">looking for driver sets…</span>}
+              {sets && sets.length > 0 && (
+                <select value={driverSet} onChange={(e) => setDriverSet(e.target.value)} data-testid="setup-driverset" title="The driver set to read">
+                  {sets.map((d) => (
+                    <option key={d.dn} value={d.dn}>
+                      {d.name} — {d.drivers} driver{d.drivers === 1 ? "" : "s"}{d.default ? " (the connection's)" : ""} · {d.dn}
+                    </option>
+                  ))}
+                </select>
+              )}
+              {sets && sets.length === 0 && <span className="err-text small">no driver set found in that vault</span>}
+              <button className="primary" disabled={!env || !driverSet || busy !== null} onClick={() => run("Reading the vault…", () => api.setup.vault(project, env, driverSet))} data-testid="setup-vault-go">
+                Read {sets?.find((d) => d.dn === driverSet)?.name ?? "the driver set"}
               </button>
               <button className="link" onClick={onConnections}>
                 add or edit a connection
@@ -127,6 +163,8 @@ export function SetupView({ first, onDone, onConnections, onCancel }: { first: b
               (URL, bind DN, driver set, password), then come back here.
             </p>
           )}
+          {setsError && <div className="banner error">{setsError}</div>}
+          <p className="muted small">A vault may hold several driver sets; the connection's own is preselected. Each becomes its own project.</p>
         </section>
       )}
 

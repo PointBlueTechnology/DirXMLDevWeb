@@ -1159,3 +1159,22 @@ table.grid tr.selected td { background: var(--bg); }
 .setpanel .addrow select { flex: 1 1 auto; min-width: 0; }
 .usedby .link { margin-right: 8px; }
 tr.newer td { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+
+/* validation: hidden to a strip, severity filter, findings grouped by module */
+.body.problems-hidden { grid-template-columns: 280px minmax(0, 1fr); }
+.vsummary { display: inline-flex; align-items: center; gap: 6px; margin-right: 8px; }
+.vsummary .pill, .sevfilter .pill { cursor: pointer; background: none; font: inherit; font-size: 11px; }
+.vsummary .pill:hover, .sevfilter .pill:hover { background: color-mix(in srgb, var(--text) 8%, transparent); }
+.sevfilter { gap: 6px; }
+.sevfilter .pill.off { opacity: 0.45; text-decoration: line-through; }
+.fgroup > summary { display: flex; align-items: center; gap: 8px; padding: 8px 12px; cursor: pointer; border-bottom: 1px solid var(--border); background: color-mix(in srgb, var(--surface) 85%, var(--text) 15%); font-weight: 600; font-size: 12px; position: sticky; top: 0; z-index: 1; }
+.fgroup > summary .module { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fgroup > summary .gcounts { display: inline-flex; gap: 8px; font-variant-numeric: tabular-nums; }
+.warn-text { color: var(--warn); font-weight: 600; }
+.linkish { border: 0; background: none; color: var(--accent); cursor: pointer; font: inherit; font-size: 12px; padding: 0; }
+@media (max-width: 1150px) { .body.problems-hidden { grid-template-columns: 240px minmax(0, 1fr); } }
+
+/* the repository bar: uncommitted work and unpushed commits stand out */
+.repobar .pill.dirty, .repobar .pill.ahead { cursor: pointer; background: none; font: inherit; font-size: 11px; font-weight: 600; }
+.repobar .pill.dirty { color: var(--warn); border-color: var(--warn); background: color-mix(in srgb, var(--warn) 12%, transparent); }
+.repobar .pill.ahead { color: var(--accent); border-color: var(--accent); }

@@ -7,6 +7,18 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-10-06
+
+### Added
+
+- Validation: the counts (errors, warnings, info) are always in the top bar; the findings list is
+  optional (hide ▸ / the "Validation" word), and clicking a count opens the list filtered to that
+  severity. The list groups findings by the module they occur in (each driver, the Library, the
+  driver set; modules with errors first), each group folds, and the severity pills at its top
+  toggle what it shows. Both choices are remembered per browser.
+- Repository bar: uncommitted files show as an amber "● N uncommitted files" pill and unpushed
+  commits as "↑ N to push", instead of muted text.
+
 ## [0.10.0] - 2026-10-06
 
 ### Fixed

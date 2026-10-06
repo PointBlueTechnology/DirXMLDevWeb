@@ -132,14 +132,14 @@ export function RepoBar({ session, revision, onWorkspaceChanged, onAddProject, o
         <>
           <span className="muted small" title={status.last ? `${status.last.hash} ${status.last.author}, ${status.last.when}: ${status.last.subject}` : ""}>
             {!hosted && <>on <strong>{status.branch}</strong> · </>}
-            <button className="link" onClick={() => onSelect({ type: "changes", against: "head" })} title="What differs from the last commit, file by file" data-testid="repo-changes">
-              {changed === 0 ? "nothing to commit" : `${changed} file${changed === 1 ? "" : "s"} changed`}
+            <button className={changed === 0 ? "link" : "pill warn dirty"} onClick={() => onSelect({ type: "changes", against: "head" })} title="What differs from the last commit, file by file" data-testid="repo-changes">
+              {changed === 0 ? "nothing to commit" : `● ${changed} uncommitted file${changed === 1 ? "" : "s"}`}
             </button>
             {status.ahead ? (
               <>
-                {" · "}
-                <button className="link" onClick={() => onSelect({ type: "changes", against: "upstream" })} title="What is not pushed yet">
-                  {status.ahead} to push
+                {" "}
+                <button className="pill ahead" onClick={() => onSelect({ type: "changes", against: "upstream" })} title="Commits not pushed yet" data-testid="repo-ahead">
+                  ↑ {status.ahead} to push
                 </button>
               </>
             ) : ""}

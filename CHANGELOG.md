@@ -7,6 +7,14 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-10-06
+
+### Fixed
+
+- No way back from a file opened from another view: the selection now lives in the address
+  (`#type=file&file=…`), so the browser's Back and Forward move between views, a reload keeps
+  the place and a link can be shared; the file view has a "← back" link.
+
 ## [0.8.0] - 2026-10-06
 
 ### Added

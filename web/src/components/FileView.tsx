@@ -51,7 +51,12 @@ export function FileView({ file, revision, saveOp, onSaved }: Props) {
     <div className="view">
       <div className="viewhead">
         <div>
-          <div className="kicker">File{saveOp ? "" : " · read-only here"}</div>
+          <div className="kicker">
+            <button className="link" onClick={() => history.back()} title="Back to where this was opened from">
+              ← back
+            </button>{" "}
+            · File{saveOp ? "" : " · read-only here"}
+          </div>
           <h2>{file.split("/").pop()}</h2>
           <div className="muted small">{file}</div>
         </div>

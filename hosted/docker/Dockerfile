@@ -14,10 +14,11 @@ COPY artifacts/secrets            /opt/idmweb/bin/secrets
 COPY artifacts/terraform          /opt/idmweb/terraform
 COPY bin/idm bin/idmweb bin/entrypoint.sh /opt/idmweb/bin/
 RUN chmod +x /opt/idmweb/bin/* /opt/idmweb/bin/secrets/* && mkdir -p /var/lib/idmweb /etc/idmweb /opt/idm/lib \
-    && chown -R idmweb:idmweb /var/lib/idmweb /etc/idmweb && ln -s /opt/idmweb/bin/idm /usr/local/bin/idm
+    && chown -R idmweb:idmweb /var/lib/idmweb /etc/idmweb && ln -s /opt/idmweb/bin/idm /usr/local/bin/idm \
+    # a repository mounted into the container is owned by another uid, and the container may run as
+    # the host's user (the single-user layout): git's rules live in the system config, not a home
+    && git config --system --add safe.directory '*' && git config --system init.defaultBranch main
 USER idmweb
-# a repository mounted into the container is owned by another uid; git refuses it otherwise
-RUN git config --global --add safe.directory '*' && git config --global init.defaultBranch main
 ENV IDM_HOME=/opt/idmweb IDM_LIB=/opt/idm/lib IDM_ENVIRONMENTS=/etc/idmweb/environments.properties
 VOLUME ["/var/lib/idmweb"]
 EXPOSE 8080

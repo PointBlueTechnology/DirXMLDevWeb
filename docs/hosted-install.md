@@ -6,6 +6,11 @@ and the `idm` CLI), **Keycloak** (sign-in; skip it if the customer has an identi
 point `oidc.issuer` there), **Caddy** (TLS at the edge, one hostname for both). The image never
 carries the NetIQ/OpenText engine jars: the customer mounts them.
 
+For **one person on a workstation** — the web UI, the CLI and the simulator in one local
+container, agents included — use [`hosted/docker/single-user/`](../hosted/docker/single-user/README.md)
+instead: `setup.sh <tree>` does all of the below for that case. The rest of this page is the
+team install.
+
 ## 1. Build the image
 
 On a machine with both checkouts built (`mvn -o package` + `npm run build` here,

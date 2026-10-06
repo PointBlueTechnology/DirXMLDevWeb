@@ -29,7 +29,8 @@ import java.util.Properties;
  *   repo.cases=cases                          # the simulator corpus inside the repository
  *   catalog.dir=/srv/idm/catalog
  *   environments.file=/etc/idmweb/environments.properties
- *   identity=none | oidc
+ *   identity=none | token | oidc
+ *   token.value=…  (or Env/Command/Keychain)  # identity=token: one shared secret for one person; token.user=name
  *   none.users=alice:Alice Example:alice@example.com:idm-editors;bob:Bob:bob@example.com:idm-deployers
  *   oidc.issuer=https://login.example.com/realms/idm
  *   oidc.clientId=idmweb

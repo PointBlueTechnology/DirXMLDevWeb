@@ -358,7 +358,9 @@ function Home({ outline, validation, onSelect }: { outline: Outline | null; vali
         {outline.drivers.map((d) => (
           <button key={d.name} className="card" onClick={() => onSelect({ type: "flow", driver: d.name })}>
             <strong>{d.name}</strong>
-            <span className="muted">{d.shimClass ?? "no shim class"}</span>
+            <span className="muted" title={d.shimClass ?? undefined}>
+              {d.shimClass ?? "no shim class"}
+            </span>
             <span>
               {d.policies.driver.length + d.policies.subscriber.length + d.policies.publisher.length} policies · {d.entitlements.length} entitlements
               {isUserApplication(d) ? ` · ${d.forms.length} forms · ${d.prds.length} PRDs` : ""}

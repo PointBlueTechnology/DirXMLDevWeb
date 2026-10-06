@@ -11,18 +11,32 @@ container, agents included — use [`hosted/docker/single-user/`](../hosted/dock
 instead: `setup.sh <tree>` does all of the below for that case. The rest of this page is the
 team install.
 
-## 1. Build the image
+## 1. Build and publish the image
 
 On a machine with both checkouts built (`mvn -o package` + `npm run build` here,
-`mvn -o install` in DirXMLDev):
+`mvn -o package` in DirXMLDev). `build.sh` copies the jars the two poms name — never the newest
+file in `target/` — and refuses to build if an engine or driver jar reached the image context:
+the image holds nothing proprietary and must stay that way, so it can live in any registry.
 
 ```bash
-hosted/docker/build.sh dirxml-dev-web:0.4.0            # PLATFORM=linux/amd64 for an x86 host from a Mac
-docker save dirxml-dev-web:0.4.0 | gzip > dirxml-dev-web-0.4.0.tar.gz
+# publish: both architectures, pushed (needs a buildx builder and a login to the registry)
+PUSH=1 ALSO_TAG=latest hosted/docker/build.sh REGISTRY/PROJECT/dirxml-dev-web:0.11.0
+
+# or a local image for one machine
+hosted/docker/build.sh dirxml-dev-web:0.11.0            # PLATFORM=linux/amd64 for an x86 host from a Mac
+docker save dirxml-dev-web:0.11.0 | gzip > dirxml-dev-web-0.11.0.tar.gz   # then docker load on the host
 ```
 
-Copy the tarball to the host and `docker load < dirxml-dev-web-0.4.0.tar.gz`. (A registry works
-too; the image holds nothing proprietary.)
+A registry with a self-signed certificate valid longer than 825 days cannot be pushed to from a
+Mac (macOS refuses the certificate; the buildx client checks it, not only the builder). Push
+from a Linux host that trusts it instead — ship the gathered context and run
+`hosted/docker/push-on-host.sh CONTEXT REGISTRY/PROJECT/dirxml-dev-web:0.11.0 latest` there;
+it makes a buildx builder that knows the certificate and installs binfmt for arm64 once.
+
+The hosts then run `docker compose pull && docker compose up -d` with `IDMWEB_IMAGE` naming the
+registry image. When the project is public the same image goes to GHCR
+(`ghcr.io/pointbluetechnology/dirxml-dev-web`) from a workflow on the release tag; only the name
+changes.
 
 ## 2. Lay out the host
 
@@ -91,6 +105,19 @@ An agent (CI, an MCP server, a coding agent) does not install anything:
 `ldaps://edir-test3-engine:636`, the engine jars from that container, the repository
 `PointBlueTechnology/idm-lab-config` (synthetic tree) through a deploy key. The generated
 secrets are in Jerry's Keychain under service `idmweb-lab`. Deployed 2026-10-06.
+
+The image comes from the host's Harbor: `harbor.pointbluetech.com/dirxmldev/dirxml-dev-web:<version>`
+(multi-arch), pushed by the robot account `robot$dirxmldev+ci` (token in the same Keychain
+service, item `harbor-robot`). Harbor's certificate is self-signed for ten years, which macOS
+rejects, so the push runs on DockerHost1 itself:
+
+```bash
+hosted/docker/build.sh x 2>/dev/null || true     # gather the context (the tag is unused here)
+tar -C hosted/docker -czf - . | ssh debian@192.168.103.99 'rm -rf ~/idmweb/build && mkdir -p ~/idmweb/build && tar -C ~/idmweb/build -xzf -'
+scp hosted/docker/push-on-host.sh debian@192.168.103.99:~/idmweb/
+ssh debian@192.168.103.99 '~/idmweb/push-on-host.sh ~/idmweb/build harbor.pointbluetech.com/dirxmldev/dirxml-dev-web:0.11.0 latest'
+ssh debian@192.168.103.99 'cd ~/idmweb && sed -i "s#^IDMWEB_IMAGE=.*#IDMWEB_IMAGE=harbor.pointbluetech.com/dirxmldev/dirxml-dev-web:0.11.0#" .env && docker compose pull -q idmweb && docker compose up -d idmweb'
+```
 
 ## 7. Operate
 

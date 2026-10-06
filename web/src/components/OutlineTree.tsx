@@ -170,11 +170,11 @@ export function OutlineTree({ outline, selection, onSelect }: Props) {
       <button className={selection.type === "home" ? "leaf active root" : "leaf root"} onClick={() => onSelect({ type: "home" })}>
         {outline.driverSet.name}
       </button>
-      <button className={selection.type === "config" && selection.driver === null ? "leaf active" : "leaf"} onClick={() => onSelect({ type: "config", driver: null })}>
-        <span className="badge badge-flow">⚙</span>Driver set GCVs
+      <button className={selection.type === "driverset" || (selection.type === "config" && selection.driver === null) ? "leaf active" : "leaf"} onClick={() => onSelect({ type: "driverset" })}>
+        <span className="badge badge-flow">⚙</span>Driver set
       </button>
       <button className={selection.type === "overrides" ? "leaf active" : "leaf"} onClick={() => onSelect({ type: "overrides" })}>
-        <span className="badge badge-flow">≠</span>Stage overrides
+        <span className="badge badge-flow">≠</span>Env overrides
       </button>
       {files(
         "Driver set files",

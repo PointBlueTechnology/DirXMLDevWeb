@@ -23,6 +23,7 @@ import java.util.Properties;
  *   repo.url=https://github.com/org/idm-config.git
  *   repo.token=…  | repo.tokenEnv=… | repo.tokenCommand=… | repo.tokenKeychain=…
  *   repo.user=x-access-token                  # the user name the token goes with (GitHub: anything)
+ *   repo.sshKey=/etc/idmweb/deploy_key        # or a deploy key, for a git@github.com: remote
  *   repo.base=main
  *   repo.tree=tree                            # the tree's directory inside the repository ('.' for the root)
  *   repo.cases=cases                          # the simulator corpus inside the repository
@@ -53,6 +54,7 @@ public final class Hosted {
     public final Path dataDir;
     public final String repoUrl;
     public final String repoUser;
+    public final Path repoSshKey;
     public final String repoBase;
     public final String repoTree;
     public final String repoCases;
@@ -72,6 +74,8 @@ public final class Hosted {
         this.dataDir = Path.of(p.getProperty("data.dir", "data").trim()).toAbsolutePath().normalize();
         this.repoUrl = required(p, "repo.url");
         this.repoUser = p.getProperty("repo.user", "x-access-token").trim();
+        String key = p.getProperty("repo.sshKey");
+        this.repoSshKey = key == null || key.isBlank() ? null : Path.of(key.trim());
         this.repoBase = p.getProperty("repo.base", "main").trim();
         this.repoTree = p.getProperty("repo.tree", ".").trim();
         this.repoCases = p.getProperty("repo.cases", "cases").trim();

@@ -295,6 +295,10 @@ public final class Api implements HttpHandler {
                     return prov.catalog();
                 case "/api/packages":
                     return packages.overview();
+                case "/api/packages/sites":
+                    return packages.sites();
+                case "/api/packages/site":
+                    return packages.site(required(query, "site"));
                 case "/api/sim/cases":
                     return sim.list();
                 case "/api/sim/case":
@@ -334,6 +338,9 @@ public final class Api implements HttpHandler {
         }
         if (method.equals("POST") && path.equals("/api/packages/build")) {
             return packages.build(Json.asMap(Json.parse(new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8))));
+        }
+        if (method.equals("POST") && path.equals("/api/packages/fetch")) {
+            return packages.fetch(Json.asMap(Json.parse(new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8))));
         }
         if (method.equals("POST") && path.startsWith("/api/sim/")) {
             Map<String, Object> req = Json.asMap(Json.parse(new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8)));

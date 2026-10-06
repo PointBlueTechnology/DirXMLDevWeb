@@ -1,4 +1,5 @@
-import type { Selection } from "./types";
+import { NEW_WHATS } from "./types";
+import type { NewWhat, Selection } from "./types";
 
 /**
  * The selection as the address bar's fragment (`#type=file&file=drivers/x.xml`), so the
@@ -58,7 +59,7 @@ export function fromHash(hash: string): Selection | null {
     case "changes":
       return { type: "changes", ...(m.against === "base" || m.against === "upstream" ? { against: m.against } : {}) };
     case "new":
-      return m.what === "policy" || m.what === "entitlement" || m.what === "form" || m.what === "prd" || m.what === "driver" ? { type: "new", what: m.what, driver: d("driver") } : null;
+      return (NEW_WHATS as string[]).includes(m.what ?? "") ? { type: "new", what: m.what as NewWhat, driver: d("driver") } : null;
     default:
       return null;
   }

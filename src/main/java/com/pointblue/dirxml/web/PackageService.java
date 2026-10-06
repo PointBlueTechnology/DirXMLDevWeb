@@ -4,6 +4,8 @@ import com.pointblue.dirxml.dev.json.Json;
 import com.pointblue.dirxml.dev.packages.Catalog;
 import com.pointblue.dirxml.dev.packages.PackageBuilder;
 import com.pointblue.dirxml.dev.packages.PackageStatus;
+import com.pointblue.dirxml.dev.packages.PackageVersion;
+import com.pointblue.dirxml.dev.packages.UpdateSite;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -75,6 +77,120 @@ public final class PackageService {
         PackageStatus s = PackageStatus.of(tree, null, c);
         m.put("status", Json.parse(s.json()));
         m.put("text", s.text());
+        return m;
+    }
+
+    /** The update sites the catalog knows ({@code sites.properties}; Designer's public sites by default). */
+    public Map<String, Object> sites() throws IOException {
+        Map<String, Object> m = new LinkedHashMap<>();
+        Catalog c = catalog();
+        List<Object> list = new ArrayList<>();
+        if (c != null) {
+            for (Map.Entry<String, String> e : c.sites().entrySet()) {
+                Map<String, Object> one = new LinkedHashMap<>();
+                one.put("name", e.getKey());
+                one.put("url", e.getValue());
+                list.add(one);
+            }
+        }
+        m.put("available", c != null);
+        m.put("sites", list);
+        return m;
+    }
+
+    /** A site name from {@code sites.properties}, else the string is the URL. */
+    private String siteUrl(String site) throws IOException {
+        Catalog c = catalog();
+        if (c != null) {
+            String url = c.sites().get(site);
+            if (url != null) {
+                return url;
+            }
+        }
+        if (!site.startsWith("http://") && !site.startsWith("https://")) {
+            throw new TreeService.BadRequest("site must be a name from sites.properties or an http(s) URL: " + site);
+        }
+        return site;
+    }
+
+    /** What a site offers, against the catalog: each package's versions there, which the catalog has, whether the site is ahead. */
+    public Map<String, Object> site(String site) throws IOException {
+        String url = siteUrl(site);
+        Catalog c = catalog();
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("url", url);
+        List<Object> list = new ArrayList<>();
+        try {
+            Map<String, List<String>> byShort = new LinkedHashMap<>();
+            for (UpdateSite.Offer o : UpdateSite.list(url)) {
+                byShort.computeIfAbsent(o.shortName, k -> new ArrayList<>()).add(o.version);
+            }
+            for (Map.Entry<String, List<String>> e : byShort.entrySet()) {
+                Catalog.PackageEntry have = c == null ? null : c.get(e.getKey());
+                String newest = e.getValue().get(0);
+                String newestHave = have == null ? null : have.newestVersion();
+                Map<String, Object> one = new LinkedHashMap<>();
+                one.put("short", e.getKey());
+                one.put("displayName", have == null ? null : have.displayName);
+                one.put("versions", e.getValue());
+                one.put("newest", newest);
+                one.put("inCatalog", have == null ? List.of() : new ArrayList<>(have.versions.keySet()));
+                one.put("newer", newestHave != null && PackageVersion.parse(newest).compareTo(PackageVersion.parse(newestHave)) > 0);
+                list.add(one);
+            }
+            m.put("ok", true);
+        } catch (IOException | RuntimeException ex) {
+            m.put("ok", false);
+            m.put("error", ex.getMessage() == null || ex.getMessage().isBlank() ? ex.getClass().getSimpleName() : ex.getMessage());
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            m.put("ok", false);
+            m.put("error", "interrupted");
+        }
+        m.put("packages", list);
+        return m;
+    }
+
+    /**
+     * Fetch packages from a site into the catalog ({@code package.fetch}): {@code site} (name or URL),
+     * {@code packages} (SHORT or SHORT_version each), {@code allVersions}, {@code dryRun}. A catalog
+     * change, not a tree change: nothing is installed until a package.install is reviewed.
+     */
+    public Map<String, Object> fetch(Map<String, Object> req) throws IOException {
+        Catalog c = catalog();
+        if (c == null) {
+            throw new TreeService.BadRequest("no catalog on this server (start it with --catalog DIR)");
+        }
+        String site = Json.asString(req.get("site"));
+        if (site == null || site.isBlank()) {
+            throw new TreeService.BadRequest("site is required");
+        }
+        List<String> specs = new ArrayList<>();
+        if (req.get("packages") instanceof List) {
+            for (Object o : (List<?>) req.get("packages")) {
+                if (o != null && !o.toString().isBlank()) {
+                    specs.add(o.toString().trim());
+                }
+            }
+        }
+        if (specs.isEmpty()) {
+            throw new TreeService.BadRequest("packages is required: SHORT or SHORT_version, one or more");
+        }
+        UpdateSite.FetchResult r;
+        try {
+            r = UpdateSite.fetch(c, siteUrl(site), specs, Boolean.TRUE.equals(req.get("allVersions")), Boolean.TRUE.equals(req.get("dryRun")));
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            throw new IOException("interrupted while fetching from " + site);
+        }
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("ok", r.error == null);
+        if (r.error != null) {
+            m.put("error", r.error);
+        }
+        m.put("added", new ArrayList<>(r.added));
+        m.put("skipped", new ArrayList<>(r.skipped));
+        m.put("refused", new ArrayList<>(r.refused));
         return m;
     }
 

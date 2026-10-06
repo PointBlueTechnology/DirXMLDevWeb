@@ -25,16 +25,21 @@ the page follows the files.
   from — export from an Identity Vault, import a Designer project (zip or directory) or a
   Designer export, use an existing repository (bare, or a checkout in place), use a directory
   of files, or clone a remote — and remembers the answer.
-- **New…** beside the Library and every driver in the outline: a policy (optionally linked into
-  a policy set), an entitlement, a form, a PRD from a template; "New driver" from a base
-  package, a copy, or a shim class. Each is the core's `*.add` operation through the review.
+- **New…** beside the Library and every driver in the outline: a policy (linked into a policy
+  set at a chosen position — first, last, before or after a policy there — or left unlinked), a
+  mapping table, an ECMAScript or GCV resource (linked into the driver's set), an entitlement;
+  on the User Application driver also a form, a PRD from a template, a role, a resource and a
+  directory-abstraction entity; "New driver" from a base package, a copy, or a shim class. Each
+  is the core's `*.add` operation through the review.
 - **Driver set**: its DN, the servers it runs on (the primary marked), its drivers, the Library,
   what is linked at the driver-set level, the packages recorded on it, and its GCVs with the
   env-override columns.
 - **Outline** of the driver set: Library, drivers, policies by channel, configuration files,
   entitlements, forms, PRDs.
-- **Policy flow**: the fishbone the VS Code extension draws, from the same model. Click a policy
-  to open it.
+- **Policy flow**: the fishbone the VS Code extension draws, from the same model. Hover a policy
+  for its description; click it to open it. Click a policy set to open it beside the picture:
+  reorder its policies (▲ ▼), unlink one, or link an existing policy or resource — one reviewed
+  change (`policy.reorder`, `policy.link`, `policy.unlink`).
 - **Policy editor in two modes** (W2). *Rules* is a structured editor for a DirXML Script
   policy: rules, condition groups, actions, arguments and tokens, with every element of the
   language available and each node's attributes, order and nesting taken from the grammar.
@@ -50,7 +55,8 @@ the page follows the files.
 - **Validation**: the core's whole check suite, including the engine's own compiler.
 - **Configuration editors** (W1), per driver and for the driver set:
   - *GCVs* in scope, each from the place the engine would take it, with a column per environment
-    for the values that differ per stage.
+    for the values that differ per stage, and *Used by*: every policy and configuration document
+    (shim parameters, engine controls, filter) that reads the GCV, each a link.
   - *Settings*: shim class and authentication, shim parameters, engine control values.
   - *Filter*: classes and attributes with each channel's setting and the merge authority.
   - *Policy sets*: every set as an ordered list; drag or use the arrows to reorder, link, unlink.
@@ -84,8 +90,11 @@ the page follows the files.
     remove, through `role.*` and `resource.*`.
 - **Packages** (W6): what each driver and the Library have installed against the catalog, with
   upgrades the catalog offers, customized packaged objects (revert) and missing records
-  (adopt); install, upgrade and uninstall through the review; the catalog's packages; a
-  package built from a driver into the catalog.
+  (adopt); install, upgrade and uninstall through the review; the catalog's packages; *Update
+  sites*: browse a package repository (Designer's public sites from the catalog's
+  `sites.properties`, or any update-site URL) against the catalog and fetch chosen packages, or
+  every newer version of what the tree has installed, so the Installed tab can offer the
+  upgrade; a package built from a driver into the catalog.
 - **Simulator** (W4): a corpus of cases run through the tree's policies by the engine's own
   classes.
   - *Run all* gives each case its verdict against what it recorded, as `idm simulate` does.

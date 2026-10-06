@@ -9,6 +9,8 @@ export interface FishbonePolicy {
   kind: string;
   /** Path relative to the tree root, if the link resolved. */
   file?: string;
+  /** The policy's own <description> (or the object's description), for the tooltip. */
+  description?: string;
   unresolved: boolean;
 }
 

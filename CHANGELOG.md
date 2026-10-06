@@ -7,6 +7,26 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+Needs DirXMLDev 0.11.0.
+
+### Added
+
+- New menus cover every kind: a mapping table, ECMAScript resource and GCV resource on a driver
+  and on the Library (the Library is always listed), an entity on the User Application driver,
+  and role / resource entries that open the Roles view. ECMAScript and GCV resources are linked
+  into the driver's set on creation.
+- A new policy starts linked into the channel's first policy set (choose another, or none), at a
+  position: first, last, before or after any policy already there.
+- Policy flow: hovering a policy shows its description (and its kind); clicking a policy set opens
+  it beside the picture to reorder (▲ ▼), unlink, or link an existing policy or resource — one
+  reviewed change (`policy.reorder` / `policy.link` / `policy.unlink`).
+- GCVs: a "Used by" column names every policy and configuration document that reads the GCV
+  (click to open).
+- Packages → Update sites: browse a package repository (the catalog's `sites.properties`, or any
+  update-site URL) against the catalog, fetch chosen packages or every newer version of what the
+  tree has installed; the Installed tab then offers the upgrade. `GET /api/packages/sites`,
+  `GET /api/packages/site?site=`, `POST /api/packages/fetch`.
+
 ## [0.8.1] - 2026-10-06
 
 ### Fixed

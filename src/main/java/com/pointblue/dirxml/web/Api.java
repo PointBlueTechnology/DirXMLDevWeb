@@ -169,7 +169,7 @@ public final class Api implements HttpHandler {
                 return;
             }
             if (path.equals("/api/vault/trace") && method.equals("GET")) {
-                audit.log(session, w, "trace", Map.of("env", String.valueOf(query.get("env")), "driver", String.valueOf(query.get("driver"))), "started");
+                audit.log(session, w, "trace", Map.of("env", String.valueOf(query.get("env")), "driver", String.valueOf(query.get("driver")), "server", String.valueOf(query.get("server"))), "started");
                 trace(ex, w, query);
                 return;
             }
@@ -305,6 +305,8 @@ public final class Api implements HttpHandler {
                     return vault.diff(required(query, "env"), list(query.get("driver")));
                 case "/api/vault/status":
                     return vault.status(required(query, "env"));
+                case "/api/vault/servers":
+                    return vault.servers(required(query, "env"));
                 case "/api/catalog": {
                     Map<String, Object> m = new LinkedHashMap<>();
                     m.put("operations", TreeService.catalog());
@@ -417,7 +419,7 @@ public final class Api implements HttpHandler {
             synchronized (lock) {
                 write(out, "event: open\ndata: {}\n\n");
             }
-            vault.trace(required(query, "env"), required(query, "driver"), "true".equals(query.get("engine")), line -> {
+            vault.trace(required(query, "env"), required(query, "driver"), "true".equals(query.get("engine")), query.get("server"), line -> {
                 try {
                     synchronized (lock) {
                         write(out, "data: " + Json.compact(line) + "\n\n");

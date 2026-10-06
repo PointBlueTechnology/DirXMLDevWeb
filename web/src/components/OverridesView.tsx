@@ -5,7 +5,7 @@ import type { OverridesData } from "../types";
 import { PendingBar } from "./PendingBar";
 
 /**
- * Every value that differs per stage, as one matrix: a row per key, a column per environment,
+ * Every value that differs per environment, as one matrix: a row per key, a column per environment,
  * the tree's base value beside them. An empty cell means "this stage takes the base".
  */
 export function OverridesView({ revision, canEdit, onSaved }: { revision: string; canEdit: boolean; onSaved: () => void }) {
@@ -60,8 +60,8 @@ export function OverridesView({ revision, canEdit, onSaved }: { revision: string
       <div className="viewhead">
         <div>
           <div className="kicker">overrides/&lt;env&gt;.properties</div>
-          <h2>Values that differ per stage</h2>
-          <div className="muted small">A deploy to an environment applies its column to the tree's base value. The base itself is edited where the value lives.</div>
+          <h2>Env overrides: values that differ per environment</h2>
+          <div className="muted small">A deploy to an environment applies its column over the tree's base value. The base itself is edited where the value lives.</div>
         </div>
       </div>
       <PendingBar pending={pending} title="Review override changes" onSaved={onSaved} />

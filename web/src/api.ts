@@ -168,6 +168,7 @@ export const api = {
     /** `confirm` is the environment's name, typed by the person: the server refuses anything else. */
     deploy: (env: string, drivers: string[], restart: boolean, confirm: string) => call<DeployResult>("POST", "/api/vault/deploy", { env, drivers, restart, confirm }),
     status: (env: string) => call<VaultStatus>("GET", `/api/vault/status?env=${q(env)}`),
+    servers: (env: string) => call<{ environment: string; primary: string | null; servers: { dn: string; name: string; url: string | null; primary: boolean }[] }>("GET", `/api/vault/servers?env=${q(env)}`),
     driver: (env: string, driver: string, action: string, confirm: string) => call<LifecycleResult>("POST", "/api/vault/driver", { env, driver, action, confirm }),
   },
   /** Several operations as one change: validated once, written together or not at all. */
@@ -196,8 +197,8 @@ export function followTree(onRevision: (revision: string) => void, onState: (liv
 }
 
 /** Follow a driver's trace: `onLine` per line, `onState` with open / closed / the failure's message. */
-export function followTrace(env: string, driver: string, engine: boolean, onLine: (line: string) => void, onState: (state: "open" | "closed" | { failed: string }) => void): () => void {
-  const es = new EventSource(`/api/vault/trace?env=${q(env)}&driver=${q(driver)}${engine ? "&engine=true" : ""}&token=${q(token())}`);
+export function followTrace(env: string, driver: string, engine: boolean, onLine: (line: string) => void, onState: (state: "open" | "closed" | { failed: string }) => void, server?: string): () => void {
+  const es = new EventSource(`/api/vault/trace?env=${q(env)}&driver=${q(driver)}${engine ? "&engine=true" : ""}${server ? `&server=${q(server)}` : ""}&token=${q(token())}`);
   es.addEventListener("open", () => onState("open"));
   es.addEventListener("fail", (ev) => {
     let message = "the trace stream failed";

@@ -202,11 +202,70 @@ public final class VaultService {
         }
     }
 
-    /** A driver's trace lines over the environment's LDAPS connection, until the calling thread is interrupted. */
-    public void trace(String envName, String driver, boolean engineToo, Consumer<String> sink) throws IOException, InterruptedException {
+    /**
+     * The servers the environment's driver set runs on, read from the vault ({@code DirXML-ServerList}),
+     * each with the LDAP address the trace is read from (the environment's {@code servers=} mapping,
+     * else derived from the server object), and which one the environment's own URL reaches.
+     */
+    public Map<String, Object> servers(String envName) throws IOException {
+        Environments.Environment e = env(envName);
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("environment", e.name);
+        List<Object> out = new ArrayList<>();
+        try (Vault vault = Vault.connect(e.vaultConfig())) {
+            String primary = com.pointblue.dirxml.dev.deploy.Servers.primary(vault);
+            for (String dn : com.pointblue.dirxml.dev.deploy.Servers.serverList(vault, e.driverSetDn)) {
+                Map<String, Object> s = new LinkedHashMap<>();
+                s.put("dn", dn);
+                s.put("name", dn.replaceFirst("^[^=]+=", "").replaceFirst(",.*$", ""));
+                String url = null;
+                try {
+                    url = com.pointblue.dirxml.dev.deploy.Servers.urlOf(e, vault, dn);
+                } catch (RuntimeException ignore) {
+                    // no address known: the trace of this server is not reachable from here
+                }
+                s.put("url", url);
+                s.put("primary", primary != null && primary.equalsIgnoreCase(dn));
+                out.add(s);
+            }
+            m.put("primary", primary);
+        }
+        m.put("servers", out);
+        return m;
+    }
+
+    /**
+     * A driver's trace lines, until the calling thread is interrupted: from the environment's own
+     * server, or from {@code serverDn}, one of the driver set's servers, at its own LDAP address
+     * (each server keeps its own trace).
+     */
+    public void trace(String envName, String driver, boolean engineToo, String serverDn, Consumer<String> sink) throws IOException, InterruptedException {
         if (driver == null || driver.isBlank()) {
             throw new TreeService.BadRequest("no driver named");
         }
-        LdapTrace.stream(env(envName), driver, null, engineToo, 0, sink);
+        Environments.Environment e = env(envName);
+        if (serverDn == null || serverDn.isBlank()) {
+            LdapTrace.stream(e, driver, null, engineToo, 0, sink);
+            return;
+        }
+        String url;
+        try (Vault vault = Vault.connect(e.vaultConfig())) {
+            url = com.pointblue.dirxml.dev.deploy.Servers.urlOf(e, vault, serverDn);
+        }
+        if (url == null || url.isBlank()) {
+            throw new TreeService.BadRequest("no LDAP address is known for " + serverDn + "; name one in the environment's servers= setting (dn=url;…)");
+        }
+        com.pointblue.dirxml.sim.EdirTraceStream.Config c = com.pointblue.dirxml.sim.EdirTraceStream.Config.fromUrl(url, e.bindDn, e.password);
+        c.trustAllCerts = e.trustAll;
+        LdapTrace filter = new LdapTrace(driver, null);
+        try (com.pointblue.dirxml.sim.EdirTraceStream stream = new com.pointblue.dirxml.sim.EdirTraceStream(c)) {
+            stream.start(engineToo, line -> {
+                String printed = filter.accept(line);
+                if (printed != null) {
+                    sink.accept(printed);
+                }
+            });
+            Thread.currentThread().join();
+        }
     }
 }

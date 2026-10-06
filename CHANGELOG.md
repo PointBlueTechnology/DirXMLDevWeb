@@ -7,6 +7,18 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-10-06
+
+### Changed
+
+- The hosted image is published to a registry and the lab pulls it (Harbor:
+  `harbor.pointbluetech.com/dirxmldev/dirxml-dev-web:<version>`, multi-arch amd64+arm64), instead
+  of being built on the lab host from a tarball. `hosted/docker/build.sh` pushes with buildx when
+  `PUSH=1` (`ALSO_TAG=latest`), refuses to build if an engine or driver jar reached the image
+  context, and copies the jars the poms name; `hosted/docker/push-on-host.sh` does the same from a
+  Linux host for a registry a Mac cannot trust. When the project goes public the same image goes
+  to GHCR (`ghcr.io/pointbluetechnology/dirxml-dev-web`) — a registry name, nothing else changes.
+
 ## [0.11.0] - 2026-10-06
 
 ### Added

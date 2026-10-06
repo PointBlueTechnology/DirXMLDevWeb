@@ -7,6 +7,11 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- MIT license (`LICENSE`, the pom and `package.json`); two screenshots in the README: adding a
+  project, a PRD workflow.
+
 ## [0.13.0] - 2026-10-06
 
 ### Added

@@ -98,8 +98,11 @@ public final class Serve {
             case "oidc":
                 identity = new OidcIdentity(h);
                 break;
+            case "token":
+                identity = new TokenIdentity(h);
+                break;
             default:
-                throw new IllegalArgumentException("identity is none or oidc, not '" + h.identity + "'");
+                throw new IllegalArgumentException("identity is none, token or oidc, not '" + h.identity + "'");
         }
         HttpServer server = HttpServer.create(new InetSocketAddress(InetAddress.getByName(h.bind), h.port), 0);
         Map<String, Session.Principal> agents = h.agents();

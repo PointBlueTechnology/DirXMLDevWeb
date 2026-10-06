@@ -55,6 +55,18 @@ public class HostedTest {
     }
 
     @Test
+    public void theTokenProviderNeedsALongEnoughSecretAndGivesEveryRole() throws Exception {
+        try {
+            new TokenIdentity(hosted("identity=token\ntoken.value=short\n"));
+            throw new AssertionError("accepted a short token");
+        } catch (IllegalArgumentException expected) {
+            assertTrue(expected.getMessage().contains("16"));
+        }
+        TokenIdentity t = new TokenIdentity(hosted("identity=token\ntoken.value=0123456789abcdefXYZ\ntoken.user=jerry\n"));
+        assertEquals("token", t.name());
+    }
+
+    @Test
     public void hostedSecurityChecksThePublicHostAndOriginOnly() {
         Security s = Security.hosted("https://idm.example.com");
         assertNull(s.refuse("idm.example.com", null, null));

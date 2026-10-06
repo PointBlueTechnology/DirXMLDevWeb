@@ -18,6 +18,13 @@ the page follows the files.
 
 ## What it does
 
+- **First run** (hosted): with no repository configured the page asks where the tree comes
+  from — export from an Identity Vault, import a Designer project (zip or directory) or a
+  Designer export, use an existing repository (bare, or a checkout in place), use a directory
+  of files, or clone a remote — and remembers the answer.
+- **New…** beside the Library and every driver in the outline: a policy (optionally linked into
+  a policy set), an entitlement, a form, a PRD from a template; "New driver" from a base
+  package, a copy, or a shim class. Each is the core's `*.add` operation through the review.
 - **Outline** of the driver set: Library, drivers, policies by channel, configuration files,
   entitlements, forms, PRDs.
 - **Policy flow**: the fishbone the VS Code extension draws, from the same model. Click a policy

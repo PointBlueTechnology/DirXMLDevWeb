@@ -267,7 +267,7 @@ public final class CredentialService {
         m.put("exists", Files.isRegularFile(sf));
         List<Object> needs = new ArrayList<>();
         List<String> seen = new ArrayList<>();
-        DriverSet ds = AsCodeReader.read(tree);
+        DriverSet ds = Files.isRegularFile(tree.resolve("driverset.xml")) ? AsCodeReader.read(tree) : new DriverSet("none");
         for (Driver d : ds.drivers) {
             for (SecretInventory.Need need : SecretInventory.forDriver(ds, d)) {
                 Map<String, Object> one = new LinkedHashMap<>();

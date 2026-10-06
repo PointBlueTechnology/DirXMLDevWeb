@@ -1110,3 +1110,16 @@ table.grid tr.selected td { background: var(--bg); }
 .repobar .branchpick { display: inline-flex; align-items: center; gap: 8px; }
 
 .modes .checkchip.on { border-color: var(--accent); }
+
+.setup .cards .card.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.setup .block { margin-top: 16px; }
+
+/* "+ New" in the outline */
+.newmenu { position: relative; float: right; margin-left: 6px; }
+.newmenu .plus { border: 1px solid var(--border); background: var(--surface); border-radius: 4px; width: 20px; height: 20px; line-height: 16px; padding: 0; font-size: 14px; cursor: pointer; color: var(--muted); }
+.newmenu .plus:hover { color: var(--accent); border-color: var(--accent); }
+.newmenu .menu { position: absolute; right: 0; top: 22px; z-index: 5; display: flex; flex-direction: column; min-width: 220px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; box-shadow: 0 4px 16px rgba(0,0,0,0.15); padding: 4px; }
+.newmenu .menu button { text-align: left; border: 0; background: none; padding: 6px 10px; cursor: pointer; font: inherit; color: var(--text); border-radius: 4px; }
+.newmenu .menu button:hover { background: var(--bg); }
+.leaf.newdriver { margin-top: 8px; color: var(--muted); }
+.newitem .attrs { max-width: 760px; }

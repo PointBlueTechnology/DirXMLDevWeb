@@ -81,7 +81,7 @@ export function ArtifactView({ path, revision, onOpen, onSaved }: Props) {
     setCheck((c) => ({ ...c, state: "checking" }));
     const timer = setTimeout(async () => {
       try {
-        const revision = (await api.session()).revision;
+        const revision = (await api.session()).revision ?? "";
         const result = await api.batch([{ name: "artifact.set-content", args: { path: artifact.path }, files: { "content-file": draft }, label: "check" }], true, revision);
         if (seq === checkSeq.current) {
           setCheck({ state: "done", result });

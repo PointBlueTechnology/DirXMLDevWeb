@@ -28,7 +28,7 @@ export function ReviewDialog({ title, ops, onClose, onApplied }: Props) {
     setBusy(true);
     setError(null);
     try {
-      const revision = (await api.session()).revision;
+      const revision = (await api.session()).revision ?? "";
       const r = await api.batch(ops, dryRun, revision);
       if (!dryRun && r.ok) {
         onApplied(r);

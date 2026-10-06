@@ -40,8 +40,14 @@ public final class CredentialService {
         this.tree = tree.toAbsolutePath().normalize();
     }
 
+    /** Hosted mode names the file in its configuration; the CLI's lookup stands otherwise. */
+    static volatile Path override;
+
     /** The environments file the CLI would read, or the one it would create. */
     static Path environmentsFile() {
+        if (override != null) {
+            return override;
+        }
         String env = System.getenv("IDM_ENVIRONMENTS");
         if (env != null && !env.isBlank()) {
             return Paths.get(env).toAbsolutePath().normalize();

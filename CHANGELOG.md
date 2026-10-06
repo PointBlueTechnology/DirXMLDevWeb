@@ -7,6 +7,15 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- Hosted mode (W7, first step): `serve --hosted hosted.properties`. Sign-in (the `none`
+  provider on loopback; OIDC next), a session cookie with CSRF protection, roles from groups
+  (editor, deployer), a workspace per user and branch cloned from the team's repository, commit
+  and push as the signed-in person, update from the base branch, the pull-request link, the
+  server's environments file, and an audit log. The repository bar on the page; local mode shows
+  it too when the tree sits in a git checkout. `bin/smoke-hosted.sh`.
+
 ## [0.3.0] - 2026-10-05
 
 ### Added

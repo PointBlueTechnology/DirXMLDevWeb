@@ -106,11 +106,12 @@ public final class Serve {
         }
         HttpServer server = HttpServer.create(new InetSocketAddress(InetAddress.getByName(h.bind), h.port), 0);
         Map<String, Session.Principal> agents = h.agents();
-        server.createContext("/api/", new Api(workspaces, sessions, security, audit, VERSION, agents));
+        Api api = new Api(workspaces, sessions, security, audit, VERSION, agents).withSetup(new SetupService(h, workspaces, audit), new CredentialService(h.dataDir));
+        server.createContext("/api/", api);
         server.createContext("/auth/", new Auth(identity, sessions, security, audit, h.publicUrl));
         server.createContext("/", new StaticFiles(web));
         start(server);
-        System.out.println("DirXMLDevWeb " + VERSION + " hosted: " + h.publicUrl + " (bound " + h.bind + ":" + h.port + "), identity " + identity.name() + ", " + agents.size() + " agent(s), repository " + h.repoUrl.replaceAll("://[^@/]+@", "://") + ", data " + h.dataDir);
+        System.out.println("DirXMLDevWeb " + VERSION + " hosted: " + h.publicUrl + " (bound " + h.bind + ":" + h.port + "), identity " + identity.name() + ", " + agents.size() + " agent(s), repository " + (h.inPlace != null ? h.inPlace + " (in place)" : h.repoUrl == null ? "none yet (setup on first visit)" : h.repoUrl.replaceAll("://[^@/]+@", "://")) + ", data " + h.dataDir);
         Thread.currentThread().join();
     }
 

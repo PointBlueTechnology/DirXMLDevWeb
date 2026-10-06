@@ -18,6 +18,8 @@ import { RolesView } from "./components/RolesView";
 import { PackagesView } from "./components/PackagesView";
 import { ConnectionsView } from "./components/ConnectionsView";
 import { EntitlementView } from "./components/EntitlementView";
+import { SetupView } from "./components/SetupView";
+import { NewItemView } from "./components/NewItemView";
 
 export function App() {
   const [token] = useState(() => takeToken());
@@ -187,7 +189,33 @@ export function App() {
           }}
         />
       )}
-      {noWorkspace && session && (
+      {noWorkspace && session?.setup && selection.type !== "connections" && (
+        <SetupView
+          onDone={() => {
+            void loadSession().then((s) => {
+              if (s && !s.setup) {
+                return api.openWorkspace(s.branch ?? "main").then(() => loadSession()).then(() => {
+                  setStreamKey((k) => k + 1);
+                  return reload();
+                });
+              }
+              return undefined;
+            });
+          }}
+          onConnections={() => setSelection({ type: "connections" })}
+        />
+      )}
+      {noWorkspace && session?.setup && selection.type === "connections" && (
+        <div className="setupconn">
+          <p className="pad-x small">
+            <button className="link" onClick={() => setSelection({ type: "home" })}>
+              ← back to setup
+            </button>
+          </p>
+          <ConnectionsView initialEnv={null} />
+        </div>
+      )}
+      {noWorkspace && session && !session.setup && (
         <div className="pad">
           <h1>Open a branch</h1>
           <p className="muted">You are signed in as {session.user.name}. Pick the branch to work on; a new name starts a branch from the base.</p>
@@ -240,6 +268,7 @@ export function App() {
           {selection.type === "prd" && <PrdView key={selection.driver + "/" + selection.name} driver={selection.driver} name={selection.name} revision={revision} onSelect={setSelection} onSaved={reload} />}
           {selection.type === "form" && <FormView key={selection.driver + "/" + selection.name} driver={selection.driver} name={selection.name} revision={revision} onSelect={setSelection} onSaved={reload} />}
           {selection.type === "roles" && <RolesView revision={revision} onSaved={reload} />}
+          {selection.type === "new" && outline && <NewItemView key={selection.what + (selection.driver ?? "")} what={selection.what} driver={selection.driver} outline={outline} onSelect={setSelection} onSaved={reload} />}
           {selection.type === "entitlement" && <EntitlementView key={selection.file} driver={selection.driver} name={selection.name} file={selection.file} revision={revision} onSelect={setSelection} onSaved={reload} />}
           {selection.type === "connections" && <ConnectionsView key={selection.env ?? ""} initialEnv={selection.env ?? null} />}
           {selection.type === "packages" && outline && <PackagesView drivers={outline.drivers.map((d) => d.name)} revision={revision} onSaved={reload} onOpen={open} />}

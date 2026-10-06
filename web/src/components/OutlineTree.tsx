@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { ArtifactNode, DriverOutline, Outline, Selection } from "../types";
 
 interface Props {
@@ -61,7 +62,18 @@ export function OutlineTree({ outline, selection, onSelect }: Props) {
 
   const driver = (d: DriverOutline) => (
     <details key={d.name} open={outline.drivers.length <= 3}>
-      <summary className="driver">{d.name}</summary>
+      <summary className="driver">
+        {d.name}
+        <NewMenu
+          items={[
+            ["policy", "Policy"],
+            ["entitlement", "Entitlement"],
+            ["form", "Form"],
+            ["prd", "Provisioning request (PRD)"],
+          ]}
+          onPick={(what) => onSelect({ type: "new", what, driver: d.name })}
+        />
+      </summary>
       <div className="indent">
         <button className={selection.type === "flow" && selection.driver === d.name ? "leaf active" : "leaf"} onClick={() => onSelect({ type: "flow", driver: d.name })}>
           <span className="badge badge-flow">⇄</span>Policy flow
@@ -161,7 +173,10 @@ export function OutlineTree({ outline, selection, onSelect }: Props) {
       )}
       {(outline.library.policies.length > 0 || outline.library.resources.length > 0) && (
         <details open>
-          <summary className="driver">Library</summary>
+          <summary className="driver">
+            Library
+            <NewMenu items={[["policy", "Policy"]]} onPick={(what) => onSelect({ type: "new", what, driver: null })} />
+          </summary>
           <div className="indent">
             {artifacts("Policies", outline.library.policies)}
             {artifacts("Resources", outline.library.resources)}
@@ -169,6 +184,48 @@ export function OutlineTree({ outline, selection, onSelect }: Props) {
         </details>
       )}
       {outline.drivers.map(driver)}
+      <button className="leaf newdriver" onClick={() => onSelect({ type: "new", what: "driver", driver: null })} data-testid="new-driver">
+        <span className="badge">+</span>New driver
+      </button>
     </div>
+  );
+}
+
+type NewWhat = "policy" | "entitlement" | "form" | "prd" | "driver";
+
+/** A small "+" beside a heading that opens the list of things to create there. */
+function NewMenu({ items, onPick }: { items: [NewWhat, string][]; onPick: (what: NewWhat) => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <span className="newmenu" onClick={(e) => e.preventDefault()}>
+      <button
+        className="plus"
+        title="New…"
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen(!open);
+        }}
+        data-testid="new-menu"
+      >
+        +
+      </button>
+      {open && (
+        <span className="menu" onMouseLeave={() => setOpen(false)}>
+          {items.map(([what, label]) => (
+            <button
+              key={what}
+              onClick={(e) => {
+                e.stopPropagation();
+                setOpen(false);
+                onPick(what);
+              }}
+              data-testid={"new-" + what}
+            >
+              New {label.toLowerCase()}
+            </button>
+          ))}
+        </span>
+      )}
+    </span>
   );
 }

@@ -35,6 +35,15 @@ public final class Api implements HttpHandler {
     private final String version;
     private final Map<String, Session.Principal> agents;
     private final Map<String, String> agentSessions = new java.util.concurrent.ConcurrentHashMap<>();
+    private SetupService setup;              // hosted mode only
+    private CredentialService setupCredentials;   // the connections before a workspace exists
+
+    /** Hosted mode: the first-run setup, and the connections view before any workspace is open. */
+    public Api withSetup(SetupService setup, CredentialService credentials) {
+        this.setup = setup;
+        this.setupCredentials = credentials;
+        return this;
+    }
 
     public Api(Workspaces workspaces, Session.Store sessions, Security security, Audit audit, String version) {
         this(workspaces, sessions, security, audit, version, Map.of());
@@ -139,7 +148,16 @@ public final class Api implements HttpHandler {
                 send(ex, 200, path.equals("/api/session") ? sessionInfo(session) : workspaceRoute(session, method, path, ex));
                 return;
             }
+            if (path.startsWith("/api/setup") && setup != null) {
+                send(ex, 200, setupRoute(session, method, path, query, ex));
+                return;
+            }
             w = workspaces.get(session.workspace);
+            if (w == null && path.startsWith("/api/credentials") && setupCredentials != null) {
+                // the connections are the server's, not a workspace's: reachable before one is open
+                send(ex, 200, credentialsRoute(setupCredentials, method, path, query, ex));
+                return;
+            }
             if (w == null) {
                 Map<String, Object> m = error("no workspace is open; open a branch first");
                 m.put("noWorkspace", true);
@@ -188,6 +206,7 @@ public final class Api implements HttpHandler {
         u.put("editor", session.principal.editor);
         u.put("deployer", session.principal.deployer);
         m.put("user", u);
+        m.put("setup", workspaces.needsSetup());
         m.put("workspace", w == null ? null : w.id);
         m.put("branch", w == null ? null : w.branch);
         m.put("tree", w == null ? null : w.tree.toString());
@@ -199,6 +218,8 @@ public final class Api implements HttpHandler {
         if (method.equals("GET") && path.equals("/api/workspaces")) {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("mode", security.hostedMode() ? "hosted" : "local");
+            m.put("setup", workspaces.needsSetup());
+            m.put("inPlace", workspaces.hosted() && workspaces.config().inPlace != null);
             m.put("open", workspaces.describe(session.principal));
             m.put("current", session.workspace);
             if (workspaces.hosted()) {
@@ -259,10 +280,6 @@ public final class Api implements HttpHandler {
                     return prov.catalog();
                 case "/api/packages":
                     return packages.overview();
-                case "/api/credentials":
-                    return credentials.list();
-                case "/api/credentials/secrets":
-                    return credentials.secrets(required(query, "env"));
                 case "/api/sim/cases":
                     return sim.list();
                 case "/api/sim/case":
@@ -298,22 +315,8 @@ public final class Api implements HttpHandler {
             }
             return service.run(calls, Boolean.TRUE.equals(req.get("dryRun")), Boolean.TRUE.equals(req.get("force")), Json.asString(req.get("revision")));
         }
-        if (method.equals("POST") && path.startsWith("/api/credentials/")) {
-            Map<String, Object> req = Json.asMap(Json.parse(new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8)));
-            switch (path) {
-                case "/api/credentials/test":
-                    return credentials.test(req);
-                case "/api/credentials/resolve":
-                    return credentials.resolve(req);
-                case "/api/credentials/environment":
-                    return credentials.save(req);
-                case "/api/credentials/environment/remove":
-                    return credentials.remove(Json.asString(req.get("name")));
-                case "/api/credentials/secret":
-                    return credentials.setSecret(req);
-                default:
-                    break;
-            }
+        if (path.startsWith("/api/credentials")) {
+            return credentialsRoute(credentials, method, path, query, ex);
         }
         if (method.equals("POST") && path.equals("/api/packages/build")) {
             return packages.build(Json.asMap(Json.parse(new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8))));
@@ -450,6 +453,64 @@ public final class Api implements HttpHandler {
             }
         }
         return out;
+    }
+
+    private Object credentialsRoute(CredentialService credentials, String method, String path, Map<String, String> query, HttpExchange ex) throws IOException {
+        if (method.equals("GET")) {
+            switch (path) {
+                case "/api/credentials":
+                    return credentials.list();
+                case "/api/credentials/secrets":
+                    return credentials.secrets(required(query, "env"));
+                default:
+                    throw new TreeService.NotFound("no such endpoint: GET " + path);
+            }
+        }
+        Map<String, Object> req = Json.asMap(Json.parse(new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8)));
+        switch (path) {
+            case "/api/credentials/test":
+                return credentials.test(req);
+            case "/api/credentials/resolve":
+                return credentials.resolve(req);
+            case "/api/credentials/environment":
+                return credentials.save(req);
+            case "/api/credentials/environment/remove":
+                return credentials.remove(Json.asString(req.get("name")));
+            case "/api/credentials/secret":
+                return credentials.setSecret(req);
+            default:
+                throw new TreeService.NotFound("no such endpoint: " + method + " " + path);
+        }
+    }
+
+    private Object setupRoute(Session session, String method, String path, Map<String, String> query, HttpExchange ex) throws IOException {
+        if (method.equals("GET") && path.equals("/api/setup")) {
+            return setup.state();
+        }
+        if (!method.equals("POST")) {
+            throw new TreeService.NotFound("no such endpoint: " + method + " " + path);
+        }
+        if (!session.principal.deployer && !session.principal.editor) {
+            throw new TreeService.BadRequest("setup needs an account with a role");
+        }
+        if (path.equals("/api/setup/upload")) {
+            return setup.fromUpload(session, query.get("kind"), query.get("name"), ex.getRequestBody());
+        }
+        Map<String, Object> req = SetupService.json(ex.getRequestBody());
+        switch (path) {
+            case "/api/setup/vault":
+                return setup.fromVault(session, Json.asString(req.get("env")));
+            case "/api/setup/project":
+                return setup.fromProjectPath(session, Json.asString(req.get("path")));
+            case "/api/setup/existing":
+                return setup.existingRepository(session, Json.asString(req.get("path")));
+            case "/api/setup/directory":
+                return setup.fromDirectory(session, Json.asString(req.get("path")));
+            case "/api/setup/clone":
+                return setup.cloneRemote(session, Json.asString(req.get("url")), Json.asString(req.get("token")), Json.asString(req.get("base")));
+            default:
+                throw new TreeService.NotFound("no such endpoint: " + method + " " + path);
+        }
     }
 
     /** What an audit line keeps of a response: names and flags, never contents. */

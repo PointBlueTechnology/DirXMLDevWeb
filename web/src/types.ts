@@ -4,8 +4,36 @@ export interface Session {
   name: string;
   version: string;
   core: string | null;
-  tree: string;
-  revision: string;
+  mode: "local" | "hosted";
+  csrf: string;
+  user: { subject: string; name: string; email: string | null; editor: boolean; deployer: boolean };
+  workspace: string | null;
+  branch: string | null;
+  tree: string | null;
+  revision: string | null;
+}
+
+export interface WorkspacesInfo {
+  mode: "local" | "hosted";
+  open: { id: string; branch: string | null; tree: string }[];
+  current: string | null;
+  repository?: string;
+  base?: string;
+  branches?: string[];
+}
+
+export interface GitStatus {
+  repository: boolean;
+  top?: string;
+  branch?: string;
+  changed?: { status: string; file: string }[];
+  last?: { hash: string; author: string; when: string; subject: string };
+  upstream?: string | null;
+  ahead?: number;
+  behind?: number;
+  remote?: string | null;
+  base?: string | null;
+  compareUrl?: string | null;
 }
 
 export interface ArtifactNode {

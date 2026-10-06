@@ -176,6 +176,11 @@ Register the client as confidential with redirect URI `<public.url>/auth/callbac
 whole loop with the `none` provider against a local bare repository; `bin/smoke-oidc.sh` does it
 through a real Keycloak in Docker.
 
+**One person, one container**: `hosted/docker/single-user/setup.sh <tree>` gives a single
+person the web UI, the `idm` CLI and the simulator in a local container with one token, a
+bare repository in the directory, the engine jars from a volume, and a token for their agents
+([hosted/docker/single-user](hosted/docker/single-user/README.md)).
+
 The **container** ([docs/hosted-install.md](docs/hosted-install.md)): `hosted/docker/build.sh`
 builds an image with the server, the page and the `idm` CLI on a JRE with git; the engine jars
 are mounted, never shipped. `hosted/docker/compose.yml` runs it behind Caddy (TLS) with Keycloak.

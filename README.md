@@ -27,6 +27,12 @@ the page follows the files.
   language available and each node's attributes, order and nesting taken from the grammar.
   *Source* is the XML. Both edit one draft. A pause in editing sends the draft through the
   engine's compiler and the rest of validation, so a mistake is named while it is on screen.
+- **Entitlements**: Designer's editor — display name, description, conflict resolution,
+  multi-valued, and the values, switchable between none (the requester's), a fixed list of the
+  connected system's keys (as an association holds them — GUIDs, ids, names, DNs), and a query
+  against the application (class, scope, search classes, attributes read, and how each result
+  is shown and granted, with `{attr}`, `{src-dn}` and `{association}` tokens). The XML tab
+  remains for anything else.
 - **References**: what links to, includes or maps through an artifact.
 - **Validation**: the core's whole check suite, including the engine's own compiler.
 - **Configuration editors** (W1), per driver and for the driver set:

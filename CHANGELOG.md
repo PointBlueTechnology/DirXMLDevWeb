@@ -7,6 +7,21 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- Entitlement editor: display name, description, conflict resolution, multi-valued, and the
+  values switchable between the requester's, a fixed list, and a query against the application
+  (class, scope, search classes, attributes, result tokens); the XML tab for the rest.
+
+### Changed
+
+- Hosted mode's branch picker is a list of the repository's branches with a "new branch…" entry.
+
+### Fixed
+
+- A file argument (`entitlement.set --definition-file`, `form.set-content`) was deleted before an
+  operation that reads it at apply time ran; it now lives until the transaction has finished.
+
 ## [0.4.0] - 2026-10-06
 
 Hosted mode (W7): a team on one repository, with sign-in, workspaces, commit and push, roles,

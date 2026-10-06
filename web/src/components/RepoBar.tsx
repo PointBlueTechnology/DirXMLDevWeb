@@ -15,6 +15,8 @@ export function RepoBar({ session, revision, onWorkspaceChanged }: { session: Se
   const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
   const [branch, setBranch] = useState("");
   const [open, setOpen] = useState(false);
+  const NEW = "__new__";
+  const [pick, setPick] = useState("");
   const hosted = session.mode === "hosted";
 
   const load = () => {
@@ -74,12 +76,23 @@ export function RepoBar({ session, revision, onWorkspaceChanged }: { session: Se
           </button>
           {open && (
             <span className="addrow tight">
-              <input list="branches" value={branch} onChange={(e) => setBranch(e.target.value)} placeholder={`branch (new ones start from ${info?.base ?? "main"})`} spellCheck={false} data-testid="repo-branch" />
-              <datalist id="branches">
+              <select
+                value={pick}
+                onChange={(e) => {
+                  setPick(e.target.value);
+                  setBranch(e.target.value === NEW ? "" : e.target.value);
+                }}
+                data-testid="repo-branch-select"
+              >
+                <option value="">branch…</option>
                 {(info?.branches ?? []).map((b) => (
-                  <option key={b} value={b} />
+                  <option key={b} value={b}>
+                    {b}
+                  </option>
                 ))}
-              </datalist>
+                <option value={NEW}>new branch…</option>
+              </select>
+              {pick === NEW && <input value={branch} onChange={(e) => setBranch(e.target.value)} placeholder={`name (starts from ${info?.base ?? "main"})`} spellCheck={false} autoFocus data-testid="repo-branch" />}
               <button onClick={openBranch} disabled={!branch.trim() || busy !== null} data-testid="repo-open">
                 Open
               </button>

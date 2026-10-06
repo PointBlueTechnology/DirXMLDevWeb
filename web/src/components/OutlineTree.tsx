@@ -77,7 +77,28 @@ export function OutlineTree({ outline, selection, onSelect }: Props) {
         {artifacts("Subscriber", d.policies.subscriber)}
         {artifacts("Publisher", d.policies.publisher)}
         {artifacts("Resources", d.resources)}
-        {files("Entitlements", d.entitlements)}
+        {d.entitlements.length > 0 && (
+          <details>
+            <summary>
+              Entitlements <span className="count">{d.entitlements.length}</span>
+            </summary>
+            <ul>
+              {d.entitlements.map((e) => (
+                <li key={e.name}>
+                  <button
+                    className={selection.type === "entitlement" && selection.driver === d.name && selection.name === e.name ? "leaf active" : "leaf"}
+                    disabled={!e.file}
+                    onClick={() => e.file && onSelect({ type: "entitlement", driver: d.name, name: e.name, file: e.file })}
+                    title={e.file ?? ""}
+                  >
+                    <span className="badge">ENT</span>
+                    {e.name}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
         {d.forms.length > 0 && (
           <details>
             <summary>

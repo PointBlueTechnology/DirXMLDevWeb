@@ -7,6 +7,17 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- Driver set view: DN, servers (primary marked), drivers, Library, driver-set-level linkage,
+  recorded packages, env overrides and files on an Overview tab; the GCV editor as a tab.
+- Trace from any server of the driver set: the servers are read from the vault
+  (`GET /api/vault/servers?env=`) and the stream opens at the chosen server's own address.
+
+### Changed
+
+- "Stage overrides" is "Env overrides" everywhere.
+
 ## [0.7.0] - 2026-10-06
 
 ### Added

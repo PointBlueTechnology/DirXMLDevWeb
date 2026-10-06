@@ -80,7 +80,16 @@ export interface DriverOutline {
 export interface Outline {
   revision: string;
   tree: string;
-  driverSet: { name: string; dn: string | null; config: string[] };
+  driverSet: {
+    name: string;
+    dn: string | null;
+    config: string[];
+    servers: { dn: string; name: string; primary: boolean }[];
+    linkage: { dn: string; name: string; order: string | null; type: string | null }[];
+    packages: Record<string, string>;
+    meta: Record<string, string>;
+    libraryItems: number;
+  };
   library: { policies: ArtifactNode[]; resources: ArtifactNode[] };
   drivers: DriverOutline[];
 }
@@ -221,6 +230,7 @@ export type Selection =
   | { type: "artifact"; path: string }
   | { type: "file"; file: string }
   | { type: "config"; driver: string | null }
+  | { type: "driverset" }
   | { type: "overrides" }
   | { type: "vault" }
   | { type: "simulator" }

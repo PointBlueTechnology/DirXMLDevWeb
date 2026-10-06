@@ -66,8 +66,11 @@ export function OutlineTree({ outline, selection, onSelect }: Props) {
         <button className={selection.type === "flow" && selection.driver === d.name ? "leaf active" : "leaf"} onClick={() => onSelect({ type: "flow", driver: d.name })}>
           <span className="badge badge-flow">⇄</span>Policy flow
         </button>
+        <button className={selection.type === "config" && selection.driver === d.name ? "leaf active" : "leaf"} onClick={() => onSelect({ type: "config", driver: d.name })}>
+          <span className="badge badge-flow">⚙</span>Configuration
+        </button>
         {files(
-          "Configuration",
+          "Configuration files",
           d.config.map((f) => ({ name: leafName(f), file: f })),
         )}
         {artifacts("Driver policies", d.policies.driver)}
@@ -89,8 +92,14 @@ export function OutlineTree({ outline, selection, onSelect }: Props) {
       <button className={selection.type === "home" ? "leaf active root" : "leaf root"} onClick={() => onSelect({ type: "home" })}>
         {outline.driverSet.name}
       </button>
+      <button className={selection.type === "config" && selection.driver === null ? "leaf active" : "leaf"} onClick={() => onSelect({ type: "config", driver: null })}>
+        <span className="badge badge-flow">⚙</span>Driver set GCVs
+      </button>
+      <button className={selection.type === "overrides" ? "leaf active" : "leaf"} onClick={() => onSelect({ type: "overrides" })}>
+        <span className="badge badge-flow">≠</span>Stage overrides
+      </button>
       {files(
-        "Driver set configuration",
+        "Driver set files",
         outline.driverSet.config.map((f) => ({ name: f, file: f })),
       )}
       {(outline.library.policies.length > 0 || outline.library.resources.length > 0) && (

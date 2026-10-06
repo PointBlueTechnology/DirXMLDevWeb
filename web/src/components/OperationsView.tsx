@@ -1,21 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
-import { ApiError, api } from "../api";
-import type { OpResult, OpSpec } from "../types";
-import { OpOutcome } from "./ReviewDialog";
+import { api } from "../api";
+import type { OpCall, OpSpec } from "../types";
+import { ReviewDialog } from "./ReviewDialog";
 
 /**
  * Every edit operation the core registers, runnable from a form generated out of its declared
  * arguments. This is the whole editing surface in its rawest form: the dedicated editors of
  * later phases are friendlier front ends to the same calls. Dry run first; apply only after.
  */
-export function OperationsView({ revision, onDone }: { revision: string; onDone: () => void }) {
+export function OperationsView({ onDone }: { onDone: () => void }) {
   const [ops, setOps] = useState<OpSpec[]>([]);
   const [filter, setFilter] = useState("");
   const [selected, setSelected] = useState<OpSpec | null>(null);
   const [values, setValues] = useState<Record<string, string>>({});
-  const [result, setResult] = useState<OpResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [review, setReview] = useState<OpCall | null>(null);
+  const [done, setDone] = useState<string | null>(null);
 
   useEffect(() => {
     api
@@ -41,16 +41,14 @@ export function OperationsView({ revision, onDone }: { revision: string; onDone:
   const pick = (o: OpSpec) => {
     setSelected(o);
     setValues({});
-    setResult(null);
+    setDone(null);
     setError(null);
   };
 
-  const run = async (dryRun: boolean) => {
+  const call = (): OpCall | null => {
     if (!selected) {
-      return;
+      return null;
     }
-    setBusy(true);
-    setError(null);
     const args: Record<string, string> = {};
     const files: Record<string, string> = {};
     for (const a of selected.args) {
@@ -59,18 +57,7 @@ export function OperationsView({ revision, onDone }: { revision: string; onDone:
         (a.file ? files : args)[a.name] = v;
       }
     }
-    try {
-      const r = await api.run(selected.name, { args, files, dryRun, revision });
-      setResult(r);
-      if (!dryRun && r.ok) {
-        onDone();
-      }
-    } catch (e) {
-      setResult(null);
-      setError(e instanceof ApiError && e.status === 409 ? "The tree changed on disk since this page last loaded it. Run the dry run again." : e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(false);
-    }
+    return { name: selected.name, args, files, label: `${selected.name} ${Object.entries(args).map(([k, v]) => `${k}=${v.replace(/\n/g, ", ")}`).join(" ")}` };
   };
 
   return (
@@ -107,7 +94,7 @@ export function OperationsView({ revision, onDone }: { revision: string; onDone:
             <p className="muted">
               The core's typed edit operations, the same ones the <code>idm</code> CLI and the MCP server run. Each loads the tree, applies the change, validates the result, and writes only if it introduced no error.
             </p>
-            <p className="muted">Pick one on the left. Run it dry first; the result says what would change.</p>
+            <p className="muted">Pick one on the left. Review shows what would change, file by file, before anything is written.</p>
           </div>
         ) : (
           <div className="pad">
@@ -117,7 +104,8 @@ export function OperationsView({ revision, onDone }: { revision: string; onDone:
             <form
               onSubmit={(e) => {
                 e.preventDefault();
-                void run(true);
+                setDone(null);
+                setReview(call());
               }}
             >
               {selected.args.map((a) => (
@@ -135,16 +123,25 @@ export function OperationsView({ revision, onDone }: { revision: string; onDone:
                 </label>
               ))}
               <div className="actions">
-                <button type="submit" disabled={busy}>
-                  Dry run
-                </button>
-                <button type="button" className="primary" disabled={busy || !result || !result.ok || !result.dryRun} onClick={() => void run(false)} title="Available after a dry run that passed">
-                  Apply
+                <button type="submit" className="primary">
+                  Review
                 </button>
               </div>
             </form>
             {error && <p className="err-text">{error}</p>}
-            {result && <OpOutcome result={result} />}
+            {done && <p className="ok-text">{done}</p>}
+            {review && (
+              <ReviewDialog
+                title={`Review ${selected.name}`}
+                ops={[review]}
+                onClose={() => setReview(null)}
+                onApplied={(r) => {
+                  setReview(null);
+                  setDone(`Written: ${r.changedFiles.length} file(s) changed${r.deletedFiles.length ? `, ${r.deletedFiles.length} deleted` : ""}.`);
+                  onDone();
+                }}
+              />
+            )}
           </div>
         )}
       </div>

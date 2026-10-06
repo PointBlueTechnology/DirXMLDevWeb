@@ -98,6 +98,62 @@ export interface OpSpec {
   args: OpArg[];
 }
 
+/** One operation an editor wants to run: the core's name and arguments, and a line for the reviewer. */
+export interface OpCall {
+  name: string;
+  args: Record<string, string>;
+  files?: Record<string, string>;
+  /** What this change is, in the editor's words. */
+  label: string;
+  /** Edits with the same key replace each other (typing in one field twice is one change). */
+  key?: string;
+}
+
+export interface FileDiff {
+  file: string;
+  status: "changed" | "added" | "deleted";
+  language: string;
+  before?: string;
+  after?: string;
+}
+
+export interface Definition {
+  name: string;
+  displayName: string;
+  type: string;
+  value: string;
+  editable: boolean;
+  description: string;
+  choices: { value: string; label: string }[];
+  owner?: string;
+  overrideKey?: string;
+}
+
+export interface ConfigView {
+  revision: string;
+  driver: string | null;
+  shimClass?: string | null;
+  shimAuthServer?: string | null;
+  shimAuthId?: string | null;
+  params?: Definition[];
+  ecvs?: Definition[];
+  gcvs: Definition[];
+}
+
+export interface OverrideRow {
+  key: string;
+  resolved: boolean;
+  problem: string | null;
+  base: string | null;
+  values: Record<string, string>;
+}
+
+export interface OverridesData {
+  revision: string;
+  environments: string[];
+  overrides: OverrideRow[];
+}
+
 export interface OpResult {
   operation: string;
   ok: boolean;
@@ -111,6 +167,8 @@ export interface OpResult {
   notes: string[];
   newErrors: { code: string; path: string; message: string }[];
   revision: string;
+  /** On a dry run: each file the change would touch, before and after. */
+  diffs?: FileDiff[];
 }
 
 /** What the main pane shows. */
@@ -119,4 +177,6 @@ export type Selection =
   | { type: "flow"; driver: string }
   | { type: "artifact"; path: string }
   | { type: "file"; file: string }
+  | { type: "config"; driver: string | null }
+  | { type: "overrides" }
   | { type: "operations" };

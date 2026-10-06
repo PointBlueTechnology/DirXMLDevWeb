@@ -221,6 +221,12 @@ W5 are where most of the effort sits.
 5. **Its own repository**: this one.
 6. **Name: DirXMLDevWeb.**
 
+W1 (2026-10-05) added the configuration editors of section 2 — GCVs with per-stage columns,
+driver settings, the filter, policy-set order, the schema map, mapping tables, the override
+matrix — on a shared pattern: an editor stages typed operations, one review runs them against a
+copy of the tree and shows real file diffs, one apply writes them as a single transaction. Two
+operations were added to the core for it (`override.set`/`override.remove`, `config.set-content`).
+
 What W0 delivered against section 4: `bin/idmweb serve`, the catalog as the API (all 75 of the
 core's operations runnable from generated forms), the token and host/origin model, the tree
 watcher with live reload, the outline, the fishbone, the validation panel, references, and both

@@ -1,10 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import Editor from "@monaco-editor/react";
-import { ApiError, api } from "../api";
+import { api } from "../api";
 import { monacoTheme } from "../monaco";
+import { usePending } from "../pending";
 import { summarize } from "../rules";
-import type { Artifact, OpResult } from "../types";
+import type { Artifact } from "../types";
+import { PendingBar } from "./PendingBar";
 import { ReviewDialog } from "./ReviewDialog";
+import { SchemaMapEditor } from "./SchemaMapEditor";
+import { TableEditor } from "./TableEditor";
 
 interface Props {
   path: string;
@@ -13,21 +17,25 @@ interface Props {
   onSaved: () => void;
 }
 
-type Tab = "rules" | "source" | "refs";
+type Tab = "structured" | "source" | "refs";
+
+const STRUCTURED: Record<string, string> = { "dirxml-script": "Rules", "schema-map": "Map", "mapping-table": "Table" };
 
 /**
- * One policy or resource, two ways: the structured view of its rules, and its source. Editing
- * happens in the source today (XML-first); a change is reviewed as a diff with the core's dry
- * run before it is written through `artifact.set-content`.
+ * One policy or resource, two ways. The structured tab fits the kind: a DirXML Script policy's
+ * rules (read-only for now), a schema map's name pairs, a mapping table's grid — the last two
+ * editable through their typed operations. Source is the document itself: edit it, review the
+ * change as a diff with the core's verdict, apply it through `artifact.set-content`.
  */
 export function ArtifactView({ path, revision, onOpen, onSaved }: Props) {
   const [artifact, setArtifact] = useState<Artifact | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<Tab>("rules");
+  const [tab, setTab] = useState<Tab>("structured");
   const [draft, setDraft] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
-  const [review, setReview] = useState<{ result: OpResult | null; error: string | null; busy: boolean } | null>(null);
+  const [reviewing, setReviewing] = useState(false);
   const [changedOnDisk, setChangedOnDisk] = useState(false);
+  const pending = usePending();
 
   const dirty = draft !== null && artifact !== null && draft !== artifact.content;
 
@@ -50,7 +58,7 @@ export function ArtifactView({ path, revision, onOpen, onSaved }: Props) {
         setError(null);
         setChangedOnDisk(false);
         setDraft(null);
-        setTab((t) => (t === "rules" && a.kind !== "dirxml-script" ? "source" : t));
+        setTab((t) => (t === "structured" && !STRUCTURED[a.kind] ? "source" : t));
       })
       .catch((e: Error) => !gone && setError(e.message));
     return () => {
@@ -76,26 +84,7 @@ export function ArtifactView({ path, revision, onOpen, onSaved }: Props) {
     setChangedOnDisk(false);
   };
 
-  const submit = async (dryRun: boolean) => {
-    if (draft === null) {
-      return;
-    }
-    setReview((r) => ({ result: dryRun ? null : (r?.result ?? null), error: null, busy: true }));
-    try {
-      const current = (await api.session()).revision;
-      const result = await api.run("artifact.set-content", { args: { path: artifact.path }, files: { "content-file": draft }, dryRun, revision: current });
-      if (!dryRun && result.ok) {
-        setReview(null);
-        await reload();
-        onSaved();
-        return;
-      }
-      setReview({ result, error: null, busy: false });
-    } catch (e) {
-      const message = e instanceof ApiError && e.status === 409 ? "The tree changed on disk while you were editing. Cancel, reload the artifact, and re-apply your change." : e instanceof Error ? e.message : String(e);
-      setReview((r) => ({ result: r?.result ?? null, error: message, busy: false }));
-    }
-  };
+  const structuredLabel = STRUCTURED[artifact.kind];
 
   return (
     <div className="view">
@@ -112,6 +101,8 @@ export function ArtifactView({ path, revision, onOpen, onSaved }: Props) {
         <div className="actions">
           {!editing && artifact.editable && (
             <button
+              disabled={pending.ops.length > 0}
+              title={pending.ops.length > 0 ? "Apply or discard the pending changes first" : "Edit the document itself"}
               onClick={() => {
                 setEditing(true);
                 setTab("source");
@@ -134,26 +125,27 @@ export function ArtifactView({ path, revision, onOpen, onSaved }: Props) {
               >
                 Discard
               </button>
-              <button
-                className="primary"
-                disabled={!dirty}
-                onClick={() => {
-                  setReview({ result: null, error: null, busy: true });
-                  void submit(true);
-                }}
-              >
+              <button className="primary" disabled={!dirty} onClick={() => setReviewing(true)}>
                 Review changes
               </button>
             </>
           )}
         </div>
       </div>
-      {changedOnDisk && <div className="banner warn">This artifact's tree changed on disk while you were editing. Your edit is kept; applying it will be refused until you reload.</div>}
-      {artifact.packaged && editing && <div className="banner warn">This artifact came from a package. Saving marks it customized, as Designer does.</div>}
+      {changedOnDisk && <div className="banner warn">The tree changed on disk while you were editing. Your edit is kept; applying it will be refused until you reload.</div>}
+      {artifact.packaged && (editing || pending.ops.length > 0) && <div className="banner warn">This artifact came from a package. Saving marks it customized, as Designer does.</div>}
+      <PendingBar
+        pending={pending}
+        title={`Review changes to ${artifact.name}`}
+        onSaved={() => {
+          void reload();
+          onSaved();
+        }}
+      />
       <div className="tabs">
-        {artifact.kind === "dirxml-script" && (
-          <button className={tab === "rules" ? "tab active" : "tab"} onClick={() => setTab("rules")}>
-            Rules
+        {structuredLabel && (
+          <button className={tab === "structured" ? "tab active" : "tab"} onClick={() => setTab("structured")}>
+            {structuredLabel}
           </button>
         )}
         <button className={tab === "source" ? "tab active" : "tab"} onClick={() => setTab("source")}>
@@ -163,7 +155,17 @@ export function ArtifactView({ path, revision, onOpen, onSaved }: Props) {
           References <span className="count">{artifact.refs.length}</span>
         </button>
       </div>
-      {tab === "rules" && summary && (
+      {tab === "structured" && artifact.kind === "schema-map" && (
+        <div className="scroll">
+          {artifact.driver ? <SchemaMapEditor driver={artifact.driver} content={artifact.content} pending={pending} /> : <p className="muted pad">A schema map outside a driver is edited in the source.</p>}
+        </div>
+      )}
+      {tab === "structured" && artifact.kind === "mapping-table" && (
+        <div className="scroll">
+          <TableEditor path={artifact.path} content={artifact.content} pending={pending} />
+        </div>
+      )}
+      {tab === "structured" && summary && (
         <div className="rules">
           {summary.error && <div className="banner error">The source is not well-formed: {summary.error}</div>}
           {summary.rules.length === 0 && !summary.error && <p className="muted pad">This policy has no rules.</p>}
@@ -177,16 +179,36 @@ export function ArtifactView({ path, revision, onOpen, onSaved }: Props) {
               <div className="cols">
                 <div>
                   <h4>When {r.conditions.length > 0 ? `(${r.logic})` : ""}</h4>
-                  {r.conditions.length === 0 ? <p className="muted">always</p> : <ul>{r.conditions.map((c, i) => <li key={i}><code>{c}</code></li>)}</ul>}
+                  {r.conditions.length === 0 ? (
+                    <p className="muted">always</p>
+                  ) : (
+                    <ul>
+                      {r.conditions.map((c, i) => (
+                        <li key={i}>
+                          <code>{c}</code>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
                 <div>
                   <h4>Do</h4>
-                  {r.actions.length === 0 ? <p className="muted">nothing</p> : <ol>{r.actions.map((a, i) => <li key={i}><code>{a}</code></li>)}</ol>}
+                  {r.actions.length === 0 ? (
+                    <p className="muted">nothing</p>
+                  ) : (
+                    <ol>
+                      {r.actions.map((a, i) => (
+                        <li key={i}>
+                          <code>{a}</code>
+                        </li>
+                      ))}
+                    </ol>
+                  )}
                 </div>
               </div>
             </section>
           ))}
-          <p className="muted small pad">The structured view is read-only in this spike. Edit in Source; the rule list follows what you type.</p>
+          <p className="muted small pad">The rule view is read-only for now. Edit in Source; the list follows what you type.</p>
         </div>
       )}
       {tab === "source" && (
@@ -230,17 +252,16 @@ export function ArtifactView({ path, revision, onOpen, onSaved }: Props) {
           )}
         </div>
       )}
-      {review && draft !== null && (
+      {reviewing && draft !== null && (
         <ReviewDialog
           title={`Review changes to ${artifact.name}`}
-          language={artifact.language}
-          original={artifact.content}
-          modified={draft}
-          result={review.result}
-          error={review.error}
-          busy={review.busy}
-          onCancel={() => setReview(null)}
-          onApply={() => void submit(false)}
+          ops={[{ name: "artifact.set-content", args: { path: artifact.path }, files: { "content-file": draft }, label: `replace the content of ${artifact.name}` }]}
+          onClose={() => setReviewing(false)}
+          onApplied={() => {
+            setReviewing(false);
+            void reload();
+            onSaved();
+          }}
         />
       )}
     </div>

@@ -1,4 +1,4 @@
-import type { Artifact, OpResult, OpSpec, Outline, Session, TreeFile, Validation } from "./types";
+import type { Artifact, ConfigView, OpCall, OpResult, OpSpec, Outline, OverridesData, Session, TreeFile, Validation } from "./types";
 import type { FishboneModel } from "./fishbone/types";
 
 /**
@@ -60,6 +60,11 @@ export const api = {
   fishbone: (driver: string) => call<FishboneModel & { revision: string }>("GET", `/api/fishbone?driver=${q(driver)}`),
   validation: () => call<Validation>("GET", "/api/validate"),
   catalog: () => call<{ operations: OpSpec[] }>("GET", "/api/catalog"),
+  config: (driver: string | null) => call<ConfigView>("GET", driver ? `/api/config?driver=${q(driver)}` : "/api/config"),
+  overrides: () => call<OverridesData>("GET", "/api/overrides"),
+  /** Several operations as one change: validated once, written together or not at all. */
+  batch: (ops: OpCall[], dryRun: boolean, revision: string) =>
+    call<OpResult>("POST", "/api/batch", { ops: ops.map((o) => ({ name: o.name, args: o.args, files: o.files ?? {} })), dryRun, revision }),
   run: (
     name: string,
     req: { args: Record<string, string>; files?: Record<string, string>; dryRun: boolean; revision: string; force?: boolean },

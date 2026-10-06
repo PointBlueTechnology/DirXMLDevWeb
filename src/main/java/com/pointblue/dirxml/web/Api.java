@@ -89,6 +89,10 @@ public final class Api implements HttpHandler {
                     return service.fishbone(required(query, "driver"));
                 case "/api/validate":
                     return service.validation();
+                case "/api/config":
+                    return service.config(query.get("driver"));
+                case "/api/overrides":
+                    return service.overrides();
                 case "/api/catalog": {
                     Map<String, Object> m = new LinkedHashMap<>();
                     m.put("operations", TreeService.catalog());
@@ -98,11 +102,21 @@ public final class Api implements HttpHandler {
                     throw new TreeService.NotFound("no such endpoint: GET " + path);
             }
         }
-        if (method.equals("POST") && path.startsWith("/api/op/")) {
-            String name = path.substring("/api/op/".length());
+        if (method.equals("POST") && (path.startsWith("/api/op/") || path.equals("/api/batch"))) {
             Map<String, Object> req = Json.asMap(Json.parse(new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8)));
-            return service.run(name, strings(req.get("args")), strings(req.get("files")),
-                Boolean.TRUE.equals(req.get("dryRun")), Boolean.TRUE.equals(req.get("force")), Json.asString(req.get("revision")));
+            java.util.List<TreeService.Call> calls = new java.util.ArrayList<>();
+            if (path.equals("/api/batch")) {
+                Object ops = req.get("ops");
+                if (ops instanceof java.util.List) {
+                    for (Object o : (java.util.List<?>) ops) {
+                        Map<String, Object> om = Json.asMap(o);
+                        calls.add(new TreeService.Call(Json.asString(om.get("name")), strings(om.get("args")), strings(om.get("files"))));
+                    }
+                }
+            } else {
+                calls.add(new TreeService.Call(path.substring("/api/op/".length()), strings(req.get("args")), strings(req.get("files"))));
+            }
+            return service.run(calls, Boolean.TRUE.equals(req.get("dryRun")), Boolean.TRUE.equals(req.get("force")), Json.asString(req.get("revision")));
         }
         throw new TreeService.NotFound("no such endpoint: " + method + " " + path);
     }

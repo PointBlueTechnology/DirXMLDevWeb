@@ -84,6 +84,7 @@ public final class CredentialService {
         m.put("file", f.toString());
         m.put("exists", Files.isRegularFile(f));
         m.put("keychain", keychainAvailable());
+        m.put("helpers", Paths.get(System.getProperty("idmweb.home", System.getProperty("user.dir")), "bin", "secrets").toAbsolutePath().normalize().toString());
         List<Object> envs = new ArrayList<>();
         if (Files.isRegularFile(f)) {
             Map<String, String> props = new PropertiesFile(f).entries();
@@ -340,6 +341,56 @@ public final class CredentialService {
         m.put("key", key);
         m.put("file", sf.toString());
         m.put("notes", notes);
+        return m;
+    }
+
+    /**
+     * Does a reference yield a value? Either a configured credential ({@code env} and, for a driver
+     * secret, {@code key}) or a {@code command} not yet saved. The value is read, measured and
+     * discarded; the answer is whether something came back and why not otherwise.
+     */
+    public Map<String, Object> resolve(Map<String, Object> req) throws IOException {
+        String env = Json.asString(req.get("env"));
+        String key = Json.asString(req.get("key"));
+        String command = Json.asString(req.get("command"));
+        Properties props = new Properties();
+        String what;
+        if (command != null && !command.isBlank()) {
+            props.setProperty("xCommand", command);
+            key = "x";
+            what = "the command";
+        } else {
+            nameOk(env);
+            Path f = environmentsFile();
+            Map<String, String> envProps = Files.isRegularFile(f) ? new PropertiesFile(f).entries() : Map.of();
+            if (key == null || key.isBlank()) {
+                key = env + ".password";
+                props.putAll(envProps);
+                what = "the password of '" + env + "'";
+            } else {
+                Path sf = secretsFile(f, envProps, env);
+                if (Files.isRegularFile(sf)) {
+                    props.putAll(new PropertiesFile(sf, true).entries());
+                }
+                what = "secret '" + key + "'";
+            }
+        }
+        Map<String, Object> m = new LinkedHashMap<>();
+        try {
+            char[] v = SecretSource.resolve(props, key, what);
+            if (v == null) {
+                m.put("ok", false);
+                m.put("message", what + " is not configured");
+            } else {
+                boolean blank = new String(v).isBlank();
+                java.util.Arrays.fill(v, '\0');
+                m.put("ok", !blank);
+                m.put("message", blank ? what + " resolved to nothing (empty output)" : what + " resolves to a value");
+            }
+        } catch (IOException e) {
+            m.put("ok", false);
+            m.put("message", e.getMessage());
+        }
         return m;
     }
 

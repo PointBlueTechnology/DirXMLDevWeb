@@ -159,6 +159,8 @@ public final class Api implements HttpHandler {
             switch (path) {
                 case "/api/credentials/test":
                     return credentials.test(req);
+                case "/api/credentials/resolve":
+                    return credentials.resolve(req);
                 case "/api/credentials/environment":
                     return credentials.save(req);
                 case "/api/credentials/environment/remove":

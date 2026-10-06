@@ -9,6 +9,15 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Added
 
+- Changes view: the changed files with both sides, since the last commit, against the base
+  branch on the remote (what a pull request would carry), or against upstream (what is not
+  pushed); reached from the counts in the repository bar. `GET /api/git/diff?against=`.
+
+### Changed
+
+- Forms and PRDs are shown and offered only on the User Application driver, recognised by its
+  shim class (`com.novell.idm.driver.ComposerDriverShim`), not its name.
+
 - "Export from an Identity Vault" lists the driver sets the vault holds (name, driver count,
   the connection's own preselected) and reads the chosen one; `GET /api/setup/driversets?env=`.
 

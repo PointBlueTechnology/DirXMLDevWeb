@@ -206,6 +206,79 @@ public final class Git {
         return m;
     }
 
+    /**
+     * What differs between the working tree and {@code ref} ({@code HEAD}: everything uncommitted;
+     * {@code origin/main}: the branch and its uncommitted work against the remote base; {@code @{upstream}}:
+     * against what was pushed), as each changed file's two sides. Binary and very large files come
+     * without contents. Limited to {@code max} files.
+     */
+    public List<Map<String, Object>> diff(Path dir, String ref, int max) throws IOException {
+        List<Map<String, Object>> out = new ArrayList<>();
+        Result names = run(dir, "diff", "--name-status", "--find-renames", ref, "--");
+        if (!names.ok()) {
+            throw new TreeService.BadRequest("git diff " + ref + ": " + names.err.trim());
+        }
+        List<String[]> entries = new ArrayList<>();
+        for (String line : names.out.split("\n")) {
+            if (line.isBlank()) {
+                continue;
+            }
+            String[] p = line.split("\t");
+            String status = p[0].substring(0, 1);
+            String file = p[p.length - 1];
+            String from = status.equals("R") && p.length > 2 ? p[1] : file;
+            entries.add(new String[] {status, file, from});
+        }
+        // untracked files are differences too
+        for (String line : run(dir, "ls-files", "--others", "--exclude-standard").out.split("\n")) {
+            if (!line.isBlank()) {
+                entries.add(new String[] {"?", line.trim(), line.trim()});
+            }
+        }
+        for (String[] e : entries) {
+            if (out.size() >= max) {
+                Map<String, Object> more = new LinkedHashMap<>();
+                more.put("file", "… and " + (entries.size() - max) + " more");
+                more.put("status", "");
+                out.add(more);
+                break;
+            }
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("file", e[1]);
+            m.put("status", switch (e[0]) { case "A", "?" -> "added"; case "D" -> "deleted"; case "R" -> "renamed"; default -> "changed"; });
+            m.put("from", e[2].equals(e[1]) ? null : e[2]);
+            m.put("language", TreeService.language(e[1]));
+            String before = e[0].equals("A") || e[0].equals("?") ? "" : show(dir, ref, e[2]);
+            Path after = dir.resolve(e[1]);
+            String now = e[0].equals("D") || !Files.isRegularFile(after) ? "" : text(after);
+            m.put("before", before);
+            m.put("after", now);
+            out.add(m);
+        }
+        return out;
+    }
+
+    private String show(Path dir, String ref, String file) throws IOException {
+        Result r = run(dir, "show", ref + ":" + file);
+        if (!r.ok()) {
+            return "";
+        }
+        return r.out.length() > 2_000_000 ? "(too large to show)" : r.out;
+    }
+
+    private static String text(Path f) throws IOException {
+        if (Files.size(f) > 2_000_000) {
+            return "(too large to show)";
+        }
+        byte[] b = Files.readAllBytes(f);
+        for (int i = 0; i < Math.min(b.length, 8000); i++) {
+            if (b[i] == 0) {
+                return "(binary)";
+            }
+        }
+        return new String(b, StandardCharsets.UTF_8);
+    }
+
     /** Bring the base branch's latest into this one; a conflict is reported with its files and left as is. */
     public Map<String, Object> update(Path dir, String base) throws IOException {
         must(run(dir, "fetch", "origin", base), "fetch");

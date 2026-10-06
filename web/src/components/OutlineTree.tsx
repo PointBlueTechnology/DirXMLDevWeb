@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { ArtifactNode, DriverOutline, Outline, Selection } from "../types";
+import { isUserApplication } from "../drivers";
 
 interface Props {
   outline: Outline;
@@ -65,12 +66,20 @@ export function OutlineTree({ outline, selection, onSelect }: Props) {
       <summary className="driver">
         {d.name}
         <NewMenu
-          items={[
-            ["policy", "Policy"],
-            ["entitlement", "Entitlement"],
-            ["form", "Form"],
-            ["prd", "Provisioning request (PRD)"],
-          ]}
+          items={
+            // forms and PRDs exist only on the User Application driver, known by its shim class
+            isUserApplication(d)
+              ? [
+                  ["policy", "Policy"],
+                  ["entitlement", "Entitlement"],
+                  ["form", "Form"],
+                  ["prd", "Provisioning request (PRD)"],
+                ]
+              : [
+                  ["policy", "Policy"],
+                  ["entitlement", "Entitlement"],
+                ]
+          }
           onPick={(what) => onSelect({ type: "new", what, driver: d.name })}
         />
       </summary>

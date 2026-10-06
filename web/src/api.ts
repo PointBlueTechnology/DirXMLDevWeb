@@ -6,6 +6,7 @@ import type {
   DeployResult,
   EnvSecrets,
   FormData as FormDoc,
+  GitDiff,
   GitStatus,
   LifecycleResult,
   OpCall,
@@ -134,6 +135,7 @@ export const api = {
   openWorkspace: (branch: string, project?: string) => call<{ workspace: string; project: string | null; branch: string }>("POST", "/api/workspaces/open", { branch, project }),
   git: {
     status: () => call<GitStatus>("GET", "/api/git/status"),
+    diff: (against: "head" | "base" | "upstream") => call<GitDiff>("GET", `/api/git/diff?against=${against}`),
     commit: (message: string, push: boolean) => call<{ committed: boolean; hash?: string; pushed?: boolean; message?: string }>("POST", "/api/git/commit", { message, push }),
     update: (base?: string) => call<{ merged: boolean; message: string; conflicts?: string[] }>("POST", "/api/git/update", base ? { base } : {}),
   },

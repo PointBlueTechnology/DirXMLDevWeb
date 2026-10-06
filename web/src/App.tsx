@@ -20,6 +20,8 @@ import { ConnectionsView } from "./components/ConnectionsView";
 import { EntitlementView } from "./components/EntitlementView";
 import { SetupView } from "./components/SetupView";
 import { NewItemView } from "./components/NewItemView";
+import { ChangesView } from "./components/ChangesView";
+import { isUserApplication } from "./drivers";
 
 export function App() {
   const [token] = useState(() => takeToken());
@@ -189,6 +191,7 @@ export function App() {
             setSelection({ type: "home" });
           }}
           onAddProject={() => setAddingProject(true)}
+          onSelect={setSelection}
         />
       )}
       {addingProject && session && selection.type === "connections" && (
@@ -264,7 +267,7 @@ export function App() {
           <button className={selection.type === "connections" ? "navbtn active" : "navbtn"} onClick={() => setSelection({ type: "connections" })}>
             Connections
           </button>
-          {outline?.drivers.some((d) => d.forms.length + d.prds.length > 0) && (
+          {outline?.drivers.some(isUserApplication) && (
             <button className={selection.type === "roles" ? "navbtn active" : "navbtn"} onClick={() => setSelection({ type: "roles" })}>
               Roles and resources
             </button>
@@ -296,6 +299,7 @@ export function App() {
           {selection.type === "prd" && <PrdView key={selection.driver + "/" + selection.name} driver={selection.driver} name={selection.name} revision={revision} onSelect={setSelection} onSaved={reload} />}
           {selection.type === "form" && <FormView key={selection.driver + "/" + selection.name} driver={selection.driver} name={selection.name} revision={revision} onSelect={setSelection} onSaved={reload} />}
           {selection.type === "roles" && <RolesView revision={revision} onSaved={reload} />}
+          {selection.type === "changes" && <ChangesView key={selection.against ?? "head"} initial={selection.against ?? "head"} revision={revision} onSelect={setSelection} />}
           {selection.type === "new" && outline && <NewItemView key={selection.what + (selection.driver ?? "")} what={selection.what} driver={selection.driver} outline={outline} onSelect={setSelection} onSaved={reload} />}
           {selection.type === "entitlement" && <EntitlementView key={selection.file} driver={selection.driver} name={selection.name} file={selection.file} revision={revision} onSelect={setSelection} onSaved={reload} />}
           {selection.type === "connections" && <ConnectionsView key={selection.env ?? ""} initialEnv={selection.env ?? null} />}
@@ -340,7 +344,8 @@ function Home({ outline, validation, onSelect }: { outline: Outline | null; vali
             <strong>{d.name}</strong>
             <span className="muted">{d.shimClass ?? "no shim class"}</span>
             <span>
-              {d.policies.driver.length + d.policies.subscriber.length + d.policies.publisher.length} policies · {d.entitlements.length} entitlements · {d.forms.length} forms · {d.prds.length} PRDs
+              {d.policies.driver.length + d.policies.subscriber.length + d.policies.publisher.length} policies · {d.entitlements.length} entitlements
+              {isUserApplication(d) ? ` · ${d.forms.length} forms · ${d.prds.length} PRDs` : ""}
             </span>
           </button>
         ))}

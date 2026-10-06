@@ -110,7 +110,8 @@ export const api = {
   workspaces: (project?: string) => call<WorkspacesInfo>("GET", project ? `/api/workspaces?project=${q(project)}` : "/api/workspaces"),
   setup: {
     state: () => call<{ needed: boolean; dataDir: string; repository: string | null; inPlace: string | null }>("GET", "/api/setup"),
-    vault: (project: string, env: string) => call<SetupResult>("POST", "/api/setup/vault", { project, env }),
+    driverSets: (env: string) => call<{ environment: string; configured: string | null; driverSets: { dn: string; name: string; drivers: number; default: boolean }[] }>("GET", `/api/setup/driversets?env=${q(env)}`),
+    vault: (project: string, env: string, driverSet: string) => call<SetupResult>("POST", "/api/setup/vault", { project, env, driverSet }),
     project: (project: string, path: string) => call<SetupResult>("POST", "/api/setup/project", { project, path }),
     existing: (project: string, path: string) => call<SetupResult>("POST", "/api/setup/existing", { project, path }),
     directory: (project: string, path: string) => call<SetupResult>("POST", "/api/setup/directory", { project, path }),

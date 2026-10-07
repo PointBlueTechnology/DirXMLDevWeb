@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { ArtifactNode, Outline, Selection } from "../types";
 import { ConfigEditor } from "./ConfigEditor";
+import { SchemaView } from "./SchemaView";
 import { isUserApplication } from "../drivers";
 
 /**
@@ -8,8 +9,8 @@ import { isUserApplication } from "../drivers";
  * level (package GCV objects, shared resources), the packages recorded on it, its drivers; and
  * its GCVs, editable, with the env-override columns.
  */
-export function DriverSetView({ outline, revision, canOverride, linkable, onOpen, onSelect, onSaved }: { outline: Outline; revision: string; canOverride: boolean; linkable: ArtifactNode[]; onOpen: (path: string) => void; onSelect: (s: Selection) => void; onSaved: () => void }) {
-  const [tab, setTab] = useState<"overview" | "gcvs">("overview");
+export function DriverSetView({ outline, revision, canOverride, linkable, initialTab, onOpen, onSelect, onSaved }: { outline: Outline; revision: string; canOverride: boolean; linkable: ArtifactNode[]; initialTab?: "overview" | "gcvs" | "schema"; onOpen: (path: string) => void; onSelect: (s: Selection) => void; onSaved: () => void }) {
+  const [tab, setTab] = useState<"overview" | "gcvs" | "schema">(initialTab ?? "overview");
   const ds = outline.driverSet;
   const pkgs = Object.entries(ds.packages);
   const meta = Object.entries(ds.meta).filter(([k]) => !k.startsWith("source."));
@@ -28,8 +29,12 @@ export function DriverSetView({ outline, revision, canOverride, linkable, onOpen
           <button className={tab === "gcvs" ? "tab active" : "tab"} onClick={() => setTab("gcvs")} data-testid="ds-tab-gcvs">
             GCVs
           </button>
+          <button className={tab === "schema" ? "tab active" : "tab"} onClick={() => setTab("schema")} data-testid="ds-tab-schema">
+            Schema{ds.schema ? ` ${ds.schema.classes}` : ""}
+          </button>
         </div>
       </div>
+      {tab === "schema" && <SchemaView revision={revision} onSaved={onSaved} />}
       {tab === "gcvs" && <ConfigEditor driver={null} setName={ds.name} revision={revision} canOverride={canOverride} linkable={linkable} onOpen={onOpen} onSaved={onSaved} />}
       {tab === "overview" && (
         <div className="pad scroll" data-testid="ds-overview">

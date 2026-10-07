@@ -297,6 +297,8 @@ public final class Api implements HttpHandler {
                     return packages.overview();
                 case "/api/packages/sites":
                     return packages.sites();
+                case "/api/packages/prompts":
+                    return packages.prompts(required(query, "packages"), query.get("driver"));
                 case "/api/packages/site":
                     return packages.site(required(query, "site"));
                 case "/api/sim/cases":

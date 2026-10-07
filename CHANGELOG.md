@@ -9,6 +9,16 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Added
 
+- New driver, the whole of `driver.add`: from a Designer export (a driver export, or a driver-set
+  export with the driver picked from the file), from a base package with its features (mandatory
+  ones locked, optional ones chosen) and the packages' questions answered in a form, as a copy,
+  or blank. The same form answers a package's questions on the Packages view, so an install with
+  prompts no longer needs Operations. `GET /api/packages/prompts?packages=…&driver=…` (the
+  prompts' definitions, pre-populated by the package's prompt stylesheet); the catalog listing
+  carries each package's features, supported shims and whether it asks questions. (#31)
+
+### Added
+
 - A loading bar with a spinner under the repository bar while a branch is opened ("Opening X —
   cloning it on the server…"), the tree read and validated; the outline is shown before the
   (slower) validation finishes, so the page is usable sooner.

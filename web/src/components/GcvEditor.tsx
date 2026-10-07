@@ -104,21 +104,10 @@ export function GcvEditor({ config, overrides, canOverride, pending, onOpen }: P
           }
           pending.put(`gcvdel:${row.name}`, { name: "gcv.delete", args, label: `delete GCV ${row.name}` });
         }}
-        extraHead={
-          <>
-            <th>Defined in</th>
-            <th>Used by</th>
-            {canOverride &&
-              envs.map((e) => (
-                <th key={e} title={`overrides/${e}.properties`}>
-                  {e}
-                </th>
-              ))}
-          </>
-        }
-        extra={(row) => (
-          <>
-            <td className="small">
+        meta={(row) => (
+          <div className="metaline">
+            <span className="metaitem">
+              <span className="k">Defined in</span>
               {row.owner === scope ? (
                 <span className="muted">here</span>
               ) : row.owner === "driverset" ? (
@@ -130,8 +119,9 @@ export function GcvEditor({ config, overrides, canOverride, pending, onOpen }: P
                   {row.owner}
                 </button>
               )}
-            </td>
-            <td className="small usedby" data-testid={"gcv-usedby-" + row.name}>
+            </span>
+            <span className="metaitem usedby" data-testid={"gcv-usedby-" + row.name}>
+              <span className="k">Used by</span>
               {!row.usedBy || row.usedBy.length === 0 ? (
                 <span className="muted" title="No policy or configuration document in this scope reads it">
                   —
@@ -143,14 +133,15 @@ export function GcvEditor({ config, overrides, canOverride, pending, onOpen }: P
                   </button>
                 ))
               )}
-            </td>
+            </span>
             {canOverride &&
               envs.map((e) => (
-                <td key={e} className="vcell">
+                <span key={e} className="metaitem env" title={`overrides/${e}.properties`}>
+                  <span className="k">{e}</span>
                   <input value={overrideValue(row, e)} placeholder="base" disabled={!row.editable} onChange={(ev) => setOverride(row, e, ev.target.value)} spellCheck={false} />
-                </td>
+                </span>
               ))}
-          </>
+          </div>
         )}
       />
       <div className="addrow">

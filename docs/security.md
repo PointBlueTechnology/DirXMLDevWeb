@@ -15,6 +15,12 @@
   records a command, environment variable or secret-manager reference to read it from. Reads
   describe each credential by the kind of its source only; no response, log or diff carries a
   value.
+- In hosted mode, acting on the server's host is the deployer's: attaching a path (a checkout in
+  place, a repository, a directory) is deployer-only and confined to `setup.roots`; a command
+  typed to test a secret manager runs only for a deployer (an editor may still resolve a saved
+  credential by its key). A clone's token is kept in an owner-only file under the data
+  directory, never in the configuration. A checkout used in place belongs to the person who
+  opened it.
 - Nothing is read from a vault until you choose an environment and ask. Every write to a vault
   (deploy, driver start, stop, restart) needs that environment's name typed into the page; the
   server checks it, and `IDM_AGENT_ALLOW_WRITE` does not stand in for it here.

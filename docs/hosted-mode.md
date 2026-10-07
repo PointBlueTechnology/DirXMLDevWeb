@@ -35,7 +35,17 @@ none.users=alice:Alice:alice@example.com:idm-editors;bob:Bob:bob@example.com:idm
 roles.editor=idm-editors,idm-deployers
 roles.deployer=idm-deployers
 session.hours=8
+setup.roots=/srv,/var/lib/idmweb      # where path-based setup may point (default: data.dir and /srv)
 ```
+
+**Roles and the host.** An *editor* reads, edits, commits and pushes, and adds a project by
+uploading a Designer project or export, exporting from a vault, or cloning a remote. Attaching a
+path of the host — a checkout in place, a bare repository, a directory of files — and typing a
+command to test a secret manager are the *deployer's*: both act on the server as its own user.
+Paths must lie under `setup.roots`. A token typed for a clone is never written into this file: it
+goes to `<data.dir>/secrets/<project>.repo.token` (owner-only) and the configuration references it
+as `project.<name>.repo.tokenCommand`. A project used in place is one person's working copy: the
+first to open it holds it, others are refused and should branch from a repository instead.
 
 The session is an `HttpOnly; SameSite=Strict` cookie (`Secure` behind https); every write
 carries the session's CSRF token; requests must address `public.url`'s host.

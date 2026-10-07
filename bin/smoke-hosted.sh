@@ -33,6 +33,7 @@ identity=none
 none.users=alice:Alice Example:alice@example.com:idm-editors;bob:Bob Deployer:bob@example.com:idm-deployers;carol:Carol Reader:carol@example.com:
 roles.editor=idm-editors,idm-deployers
 roles.deployer=idm-deployers
+setup.roots=$WORK
 agents=ci:idm-deployers;reader:
 agent.ci.token=ci-agent-token-0123456789
 agent.reader.token=reader-agent-token-0123456789
@@ -100,6 +101,10 @@ check("the session names the user and roles, and no workspace yet", sess["mode"]
 s, body, _ = alice.call("GET", "/api/outline")
 check("the tree is 409 until a branch is open", s == 409 and body.get("noWorkspace"))
 check("a write without the CSRF token is refused", alice.call("POST", "/api/workspaces/open", {"branch": "feature/x"}, csrf=False)[0] == 403)
+# #38 / #41: what an editor may not do on the host
+s, r, _ = alice.call("POST", "/api/credentials/resolve", {"command": "id"})
+check("an editor may not run a command to test a secret manager (403)", s == 403 and "deployer" in r.get("error", ""))
+check("attaching a host path to a project needs the deployer role (403 for an editor)", alice.call("POST", "/api/setup/existing", {"project": "x", "path": work})[0] == 403)
 s, ws, _ = alice.call("GET", "/api/workspaces")
 check("the workspaces list names the repository, base and branches", s == 200 and ws["base"] == "main" and ws["branches"] == ["main"] and ws["repository"].endswith("repo.git"))
 s, opened, _ = alice.call("POST", "/api/workspaces/open", {"branch": "feature/x"})
@@ -159,7 +164,7 @@ import subprocess as sp, socket, time
 s2 = socket.socket(); s2.bind(("127.0.0.1", 0)); port2 = s2.getsockname()[1]; s2.close()
 os.makedirs(os.path.join(work, "data2"))
 with open(os.path.join(work, "hosted2.properties"), "w") as f:
-    f.write("public.url=http://127.0.0.1:%d\nbind=127.0.0.1\nport=%d\ndata.dir=%s/data2\nenvironments.file=%s/data2/environments.properties\nidentity=token\ntoken.value=smoke-setup-token-0123456789\ntoken.user=solo\nroles.editor=*\nroles.deployer=*\n" % (port2, port2, work, work))
+    f.write("public.url=http://127.0.0.1:%d\nbind=127.0.0.1\nport=%d\ndata.dir=%s/data2\nenvironments.file=%s/data2/environments.properties\nidentity=token\ntoken.value=smoke-setup-token-0123456789\ntoken.user=solo\nroles.editor=*\nroles.deployer=*\nsetup.roots=%s\n" % (port2, port2, work, work, work))
 here = os.environ["HERE"]
 p2 = sp.Popen([os.path.join(here, "bin", "idmweb"), "serve", "--hosted", os.path.join(work, "hosted2.properties")], stdout=open(os.path.join(work, "log2"), "w"), stderr=sp.STDOUT, env={**os.environ, "IDM_ENVIRONMENTS": os.path.join(work, "data2", "environments.properties")})
 try:
@@ -187,7 +192,8 @@ try:
     s, sess, _ = call2("GET", "/api/session"); solo.csrf = sess["csrf"]
     check("first run: the session says setup is needed", s == 200 and sess["setup"] and sess["workspace"] is None)
     check("first run: /api/setup agrees and the connections view is reachable", call2("GET", "/api/setup")[1]["needed"] and call2("GET", "/api/credentials")[0] == 200)
-    check("first run: a bad directory is refused in words", "not a directory" in call2("POST", "/api/setup/directory", {"path": "/nope/nope"})[1]["error"])
+    check("first run: a bad directory is refused in words (outside the roots is said first, without probing it)", "outside" in call2("POST", "/api/setup/directory", {"path": "/nope/nope"})[1]["error"])
+    check("first run: a missing directory under the roots is refused in words", "not a directory" in call2("POST", "/api/setup/directory", {"path": os.path.join(work, "nope")})[1]["error"])
     plain = os.path.join(work, "plain"); import shutil; shutil.copytree(os.path.join(work, "seed", "tree"), os.path.join(plain, "tree"))
     s, r = call2("POST", "/api/setup/directory", {"path": plain})[:2]
     check("first run: a plain directory becomes a repository in place", s == 200 and r["inPlace"] == plain and r["tree"] == "tree" and os.path.isdir(os.path.join(plain, ".git")))
@@ -220,6 +226,8 @@ try:
     s, r, _ = bob.call("POST", "/api/setup/existing", {"project": "extra", "path": os.path.join(work, "repo.git")})
     conf1 = open(os.path.join(work, "hosted.properties")).read()
     check("adding a project to a server set up with the old repo.* keys keeps its first project", s == 200 and "projects=repo,extra" in conf1 and "project.repo.repo.url=" in conf1 and "repo.url=" not in conf1.replace("project.repo.repo.url=", "").replace("project.extra.repo.url=", ""))
+    s, r, _ = bob.call("POST", "/api/setup/directory", {"project": "outside", "path": "/etc"})
+    check("a deployer may attach only under setup.roots (#41)", s == 400 and "outside" in r.get("error", ""))
     check("a duplicate project name is refused", "exists already" in call2("POST", "/api/setup/directory", {"project": "plain", "path": plain})[1]["error"])
     s, rm = call2("POST", "/api/setup/remove", {"project": "second"})[:2]
     check("a project can be removed (its files stay)", s == 200 and rm["removed"] == "second" and "projects=plain\n" in open(os.path.join(work, "hosted2.properties")).read())

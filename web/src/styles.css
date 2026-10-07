@@ -1221,3 +1221,13 @@ details.ecvs[open] > summary h3::before { content: "▾ "; }
 .modepick.ma-app { --mode: #8e44ad; }
 .modepick.ma-none { --mode: var(--err); }
 .filter .legend { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin: 0 0 10px; }
+
+/* definitions on two lines: the value keeps the width, the where/who/env line sits under it */
+.defs tr.defmain > td { border-bottom: none; padding-bottom: 2px; }
+.defs tr.defmeta > td { padding: 0 8px 8px 8px; }
+.defs tr.defmain > td.vcell { width: 55%; }
+.metaline { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 18px; font-size: 12px; }
+.metaitem { display: inline-flex; align-items: center; gap: 6px; }
+.metaitem .k { color: var(--muted); }
+.metaitem.env input { width: 150px; min-width: 0; font-size: 12px; padding: 2px 6px; }
+.metaline .usedby .link { margin-right: 6px; }

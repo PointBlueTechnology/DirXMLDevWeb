@@ -13,11 +13,15 @@ interface Props {
   empty: string;
   /** Rows come grouped (already in group order); a header row is drawn where the group changes. */
   group?: (row: Definition) => { key: string; title: string; note?: string } | null;
+  /** A second line under each definition (where defined, who uses it, per-environment values): the value line keeps its room. */
+  meta?: (row: Definition) => ReactNode;
 }
 
 /** Configuration definitions as a table: one row each, with an input that fits the type. */
-export function DefinitionsTable({ rows, staged, onChange, extra, extraHead, onDelete, empty, group }: Props) {
+export function DefinitionsTable({ rows, staged, onChange, extra, extraHead, onDelete, empty, group, meta }: Props) {
   let lastGroup: string | null = null;
+  // a spanning row needs the real column count: Chrome gives a colspan past the last column only the first one
+  const span = extra ? 99 : 3 + (onDelete ? 1 : 0);
   if (rows.length === 0) {
     return <p className="muted pad">{empty}</p>;
   }
@@ -42,7 +46,7 @@ export function DefinitionsTable({ rows, staged, onChange, extra, extraHead, onD
             lastGroup = g.key;
             out.push(
               <tr key={"group:" + g.key} className="group" data-testid="defs-group">
-                <td colSpan={99}>
+                <td colSpan={span}>
                   <strong>{g.title}</strong>
                   {g.note && <span className="muted small"> — {g.note}</span>}
                 </td>
@@ -50,7 +54,7 @@ export function DefinitionsTable({ rows, staged, onChange, extra, extraHead, onD
             );
           }
           out.push(
-            <tr key={row.name} className={s !== undefined ? "changed" : ""}>
+            <tr key={row.name} className={(s !== undefined ? "changed" : "") + (meta ? " defmain" : "")}>
               <td title={row.description || row.name}>
                 <div className="dname">{row.displayName}</div>
                 <code>{row.name}</code>
@@ -69,6 +73,13 @@ export function DefinitionsTable({ rows, staged, onChange, extra, extraHead, onD
               )}
             </tr>,
           );
+          if (meta) {
+            out.push(
+              <tr key={row.name + ":meta"} className={(s !== undefined ? "changed" : "") + " defmeta"} data-testid={"defs-meta-" + row.name}>
+                <td colSpan={span}>{meta(row)}</td>
+              </tr>,
+            );
+          }
           return out;
         })}
       </tbody>

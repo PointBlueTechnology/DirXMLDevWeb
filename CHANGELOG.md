@@ -9,6 +9,9 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Changed
 
+- GCVs: each one takes two lines — name, type and the value with the room it needs, then where
+  it is defined, what uses it and the environment overrides underneath — instead of every field
+  squeezed into one row.
 - Filter: each channel mode and merge authority shows as a glyph and a colour on its select
   (⇄ sync green, ⚑ notify blue, ∅ ignore grey, ↺ reset amber; ⬅ vault wins, ➡ app wins, ✕ none)
   with a legend above the classes, so a filter reads at a glance.

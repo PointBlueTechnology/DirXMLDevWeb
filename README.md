@@ -13,6 +13,12 @@ hosted mode. **New here? [docs/quickstart.md](docs/quickstart.md)** — one cont
 
 The lab driver set (synthetic data) on the hosted server.
 
+**Adding a project** — the first run, and "add a project…" after it: a tree comes from an
+Identity Vault, a Designer project or export, a repository on the host, a directory of files,
+or a remote to clone.
+
+![Add a project](docs/screenshots/add-project.png)
+
 **The driver set** — one card per driver, the validation counts in the top bar, the findings
 grouped by driver on the right.
 
@@ -51,6 +57,12 @@ and the merge authority.
 **Schema map** — the eDirectory-to-application class and attribute mapping as a table.
 
 ![Schema map](docs/screenshots/schema-map.png)
+
+**A provisioning request definition** — the workflow of a User Application PRD drawn from its
+process: activities, branches and merges, approval and condition links; select an activity to
+change it.
+
+![PRD workflow](docs/screenshots/prd-workflow.png)
 
 ## What it is, and is not
 
@@ -103,3 +115,8 @@ for developing it or for a quick look at a tree. Upgrading an install is pulling
 | [docs/design.md](docs/design.md) | the assessment and the phases |
 | [docs/hosted.md](docs/hosted.md) | the hosted-mode design and its decisions |
 | [CHANGELOG.md](CHANGELOG.md) | every release |
+
+## License
+
+[MIT](LICENSE). The image and the jars hold nothing of OpenText's; the engine jars a running
+instance needs are yours, mounted from your own Identity Manager.

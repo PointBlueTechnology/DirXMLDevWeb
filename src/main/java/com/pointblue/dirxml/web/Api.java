@@ -155,7 +155,7 @@ public final class Api implements HttpHandler {
             w = workspaces.get(session.workspace);
             if (w == null && path.startsWith("/api/credentials") && setupCredentials != null) {
                 // the connections are the server's, not a workspace's: reachable before one is open
-                send(ex, 200, credentialsRoute(setupCredentials, method, path, query, ex));
+                send(ex, 200, credentialsRoute(setupCredentials, session, method, path, query, ex));
                 return;
             }
             if (w == null) {
@@ -180,6 +180,8 @@ public final class Api implements HttpHandler {
             send(ex, 200, body);
         } catch (TreeService.NotFound e) {
             send(ex, 404, error(e.getMessage()));
+        } catch (Forbidden e) {
+            send(ex, 403, error(e.getMessage()));
         } catch (TreeService.BadRequest e) {
             send(ex, 400, error(e.getMessage()));
         } catch (TreeService.Stale e) {
@@ -269,7 +271,7 @@ public final class Api implements HttpHandler {
             return gitRoute(session, w, method, path, query, ex);
         }
         if (path.startsWith("/api/credentials")) {
-            return credentialsRoute(credentials, method, path, query, ex);
+            return credentialsRoute(credentials, session, method, path, query, ex);
         }
         if (method.equals("GET")) {
             switch (path) {
@@ -478,7 +480,7 @@ public final class Api implements HttpHandler {
         return out;
     }
 
-    private Object credentialsRoute(CredentialService credentials, String method, String path, Map<String, String> query, HttpExchange ex) throws IOException {
+    private Object credentialsRoute(CredentialService credentials, Session session, String method, String path, Map<String, String> query, HttpExchange ex) throws IOException {
         if (method.equals("GET")) {
             switch (path) {
                 case "/api/credentials":
@@ -494,6 +496,11 @@ public final class Api implements HttpHandler {
             case "/api/credentials/test":
                 return credentials.test(req);
             case "/api/credentials/resolve":
+                // a command typed into the page runs on this host as the server's user: that is the
+                // deployer's to do (#38); resolving a saved credential by its key stays open to editors
+                if (!session.principal.deployer && req.get("command") != null && !Json.asString(req.get("command")).isBlank()) {
+                    throw new Forbidden("running a command to test a secret manager needs the deployer role");
+                }
                 return credentials.resolve(req);
             case "/api/credentials/environment":
                 return credentials.save(req);
@@ -519,6 +526,11 @@ public final class Api implements HttpHandler {
         if (!session.principal.deployer && !session.principal.editor) {
             throw new TreeService.BadRequest("setup needs an account with a role");
         }
+        // attaching a path of this host (a checkout in place, a repository, a directory of files) is the
+        // deployer's (#41); an upload, a vault export or a clone stays an editor's
+        if (!session.principal.deployer && (path.equals("/api/setup/project") || path.equals("/api/setup/existing") || path.equals("/api/setup/directory"))) {
+            throw new Forbidden("attaching a path on this host needs the deployer role");
+        }
         if (path.equals("/api/setup/upload")) {
             return setup.fromUpload(session, query.get("project"), query.get("kind"), query.get("name"), ex.getRequestBody());
         }
@@ -539,6 +551,13 @@ public final class Api implements HttpHandler {
                 return setup.remove(session, project);
             default:
                 throw new TreeService.NotFound("no such endpoint: " + method + " " + path);
+        }
+    }
+
+    /** A request the role may not make (403). */
+    static final class Forbidden extends RuntimeException {
+        Forbidden(String message) {
+            super(message);
         }
     }
 

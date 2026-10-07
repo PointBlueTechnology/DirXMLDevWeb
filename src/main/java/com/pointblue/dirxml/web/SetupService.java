@@ -336,11 +336,15 @@ public final class SetupService {
         }
     }
 
-    private static Path existingDir(String path) {
+    private Path existingDir(String path) {
         if (path == null || path.isBlank()) {
             throw new TreeService.BadRequest("which directory?");
         }
         Path p = Path.of(path.trim()).toAbsolutePath().normalize();
+        // only under the configured roots: the server must not attach or initialise arbitrary host paths (#41)
+        if (hosted.setupRoots.stream().noneMatch(p::startsWith)) {
+            throw new TreeService.BadRequest(p + " is outside the directories this server may attach (setup.roots: " + hosted.setupRoots + ")");
+        }
         if (!Files.isDirectory(p)) {
             throw new TreeService.BadRequest(p + " is not a directory this server can see (in a container, mount it)");
         }

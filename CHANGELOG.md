@@ -7,6 +7,22 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Security (hosted mode)
+
+- `POST /api/credentials/resolve` with a typed `command` needs the deployer role; an editor may
+  still resolve a saved credential by key. (#38)
+- Path-based setup (`/api/setup/project`, `/existing`, `/directory`) needs the deployer role, and
+  the path must lie under `setup.roots` (default: the data directory and `/srv`). (#41)
+- A token typed for a clone is written to `<data.dir>/secrets/<project>.repo.token` (owner-only)
+  and referenced as `tokenCommand`, never as a literal in `hosted.properties`. (#40)
+- A project used in place is one person's working copy: a second principal is refused, and the
+  workspace list shows it to its holder only. (#39)
+
+### Added
+
+- CI: `.github/workflows/test.yml` runs the server's tests (DirXMLDev's and the simulator's jars
+  from their releases) and the page's tests and build on every pull request and push to main. (#43)
+
 ### Added
 
 - New driver, the whole of `driver.add`: from a Designer export (a driver export, or a driver-set

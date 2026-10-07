@@ -19,6 +19,8 @@ public final class Workspaces {
     private static final Pattern BRANCH = Pattern.compile("[A-Za-z0-9][A-Za-z0-9._/-]*");
 
     private final Map<String, Workspace> open = new LinkedHashMap<>();
+    /** Who opened each in-place checkout: it is one person's working copy, not a shared workspace (#39). */
+    private final Map<String, String> inPlaceOwner = new java.util.HashMap<>();
     private final Hosted hosted;     // null in local mode
     private final Git defaultGit;
     private final Map<String, Git> gits = new LinkedHashMap<>();
@@ -94,6 +96,12 @@ public final class Workspaces {
         Git git = gitFor(p);
         if (p.inPlace != null) {
             String id = p.name + "/in-place";
+            String owner = inPlaceOwner.get(id);
+            if (owner != null && !owner.equals(who.subject)) {
+                throw new TreeService.BadRequest("project '" + p.name + "' is a checkout in place, open by " + owner
+                    + "; a checkout in place is one person's working copy — give others a repository to branch from");
+            }
+            inPlaceOwner.put(id, who.subject);
             Workspace w = open.get(id);
             if (w == null) {
                 String current = git.run(p.inPlace, "rev-parse", "--abbrev-ref", "HEAD").out.trim();
@@ -131,7 +139,7 @@ public final class Workspaces {
     public synchronized List<Map<String, Object>> describe(Session.Principal who) {
         List<Map<String, Object>> out = new ArrayList<>();
         for (Workspace w : open.values()) {
-            if (hosted == null || w.id.endsWith("/in-place") || w.id.contains("/" + safe(who.subject) + "/")) {
+            if (hosted == null || (w.id.endsWith("/in-place") && who.subject.equals(inPlaceOwner.get(w.id))) || w.id.contains("/" + safe(who.subject) + "/")) {
                 Map<String, Object> m = new LinkedHashMap<>();
                 m.put("id", w.id);
                 Project p = projectOf(w);

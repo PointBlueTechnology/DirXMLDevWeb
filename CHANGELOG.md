@@ -7,6 +7,16 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Fixed
+
+- A connection test or vault bind failing with "simple bind failed" against an eDirectory whose
+  LDAPS listener offers only static-RSA suites (`TLS_RSA_*`, e.g. `AES256-GCM-SHA384`): recent JDK
+  builds (the image's Temurin 21.0.12, JDK 24+) disable those suites. The server keeps them
+  enabled by default, first thing at start-up; opt out with `IDM_TLS_LEGACY=false`
+  (`-Didm.tls.legacy=false`). Until an image with this change runs, the same effect comes from a
+  `java.security` override file passed with `IDM_JAVA_OPTS=-Djava.security.properties=…`
+  (docs/security.md).
+
 ## [0.16.0] - 2026-10-07
 
 Needs the DirXML Trace Viewer's library `dirxml-trace-core` 1.5.0 on the class path (the launchers take it from `~/.m2`; CI and the image fetch it from the viewer's release).

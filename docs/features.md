@@ -19,6 +19,19 @@ Every view of the page, by area, in every install; the items marked *local and s
 - **Driver set**: its DN, the servers it runs on (the primary marked), its drivers, the Library,
   what is linked at the driver-set level, the packages recorded on it, and its GCVs with the
   env-override columns.
+- **Schema** (a tab on the driver set, a leaf in the outline): the vault's classes and
+  attributes as the tree keeps them (`schema/vault.xml`), a class's attributes on demand, a
+  filter by name. *Refresh from vault* reads `cn=schema` of an environment into the tree, only
+  when asked; a Designer project's schema comes along on import. New attributes and classes are
+  defined here (`schema.add-attribute`, `schema.add-class`, reviewed like every change), marked
+  *defined here*, and *Push additions to vault* adds them to an environment — planned first,
+  then the environment's name typed; production needs the deployer role. Nothing is removed
+  from a vault's schema. The same schema fills the pickers: eDirectory class and attribute
+  fields in the filter, the schema map and the entity editor offer its names, attributes
+  narrowed to the class.
+- **App schema** (a tab on a driver): what the shim says it can synchronize, read through the
+  engine on request (`DriverGetSchema`, the driver stopped) and kept in the tree; the
+  application side of the schema map offers its names.
 - **Outline** of the driver set: Library, drivers, policies by channel, configuration files,
   entitlements, forms, PRDs.
 - **Policy flow**: the fishbone the VS Code extension draws, from the same model. Hover a policy

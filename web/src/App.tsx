@@ -390,7 +390,7 @@ export function App() {
               onSaved={reload}
             />
           )}
-          {selection.type === "driverset" && outline && <DriverSetView outline={outline} revision={revision} canOverride={opNames.has("override.set")} linkable={artifacts} onOpen={open} onSelect={setSelection} onSaved={reload} />}
+          {selection.type === "driverset" && outline && <DriverSetView key={selection.tab ?? "overview"} outline={outline} revision={revision} canOverride={opNames.has("override.set")} linkable={artifacts} initialTab={selection.tab} onOpen={open} onSelect={setSelection} onSaved={reload} />}
           {selection.type === "overrides" && <OverridesView revision={revision} canEdit={opNames.has("override.set")} onSaved={reload} />}
           {selection.type === "operations" && <OperationsView onDone={reload} />}
           {selection.type === "prd" && <PrdView key={selection.driver + "/" + selection.name} driver={selection.driver} name={selection.name} revision={revision} onSelect={setSelection} onSaved={reload} />}

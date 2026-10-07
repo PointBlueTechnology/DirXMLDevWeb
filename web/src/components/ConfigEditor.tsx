@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../api";
 import { usePending } from "../pending";
 import type { ArtifactNode, ConfigView, DriverOutline, OverridesData } from "../types";
+import { AppSchemaTab } from "./AppSchemaTab";
 import { ChainsEditor } from "./ChainsEditor";
 import { FilterEditor } from "./FilterEditor";
 import { GcvEditor } from "./GcvEditor";
@@ -19,7 +20,7 @@ interface Props {
   onSaved: () => void;
 }
 
-type Tab = "gcvs" | "settings" | "filter" | "chains";
+type Tab = "gcvs" | "settings" | "filter" | "chains" | "appschema";
 
 /** One driver's configuration (or the driver set's GCVs), with one set of pending changes across its tabs. */
 export function ConfigEditor({ driver, setName, revision, canOverride, linkable, onOpen, onSaved }: Props) {
@@ -59,6 +60,7 @@ export function ConfigEditor({ driver, setName, revision, canOverride, linkable,
         ["settings", "Settings"],
         ["filter", "Filter"],
         ["chains", "Policy sets"],
+        ["appschema", "App schema"],
       ]
     : [["gcvs", `GCVs ${config.gcvs.length}`]];
 
@@ -84,6 +86,7 @@ export function ConfigEditor({ driver, setName, revision, canOverride, linkable,
         {tab === "settings" && driver && <SettingsEditor config={config} pending={pending} />}
         {tab === "filter" && driver && <FilterEditor driver={driver.name} file={filterFile} revision={revision} pending={pending} />}
         {tab === "chains" && driver && <ChainsEditor driver={driver.name} revision={revision} pending={pending} linkable={linkable} onOpen={onOpen} />}
+        {tab === "appschema" && driver && <AppSchemaTab driver={driver.name} revision={revision} onSaved={onSaved} />}
       </div>
     </div>
   );

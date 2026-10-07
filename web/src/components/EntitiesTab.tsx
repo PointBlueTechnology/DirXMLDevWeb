@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { Pending } from "../pending";
 import type { EntityAttribute, EntityDef } from "../types";
+import { ClassAttributeList } from "./SchemaPickers";
 
 const FLAGS = ["required", "multivalue", "editable", "readable", "searchable", "viewable", "hideable", "enabled"] as const;
 const TYPES = ["String", "Integer", "Boolean", "DN", "Time", "Binary", "LocalizedString"];
@@ -63,7 +64,7 @@ export function EntitiesTab({ entities, pending }: { entities: EntityDef[]; pend
                 <code>{a.key}</code>
               </td>
               <td className="vcell">
-                <input value={staged(a, "ldap") ?? a.ldap ?? ""} className={pending.has(k(a, "ldap")) ? "changed" : ""} onChange={(ev) => set(a, "ldap", ev.target.value, a.ldap ?? "")} spellCheck={false} />
+                <input list="entity-ldap-names" value={staged(a, "ldap") ?? a.ldap ?? ""} className={pending.has(k(a, "ldap")) ? "changed" : ""} onChange={(ev) => set(a, "ldap", ev.target.value, a.ldap ?? "")} spellCheck={false} />
               </td>
               <td className="vcell">
                 <input list="entity-types" value={staged(a, "type") ?? a.type ?? ""} className={pending.has(k(a, "type")) ? "changed" : ""} onChange={(ev) => set(a, "type", ev.target.value, a.type ?? "")} spellCheck={false} />
@@ -83,6 +84,7 @@ export function EntitiesTab({ entities, pending }: { entities: EntityDef[]; pend
           ))}
         </tbody>
       </table>
+      <ClassAttributeList id="entity-ldap-names" className={e.objectClass || null} ldap />
       <datalist id="entity-types">
         {TYPES.map((t) => (
           <option key={t} value={t} />
@@ -91,7 +93,7 @@ export function EntitiesTab({ entities, pending }: { entities: EntityDef[]; pend
       {e.attributes.length === 0 && <p className="muted">No attributes yet.</p>}
       <div className="addrow" data-testid="entity-attr-add">
         <input placeholder="key" value={add.key} onChange={(ev) => setAdd({ ...add, key: ev.target.value })} spellCheck={false} />
-        <input placeholder="LDAP name" value={add.ldap} onChange={(ev) => setAdd({ ...add, ldap: ev.target.value })} spellCheck={false} />
+        <input list="entity-ldap-names" placeholder="LDAP name" value={add.ldap} onChange={(ev) => setAdd({ ...add, ldap: ev.target.value })} spellCheck={false} />
         <input list="entity-types" placeholder="type" value={add.type} onChange={(ev) => setAdd({ ...add, type: ev.target.value })} spellCheck={false} />
         <input placeholder="label (default: the key)" value={add.display} onChange={(ev) => setAdd({ ...add, display: ev.target.value })} />
         <button

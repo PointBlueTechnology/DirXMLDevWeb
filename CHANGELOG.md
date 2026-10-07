@@ -7,6 +7,16 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+Needs DirXMLDev 0.13.0 (the vault schema in the tree, `schema.*`, `vault.schema`, `vault.app-schema`, `vault.deploy-schema`).
+
+### Added
+
+- **Schema**: a Schema tab on the driver set (and a leaf in the outline) shows the vault's classes and attributes as the tree keeps them, with the attributes of a class on demand. *Refresh from vault* reads `cn=schema` of an environment into the tree — only when you ask; nothing reads a vault on its own. A Designer project's schema comes along on import.
+- **Define schema and push it**: new attributes and classes are defined on the Schema tab (reviewed like every change), marked *defined here*, and *Push additions to vault* adds them to an environment — planned first, then the environment's name typed to confirm; production needs the deployer role. Nothing is ever removed from a vault's schema.
+- **Application schema**: an *App schema* tab on a driver asks the engine for the shim's schema (`DriverGetSchema`; the driver stopped) and keeps the answer in the tree.
+- **Pickers from the schema**: eDirectory class and attribute fields in the filter, the schema map and the entity editor offer the tree's schema (attributes narrowed to the class); the application side of the schema map offers the driver's application schema.
+- Validation warns about classes and attributes the schema does not know (`schema-unknown-class`, `schema-unknown-attr`, `schema-attr-not-of-class`) once the tree has a schema.
+
 ## [0.14.0] - 2026-10-07
 
 Needs DirXMLDev 0.12.0 (`driver.set --clear`, `driver.setting.add/remove`).

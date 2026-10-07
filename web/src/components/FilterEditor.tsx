@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
+import { ClassAttributeList, SchemaClassList } from "./SchemaPickers";
 import { CHANNEL_MODES, MERGE_AUTHORITIES, parseFilter, type FilterClass } from "../configxml";
 import type { Pending } from "../pending";
 
@@ -154,7 +155,8 @@ export function FilterEditor({ driver, file, revision, pending }: Props) {
               </tbody>
             </table>
             <div className="addrow">
-              <input placeholder="attribute (eDirectory name)" value={newAttr[c.name] ?? ""} onChange={(e) => setNewAttr({ ...newAttr, [c.name]: e.target.value })} />
+              <input placeholder="attribute (eDirectory name)" value={newAttr[c.name] ?? ""} onChange={(e) => setNewAttr({ ...newAttr, [c.name]: e.target.value })} list={`schema-attrs-${c.name}`} />
+              <ClassAttributeList id={`schema-attrs-${c.name}`} className={c.name} />
               <button
                 disabled={!(newAttr[c.name] ?? "").trim()}
                 onClick={() => {
@@ -183,7 +185,8 @@ export function FilterEditor({ driver, file, revision, pending }: Props) {
       ))}
       <div className="addrow">
         <strong className="small">New class</strong>
-        <input placeholder="class (eDirectory name, e.g. User)" value={newClass} onChange={(e) => setNewClass(e.target.value)} />
+        <input placeholder="class (eDirectory name, e.g. User)" value={newClass} onChange={(e) => setNewClass(e.target.value)} list="schema-classes" />
+        <SchemaClassList id="schema-classes" />
         <button
           disabled={!newClass.trim() || classes.some((c) => c.name === newClass.trim())}
           onClick={() => {

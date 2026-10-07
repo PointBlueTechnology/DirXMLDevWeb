@@ -1,4 +1,4 @@
-import type { Artifact, AuditEntry, BuildResult, ConfigView, Connections, DeployResult, EnvSecrets, FetchResult, FormData as FormDoc, GitDiff, GitStatus, ImportResult, LifecycleResult, OpCall, OpResult, OpSpec, Outline, OverridesData, PackagePrompts, PackagesData, PrdData, RoleCatalog, Session, SetupResult, SimCaseFiles, SimCases, SimDetail, SimRun, SiteListing, TreeFile, UpdateSites, Validation, VaultDiffResult, VaultEnvironments, VaultStatus, WorkspacesInfo } from "./types";
+import type { AppSchema, Artifact, AuditEntry, BuildResult, ConfigView, Connections, DeployResult, EnvSecrets, FetchResult, FormData as FormDoc, GitDiff, GitStatus, ImportResult, LifecycleResult, OpCall, OpResult, OpSpec, Outline, OverridesData, PackagePrompts, PackagesData, PrdData, RoleCatalog, SchemaActionResult, SchemaClass, SchemaData, Session, SetupResult, SimCaseFiles, SimCases, SimDetail, SimRun, SiteListing, TreeFile, UpdateSites, Validation, VaultDiffResult, VaultEnvironments, VaultStatus, WorkspacesInfo } from "./types";
 import type { FishboneModel } from "./fishbone/types";
 
 /**
@@ -127,6 +127,9 @@ export const api = {
   },
   buildPackage: (req: Record<string, unknown>) => call<BuildResult>("POST", "/api/packages/build", req),
   packageSites: () => call<UpdateSites>("GET", "/api/packages/sites"),
+  schema: () => call<SchemaData>("GET", "/api/schema"),
+  schemaClass: (name: string) => call<SchemaClass>("GET", `/api/schema/class?name=${q(name)}`),
+  appSchema: (driver: string) => call<AppSchema>("GET", `/api/schema/app?driver=${q(driver)}`),
   importPackage: async (file: File): Promise<ImportResult> => {
     const res = await fetch(`/api/packages/import?name=${encodeURIComponent(file.name)}`, {
       method: "POST",
@@ -156,6 +159,9 @@ export const api = {
   },
   vault: {
     environments: () => call<VaultEnvironments>("GET", "/api/vault/environments"),
+    refreshSchema: (env: string) => call<SchemaActionResult>("POST", "/api/vault/schema", { env }),
+    refreshAppSchema: (env: string, driver: string) => call<SchemaActionResult>("POST", "/api/vault/app-schema", { env, driver }),
+    deploySchema: (env: string, confirm?: string) => call<SchemaActionResult>("POST", "/api/vault/deploy-schema", { env, confirm: confirm ?? "" }),
     diff: (env: string, drivers: string[]) => call<VaultDiffResult>("GET", `/api/vault/diff?env=${q(env)}${drivers.map((d) => `&driver=${q(d)}`).join("")}`),
     plan: (env: string, drivers: string[], restart: boolean) => call<DeployResult>("POST", "/api/vault/plan", { env, drivers, restart }),
     /** `confirm` is the environment's name, typed by the person: the server refuses anything else. */

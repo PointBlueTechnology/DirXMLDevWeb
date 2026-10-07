@@ -343,6 +343,9 @@ public final class Api implements HttpHandler {
         if (method.equals("POST") && path.equals("/api/packages/build")) {
             return packages.build(Json.asMap(Json.parse(new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8))));
         }
+        if (method.equals("POST") && path.equals("/api/packages/import")) {
+            return packages.importJar(query.get("name"), ex.getRequestBody());
+        }
         if (method.equals("POST") && path.equals("/api/packages/fetch")) {
             return packages.fetch(Json.asMap(Json.parse(new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8))));
         }

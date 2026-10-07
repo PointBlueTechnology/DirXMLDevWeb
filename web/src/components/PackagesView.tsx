@@ -43,7 +43,7 @@ export function PackagesView({ drivers, revision, onSaved, onOpen }: { drivers: 
     <div className="view packages">
       <div className="viewhead">
         <div>
-          <div className="kicker">{catalog.available ? catalog.dir : "no catalog"}</div>
+          <div className="kicker">{catalog.available ? `catalog ${catalog.dir}` : "installed packages from the tree · no catalog on this server"}</div>
           <h2>Packages</h2>
         </div>
         <span className="spacer" />
@@ -64,8 +64,8 @@ export function PackagesView({ drivers, revision, onSaved, onOpen }: { drivers: 
       </div>
       <PendingBar pending={pending} title="Review package changes" onSaved={onSaved} />
       {!catalog.available && (
-        <div className="banner warn">
-          No package catalog: the server was started without <code>--catalog DIR</code> (or <code>IDM_CATALOG</code>). Installed packages are listed from the tree alone; install, upgrade and build need the catalog.
+        <div className="banner">
+          The installed packages below are read from the tree (each object's package stamp). This server has no package catalog, so there is nothing to install, upgrade or fetch from: start it with <code>--catalog DIR</code> (local) or set <code>catalog.dir</code> (hosted) and the Update sites tab fills it.
         </div>
       )}
 
@@ -231,14 +231,58 @@ export function PackagesView({ drivers, revision, onSaved, onOpen }: { drivers: 
               </tbody>
             </table>
           )}
+          {catalog.available && <ImportJar onImported={load} />}
           <p className="muted small">
-            The catalog is a directory of package jars with an index; Update sites fills it from a package repository (<code>idm package.fetch</code>), <code>package.import</code> from a jar, and Build from this tree.
+            The catalog is a directory of package jars with an index; Update sites fills it from a package repository (<code>idm package.fetch</code>), a jar from your disk is imported above, and Build adds one from this tree.
           </p>
         </div>
       )}
 
       {tab === "sites" && <Sites catalogAvailable={catalog.available} installed={new Set(data.status.targets.flatMap((t) => t.packages.map((p) => p.short)))} onFetched={load} />}
       {tab === "build" && <Build drivers={drivers} catalogAvailable={catalog.available} catalog={catalog.packages} onBuilt={load} />}
+    </div>
+  );
+}
+
+/** A package jar from the person's disk into the catalog (`package.import`). */
+function ImportJar({ onImported }: { onImported: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  return (
+    <div className="addrow" data-testid="pkg-import">
+      <strong className="small">Import a jar</strong>
+      <input
+        type="file"
+        accept=".jar,application/java-archive"
+        disabled={busy}
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (!f) {
+            return;
+          }
+          setBusy(true);
+          setError(null);
+          setResult(null);
+          api
+            .importPackage(f)
+            .then((r) => {
+              setResult(r.ok ? (r.added ? `added ${r.short}_${r.version}` : `${r.short}_${r.version} was already in the catalog`) : (r.refusal ?? "refused"));
+              if (r.ok) {
+                onImported();
+              }
+            })
+            .catch((err: Error) => setError(err.message))
+            .finally(() => {
+              setBusy(false);
+              e.target.value = "";
+            });
+        }}
+        data-testid="pkg-import-file"
+      />
+      {busy && <span className="muted small">Importing…</span>}
+      {result && <span className="small">{result}</span>}
+      {error && <span className="err-text small">{error}</span>}
     </div>
   );
 }

@@ -278,6 +278,30 @@ public final class PackageService {
         return m;
     }
 
+    /** A package jar uploaded from the page into the catalog ({@code package.import}); the name is only for the record. */
+    public Map<String, Object> importJar(String fileName, java.io.InputStream body) throws IOException {
+        Catalog c = catalog();
+        if (c == null) {
+            throw new TreeService.BadRequest("no catalog on this server (start it with --catalog DIR)");
+        }
+        Path tmp = Files.createTempFile("idmweb-import-", ".jar");
+        try {
+            Files.copy(body, tmp, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            Catalog.AddResult r = c.add(tmp, "import:" + (fileName == null ? "upload" : fileName));
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("ok", r.ok());
+            m.put("added", r.added);
+            m.put("short", r.shortName);
+            m.put("version", r.version);
+            if (!r.ok()) {
+                m.put("refusal", r.refusal);
+            }
+            return m;
+        } finally {
+            Files.deleteIfExists(tmp);
+        }
+    }
+
     /** Build a package from a driver (or the Library) and add it to the catalog. */
     public Map<String, Object> build(Map<String, Object> req) throws IOException {
         Catalog c = catalog();

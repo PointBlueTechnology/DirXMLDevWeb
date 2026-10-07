@@ -1,4 +1,4 @@
-import type { Artifact, BuildResult, ConfigView, Connections, DeployResult, EnvSecrets, FetchResult, FormData as FormDoc, GitDiff, GitStatus, LifecycleResult, OpCall, OpResult, OpSpec, Outline, OverridesData, PackagePrompts, PackagesData, PrdData, RoleCatalog, Session, SetupResult, SimCaseFiles, SimCases, SimDetail, SimRun, SiteListing, TreeFile, UpdateSites, Validation, VaultDiffResult, VaultEnvironments, VaultStatus, WorkspacesInfo } from "./types";
+import type { Artifact, BuildResult, ConfigView, Connections, DeployResult, EnvSecrets, FetchResult, FormData as FormDoc, GitDiff, GitStatus, ImportResult, LifecycleResult, OpCall, OpResult, OpSpec, Outline, OverridesData, PackagePrompts, PackagesData, PrdData, RoleCatalog, Session, SetupResult, SimCaseFiles, SimCases, SimDetail, SimRun, SiteListing, TreeFile, UpdateSites, Validation, VaultDiffResult, VaultEnvironments, VaultStatus, WorkspacesInfo } from "./types";
 import type { FishboneModel } from "./fishbone/types";
 
 /**
@@ -121,6 +121,18 @@ export const api = {
   },
   buildPackage: (req: Record<string, unknown>) => call<BuildResult>("POST", "/api/packages/build", req),
   packageSites: () => call<UpdateSites>("GET", "/api/packages/sites"),
+  importPackage: async (file: File): Promise<ImportResult> => {
+    const res = await fetch(`/api/packages/import?name=${encodeURIComponent(file.name)}`, {
+      method: "POST",
+      headers: { "X-IDMWeb-Token": token(), ...(csrf ? { "X-IDMWeb-CSRF": csrf } : {}), "Content-Type": "application/octet-stream" },
+      body: file,
+    });
+    const data = (await res.json()) as ImportResult & { error?: string };
+    if (!res.ok) {
+      throw new ApiError(data.error ?? `HTTP ${res.status}`, res.status, false);
+    }
+    return data;
+  },
   packagePrompts: (packages: string, driver?: string) => call<PackagePrompts>("GET", `/api/packages/prompts?packages=${q(packages)}${driver ? `&driver=${q(driver)}` : ""}`),
   packageSite: (site: string) => call<SiteListing>("GET", `/api/packages/site?site=${q(site)}`),
   fetchPackages: (req: { site: string; packages: string[]; allVersions?: boolean; dryRun?: boolean }) => call<FetchResult>("POST", "/api/packages/fetch", req),

@@ -76,21 +76,26 @@ public final class Api implements HttpHandler {
         return null;
     }
 
-    /** A session with no workspace yet gets the person's last project and branch back — once; the clone is still on disk. */
+    /**
+     * A session with no workspace yet — or one whose workspace this server has not opened (a restart:
+     * the session came from the file, the clone is still on disk) — gets the person's last project
+     * and branch back, once. If that is gone, the page asks, as on a first visit.
+     */
     private Session restored(Session s) {
-        if (s == null || s.workspace != null || s.restoreTried) {
+        if (s == null || s.restoreTried || (s.workspace != null && workspaces.get(s.workspace) != null)) {
             return s;
         }
         s.restoreTried = true;
         Session.Last last = sessions.lastOf(s.principal.subject);
         if (last == null) {
+            s.workspace = null;
             return s;
         }
         try {
             Workspace w = workspaces.openBranch(s.principal, last.project, last.branch);
             sessions.opened(s, w.id, last.project, last.branch);
         } catch (IOException | RuntimeException e) {
-            // the project or branch is gone: the page asks, as on a first visit
+            s.workspace = null;
         }
         return s;
     }

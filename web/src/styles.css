@@ -1278,3 +1278,6 @@ table.grid tr.detail td { background: var(--bg); padding-top: 4px; padding-botto
 .tv .hit { background: #6b5a00; color: #fff; border-radius: 2px; }
 .popout { padding: 0; height: 100vh; display: flex; flex-direction: column; }
 .popout .tracepane { height: 100%; }
+
+.withbtn { display: flex; gap: 6px; align-items: center; }
+.withbtn > input, .withbtn > select { flex: 1; min-width: 0; }

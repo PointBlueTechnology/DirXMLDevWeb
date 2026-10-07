@@ -7,6 +7,13 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- Connections: *Look up* beside the driver set field connects with the URL, bind DN and password
+  typed (or the saved environment's) and lists the driver sets the account sees
+  (`POST /api/credentials/driversets`, one subtree search for `DirXML-DriverSet`); the field
+  becomes a select, one found is filled in, *type* goes back to typing a DN.
+
 ## [0.17.0] - 2026-10-07
 
 ### Fixed

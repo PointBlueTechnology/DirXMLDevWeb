@@ -3,6 +3,21 @@ import { api } from "../api";
 import { CHANNEL_MODES, MERGE_AUTHORITIES, parseFilter, type FilterClass } from "../configxml";
 import type { Pending } from "../pending";
 
+const MODE_GLYPH: Record<string, string> = { sync: "⇄", notify: "⚑", ignore: "∅", reset: "↺" };
+const MODE_HELP: Record<string, string> = {
+  sync: "sync: changes flow through this channel",
+  notify: "notify: the change is reported to the policies but not written",
+  ignore: "ignore: the channel does nothing with this attribute",
+  reset: "reset: the channel's side is put back to the other side's value",
+};
+const AUTHORITY_GLYPH: Record<string, string> = { default: "·", edir: "⬅", app: "➡", none: "✕" };
+const AUTHORITY_HELP: Record<string, string> = {
+  default: "merge authority: default — the channel that synchronizes wins, both when both do",
+  edir: "merge authority: the Identity Vault's value wins",
+  app: "merge authority: the application's value wins",
+  none: "merge authority: none — values are not merged",
+};
+
 interface Props {
   driver: string;
   file: string | null;
@@ -69,19 +84,43 @@ export function FilterEditor({ driver, file, revision, pending }: Props) {
     pending.put(key, { name: "filter.set-attr", args: { driver, class: c.name, attr: a.name, ...next }, label: `${c.name}.${a.name}: publisher ${next.publisher}, subscriber ${next.subscriber}` });
   };
 
+  // each mode has a colour and a glyph so a filter reads at a glance: ⇄ sync, ⚑ notify, ∅ ignore, ↺ reset
   const mode = (value: string, onChange: (v: string) => void, changed: boolean) => (
-    <select value={value} onChange={(e) => onChange(e.target.value)} className={changed ? "changed" : ""}>
-      {!CHANNEL_MODES.includes(value as (typeof CHANNEL_MODES)[number]) && <option>{value}</option>}
-      {CHANNEL_MODES.map((m) => (
-        <option key={m}>{m}</option>
-      ))}
-    </select>
+    <span className={`modepick mode-${value}`} title={MODE_HELP[value] ?? value}>
+      <span className="glyph" aria-hidden="true">{MODE_GLYPH[value] ?? "·"}</span>
+      <select value={value} onChange={(e) => onChange(e.target.value)} className={changed ? "changed" : ""}>
+        {!CHANNEL_MODES.includes(value as (typeof CHANNEL_MODES)[number]) && <option>{value}</option>}
+        {CHANNEL_MODES.map((m) => (
+          <option key={m}>{m}</option>
+        ))}
+      </select>
+    </span>
+  );
+  const authority = (value: string, onChange: (v: string) => void) => (
+    <span className={`modepick ma-${value}`} title={AUTHORITY_HELP[value] ?? value}>
+      <span className="glyph" aria-hidden="true">{AUTHORITY_GLYPH[value] ?? "·"}</span>
+      <select value={value} onChange={(e) => onChange(e.target.value)}>
+        {MERGE_AUTHORITIES.map((m) => (
+          <option key={m}>{m}</option>
+        ))}
+      </select>
+    </span>
   );
 
   const addedClasses = pending.ops.filter((o) => o.key?.startsWith("fcnew:")).map((o) => o.args.class ?? "");
 
   return (
     <div className="pad">
+      <p className="legend small" data-testid="filter-legend">
+        <span className="modepick mode-sync"><span className="glyph">⇄</span> sync</span>
+        <span className="modepick mode-notify"><span className="glyph">⚑</span> notify</span>
+        <span className="modepick mode-ignore"><span className="glyph">∅</span> ignore</span>
+        <span className="modepick mode-reset"><span className="glyph">↺</span> reset</span>
+        <span className="muted"> · merge authority: </span>
+        <span className="modepick ma-edir"><span className="glyph">⬅</span> vault wins</span>
+        <span className="modepick ma-app"><span className="glyph">➡</span> app wins</span>
+        <span className="modepick ma-none"><span className="glyph">✕</span> none</span>
+      </p>
       {classes.length === 0 && addedClasses.length === 0 && <p className="muted">The filter has no classes: nothing synchronizes in either direction.</p>}
       {classes.map((c) => {
         const cs = staged(`fc:${c.name}`)?.args;
@@ -121,13 +160,7 @@ export function FilterEditor({ driver, file, revision, pending }: Props) {
                       <td>{a.name}</td>
                       <td>{mode(s?.publisher ?? a.publisher, (v) => attrOp(c, a, { publisher: v }), false)}</td>
                       <td>{mode(s?.subscriber ?? a.subscriber, (v) => attrOp(c, a, { subscriber: v }), false)}</td>
-                      <td>
-                        <select value={s?.["merge-authority"] ?? a.mergeAuthority} onChange={(e) => attrOp(c, a, { "merge-authority": e.target.value })}>
-                          {MERGE_AUTHORITIES.map((m) => (
-                            <option key={m}>{m}</option>
-                          ))}
-                        </select>
-                      </td>
+                      <td>{authority(s?.["merge-authority"] ?? a.mergeAuthority, (v) => attrOp(c, a, { "merge-authority": v }))}</td>
                       <td>
                         <button className="mini danger" title="Remove this attribute from the filter" onClick={() => pending.put(`fadel:${c.name}:${a.name}`, agone ? null : { name: "filter.remove-attr", args: { driver, class: c.name, attr: a.name }, label: `remove ${c.name}.${a.name}` })}>
                           {agone ? "keep" : "×"}

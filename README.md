@@ -11,8 +11,6 @@ hosted mode. **New here? [docs/quickstart.md](docs/quickstart.md)** — one cont
 
 ## A look
 
-The lab driver set on the hosted server.
-
 **Adding a project** — the first run, and "add a project…" after it: a tree comes from an
 Identity Vault, a Designer project or export, a repository on the host, a directory of files,
 or a remote to clone.

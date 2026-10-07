@@ -34,7 +34,7 @@ identity=none                           # none (loopback only, for a trusted hos
 none.users=alice:Alice:alice@example.com:idm-editors;bob:Bob:bob@example.com:idm-deployers
 roles.editor=idm-editors,idm-deployers
 roles.deployer=idm-deployers
-session.hours=8
+session.hours=8                         # 0: never (the one-person install); sessions survive a restart
 setup.roots=/srv,/var/lib/idmweb      # where path-based setup may point (default: data.dir and /srv)
 ```
 

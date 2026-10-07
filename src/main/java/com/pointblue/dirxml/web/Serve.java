@@ -87,7 +87,8 @@ public final class Serve {
         }
         Git git = new Git(h.dataDir, h.repoToken(), h.repoSshKey);
         Workspaces workspaces = new Workspaces(h, git);
-        Session.Store sessions = new Session.Store(h.sessionHours * 3600);
+        // kept in the data directory: a restart signs nobody out, and everyone gets their last branch back
+        Session.Store sessions = Session.Store.persistent(h.sessionHours <= 0 ? Session.Store.NEVER : h.sessionHours * 3600, h.dataDir.resolve("sessions.json"));
         Security security = Security.hosted(h.publicUrl);
         Audit audit = new Audit(h.dataDir.resolve("audit.log"));
         Identity identity;

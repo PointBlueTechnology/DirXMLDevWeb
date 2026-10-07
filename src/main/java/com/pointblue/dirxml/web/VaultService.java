@@ -10,7 +10,6 @@ import com.pointblue.dirxml.dev.deploy.Vault;
 import com.pointblue.dirxml.dev.deploy.VaultDiff;
 import com.pointblue.dirxml.dev.json.Json;
 import com.pointblue.dirxml.dev.model.DriverSet;
-import com.pointblue.dirxml.dev.operate.LdapTrace;
 import com.pointblue.dirxml.dev.operate.Operate;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -401,37 +400,77 @@ public final class VaultService {
     }
 
     /**
-     * A driver's trace lines, until the calling thread is interrupted: from the environment's own
-     * server, or from {@code serverDn}, one of the driver set's servers, at its own LDAP address
-     * (each server keeps its own trace).
+     * Live trace as parsed records (see {@link TraceService#json}), until the calling thread is
+     * interrupted: from every server of the driver set at its own LDAP address (each keeps its own
+     * trace), or from {@code serverDn} alone. {@code driver} null = every driver.
      */
-    public void trace(String envName, String driver, boolean engineToo, String serverDn, Consumer<String> sink) throws IOException, InterruptedException {
+    @SuppressWarnings("unchecked")
+    public void trace(String envName, String driver, boolean engineToo, String serverDn, Consumer<Map<String, Object>> sink) throws Exception {
+        Environments.Environment e = env(envName);
+        List<TraceService.Source> sources = new ArrayList<>();
+        List<Map<String, Object>> servers = (List<Map<String, Object>>) servers(envName).get("servers");
+        for (Map<String, Object> s : servers) {
+            String dn = String.valueOf(s.get("dn"));
+            if (serverDn != null && !serverDn.isBlank() && !serverDn.equalsIgnoreCase(dn)) {
+                continue;
+            }
+            // the environment's own server is reached at the environment's URL (a tunnel, a name that
+            // resolves from here); the address derived from the server object is for the other servers
+            String url = Boolean.TRUE.equals(s.get("primary")) ? e.url : (s.get("url") == null ? null : String.valueOf(s.get("url")));
+            if (url == null || url.isBlank()) {
+                continue;
+            }
+            sources.add(new TraceService.Source(String.valueOf(s.get("name")), url));
+        }
+        if (sources.isEmpty()) {
+            if (serverDn != null && !serverDn.isBlank()) {
+                throw new TreeService.BadRequest("no LDAP address is known for " + serverDn + "; name one in the environment's servers= setting (dn=url;…)");
+            }
+            sources.add(new TraceService.Source(e.name, e.url));
+        }
+        TraceService.stream(e, sources, driver, engineToo, sink);
+    }
+
+    /**
+     * Sets a driver's trace level ({@code DirXML-TraceLevel}, 0–10) through the core's
+     * {@code driver.trace set}: on the environment's server, or on {@code serverDn}'s own address
+     * since the level is kept per server. Gated like every vault write.
+     */
+    public Map<String, Object> traceLevel(String envName, String driver, int level, String serverDn, String confirm) throws IOException {
         if (driver == null || driver.isBlank()) {
             throw new TreeService.BadRequest("no driver named");
         }
+        if (level < 0 || level > 10) {
+            throw new TreeService.BadRequest("the trace level is 0 to 10");
+        }
         Environments.Environment e = env(envName);
-        if (serverDn == null || serverDn.isBlank()) {
-            LdapTrace.stream(e, driver, null, engineToo, 0, sink);
-            return;
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("environment", e.name);
+        m.put("driver", driver);
+        m.put("level", level);
+        String refusal = gate(e.name, confirm);
+        if (refusal != null) {
+            m.put("ok", false);
+            m.put("text", refusal);
+            return m;
         }
-        String url;
-        try (Vault vault = Vault.connect(e.vaultConfig())) {
-            url = com.pointblue.dirxml.dev.deploy.Servers.urlOf(e, vault, serverDn);
+        Vault.Config cfg = e.vaultConfig();
+        if (serverDn != null && !serverDn.isBlank()) {
+            String url;
+            try (Vault vault = Vault.connect(cfg)) {
+                url = com.pointblue.dirxml.dev.deploy.Servers.urlOf(e, vault, serverDn);
+            }
+            if (url == null || url.isBlank()) {
+                throw new TreeService.BadRequest("no LDAP address is known for " + serverDn);
+            }
+            cfg = cfg.withUrl(url);
+            m.put("server", serverDn);
         }
-        if (url == null || url.isBlank()) {
-            throw new TreeService.BadRequest("no LDAP address is known for " + serverDn + "; name one in the environment's servers= setting (dn=url;…)");
-        }
-        com.pointblue.dirxml.sim.EdirTraceStream.Config c = com.pointblue.dirxml.sim.EdirTraceStream.Config.fromUrl(url, e.bindDn, e.password);
-        c.trustAllCerts = e.trustAll;
-        LdapTrace filter = new LdapTrace(driver, null);
-        try (com.pointblue.dirxml.sim.EdirTraceStream stream = new com.pointblue.dirxml.sim.EdirTraceStream(c)) {
-            stream.start(engineToo, line -> {
-                String printed = filter.accept(line);
-                if (printed != null) {
-                    sink.accept(printed);
-                }
-            });
-            Thread.currentThread().join();
+        try (Vault vault = Vault.connect(cfg)) {
+            Operate.Result r = Operate.traceSet(Operate.vaultEngine(vault), e, driver, level, null, true, confirm, tree);
+            m.put("ok", r.ok);
+            m.put("text", r.text());
+            return m;
         }
     }
 }

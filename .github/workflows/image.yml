@@ -48,6 +48,9 @@ jobs:
           gh release download "v${{ steps.v.outputs.core }}" --repo PointBlueTechnology/DirXMLDev -p "dirxml-dev-${{ steps.v.outputs.core }}.jar" -D DirXMLDev/target
           M=~/.m2/repository/com/pointblue/dirxml/dirxml-simulator/${{ steps.v.outputs.sim }}; mkdir -p "$M"
           gh release download "v${{ steps.v.outputs.sim }}" --repo PointBlueTechnology/DirXMLSimulator -p "dirxml-simulator-${{ steps.v.outputs.sim }}.jar" -D "$M"
+          TRACE=$(sed -n 's#.*<tracecore.version>\([^<]*\)</tracecore.version>.*#\1#p' pom.xml | head -1)
+          T=~/.m2/repository/com/pointbluetech/dirxml-trace-core/$TRACE; mkdir -p "$T"
+          gh release download "v$TRACE" --repo PointBlueTechnology/DirXMLTraceViewer -p "dirxml-trace-core-$TRACE.jar" -D "$T"
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3

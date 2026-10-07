@@ -16,6 +16,9 @@ if [ ! -d "$HERE/target/classes" ]; then
 fi
 SIM_VER=${IDM_SIM_VERSION:-1.7.0}
 SIM_JAR="$HOME/.m2/repository/com/pointblue/dirxml/dirxml-simulator/$SIM_VER/dirxml-simulator-$SIM_VER.jar"
+# the DirXML Trace Viewer's library (the version the pom names); jldap itself comes from the engine's ldap.jar
+TRACE_VER=$(sed -n 's#.*<tracecore.version>\([^<]*\)</tracecore.version>.*#\1#p' "$HERE/pom.xml" | head -1)
+TRACE_JAR="$HOME/.m2/repository/com/pointbluetech/dirxml-trace-core/$TRACE_VER/dirxml-trace-core-$TRACE_VER.jar"
 JH=${IDM_JAVA_HOME:-}
 if [ -z "$JH" ] && [ -x /usr/libexec/java_home ]; then
   JH=$(/usr/libexec/java_home -v 21 2>/dev/null || true)
@@ -27,6 +30,7 @@ if [ -z "$JH" ] || [ ! -x "$JH/bin/java" ]; then
 fi
 CP="$HERE/target/classes:$IDM_HOME/target/classes"
 [ -f "$SIM_JAR" ] && CP="$CP:$SIM_JAR"
+if [ -f "$TRACE_JAR" ]; then CP="$CP:$TRACE_JAR"; else echo "WARNING: $TRACE_JAR not found; live trace will fail. Install it from the DirXMLTraceViewer release (see docs/development.md)." >&2; fi
 for j in "$IDM_HOME"/lib/*.jar; do
   [ -f "$j" ] && CP="$CP:$j"
 done

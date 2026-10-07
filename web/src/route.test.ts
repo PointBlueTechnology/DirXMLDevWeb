@@ -18,6 +18,7 @@ describe("the selection in the address", () => {
       { type: "new", what: "policy", driver: null },
       { type: "driverset" },
       { type: "driverset", tab: "schema" },
+      { type: "trace", env: "edir3" },
     ];
     for (const s of all) {
       expect(fromHash(toHash(s))).toEqual(s);

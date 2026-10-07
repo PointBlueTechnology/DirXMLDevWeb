@@ -33,6 +33,8 @@ export function fromHash(hash: string): Selection | null {
   switch (m.type) {
     case "home":
     case "overrides":
+    case "audit":
+      return { type: "audit" };
     case "operations":
     case "vault":
     case "simulator":

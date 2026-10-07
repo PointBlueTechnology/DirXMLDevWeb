@@ -1189,3 +1189,8 @@ tr.newer td { background: color-mix(in srgb, var(--accent) 8%, transparent); }
 .prompts summary { padding: 6px 10px; cursor: pointer; }
 .prompts .field.missing input, .prompts .field.missing select { border-color: var(--warn); }
 .checks { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+
+.nowrap { white-space: nowrap; }
+tr.warn-row td { background: color-mix(in srgb, var(--warn) 8%, transparent); }
+
+td.center { text-align: center; }

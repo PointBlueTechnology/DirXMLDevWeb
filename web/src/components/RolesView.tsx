@@ -3,6 +3,7 @@ import { api } from "../api";
 import { usePending } from "../pending";
 import type { CatalogObject, RoleCatalog } from "../types";
 import { PendingBar } from "./PendingBar";
+import { EntitiesTab as Entities } from "./EntitiesTab";
 
 /** English text of a localized attribute ("en~Text|de~Text"), for the editor's starting value. */
 function english(values: string[] | undefined): string {
@@ -23,7 +24,7 @@ function english(values: string[] | undefined): string {
 export function RolesView({ revision, onSaved }: { revision: string; onSaved: () => void }) {
   const [data, setData] = useState<RoleCatalog | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<"roles" | "resources">("roles");
+  const [tab, setTab] = useState<"roles" | "resources" | "entities">("roles");
   const [role, setRole] = useState({ name: "", level: "10", category: "", display: "", descr: "" });
   const [res, setRes] = useState({ name: "", category: "", display: "", descr: "", entitlement: "" });
   const pending = usePending();
@@ -75,10 +76,14 @@ export function RolesView({ revision, onSaved }: { revision: string; onSaved: ()
           <button className={tab === "resources" ? "tab active" : "tab"} onClick={() => setTab("resources")} data-testid="roles-tab-resources">
             Resources {data.resources.length}
           </button>
+          <button className={tab === "entities" ? "tab active" : "tab"} onClick={() => setTab("entities")} data-testid="roles-tab-entities">
+            Entities {data.entities?.length ?? 0}
+          </button>
         </div>
       </div>
       <PendingBar pending={pending} title="Review catalog changes" onSaved={onSaved} />
-      <div className="pad scroll">
+      {tab === "entities" && <Entities entities={data.entities ?? []} pending={pending} />}
+      <div className="pad scroll" style={tab === "entities" ? { display: "none" } : undefined}>
         <table className="grid" data-testid="roles-table">
           <thead>
             <tr>

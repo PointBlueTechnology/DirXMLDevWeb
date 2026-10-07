@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-10-07
+
 ### Fixed
 
 - A connection test or vault bind failing with "simple bind failed" against an eDirectory whose

@@ -53,6 +53,12 @@ async function call<T>(method: string, path: string, body?: unknown): Promise<T>
   if (!res.ok) {
     const message = data && typeof data === "object" && "error" in data ? String((data as { error: unknown }).error) : `HTTP ${res.status}`;
     if (res.status === 401 && data && typeof data === "object" && "login" in data) {
+      // the hash (the view) does not survive the sign-in round trip on its own: keep it for the return
+      try {
+        sessionStorage.setItem("idmweb.return", window.location.hash);
+      } catch {
+        // no storage: the page opens at home
+      }
       // hosted mode without a session: go and sign in, then come back here
       window.location.assign(`${String((data as { login: string }).login)}?next=${encodeURIComponent(window.location.pathname)}`);
     }

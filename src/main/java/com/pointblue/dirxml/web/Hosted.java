@@ -109,7 +109,7 @@ public final class Hosted {
         this.identity = p.getProperty("identity", "none").trim();
         this.editorGroups = list(p.getProperty("roles.editor", "*"));
         this.deployerGroups = list(p.getProperty("roles.deployer", ""));
-        this.sessionHours = Long.parseLong(p.getProperty("session.hours", "8").trim());
+        this.sessionHours = Long.parseLong(p.getProperty("session.hours", "8").trim());   // 0: never expires
         List<Path> roots = new java.util.ArrayList<>();
         for (String r : list(p.getProperty("setup.roots", ""))) {
             roots.add(Path.of(r).toAbsolutePath().normalize());

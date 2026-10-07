@@ -108,6 +108,8 @@ a `…Command=` reference to a secret manager ([secret-managers.md](secret-manag
 
 ## Day to day
 
+- Your session never times out, and a restart (an upgrade, a reboot) brings you back to the branch
+  and the view you were on.
 - Upgrade: set `IDMWEB_IMAGE` to the new version and run `setup.sh` again (`~/idmweb/` — its
   repository, token and configuration — is kept).
 - Stop: `cd ~/idmweb && docker compose down`. Everything lives in `~/idmweb/` on your disk:

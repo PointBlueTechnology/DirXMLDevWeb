@@ -232,6 +232,19 @@ try:
     s, rm = call2("POST", "/api/setup/remove", {"project": "second"})[:2]
     check("a project can be removed (its files stay)", s == 200 and rm["removed"] == "second" and "projects=plain\n" in open(os.path.join(work, "hosted2.properties")).read())
 finally:
+    # #37 / #50: a restart signs nobody out and brings the workspace back
+    call2("POST", "/api/workspaces/open", {"branch": "main"})
+    before = call2("GET", "/api/session")[1]
+    p2.terminate(); p2.wait()
+    open(os.path.join(work, "log2"), "w").close()
+    p2 = sp.Popen([os.path.join(here, "bin", "idmweb"), "serve", "--hosted", os.path.join(work, "hosted2.properties")], stdout=open(os.path.join(work, "log2"), "w"), stderr=sp.STDOUT, env={**os.environ, "IDM_ENVIRONMENTS": os.path.join(work, "data2", "environments.properties")})
+    for _ in range(80):
+        if "hosted:" in open(os.path.join(work, "log2")).read():
+            break
+        time.sleep(0.25)
+    s, after = call2("GET", "/api/session")[:2]
+    check("after a restart the same cookie is still a session (sessions.json), with the workspace back (%s -> %s)" % (before.get("workspace"), after.get("workspace")), s == 200 and after.get("user", {}).get("name") == before.get("user", {}).get("name") and after.get("workspace") and after.get("workspace") == before.get("workspace"))
+    check("sessions.json is the owner's only", oct(os.stat(os.path.join(work, "data2", "sessions.json")).st_mode)[-3:] == "600")
     p2.terminate()
 
 with open(os.path.join(work, "data", "audit.log")) as f:

@@ -49,6 +49,11 @@ DirXMLDevWeb is at http://localhost:8080
   `0600`), a `…Command=` reference to a secret manager, or `…Env=NAME` with the value in
   `idmweb.env`. Keychain references do not resolve inside the container.
 
+**Podman**: `CONTAINER=podman setup.sh …` uses `podman` and `podman compose` (or
+`podman-compose`; set `COMPOSE` to choose) and adds `compose.podman.yml` (`userns_mode: keep-id`)
+so a rootless container writes files as you. The team layout in `../compose.yml` is plain
+compose and runs under `podman compose` as well; Caddy and Keycloak need no changes.
+
 Re-running `setup.sh` on an existing directory keeps the repository, token and configuration
 and just restarts the container (a new image is picked up). `docker compose down` stops it;
 the folder on your disk (`~/idmweb/` by default) holds everything.

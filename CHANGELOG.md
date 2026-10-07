@@ -7,6 +7,20 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- Audit log view (hosted mode, deployers): `GET /api/audit?since=&user=&project=&event=&limit=`
+  and a filterable table under the advanced buttons — who did what, where, how it went; names
+  and flags only. (#42)
+- Entities: the Roles view has an Entities tab — each directory-abstraction entity with its
+  attributes (key, LDAP/NDS names, type, label, flags) editable in place, attributes added and
+  removed (`entity.attr.add` / `set` / `remove`). (#46)
+- Settings: shim parameters and engine control values are added (name, display, type, value,
+  section) and removed from the tab — what a shim under development needs without editing the
+  XML (`driver.setting.add` / `remove`, DirXMLDev 0.12.0).
+- Podman: `CONTAINER=podman setup.sh …` for the one-person install (`podman compose` or
+  `podman-compose`; `compose.podman.yml` keeps your uid in a rootless container). (#33)
+
 ### Security (hosted mode)
 
 - `POST /api/credentials/resolve` with a typed `command` needs the deployer role; an editor may

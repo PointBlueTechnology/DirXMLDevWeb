@@ -248,7 +248,20 @@ export type Selection =
   | { type: "entitlement"; driver: string; name: string; file: string }
   | { type: "new"; what: NewWhat; driver: string | null }
   | { type: "changes"; against?: "head" | "base" | "upstream" }
+  | { type: "audit" }
   | { type: "operations" };
+
+/** One audit line: who did what, where, with what (names and flags only), and how it went. */
+export interface AuditEntry {
+  time: string;
+  user: string | null;
+  workspace: string | null;
+  project: string | null;
+  branch: string | null;
+  event: string;
+  details: Record<string, unknown>;
+  outcome: string;
+}
 
 /** An environment of the environments file, described without its values. */
 export interface VaultEnvironment {
@@ -432,10 +445,31 @@ export interface CatalogObject {
   attrs: Record<string, string[]>;
 }
 
+export interface EntityAttribute {
+  key: string;
+  ldap: string | null;
+  nds: string | null;
+  type: string | null;
+  display: string | null;
+  flags: Record<string, boolean>;
+}
+
+export interface EntityDef {
+  driver: string;
+  key: string;
+  path: string;
+  displayName: string | null;
+  objectClass?: string | null;
+  searchRoot?: string | null;
+  attributes: EntityAttribute[];
+  error?: string;
+}
+
 export interface RoleCatalog {
   drivers: string[];
   roles: CatalogObject[];
   resources: CatalogObject[];
+  entities: EntityDef[];
 }
 
 export interface CatalogPackage {

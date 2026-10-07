@@ -144,6 +144,20 @@ public final class Api implements HttpHandler {
                 send(ex, 403, error("this needs the deployer role"));
                 return;
             }
+            if (path.equals("/api/audit")) {
+                // the server's audit log: hosted mode, deployers only (#42)
+                if (!security.hostedMode()) {
+                    throw new TreeService.NotFound("no audit log in local mode");
+                }
+                if (!session.principal.deployer) {
+                    throw new Forbidden("the audit log needs the deployer role");
+                }
+                int limit = query.get("limit") == null ? 200 : Integer.parseInt(query.get("limit"));
+                Map<String, Object> m = new LinkedHashMap<>();
+                m.put("entries", audit.read(query.get("since"), query.get("user"), query.get("project"), query.get("event"), Math.min(limit, 2000)));
+                send(ex, 200, m);
+                return;
+            }
             if (path.equals("/api/session") || path.startsWith("/api/workspaces")) {
                 send(ex, 200, path.equals("/api/session") ? sessionInfo(session) : workspaceRoute(session, method, path, query, ex));
                 return;

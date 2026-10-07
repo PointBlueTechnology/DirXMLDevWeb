@@ -1,0 +1,5 @@
+# Rootless Podman: keep your own uid inside the container (compose.yml's user: would otherwise map
+# to a sub-uid and the files it writes would not be yours). setup.sh adds this file for CONTAINER=podman.
+services:
+  idmweb:
+    userns_mode: "keep-id"

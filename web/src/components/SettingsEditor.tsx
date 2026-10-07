@@ -1,6 +1,9 @@
+import { useState } from "react";
 import type { Pending } from "../pending";
 import type { ConfigView, Definition } from "../types";
 import { DefinitionsTable } from "./DefinitionsTable";
+
+const TYPES = ["string", "integer", "boolean", "dn", "enum", "password-ref"];
 
 /** A driver's own settings: the shim class and authentication, its shim parameters and its engine control values (`driver.set`). */
 export function SettingsEditor({ config, pending }: { config: ConfigView; pending: Pending }) {
@@ -19,8 +22,53 @@ export function SettingsEditor({ config, pending }: { config: ConfigView; pendin
       <input value={staged(key) ?? original ?? ""} onChange={(e) => set(key, label, original ?? "", e.target.value)} spellCheck={false} className={staged(key) !== undefined ? "changed" : ""} />
     </label>
   );
+  // a shim under development gets new parameters (and loses old ones) here, not in the XML (driver.setting.add / remove)
   const table = (rows: Definition[] | undefined, prefix: string, empty: string) => (
-    <DefinitionsTable rows={rows ?? []} empty={empty} staged={(name) => staged(`${prefix}:${name}`)} onChange={(row, v) => set(`${prefix}:${row.name}`, row.name, row.value, v)} />
+    <DefinitionsTable
+      rows={rows ?? []}
+      empty={empty}
+      staged={(name) => staged(`${prefix}:${name}`)}
+      onChange={(row, v) => set(`${prefix}:${row.name}`, row.name, row.value, v)}
+      onDelete={(row) => pending.put(`del:${prefix}:${row.name}`, { name: "driver.setting.remove", args: { driver, key: `${prefix}:${row.name}` }, label: `remove ${prefix === "param" ? "shim parameter" : "engine control value"} ${row.name}` })}
+    />
+  );
+  const [add, setAdd] = useState({ name: "", display: "", type: "string", value: "", section: "driver-options" });
+  const adder = (prefix: "param" | "engine") => (
+    <div className="addrow" data-testid={`setting-add-${prefix}`}>
+      <input placeholder="name" value={add.name} onChange={(e) => setAdd({ ...add, name: e.target.value })} spellCheck={false} />
+      <input placeholder="display name" value={add.display} onChange={(e) => setAdd({ ...add, display: e.target.value })} />
+      <select value={add.type} onChange={(e) => setAdd({ ...add, type: e.target.value })}>
+        {TYPES.map((t) => (
+          <option key={t} value={t}>
+            {t}
+          </option>
+        ))}
+      </select>
+      <input placeholder="value" value={add.value} onChange={(e) => setAdd({ ...add, value: e.target.value })} spellCheck={false} />
+      {prefix === "param" && (
+        <select value={add.section} onChange={(e) => setAdd({ ...add, section: e.target.value })}>
+          <option value="driver-options">driver options</option>
+          <option value="subscriber-options">subscriber options</option>
+          <option value="publisher-options">publisher options</option>
+        </select>
+      )}
+      <button
+        disabled={!add.name.trim()}
+        onClick={() => {
+          const args: Record<string, string> = { driver, key: `${prefix}:${add.name.trim()}`, type: add.type, value: add.value };
+          if (add.display.trim()) {
+            args.display = add.display.trim();
+          }
+          if (prefix === "param") {
+            args.section = add.section;
+          }
+          pending.add({ name: "driver.setting.add", args, label: `add ${prefix === "param" ? "shim parameter" : "engine control value"} ${add.name.trim()} = ${add.value}` });
+          setAdd({ ...add, name: "", display: "", value: "" });
+        }}
+      >
+        Add
+      </button>
+    </div>
   );
   return (
     <div className="pad">
@@ -31,8 +79,10 @@ export function SettingsEditor({ config, pending }: { config: ConfigView; pendin
       <p className="muted small">The authentication password is a secret: it is set at deploy from the environment's secrets file, never stored in the tree.</p>
       <h3>Shim parameters</h3>
       {table(config.params, "param", "This driver's shim configuration defines no parameters.")}
+      {adder("param")}
       <h3>Engine control values</h3>
       {table(config.ecvs, "engine", "No engine control values in the tree. The engine writes its defaults when the driver first starts; import-live adopts them.")}
+      {adder("engine")}
     </div>
   );
 }

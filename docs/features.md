@@ -75,7 +75,11 @@ Every view of the page, by area, in every install; the items marked *local and s
     write, restart, verify) once you type the environment's name.
   - *Drivers*: every driver's state, start option and cache; start, stop and restart behind
     the same typed confirmation.
-  - *Trace*: a driver's trace, live, with a filter — from any server of the driver set, each of
+  - *Trace*: the DirXML Trace Viewer in the page (its `dirxml-trace-core` library does the parsing
+    and highlighting, so a line reads the same as in the desktop app): the driver set's trace live
+    from every server or one, channel/driver/text filters, find, DSTrace colours, compact
+    whitespace, timestamp formats, pause, save, copy, a pop-out window; the Drivers tab sets a
+    driver's trace level. Before this it was a driver's raw lines with a filter — from any server of the driver set, each of
     which keeps its own (the servers are read from the vault, their addresses from the
     environment's `servers=` mapping or the server object).
 - **Provisioning**, for the User Application driver:

@@ -25,6 +25,8 @@
              against that checkout's classes, engine jars and simulator. -->
         <dirxmldev.version>0.13.0</dirxmldev.version>
         <simulator.version>1.7.0</simulator.version>
+        <!-- the DirXML Trace Viewer's library: parser, highlighter, LDAP trace source (its release attaches the jar) -->
+        <tracecore.version>1.5.0</tracecore.version>
     </properties>
 
     <dependencies>
@@ -55,6 +57,14 @@
                     <artifactId>*</artifactId>
                 </exclusion>
             </exclusions>
+        </dependency>
+        <!-- Live trace: the viewer's parser and highlighting, so the page shows what the desktop shows.
+             jldap comes with it for compiling; at run time the engine's own ldap.jar (same classes)
+             is on the class path, so the launchers add only this jar. -->
+        <dependency>
+            <groupId>com.pointbluetech</groupId>
+            <artifactId>dirxml-trace-core</artifactId>
+            <version>${tracecore.version}</version>
         </dependency>
         <dependency>
             <groupId>junit</groupId>

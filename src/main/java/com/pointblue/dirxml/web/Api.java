@@ -26,7 +26,7 @@ public final class Api implements HttpHandler {
     public static final String COOKIE = "idmweb_session";
     public static final String CSRF_HEADER = "X-IDMWeb-CSRF";
     /** POST routes only a deployer may call: they reach a vault or hold its credentials. */
-    private static final java.util.List<String> DEPLOYER_ONLY = java.util.List.of("/api/vault/deploy", "/api/vault/driver", "/api/vault/deploy-schema", "/api/credentials/environment", "/api/credentials/environment/remove", "/api/credentials/secret");
+    private static final java.util.List<String> DEPLOYER_ONLY = java.util.List.of("/api/vault/deploy", "/api/vault/driver", "/api/vault/trace-level", "/api/vault/deploy-schema", "/api/credentials/environment", "/api/credentials/environment/remove", "/api/credentials/secret");
 
     private final Workspaces workspaces;
     private final Session.Store sessions;
@@ -164,7 +164,8 @@ public final class Api implements HttpHandler {
                 send(ex, 403, error("your account may read but not change anything"));
                 return;
             }
-            if (!session.principal.deployer && (DEPLOYER_ONLY.contains(path) || path.equals("/api/vault/trace"))) {
+            // trace is for every signed-in user; driver control and the trace level stay with deployers
+            if (!session.principal.deployer && DEPLOYER_ONLY.contains(path)) {
                 send(ex, 403, error("this needs the deployer role"));
                 return;
             }
@@ -434,6 +435,8 @@ public final class Api implements HttpHandler {
                     return vault.deploy(env, drivers, restart, Json.asString(req.get("secrets")), Json.asString(req.get("confirm")));
                 case "/api/vault/driver":
                     return vault.lifecycle(env, Json.asString(req.get("driver")), Json.asString(req.get("action")), Json.asString(req.get("confirm")));
+                case "/api/vault/trace-level":
+                    return vault.traceLevel(env, Json.asString(req.get("driver")), (int) Double.parseDouble(String.valueOf(req.get("level"))), Json.asString(req.get("server")), Json.asString(req.get("confirm")));
                 default:
                     break;
             }
@@ -484,10 +487,10 @@ public final class Api implements HttpHandler {
             synchronized (lock) {
                 write(out, "event: open\ndata: {}\n\n");
             }
-            vault.trace(required(query, "env"), required(query, "driver"), "true".equals(query.get("engine")), query.get("server"), line -> {
+            vault.trace(required(query, "env"), query.get("driver"), "true".equals(query.get("engine")), query.get("server"), record -> {
                 try {
                     synchronized (lock) {
-                        write(out, "data: " + Json.compact(line) + "\n\n");
+                        write(out, "data: " + Json.compact(record) + "\n\n");
                     }
                 } catch (IOException e) {
                     me.interrupt();

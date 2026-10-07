@@ -1,5 +1,6 @@
-import { Fragment, useEffect, useRef, useState } from "react";
-import { api, followTrace } from "../api";
+import { Fragment, useEffect, useState } from "react";
+import { api } from "../api";
+import { TraceViewer } from "./TraceViewer";
 import type { DeployResult, Selection, VaultDiffResult, VaultEnvironments, VaultStatus } from "../types";
 
 type Tab = "compare" | "drivers" | "trace";
@@ -86,7 +87,7 @@ export function VaultView({ drivers, revision, onOpen, onSelect }: { drivers: st
       ) : tab === "drivers" ? (
         <Drivers key={chosen.name} env={chosen.name} onFix={() => onSelect({ type: "connections", env: chosen.name })} />
       ) : (
-        <Trace key={chosen.name} env={chosen.name} drivers={drivers} />
+        <TraceViewer key={chosen.name} env={chosen.name} drivers={drivers} />
       )}
     </div>
   );
@@ -340,6 +341,19 @@ function Drivers({ env, onFix }: { env: string; onFix: () => void }) {
       .finally(() => setBusy(null));
   };
   const armed = confirm === env;
+  const [levels, setLevels] = useState<Record<string, number>>({});
+  const setLevel = (driver: string, level: number) => {
+    setBusy(`trace level ${level} on ${driver}…`);
+    setLast(null);
+    api.vault
+      .traceLevel(env, driver, level, confirm)
+      .then((r) => {
+        setLast({ ok: r.ok, text: r.text });
+        return api.vault.status(env).then(setStatus);
+      })
+      .catch((e: Error) => setLast({ ok: false, text: e.message }))
+      .finally(() => setBusy(null));
+  };
 
   return (
     <div className="pad">
@@ -373,7 +387,18 @@ function Drivers({ env, onFix }: { env: string; onFix: () => void }) {
                 </td>
                 <td>{d.startOption}</td>
                 <td>{d.cacheSize ?? ""}</td>
-                <td>{d.traceLevel ?? ""}</td>
+                <td className="tracelevel" data-testid={"trace-level-" + d.name}>
+                  <select value={(levels[d.name] ?? Number(d.traceLevel ?? 0))} onChange={(e) => setLevels({ ...levels, [d.name]: Number(e.target.value) })} disabled={!armed || busy !== null} title="DirXML-TraceLevel, kept per server; 0 is off, 3 shows policy results, 5 and above every document">
+                    {Array.from({ length: 11 }, (_, i) => (
+                      <option key={i} value={i}>
+                        {i}
+                      </option>
+                    ))}
+                  </select>{" "}
+                  <button className="mini" disabled={!armed || busy !== null || ((levels[d.name] ?? Number(d.traceLevel ?? 0))) === Number(d.traceLevel ?? 0)} onClick={() => setLevel(d.name, (levels[d.name] ?? Number(d.traceLevel ?? 0)))} title="Write the level on the environment's server (driver.trace set)">
+                    Set
+                  </button>
+                </td>
                 <td className="right">
                   <button disabled={!armed || busy !== null || d.state === "running"} onClick={() => act(d.name, "start")}>
                     Start
@@ -390,128 +415,6 @@ function Drivers({ env, onFix }: { env: string; onFix: () => void }) {
           </tbody>
         </table>
       )}
-    </div>
-  );
-}
-
-const MAX_LINES = 5000;
-
-function Trace({ env, drivers }: { env: string; drivers: string[] }) {
-  const [driver, setDriver] = useState(drivers[0] ?? "");
-  const [engine, setEngine] = useState(false);
-  const [servers, setServers] = useState<{ dn: string; name: string; url: string | null; primary: boolean }[] | null>(null);
-  const [server, setServer] = useState("");
-  useEffect(() => {
-    // each server of the driver set keeps its own trace: offer them, the environment's own first
-    api.vault
-      .servers(env)
-      .then((r) => {
-        setServers(r.servers);
-        setServer(r.servers.find((s) => s.primary)?.dn ?? "");
-      })
-      .catch(() => setServers([]));
-  }, [env]);
-  const [state, setState] = useState<"idle" | "connecting" | "open" | "closed">("idle");
-  const [failure, setFailure] = useState<string | null>(null);
-  const [lines, setLines] = useState<string[]>([]);
-  const [filter, setFilter] = useState("");
-  const [follow, setFollow] = useState(true);
-  const stop = useRef<(() => void) | null>(null);
-  const box = useRef<HTMLPreElement | null>(null);
-
-  const end = () => {
-    stop.current?.();
-    stop.current = null;
-  };
-  useEffect(() => end, []);
-  useEffect(() => {
-    if (follow && box.current) {
-      box.current.scrollTop = box.current.scrollHeight;
-    }
-  }, [lines, follow]);
-
-  const start = () => {
-    end();
-    setFailure(null);
-    setState("connecting");
-    stop.current = followTrace(
-      env,
-      driver,
-      engine,
-      (line) => setLines((l) => (l.length >= MAX_LINES ? [...l.slice(l.length - MAX_LINES + 1), line] : [...l, line])),
-      (s) => {
-        if (typeof s === "object") {
-          setFailure(s.failed);
-          setState("closed");
-        } else {
-          setState(s);
-        }
-      },
-      servers?.find((s) => s.dn === server)?.primary ? undefined : server || undefined,
-    );
-  };
-  const running = state === "connecting" || state === "open";
-  const shown = filter ? lines.filter((l) => l.toLowerCase().includes(filter.toLowerCase())) : lines;
-
-  return (
-    <div className="pad tracepane">
-      <div className="addrow">
-        <label className="field">
-          <em>Driver</em>
-          <select value={driver} onChange={(e) => setDriver(e.target.value)} disabled={running} data-testid="trace-driver">
-            {drivers.map((d) => (
-              <option key={d} value={d}>
-                {d}
-              </option>
-            ))}
-          </select>
-        </label>
-        {servers && servers.length > 1 && (
-          <label className="field">
-            <em>Server</em>
-            <select value={server} onChange={(e) => setServer(e.target.value)} disabled={running} title="Each server of the driver set keeps its own trace" data-testid="trace-server">
-              {servers.map((s) => (
-                <option key={s.dn} value={s.dn} disabled={!s.url && !s.primary}>
-                  {s.name}
-                  {s.primary ? " (this connection)" : s.url ? "" : " — no address known"}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-        <label className="checkchip">
-          <input type="checkbox" checked={engine} onChange={(e) => setEngine(e.target.checked)} disabled={running} /> engine lines too
-        </label>
-        {running ? (
-          <button onClick={() => (end(), setState("closed"))} data-testid="trace-stop">
-            Stop
-          </button>
-        ) : (
-          <button onClick={start} disabled={!driver} data-testid="trace-start">
-            Start
-          </button>
-        )}
-        <button onClick={() => setLines([])} disabled={lines.length === 0}>
-          Clear
-        </button>
-        <label className="field">
-          <em>Show lines containing</em>
-          <input value={filter} onChange={(e) => setFilter(e.target.value)} />
-        </label>
-        <label className="checkchip">
-          <input type="checkbox" checked={follow} onChange={(e) => setFollow(e.target.checked)} /> follow
-        </label>
-        <span className={state === "open" ? "live on" : "live off"} data-testid="trace-state">
-          {state === "open" ? "streaming" : state === "connecting" ? "connecting…" : state === "closed" ? "stopped" : "not started"}
-        </span>
-      </div>
-      {failure && <div className="banner error">{failure}</div>}
-      <pre className="tracebox" ref={box} data-testid="trace-lines">
-        {shown.length === 0 ? (state === "open" ? "Connected. Waiting for the driver to write trace…" : "") : shown.join("\n")}
-      </pre>
-      <p className="muted small">
-        {lines.length} line{lines.length === 1 ? "" : "s"} kept (the last {MAX_LINES}). This is the driver's trace as the engine writes it; a stopped driver writes nothing.
-      </p>
     </div>
   );
 }

@@ -12,6 +12,7 @@ import { OperationsView } from "./components/OperationsView";
 import { AuditView } from "./components/AuditView";
 import { SEVERITIES, ValidationPanel, ValidationSummary } from "./components/ValidationPanel";
 import type { Severity } from "./components/ValidationPanel";
+import { TraceViewer } from "./components/TraceViewer";
 import { VaultView } from "./components/VaultView";
 import { SimView } from "./components/SimView";
 import { PrdView } from "./components/PrdView";
@@ -94,7 +95,11 @@ export function App() {
     }
   }, []);
   useEffect(() => {
-    const onPop = () => setSelectionState(fromHash(window.location.hash) ?? { type: "home" });
+    const onPop = () => {
+      // a link with the token appended (a pop-out opened in the same tab): take it out of the address first
+      takeToken();
+      setSelectionState(fromHash(window.location.hash) ?? { type: "home" });
+    };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
@@ -231,6 +236,14 @@ export function App() {
     return null;
   };
 
+  if (selection.type === "trace") {
+    // a pop-out window: the trace viewer alone, full height
+    return (
+      <div className="app popout" data-testid="trace-popout">
+        <TraceViewer env={selection.env} drivers={outline?.drivers.map((d) => d.name) ?? []} popout />
+      </div>
+    );
+  }
   return (
     <div className="app">
       <header className="topbar">

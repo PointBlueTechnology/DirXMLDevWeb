@@ -1242,3 +1242,39 @@ table.grid tr.detail td { background: var(--bg); padding-top: 4px; padding-botto
 .chip { display: inline-block; padding: 1px 7px; border: 1px solid var(--border); border-radius: 10px; font-size: 11px; background: var(--surface); white-space: nowrap; }
 .chip.mandatory { border-color: var(--accent); font-weight: 600; }
 .err-text { color: var(--err); }
+
+/* trace viewer (the desktop viewer's palette, on its dark pane) */
+.tv .tvbox { flex: 1; min-height: 240px; overflow: auto; margin: 8px 0; border: 1px solid var(--border); border-radius: 6px; background: #1E1F22; color: #D4D4D4; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre; }
+.tv .tvbox.wrap { white-space: pre-wrap; word-break: break-all; }
+.tv .tvrec { padding: 0 8px; }
+.tv .tvempty { position: sticky; top: 0; padding: 12px; font-family: inherit; white-space: normal; }
+.tv .tvfilters, .tv .tvsettings { flex-wrap: wrap; }
+.tv .tvdrivers { position: relative; }
+.tv .tvdrivers > summary { cursor: pointer; padding: 3px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; }
+.tv .tvdriverlist { position: absolute; z-index: 5; top: 100%; left: 0; min-width: 240px; max-height: 320px; overflow: auto; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 6px; display: flex; flex-direction: column; gap: 2px; box-shadow: 0 6px 18px rgba(0,0,0,0.25); }
+.tv button.on { border-color: var(--accent); color: var(--accent); }
+.tracelevel select { width: 56px; }
+.tk-TIMESTAMP { color: #7F848E; }
+.tk-DRIVER { color: #C586C0; font-weight: 600; }
+.tk-THREAD_SUB { color: #4EC9B0; font-weight: 600; }
+.tk-THREAD_PUB { color: #E5A04B; font-weight: 600; }
+.tk-THREAD_SVC { color: #C586C0; font-weight: 600; }
+.tk-PUNCT { color: #5C6370; }
+.tk-XML_BRACKET { color: #808080; }
+.tk-XML_TAG { color: #569CD6; }
+.tk-XML_ATTR { color: #9CDCFE; }
+.tk-XML_VALUE { color: #CE9178; }
+.tk-XML_COMMENT { color: #6A9955; }
+.tk-XML_PI { color: #808080; }
+.tk-XML_CDATA { color: #B5CEA8; }
+.tk-STATUS_ERROR { color: #FF5F5F; font-weight: 600; }
+.tk-STATUS_WARNING { color: #FFB454; font-weight: 600; }
+.tk-STATUS_SUCCESS { color: #7BD88F; font-weight: 600; }
+.tk-STATUS_RETRY { color: #E5C07B; }
+.ds-0 { color: #808080; } .ds-1 { color: #569CD6; } .ds-2 { color: #6A9955; } .ds-3 { color: #4EC9B0; }
+.ds-4 { color: #F44747; } .ds-5 { color: #C586C0; } .ds-6 { color: #CE9178; } .ds-7 { color: #D4D4D4; }
+.ds-8 { color: #808080; } .ds-9 { color: #6CB6FF; } .ds-10 { color: #89D185; } .ds-11 { color: #4FC1FF; }
+.ds-12 { color: #FF6B6B; } .ds-13 { color: #E586E0; } .ds-14 { color: #FFD866; } .ds-15 { color: #FFFFFF; }
+.tv .hit { background: #6b5a00; color: #fff; border-radius: 2px; }
+.popout { padding: 0; height: 100vh; display: flex; flex-direction: column; }
+.popout .tracepane { height: 100%; }

@@ -24,3 +24,18 @@
 - Nothing is read from a vault until you choose an environment and ask. Every write to a vault
   (deploy, driver start, stop, restart) needs that environment's name typed into the page; the
   server checks it, and `IDM_AGENT_ALLOW_WRITE` does not stand in for it here.
+
+## Older TLS suites
+
+eDirectory's LDAPS listener often offers only static-RSA key exchange (`TLS_RSA_*`, for example
+`AES256-GCM-SHA384`), no ECDHE and no TLS 1.3. Recent JDK builds disable those suites by default,
+and the symptom is a connection test or vault bind that fails with "simple bind failed" although
+the credentials are right. The server therefore keeps `TLS_RSA_*` enabled, first thing at
+start-up, on every install. Those suites lack forward secrecy: when every vault you connect to
+offers ECDHE, opt out with `IDM_TLS_LEGACY=false` in the container's environment
+(`-Didm.tls.legacy=false` for the Java launchers).
+
+An image from before this change gets the same effect from a `java.security` override: a file
+with the JDK's `jdk.tls.disabledAlgorithms` list minus `TLS_RSA_*`, named in
+`IDM_JAVA_OPTS=-Djava.security.properties=/etc/idmweb/legacy-tls.security` in `idmweb.env`.
+

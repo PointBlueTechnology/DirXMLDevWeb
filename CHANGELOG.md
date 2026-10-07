@@ -10,7 +10,9 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 ### Changed
 
 - Settings: the engine control values are folded away under their heading (with the count); open
-  the section when you need them.
+  the section when you need them. × on one is "back to the engine's default" (removed from the
+  tree; the engine rewrites its default at the next start) and says so; an engine value cannot be
+  cleared to empty.
 - A driver's GCV table is grouped by where each value comes from: the driver's own, GCV
   resources the driver links (packages), and the ones inherited from the driver set (its own
   GCVs, and Library resources linked at the set) — with the warning that the inherited ones are

@@ -7,6 +7,8 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.time.Instant;
 import java.util.LinkedHashMap;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -24,6 +26,45 @@ public final class Audit {
 
     public static Audit none() {
         return new Audit(null);
+    }
+
+    /**
+     * The last {@code limit} lines that match: {@code since} (ISO instant, or null), {@code user}
+     * (subject), {@code project}, {@code event} (substring) — newest first. Lines keep what the
+     * writer kept: names and flags, never contents or secrets.
+     */
+    public synchronized List<Map<String, Object>> read(String since, String user, String project, String event, int limit) throws IOException {
+        List<Map<String, Object>> out = new ArrayList<>();
+        if (file == null || !Files.exists(file)) {
+            return out;
+        }
+        List<String> lines = Files.readAllLines(file, StandardCharsets.UTF_8);
+        for (int i = lines.size() - 1; i >= 0 && out.size() < Math.max(1, limit); i--) {
+            String line = lines.get(i).trim();
+            if (line.isEmpty()) {
+                continue;
+            }
+            Map<String, Object> m;
+            try {
+                m = com.pointblue.dirxml.dev.json.Json.asMap(com.pointblue.dirxml.dev.json.Json.parse(line));
+            } catch (RuntimeException e) {
+                continue;
+            }
+            if (since != null && !since.isBlank() && String.valueOf(m.get("time")).compareTo(since) < 0) {
+                break;   // older than asked: the file is in time order
+            }
+            if (user != null && !user.isBlank() && !user.equals(m.get("user"))) {
+                continue;
+            }
+            if (project != null && !project.isBlank() && !project.equals(m.get("project"))) {
+                continue;
+            }
+            if (event != null && !event.isBlank() && !String.valueOf(m.get("event")).contains(event)) {
+                continue;
+            }
+            out.add(m);
+        }
+        return out;
     }
 
     public synchronized void log(Session session, Workspace ws, String event, Map<String, Object> details, String outcome) {

@@ -8,7 +8,8 @@ and server as a team's, configured for one person on localhost. For a team on a 
 
 ## You need
 
-- Docker (Desktop, or the engine) running.
+- Docker (Desktop, or the engine) running — or Podman: `CONTAINER=podman` on the one command below
+  (rootless works; `podman compose` or `podman-compose`, whichever is installed).
 - **The engine jars** from an Identity Manager engine — `dirxml.jar`, `dirxml_misc.jar`,
   `nxsl.jar`, `xp.jar`, `CommonDriverShim.jar`, `jclient.jar`, `dhutil.jar`, `XDS.jar`,
   `js.jar`, `ldap.jar` — from its `lib/dirxml/classes` (copy the files, not symlinks: `cp -L`).

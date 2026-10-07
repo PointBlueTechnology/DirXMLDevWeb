@@ -105,6 +105,7 @@ check("a write without the CSRF token is refused", alice.call("POST", "/api/work
 s, r, _ = alice.call("POST", "/api/credentials/resolve", {"command": "id"})
 check("an editor may not run a command to test a secret manager (403)", s == 403 and "deployer" in r.get("error", ""))
 check("attaching a host path to a project needs the deployer role (403 for an editor)", alice.call("POST", "/api/setup/existing", {"project": "x", "path": work})[0] == 403)
+check("an editor may not read the audit log (#42)", alice.call("GET", "/api/audit")[0] == 403)
 s, ws, _ = alice.call("GET", "/api/workspaces")
 check("the workspaces list names the repository, base and branches", s == 200 and ws["base"] == "main" and ws["branches"] == ["main"] and ws["repository"].endswith("repo.git"))
 s, opened, _ = alice.call("POST", "/api/workspaces/open", {"branch": "feature/x"})
@@ -228,6 +229,12 @@ try:
     check("adding a project to a server set up with the old repo.* keys keeps its first project", s == 200 and "projects=repo,extra" in conf1 and "project.repo.repo.url=" in conf1 and "repo.url=" not in conf1.replace("project.repo.repo.url=", "").replace("project.extra.repo.url=", ""))
     s, r, _ = bob.call("POST", "/api/setup/directory", {"project": "outside", "path": "/etc"})
     check("a deployer may attach only under setup.roots (#41)", s == 400 and "outside" in r.get("error", ""))
+    # #42: the audit log, deployers only
+    s, a, _ = bob.call("GET", "/api/audit?limit=50")
+    check("a deployer reads the audit log (newest first, sign-ins among them)", s == 200 and len(a["entries"]) > 0 and any(e["event"] == "sign-in" for e in a["entries"]) and a["entries"][0]["time"] >= a["entries"][-1]["time"])
+    s, a, _ = bob.call("GET", "/api/audit?event=sign-in&user=alice")
+    check("filtered by event and user", s == 200 and a["entries"] and all(e["event"] == "sign-in" and e["user"] == "alice" for e in a["entries"]))
+    check("no line carries a file's contents", all("content" not in json.dumps(e.get("details", {})) for e in bob.call("GET", "/api/audit?limit=500")[1]["entries"]))
     check("a duplicate project name is refused", "exists already" in call2("POST", "/api/setup/directory", {"project": "plain", "path": plain})[1]["error"])
     s, rm = call2("POST", "/api/setup/remove", {"project": "second"})[:2]
     check("a project can be removed (its files stay)", s == 200 and rm["removed"] == "second" and "projects=plain\n" in open(os.path.join(work, "hosted2.properties")).read())

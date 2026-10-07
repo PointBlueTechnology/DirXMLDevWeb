@@ -12,6 +12,9 @@
 #                  ghcr.io/pointbluetechnology/dirxml-dev-web:0.12.0); a bare name is built from the checkouts
 #   IDMWEB_PORT    the page's port on localhost (default 8080)
 #   IDM_LIB        where the engine jars are
+#   CONTAINER      docker (default) or podman; COMPOSE overrides the compose command ("podman compose",
+#                  "podman-compose", "docker compose"). Rootless Podman keeps your uid inside the
+#                  container through compose.podman.yml (userns keep-id), so files stay yours.
 set -e
 HERE=$(cd "$(dirname "$0")" && pwd)
 ARG=${1:?usage: setup.sh <tree>|- [<dir>]}
@@ -23,10 +26,20 @@ fi
 DIR=${2:-$HOME/idmweb}
 IMAGE=${IDMWEB_IMAGE:-dirxml-dev-web:latest}
 PORT=${IDMWEB_PORT:-8080}
-docker info >/dev/null 2>&1 || { echo "ERROR: Docker is not running" >&2; exit 1; }
-if ! docker image inspect "$IMAGE" >/dev/null 2>&1; then
+CONTAINER=${CONTAINER:-docker}
+if [ -z "${COMPOSE:-}" ]; then
+  if [ "$CONTAINER" = podman ]; then
+    if podman compose version >/dev/null 2>&1; then COMPOSE="podman compose"; else COMPOSE="podman-compose"; fi
+  else
+    COMPOSE="docker compose"
+  fi
+fi
+COMPOSE_FILES="-f compose.yml"
+[ "$CONTAINER" = podman ] && COMPOSE_FILES="-f compose.yml -f compose.podman.yml"
+$CONTAINER info >/dev/null 2>&1 || { echo "ERROR: $CONTAINER is not running (CONTAINER=docker|podman)" >&2; exit 1; }
+if ! $CONTAINER image inspect "$IMAGE" >/dev/null 2>&1; then
   case "$IMAGE" in
-    */*) echo "pulling $IMAGE…"; docker pull -q "$IMAGE" >/dev/null ;;
+    */*) echo "pulling $IMAGE…"; $CONTAINER pull -q "$IMAGE" >/dev/null ;;
     *) if [ -x "$HERE/../build.sh" ]; then
          echo "building $IMAGE from the checkouts…"; "$HERE/../build.sh" "$IMAGE" >/dev/null
        else
@@ -36,6 +49,7 @@ if ! docker image inspect "$IMAGE" >/dev/null 2>&1; then
 fi
 mkdir -p "$DIR" && cd "$DIR"
 cp "$HERE/compose.yml" compose.yml
+cp "$HERE/compose.podman.yml" compose.podman.yml
 mkdir -p config data lib
 [ -f config/hosted.properties ] || cp "$HERE/config/hosted.properties" config/hosted.properties
 # the engine jars: never in the image; $DIR/lib is the volume the container reads them from
@@ -92,23 +106,26 @@ IDMWEB_IMAGE=$IMAGE
 IDMWEB_PORT=$PORT
 IDMWEB_UID=$(id -u)
 IDMWEB_GID=$(id -g)
+COMPOSE_FILE=$(printf '%s' "$COMPOSE_FILES" | sed 's/-f //g; s/ /:/g')
 ENV
+printf 'CONTAINER=%s\nCOMPOSE=%s\n' "$CONTAINER" "$COMPOSE" > .engine
 # the CLI and the simulator, inside the container, in the workspace of a branch (main by default)
 cat > idm <<'SH'
 #!/bin/sh
 # idm inside the container, in the workspace of $IDMWEB_PROJECT (default: the first project) and
 # $IDMWEB_BRANCH (default main):  ./idm validate tree
 cd "$(dirname "$0")"
+. ./.engine
 B=${IDMWEB_BRANCH:-main}
 P=${IDMWEB_PROJECT:-$(grep '^projects=' config/hosted.properties | cut -d= -f2 | cut -d, -f1)}
 U=$(grep '^token.user=' config/hosted.properties | cut -d= -f2)
 W="/var/lib/idmweb/workspaces/$(printf '%s' "$P" | sed 's#[^A-Za-z0-9._-]#_#g')/$U/$(printf '%s' "$B" | sed 's#[^A-Za-z0-9._-]#_#g')"
-exec docker compose exec -T -w "$W" idmweb idm "$@"
+exec $COMPOSE exec -T -w "$W" idmweb idm "$@"
 SH
 chmod +x idm
-docker compose up -d >/dev/null
+$COMPOSE $COMPOSE_FILES up -d >/dev/null
 i=0
-until curl -s "http://localhost:$PORT/api/session" >/dev/null 2>&1; do i=$((i + 1)); [ $i -gt 40 ] && { docker compose logs idmweb | tail -5; exit 1; }; sleep 0.5; done
+until curl -s "http://localhost:$PORT/api/session" >/dev/null 2>&1; do i=$((i + 1)); [ $i -gt 40 ] && { $COMPOSE $COMPOSE_FILES logs idmweb | tail -5; exit 1; }; sleep 0.5; done
 echo
 echo "DirXMLDevWeb is at http://localhost:$PORT"
 echo "  sign in with the token in $DIR/idmweb.env   (cat $DIR/idmweb.env)"
@@ -122,4 +139,4 @@ echo "  the CLI and the simulator in that workspace:  $DIR/idm validate tree    
 echo "  vault connections: the page's Connections view, or $DIR/config/environments.properties"
 echo "  an agent on this machine: the CLI above, or the API with  Authorization: Bearer \$IDMWEB_AGENT_TOKEN  (second line of idmweb.env)"
 echo "  engine jars: $DIR/lib (a volume; the image never holds them)"
-echo "  stop: (cd $DIR && docker compose down)"
+echo "  stop: (cd $DIR && $COMPOSE down)"

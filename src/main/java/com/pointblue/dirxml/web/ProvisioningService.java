@@ -225,6 +225,7 @@ public final class ProvisioningService {
         DriverSet ds = AsCodeReader.read(tree);
         List<Object> roles = new ArrayList<>();
         List<Object> resources = new ArrayList<>();
+        List<Object> entities = new ArrayList<>();
         List<String> drivers = new ArrayList<>();
         for (Driver d : ds.drivers) {
             if (d.provisioning == null) {
@@ -233,6 +234,10 @@ public final class ProvisioningService {
             drivers.add(d.name);
             for (AppObject o : d.provisioning.objects) {
                 AppObject.Kind k = o.kind();
+                if (k == AppObject.Kind.ENTITY) {
+                    entities.add(entity(d.name, o));
+                    continue;
+                }
                 if (k != AppObject.Kind.ROLE && k != AppObject.Kind.RESOURCE) {
                     continue;
                 }
@@ -250,6 +255,93 @@ public final class ProvisioningService {
         out.put("drivers", drivers);
         out.put("roles", roles);
         out.put("resources", resources);
+        out.put("entities", entities);
+        return out;
+    }
+
+    /** A directory-abstraction entity: its key, class, display, and each attribute's names, type, flags and label — from its XmlData. */
+    private static Map<String, Object> entity(String driver, AppObject o) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("driver", driver);
+        m.put("key", o.name());
+        m.put("path", o.path());
+        m.put("displayName", o.displayName());
+        List<Object> attributes = new ArrayList<>();
+        String xml = o.first("XmlData");
+        if (xml != null && !xml.isBlank()) {
+            try {
+                org.w3c.dom.Element root = com.pointblue.dirxml.dev.xml.CanonicalXml.parse(xml).getDocumentElement();
+                // <entity-definition><entity …><class-name>…</class-name><search-root>…</search-root>…</entity><attributes>…
+                org.w3c.dom.Element ent = firstChild(root, "entity");
+                org.w3c.dom.Element head = ent != null ? ent : root;
+                // the class: <object-class><ldap-name>groupOfNames</ldap-name><nds-name>Group</nds-name></object-class>
+                org.w3c.dom.Element oc = firstChild(head, "object-class");
+                m.put("objectClass", oc == null ? null : textOf(oc, "ldap-name"));
+                m.put("ndsClass", oc == null ? null : textOf(oc, "nds-name"));
+                m.put("searchRoot", textOf(head, "search-root"));
+                Map<String, Object> eflags = new LinkedHashMap<>();
+                for (String f : List.of("creatable", "editable", "removable", "viewable", "system", "protected")) {
+                    if (head.hasAttribute(f)) {
+                        eflags.put(f, "true".equals(head.getAttribute(f)));
+                    }
+                }
+                m.put("flags", eflags);
+                org.w3c.dom.Element attrs = firstChild(root, "attributes");
+                if (attrs != null) {
+                    for (org.w3c.dom.Element a : children(attrs, "attribute")) {
+                        Map<String, Object> am = new LinkedHashMap<>();
+                        am.put("key", textOf(a, "key"));
+                        am.put("ldap", textOf(a, "ldap-name"));
+                        am.put("nds", textOf(a, "nds-name"));
+                        am.put("type", textOf(a, "type"));
+                        String label = null;
+                        for (org.w3c.dom.Element dsp : children(a, "display")) {
+                            org.w3c.dom.Element l = firstChild(dsp, "label");
+                            String t = l != null ? l.getTextContent() : dsp.getTextContent().trim();
+                            if (label == null || "en".equals(dsp.getAttribute("xml:lang"))) {
+                                label = t;
+                            }
+                        }
+                        am.put("display", label);
+                        Map<String, Object> flags = new LinkedHashMap<>();
+                        for (String f : List.of("editable", "enabled", "hideable", "multivalue", "protected", "readable", "required", "searchable", "viewable")) {
+                            if (a.hasAttribute(f)) {
+                                flags.put(f, "true".equals(a.getAttribute(f)));
+                            }
+                        }
+                        am.put("flags", flags);
+                        attributes.add(am);
+                    }
+                }
+            } catch (RuntimeException e) {
+                m.put("error", "XmlData does not parse: " + e.getMessage());
+            }
+        }
+        m.put("attributes", attributes);
+        return m;
+    }
+
+    private static String textOf(org.w3c.dom.Element parent, String name) {
+        org.w3c.dom.Element c = firstChild(parent, name);
+        return c == null ? null : c.getTextContent().trim();
+    }
+
+    private static org.w3c.dom.Element firstChild(org.w3c.dom.Element parent, String name) {
+        for (org.w3c.dom.Node n = parent.getFirstChild(); n != null; n = n.getNextSibling()) {
+            if (n instanceof org.w3c.dom.Element && name.equals(n.getNodeName())) {
+                return (org.w3c.dom.Element) n;
+            }
+        }
+        return null;
+    }
+
+    private static List<org.w3c.dom.Element> children(org.w3c.dom.Element parent, String name) {
+        List<org.w3c.dom.Element> out = new ArrayList<>();
+        for (org.w3c.dom.Node n = parent.getFirstChild(); n != null; n = n.getNextSibling()) {
+            if (n instanceof org.w3c.dom.Element && name.equals(n.getNodeName())) {
+                out.add((org.w3c.dom.Element) n);
+            }
+        }
         return out;
     }
 }

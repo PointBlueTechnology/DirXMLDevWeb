@@ -67,6 +67,8 @@ public final class Hosted {
     public final List<String> editorGroups;
     public final List<String> deployerGroups;
     public final long sessionHours;
+    /** Where path-based setup may point (`setup.roots`, comma-separated); default: the data directory and /srv. */
+    public final List<Path> setupRoots;
 
     private Hosted(Path file, Properties p) {
         this.file = file;
@@ -108,6 +110,15 @@ public final class Hosted {
         this.editorGroups = list(p.getProperty("roles.editor", "*"));
         this.deployerGroups = list(p.getProperty("roles.deployer", ""));
         this.sessionHours = Long.parseLong(p.getProperty("session.hours", "8").trim());
+        List<Path> roots = new java.util.ArrayList<>();
+        for (String r : list(p.getProperty("setup.roots", ""))) {
+            roots.add(Path.of(r).toAbsolutePath().normalize());
+        }
+        if (roots.isEmpty()) {
+            roots.add(dataDir);
+            roots.add(Path.of("/srv"));
+        }
+        this.setupRoots = List.copyOf(roots);
     }
 
     private static Project project(Properties p, String prefix, String name) {
@@ -163,7 +174,25 @@ public final class Hosted {
             pf.set(pre + "cases", each.cases);
             pf.set(pre + "base", each.base);
             if (each.token != null && !each.token.isBlank()) {
-                pf.set(pre + "token", each.token);
+                // never a literal in the configuration: an owner-only file beside the data, read through the
+                // Command form every other credential uses (#40)
+                Path dir = dataDir.resolve("secrets");
+                Files.createDirectories(dir);
+                try {
+                    Files.setPosixFilePermissions(dir, java.nio.file.attribute.PosixFilePermissions.fromString("rwx------"));
+                } catch (UnsupportedOperationException ignore) {
+                    // not a POSIX file system
+                }
+                Path tf = dir.resolve(each.name + ".repo.token");
+                Files.writeString(tf, each.token);
+                try {
+                    Files.setPosixFilePermissions(tf, java.nio.file.attribute.PosixFilePermissions.fromString("rw-------"));
+                } catch (UnsupportedOperationException ignore) {
+                    // not a POSIX file system
+                }
+                pf.remove(pre + "token");
+                pf.set(pre + "tokenCommand", "cat " + tf);
+                props.setProperty(pre + "tokenCommand", "cat " + tf);
             }
         }
         // the older single-repository keys are superseded by the list

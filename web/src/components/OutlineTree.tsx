@@ -184,6 +184,9 @@ export function OutlineTree({ outline, selection, onSelect }: Props) {
       <button className={selection.type === "driverset" || (selection.type === "config" && selection.driver === null) ? "leaf active" : "leaf"} onClick={() => onSelect({ type: "driverset" })}>
         <span className="badge badge-flow">⚙</span>Driver set
       </button>
+      <button className={selection.type === "driverset" && selection.tab === "schema" ? "leaf active" : "leaf"} onClick={() => onSelect({ type: "driverset", tab: "schema" })} title={outline.driverSet.schema ? `${outline.driverSet.schema.classes} classes, ${outline.driverSet.schema.attributes} attributes from ${outline.driverSet.schema.source ?? "?"}` : "no schema in the tree yet"} data-testid="outline-schema">
+        <span className="badge badge-flow">S</span>Schema{outline.driverSet.schema ? "" : <span className="muted"> (none)</span>}
+      </button>
       <button className={selection.type === "overrides" ? "leaf active" : "leaf"} onClick={() => onSelect({ type: "overrides" })}>
         <span className="badge badge-flow">≠</span>Env overrides
       </button>

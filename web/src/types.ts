@@ -89,6 +89,8 @@ export interface Outline {
     packages: Record<string, string>;
     meta: Record<string, string>;
     libraryItems: number;
+    /** The vault schema in the tree, when read: counts, source, read-at. */
+    schema: { source?: string; "read-at"?: string; attributes: number; classes: number; customAttributes: number; customClasses: number } | null;
   };
   library: { policies: ArtifactNode[]; resources: ArtifactNode[] };
   drivers: DriverOutline[];
@@ -236,7 +238,7 @@ export type Selection =
   | { type: "artifact"; path: string }
   | { type: "file"; file: string }
   | { type: "config"; driver: string | null }
-  | { type: "driverset" }
+  | { type: "driverset"; tab?: "overview" | "gcvs" | "schema" }
   | { type: "overrides" }
   | { type: "vault" }
   | { type: "simulator" }
@@ -536,6 +538,52 @@ export interface ImportResult {
   short: string | null;
   version: string | null;
   refusal?: string;
+}
+
+/** The tree's vault schema (GET /api/schema). */
+export interface SchemaData {
+  present: boolean;
+  source?: string;
+  "read-at"?: string;
+  attributes?: { name: string; ldap: string; syntax: string | null; single: boolean; custom: boolean }[];
+  classes?: { name: string; ldap: string; kind: string; container: boolean; custom: boolean; superclasses: string[] }[];
+  customAttributes?: number;
+  customClasses?: number;
+}
+
+/** One class with the attributes it holds, its superclasses' included (GET /api/schema/class). */
+export interface SchemaClass {
+  name: string;
+  ldap: string;
+  oid: string | null;
+  kind: string;
+  container: boolean;
+  custom: boolean;
+  superclasses: string[];
+  mandatory: string[];
+  optional: string[];
+  containment: string[];
+  naming: string[];
+  attributes: { name: string; ldap: string; syntax: string | null; single: boolean; mandatory: boolean }[];
+}
+
+/** A driver's application schema as the shim reported it (GET /api/schema/app). */
+export interface AppSchema {
+  driver: string;
+  present: boolean;
+  hierarchical?: string;
+  classes: { name: string; container: boolean; attributes: { name: string; type: string; multi: boolean; required: boolean; naming: boolean }[] }[];
+}
+
+/** A vault schema action: refresh, application refresh, or push (plan / written). */
+export interface SchemaActionResult {
+  ok: boolean;
+  refusal?: string | null;
+  done: string[];
+  skipped: string[];
+  failures: string[];
+  text: string;
+  [k: string]: unknown;
 }
 
 export interface BuildResult {

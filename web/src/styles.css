@@ -1195,3 +1195,15 @@ tr.newer td { background: color-mix(in srgb, var(--accent) 8%, transparent); }
 tr.warn-row td { background: color-mix(in srgb, var(--warn) 8%, transparent); }
 
 td.center { text-align: center; }
+
+/* schema (driver set tab, app schema tab, pickers) */
+.schemaview { display: flex; flex-direction: column; min-height: 0; height: 100%; }
+.schemaview .tabs { margin-top: 8px; align-items: center; }
+.schemaview .tabs .outline-filter { width: 240px; margin-left: auto; }
+.schemaview .pill.warn { margin-left: 6px; }
+table.grid tr.custom td { background: color-mix(in srgb, var(--warn) 7%, transparent); }
+table.grid tr.detail td { background: var(--bg); padding-top: 4px; padding-bottom: 8px; }
+.chips { display: flex; flex-wrap: wrap; gap: 4px 6px; }
+.chip { display: inline-block; padding: 1px 7px; border: 1px solid var(--border); border-radius: 10px; font-size: 11px; background: var(--surface); white-space: nowrap; }
+.chip.mandatory { border-color: var(--accent); font-weight: 600; }
+.err-text { color: var(--err); }

@@ -178,6 +178,8 @@ export interface Definition {
   description: string;
   choices: { value: string; label: string }[];
   owner?: string;
+  /** driver (its own), driver-link (a GCV resource the driver links), driverset, driverset-link (a Library resource linked at the set). */
+  scope?: "driver" | "driver-link" | "driverset" | "driverset-link";
   overrideKey?: string;
   /** Where the GCV is read: policies by artifact path, a driver's configuration documents by file. */
   usedBy?: { kind: string; path: string; file?: string }[];

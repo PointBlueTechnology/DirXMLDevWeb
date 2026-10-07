@@ -550,6 +550,8 @@ public final class Api implements HttpHandler {
         }
         Map<String, Object> req = Json.asMap(Json.parse(new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8)));
         switch (path) {
+            case "/api/credentials/driversets":
+                return credentials.driverSets(req);
             case "/api/credentials/test":
                 return credentials.test(req);
             case "/api/credentials/resolve":

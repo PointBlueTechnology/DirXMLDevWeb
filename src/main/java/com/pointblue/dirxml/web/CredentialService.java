@@ -126,6 +126,63 @@ public final class CredentialService {
     }
 
     /** Try the parameters as given (the password typed, or the environment's configured one); nothing is saved. */
+    /**
+     * The driver sets a vault holds, for the connection form's picker: the same connection the test
+     * makes (a URL, a bind DN, a password given or an environment's), one subtree search for
+     * {@code DirXML-DriverSet} from the root. Nothing is written.
+     */
+    public Map<String, Object> driverSets(Map<String, Object> req) throws IOException {
+        Vault.Config c = new Vault.Config();
+        c.url = Json.asString(req.get("url"));
+        c.bindDn = Json.asString(req.get("bindDn"));
+        c.trustAll = Boolean.TRUE.equals(req.get("trustAll"));
+        String password = Json.asString(req.get("password"));
+        String env = Json.asString(req.get("env"));
+        Map<String, Object> m = new LinkedHashMap<>();
+        if (c.url == null || c.url.isBlank() || c.bindDn == null || c.bindDn.isBlank()) {
+            throw new TreeService.BadRequest("a URL and a bind DN are needed");
+        }
+        if (password == null || password.isEmpty()) {
+            if (env == null || env.isBlank()) {
+                throw new TreeService.BadRequest("no password given, and no environment to take one from");
+            }
+            try {
+                c.password = Environments.load().get(nameOk(env)).password;
+            } catch (IOException e) {
+                m.put("ok", false);
+                m.put("message", e.getMessage());
+                return m;
+            }
+        } else {
+            c.password = password;
+        }
+        try (Vault v = Vault.connect(c)) {
+            List<Map<String, Object>> sets = new java.util.ArrayList<>();
+            for (Vault.Entry e : v.search("", "(objectClass=DirXML-DriverSet)", javax.naming.directory.SearchControls.SUBTREE_SCOPE)) {
+                Map<String, Object> d = new LinkedHashMap<>();
+                d.put("dn", e.dn);
+                d.put("name", e.string("cn"));
+                List<String> servers = new java.util.ArrayList<>();
+                List<byte[]> sl = e.attrs.get("DirXML-ServerList");
+                if (sl != null) {
+                    for (byte[] b : sl) {
+                        servers.add(new String(b, java.nio.charset.StandardCharsets.UTF_8));
+                    }
+                }
+                d.put("servers", servers);
+                sets.add(d);
+            }
+            sets.sort((a, b) -> String.valueOf(a.get("dn")).compareToIgnoreCase(String.valueOf(b.get("dn"))));
+            m.put("ok", true);
+            m.put("driverSets", sets);
+            m.put("message", sets.isEmpty() ? "Connected, but the account sees no driver set." : sets.size() + " driver set(s).");
+        } catch (RuntimeException e) {
+            m.put("ok", false);
+            m.put("message", scrub(e.getMessage() == null ? e.toString() : e.getMessage(), c.password));
+        }
+        return m;
+    }
+
     public Map<String, Object> test(Map<String, Object> req) throws IOException {
         Vault.Config c = new Vault.Config();
         c.url = Json.asString(req.get("url"));

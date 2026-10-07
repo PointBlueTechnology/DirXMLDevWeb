@@ -139,6 +139,29 @@ function EnvForm({
   const refStore = f.store === "env" || f.store === "command" || f.store === "manager";
   const passwordGiven = f.password.length > 0;
   const storeArg = f.store === "manager" ? `command:${f.ref}` : refStore ? `${f.store}:${f.ref}` : f.store;
+  const [sets, setSets] = useState<{ dn: string; name: string | null; servers: string[] }[] | null>(null);
+  const [looking, setLooking] = useState(false);
+  const [lookupMsg, setLookupMsg] = useState<string | null>(null);
+  const lookUp = () => {
+    setLooking(true);
+    setLookupMsg(null);
+    api.connections
+      .driverSets({ url: f.url, bindDn: f.bindDn, trustAll: f.trustAll, ...(passwordGiven ? { password: f.password } : { env: env?.name }) })
+      .then((r) => {
+        if (!r.ok) {
+          setLookupMsg(r.message);
+          return;
+        }
+        const found = r.driverSets ?? [];
+        setSets(found);
+        setLookupMsg(r.message);
+        if (found.length === 1 || (found.length > 0 && !f.driverSet)) {
+          setF((cur) => ({ ...cur, driverSet: found[0]!.dn }));
+        }
+      })
+      .catch((e: Error) => setLookupMsg(e.message))
+      .finally(() => setLooking(false));
+  };
   const canSave = /^[A-Za-z0-9][A-Za-z0-9_.-]*$/.test(f.name) && f.url.length > 8 && f.bindDn && f.driverSet && (isNew ? passwordGiven || (refStore && f.ref) : true);
 
   const runTest = () => {
@@ -210,7 +233,30 @@ function EnvForm({
         </label>
         <label className="field wide">
           <em>Driver set DN</em>
-          <input value={f.driverSet} onChange={(e) => setF({ ...f, driverSet: e.target.value })} placeholder="cn=driverset1,o=system" spellCheck={false} data-testid="conn-driverset" />
+          <span className="withbtn">
+            {sets && sets.length > 0 ? (
+              <select value={sets.some((s) => s.dn === f.driverSet) ? f.driverSet : ""} onChange={(e) => setF({ ...f, driverSet: e.target.value })} data-testid="conn-driverset-pick">
+                {!sets.some((s) => s.dn === f.driverSet) && <option value="">choose a driver set…</option>}
+                {sets.map((s) => (
+                  <option key={s.dn} value={s.dn}>
+                    {s.dn}
+                    {s.servers.length > 0 ? ` (${s.servers.length} server${s.servers.length === 1 ? "" : "s"})` : ""}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input value={f.driverSet} onChange={(e) => setF({ ...f, driverSet: e.target.value })} placeholder="cn=driverset1,o=system" spellCheck={false} data-testid="conn-driverset" />
+            )}
+            <button type="button" disabled={!(f.url.length > 8 && f.bindDn && (passwordGiven || !isNew)) || looking} onClick={lookUp} title="Connect with the URL, bind DN and password above and list the driver sets the account sees" data-testid="conn-lookup">
+              {looking ? "Looking…" : "Look up"}
+            </button>
+            {sets && sets.length > 0 && (
+              <button type="button" className="mini" onClick={() => setSets(null)} title="Type the DN instead">
+                type
+              </button>
+            )}
+          </span>
+          {lookupMsg && <span className="muted small">{lookupMsg}</span>}
         </label>
         <label className="checkchip">
           <input type="checkbox" checked={f.trustAll} onChange={(e) => setF({ ...f, trustAll: e.target.checked })} /> accept any certificate (a lab or a tunnel; never production)

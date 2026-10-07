@@ -7,6 +7,20 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- Outline: a filter box narrows every list to the names holding the text; drivers with nothing
+  matching disappear, groups with a match open. (#44)
+- Packages: a package jar from your disk is imported into the catalog from the Catalog tab
+  (`POST /api/packages/import`). (#36)
+- Settings: a value can be cleared to empty (`driver.set --clear`, DirXMLDev 0.12.0; the review
+  says "cleared"). (#45)
+
+### Fixed
+
+- Packages: the banner on a server without a catalog read as an error while installed packages
+  were listed; it now says the list comes from the tree and what a catalog would add. (#48)
+
 ### Security (hosted mode)
 
 - `POST /api/credentials/resolve` with a typed `command` needs the deployer role; an editor may

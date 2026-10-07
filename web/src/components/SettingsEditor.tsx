@@ -6,11 +6,12 @@ import { DefinitionsTable } from "./DefinitionsTable";
 export function SettingsEditor({ config, pending }: { config: ConfigView; pending: Pending }) {
   const driver = config.driver ?? "";
   const set = (key: string, label: string, original: string, value: string) => {
-    if (value === original || value === "") {
-      pending.put(`set:${key}`, null);   // the core requires a value; clearing a setting is done in the XML
+    if (value === original) {
+      pending.put(`set:${key}`, null);
       return;
     }
-    pending.put(`set:${key}`, { name: "driver.set", args: { driver, key, value }, label: `${label} = ${value}` });
+    // an empty value clears the setting: the core's --clear flag (an empty --value reads as missing)
+    pending.put(`set:${key}`, { name: "driver.set", args: value === "" ? { driver, key, clear: "true" } : { driver, key, value }, label: value === "" ? `${label} cleared` : `${label} = ${value}` });
   };
   const staged = (key: string) => pending.ops.find((o) => o.key === `set:${key}`)?.args.value;
   const field = (key: string, label: string, original: string | null | undefined) => (

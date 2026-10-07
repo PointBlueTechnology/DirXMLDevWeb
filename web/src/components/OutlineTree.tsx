@@ -20,9 +20,15 @@ const KIND_BADGE: Record<string, string> = {
 export function OutlineTree({ outline, selection, onSelect }: Props) {
   const isArtifact = (p: string) => selection.type === "artifact" && selection.path === p;
   const isFile = (f: string) => selection.type === "file" && selection.file === f;
+  // a filter narrows every list to names holding the text (case-insensitive); groups with nothing left disappear
+  const [filter, setFilter] = useState("");
+  const q = filter.trim().toLowerCase();
+  const hit = (name: string) => q === "" || name.toLowerCase().includes(q);
+  const filtering = q !== "";
 
-  const artifacts = (label: string, nodes: ArtifactNode[]) =>
-    nodes.length === 0 ? null : (
+  const artifacts = (label: string, all: ArtifactNode[]) => {
+    const nodes = all.filter((n) => hit(n.name));
+    return nodes.length === 0 ? null : (
       <details open>
         <summary>
           {label} <span className="count">{nodes.length}</span>
@@ -39,10 +45,12 @@ export function OutlineTree({ outline, selection, onSelect }: Props) {
         </ul>
       </details>
     );
+  };
 
-  const files = (label: string, list: { name: string; file: string | null }[]) =>
-    list.length === 0 ? null : (
-      <details>
+  const files = (label: string, all: { name: string; file: string | null }[]) => {
+    const list = all.filter((n) => hit(n.name));
+    return list.length === 0 ? null : (
+      <details open={filtering}>
         <summary>
           {label} <span className="count">{list.length}</span>
         </summary>
@@ -58,11 +66,20 @@ export function OutlineTree({ outline, selection, onSelect }: Props) {
         </ul>
       </details>
     );
+  };
 
   const leafName = (f: string) => f.split("/").pop() ?? f;
 
+  const driverHas = (d: DriverOutline) =>
+    hit(d.name) ||
+    [...d.policies.driver, ...d.policies.subscriber, ...d.policies.publisher, ...d.resources].some((n) => hit(n.name)) ||
+    d.config.some((f) => hit(leafName(f))) ||
+    d.entitlements.some((e) => hit(e.name)) ||
+    d.forms.some((f) => hit(f.name)) ||
+    d.prds.some((p) => hit(p.name));
+
   const driver = (d: DriverOutline) => (
-    <details key={d.name} open={outline.drivers.length <= 3}>
+    <details key={d.name} open={filtering || outline.drivers.length <= 3}>
       <summary className="driver">
         {d.name}
         <NewMenu
@@ -90,13 +107,13 @@ export function OutlineTree({ outline, selection, onSelect }: Props) {
         {artifacts("Subscriber", d.policies.subscriber)}
         {artifacts("Publisher", d.policies.publisher)}
         {artifacts("Resources", d.resources)}
-        {d.entitlements.length > 0 && (
-          <details>
+        {d.entitlements.some((e) => hit(e.name)) && (
+          <details open={filtering}>
             <summary>
-              Entitlements <span className="count">{d.entitlements.length}</span>
+              Entitlements <span className="count">{d.entitlements.filter((e) => hit(e.name)).length}</span>
             </summary>
             <ul>
-              {d.entitlements.map((e) => (
+              {d.entitlements.filter((e) => hit(e.name)).map((e) => (
                 <li key={e.name}>
                   <button
                     className={selection.type === "entitlement" && selection.driver === d.name && selection.name === e.name ? "leaf active" : "leaf"}
@@ -112,13 +129,13 @@ export function OutlineTree({ outline, selection, onSelect }: Props) {
             </ul>
           </details>
         )}
-        {d.forms.length > 0 && (
-          <details>
+        {d.forms.some((f) => hit(f.name)) && (
+          <details open={filtering}>
             <summary>
-              Forms <span className="count">{d.forms.length}</span>
+              Forms <span className="count">{d.forms.filter((f) => hit(f.name)).length}</span>
             </summary>
             <ul>
-              {d.forms.map((f) => (
+              {d.forms.filter((f) => hit(f.name)).map((f) => (
                 <li key={f.kind + "/" + f.name}>
                   <button
                     className={selection.type === "form" && selection.driver === d.name && selection.name === f.name ? "leaf active" : "leaf"}
@@ -133,13 +150,13 @@ export function OutlineTree({ outline, selection, onSelect }: Props) {
             </ul>
           </details>
         )}
-        {d.prds.length > 0 && (
-          <details>
+        {d.prds.some((p) => hit(p.name)) && (
+          <details open={filtering}>
             <summary>
-              PRDs <span className="count">{d.prds.length}</span>
+              PRDs <span className="count">{d.prds.filter((p) => hit(p.name)).length}</span>
             </summary>
             <ul>
-              {d.prds.map((p) => (
+              {d.prds.filter((p) => hit(p.name)).map((p) => (
                 <li key={p.name}>
                   <button
                     className={selection.type === "prd" && selection.driver === d.name && selection.name === p.name ? "leaf active" : "leaf"}
@@ -157,8 +174,10 @@ export function OutlineTree({ outline, selection, onSelect }: Props) {
     </details>
   );
 
+  const shownDrivers = outline.drivers.filter(driverHas);
   return (
     <div className="outline">
+      <input className="outline-filter" value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="filter by name…" spellCheck={false} aria-label="Filter the outline" data-testid="outline-filter" />
       <button className={selection.type === "home" ? "leaf active root" : "leaf root"} onClick={() => onSelect({ type: "home" })}>
         {outline.driverSet.name}
       </button>
@@ -172,7 +191,7 @@ export function OutlineTree({ outline, selection, onSelect }: Props) {
         "Driver set files",
         outline.driverSet.config.map((f) => ({ name: f, file: f })),
       )}
-      <details open={outline.library.policies.length > 0 || outline.library.resources.length > 0}>
+      <details open={filtering || outline.library.policies.length > 0 || outline.library.resources.length > 0}>
         <summary className="driver">
           Library
           <NewMenu items={ARTIFACT_ITEMS} onPick={(what) => onSelect({ type: "new", what: what as NewWhat, driver: null })} />
@@ -183,7 +202,8 @@ export function OutlineTree({ outline, selection, onSelect }: Props) {
           {outline.library.policies.length === 0 && outline.library.resources.length === 0 && <p className="muted small">empty — the + adds a shared policy or resource</p>}
         </div>
       </details>
-      {outline.drivers.map(driver)}
+      {shownDrivers.map(driver)}
+      {filtering && shownDrivers.length === 0 && <p className="muted small pad-x">no driver has "{filter.trim()}"</p>}
       <button className="leaf newdriver" onClick={() => onSelect({ type: "new", what: "driver", driver: null })} data-testid="new-driver">
         <span className="badge">+</span>New driver
       </button>

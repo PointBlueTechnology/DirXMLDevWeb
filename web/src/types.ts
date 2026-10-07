@@ -495,6 +495,15 @@ export interface FetchResult {
   refused: string[];
 }
 
+/** `package.import`: a jar from disk into the catalog. */
+export interface ImportResult {
+  ok: boolean;
+  added: boolean;
+  short: string | null;
+  version: string | null;
+  refusal?: string;
+}
+
 export interface BuildResult {
   ok: boolean;
   refusal?: string;

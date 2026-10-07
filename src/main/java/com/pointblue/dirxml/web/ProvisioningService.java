@@ -274,7 +274,10 @@ public final class ProvisioningService {
                 // <entity-definition><entity …><class-name>…</class-name><search-root>…</search-root>…</entity><attributes>…
                 org.w3c.dom.Element ent = firstChild(root, "entity");
                 org.w3c.dom.Element head = ent != null ? ent : root;
-                m.put("objectClass", textOf(head, "class-name"));
+                // the class: <object-class><ldap-name>groupOfNames</ldap-name><nds-name>Group</nds-name></object-class>
+                org.w3c.dom.Element oc = firstChild(head, "object-class");
+                m.put("objectClass", oc == null ? null : textOf(oc, "ldap-name"));
+                m.put("ndsClass", oc == null ? null : textOf(oc, "nds-name"));
                 m.put("searchRoot", textOf(head, "search-root"));
                 Map<String, Object> eflags = new LinkedHashMap<>();
                 for (String f : List.of("creatable", "editable", "removable", "viewable", "system", "protected")) {

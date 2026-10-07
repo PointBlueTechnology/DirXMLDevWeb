@@ -243,6 +243,7 @@ export type Selection =
   | { type: "driverset"; tab?: "overview" | "gcvs" | "schema" }
   | { type: "overrides" }
   | { type: "vault" }
+  | { type: "trace"; env: string }
   | { type: "simulator" }
   | { type: "prd"; driver: string; name: string }
   | { type: "form"; driver: string; name: string }

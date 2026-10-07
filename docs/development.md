@@ -32,7 +32,19 @@ bin/idmweb serve /path/to/tree
 ```
 
 The build also needs `dirxml-simulator` in `~/.m2` (`mvn install` in DirXMLSimulator), which a
-built DirXMLDev already has. Simulator cases are read from `cases/` beside the tree; name
+built DirXMLDev already has, and the DirXML Trace Viewer's library `dirxml-trace-core` (the
+version `pom.xml` names), which does the trace parsing and highlighting. Its jar is on every
+[viewer release](https://github.com/PointBlueTechnology/DirXMLTraceViewer/releases); install it
+with a flat pom, since the pom inside the 1.5.0 jar names a parent you do not have:
+
+```sh
+V=1.5.0; gh release download v$V --repo PointBlueTechnology/DirXMLTraceViewer -p dirxml-trace-core-$V.jar -D /tmp
+printf '<project xmlns="http://maven.apache.org/POM/4.0.0"><modelVersion>4.0.0</modelVersion><groupId>com.pointbluetech</groupId><artifactId>dirxml-trace-core</artifactId><version>%s</version><dependencies><dependency><groupId>com.novell.ldap</groupId><artifactId>jldap</artifactId><version>4.3</version></dependency></dependencies></project>' $V > /tmp/trace-core.pom
+mvn -q install:install-file -Dfile=/tmp/dirxml-trace-core-$V.jar -DpomFile=/tmp/trace-core.pom
+```
+
+(or `mvn install` in a DirXMLTraceViewer checkout at that tag). The launcher adds the jar to the
+class path; the LDAP classes it needs come from the engine's own `ldap.jar`. Simulator cases are read from `cases/` beside the tree; name
 another place with `--cases DIR`. The package catalog is `--catalog DIR` (or `IDM_CATALOG`);
 without one, installed packages are still listed from the tree but nothing can be installed,
 upgraded or built.

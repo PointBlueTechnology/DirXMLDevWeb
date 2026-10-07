@@ -9,6 +9,7 @@ WORKDIR /opt/idmweb
 COPY artifacts/dirxml-dev-web.jar /opt/idmweb/lib/dirxml-dev-web.jar
 COPY artifacts/dirxml-dev.jar     /opt/idmweb/lib/dirxml-dev.jar
 COPY artifacts/dirxml-simulator.jar /opt/idmweb/lib/dirxml-simulator.jar
+COPY artifacts/dirxml-trace-core.jar /opt/idmweb/lib/dirxml-trace-core.jar
 COPY artifacts/dist               /opt/idmweb/web/dist
 COPY artifacts/secrets            /opt/idmweb/bin/secrets
 COPY artifacts/terraform          /opt/idmweb/terraform

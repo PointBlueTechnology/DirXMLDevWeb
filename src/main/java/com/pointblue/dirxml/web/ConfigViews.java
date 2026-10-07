@@ -79,6 +79,24 @@ final class ConfigViews {
                 : d != null && within(home.definition, d.config.get(Driver.CONFIG_VALUES)) ? "drivers/" + d.name : "driverset";
             Map<String, Object> row = row(home.definition);
             row.put("owner", owner);
+            // where it comes from, for the page to group: the driver's own values, a GCV resource the
+            // driver links (a package's), or the driver set's — its own values or a Library resource it
+            // links, shared by every driver
+            String scope;
+            if (home.resource == null) {
+                scope = owner.equals("driverset") ? "driverset" : "driver";
+            } else {
+                boolean driverLinked = false;
+                if (d != null) {
+                    for (PolicyLink l : d.links(PolicySet.GCV)) {
+                        if (l.ref.equals(home.resource.path())) {
+                            driverLinked = true;
+                        }
+                    }
+                }
+                scope = driverLinked ? "driver-link" : "driverset-link";
+            }
+            row.put("scope", scope);
             row.put("overrideKey", owner.equals("driverset") && d == null ? "driverset.gcv." + name
                 : d != null ? "drivers/" + d.name + ".gcv." + name : "driverset.gcv." + name);
             // where it is read: policies by artifact path, configuration documents by their file

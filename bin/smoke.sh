@@ -87,6 +87,7 @@ names = {o["name"] for o in cat["operations"]}
 s, cfg = call("GET", "/api/config?driver=Loop")
 gcv = {g["name"]: g for g in cfg["gcvs"]}
 check("config: GCVs in scope with where each is defined", gcv["drv.users"]["owner"] == "drivers/Loop" and gcv["synth.company"]["owner"] == "driverset" and gcv["drv.veto.surname"]["type"] == "boolean")
+check("config: each GCV says where it comes from (the driver's own, inherited from the set)", gcv["drv.users"]["scope"] == "driver" and gcv["synth.company"]["scope"] == "driverset")
 check("config: where each GCV is read", [u["path"] for u in gcv["drv.veto.surname"]["usedBy"]] == ["drivers/Loop/subscriber/sub-ctp-VetoSurname"] and gcv["drv.veto.surname"]["usedBy"][0]["kind"] == "policy")
 s, sites = call("GET", "/api/packages/sites")
 check("packages: the catalog's update sites (Designer's by default)", s == 200 and sites["available"] and [x["name"] for x in sites["sites"]] == ["Novell Public", "Novell Public 2.0"] and sites["sites"][0]["url"].startswith("https://nu.novell.com/"))

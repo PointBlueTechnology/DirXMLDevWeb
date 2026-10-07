@@ -13,6 +13,12 @@ export function SettingsEditor({ config, pending }: { config: ConfigView; pendin
       pending.put(`set:${key}`, null);
       return;
     }
+    // an engine control value has no meaningful "empty": the engine wants a typed value or its own
+    // default — removing the row (×) is the way back to the default
+    if (value === "" && key.startsWith("engine:")) {
+      pending.put(`set:${key}`, null);
+      return;
+    }
     // an empty value clears the setting: the core's --clear flag (an empty --value reads as missing)
     pending.put(`set:${key}`, { name: "driver.set", args: value === "" ? { driver, key, clear: "true" } : { driver, key, value }, label: value === "" ? `${label} cleared` : `${label} = ${value}` });
   };
@@ -30,7 +36,13 @@ export function SettingsEditor({ config, pending }: { config: ConfigView; pendin
       empty={empty}
       staged={(name) => staged(`${prefix}:${name}`)}
       onChange={(row, v) => set(`${prefix}:${row.name}`, row.name, row.value, v)}
-      onDelete={(row) => pending.put(`del:${prefix}:${row.name}`, { name: "driver.setting.remove", args: { driver, key: `${prefix}:${row.name}` }, label: `remove ${prefix === "param" ? "shim parameter" : "engine control value"} ${row.name}` })}
+      onDelete={(row) =>
+        pending.put(`del:${prefix}:${row.name}`, {
+          name: "driver.setting.remove",
+          args: { driver, key: `${prefix}:${row.name}` },
+          label: prefix === "param" ? `remove shim parameter ${row.name}` : `reset engine control value ${row.name} to the engine's default (removed from the tree)`,
+        })
+      }
     />
   );
   const [add, setAdd] = useState({ name: "", display: "", type: "string", value: "", section: "driver-options" });
@@ -81,9 +93,14 @@ export function SettingsEditor({ config, pending }: { config: ConfigView; pendin
       <h3>Shim parameters</h3>
       {table(config.params, "param", "This driver's shim configuration defines no parameters.")}
       {adder("param")}
-      <h3>Engine control values</h3>
-      {table(config.ecvs, "engine", "No engine control values in the tree. The engine writes its defaults when the driver first starts; import-live adopts them.")}
-      {adder("engine")}
+      <details className="ecvs" data-testid="ecvs">
+        <summary>
+          <h3>Engine control values {config.ecvs?.length ? <span className="count">{config.ecvs.length}</span> : null}</h3>
+          <span className="muted small">the engine's own knobs, rarely changed — folded away until you need them. × puts one back to the engine's default: it leaves the tree, the deploy removes it from the vault, and the engine writes its default again at the driver's next start (import-live adopts it). An engine value cannot be empty.</span>
+        </summary>
+        {table(config.ecvs, "engine", "No engine control values in the tree. The engine writes its defaults when the driver first starts; import-live adopts them.")}
+        {adder("engine")}
+      </details>
     </div>
   );
 }

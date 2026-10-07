@@ -1195,3 +1195,39 @@ tr.newer td { background: color-mix(in srgb, var(--accent) 8%, transparent); }
 tr.warn-row td { background: color-mix(in srgb, var(--warn) 8%, transparent); }
 
 td.center { text-align: center; }
+
+/* definitions grouped by where they come from */
+.defs tr.group td { padding: 10px 8px 4px; border-bottom: 1px solid var(--border); background: color-mix(in srgb, var(--surface) 85%, var(--text) 15%); }
+
+/* engine control values fold away under their heading */
+details.ecvs > summary { cursor: pointer; display: flex; align-items: baseline; gap: 10px; list-style: none; }
+details.ecvs > summary::-webkit-details-marker { display: none; }
+details.ecvs > summary h3 { margin: 16px 0 8px; }
+details.ecvs > summary h3::before { content: "▸ "; color: var(--muted); }
+details.ecvs[open] > summary h3::before { content: "▾ "; }
+
+/* filter modes read at a glance: a glyph and a colour per value, on the select and in the legend */
+.modepick { display: inline-flex; align-items: center; gap: 4px; --mode: var(--muted); color: var(--mode); }
+.modepick .glyph { font-size: 13px; width: 1.1em; text-align: center; color: var(--mode); }
+.modepick select { color: var(--mode); border-color: color-mix(in srgb, var(--mode) 55%, var(--border)); background: color-mix(in srgb, var(--mode) 10%, var(--surface)); font-weight: 600; }
+.modepick.mode-sync { --mode: var(--ok); }
+.modepick.mode-notify { --mode: var(--accent); }
+.modepick.mode-ignore { --mode: var(--muted); }
+.modepick.mode-ignore select { font-weight: 400; opacity: 0.8; }
+.modepick.mode-reset { --mode: var(--warn); }
+.modepick.ma-default { --mode: var(--muted); }
+.modepick.ma-default select { font-weight: 400; }
+.modepick.ma-edir { --mode: var(--accent); }
+.modepick.ma-app { --mode: #8e44ad; }
+.modepick.ma-none { --mode: var(--err); }
+.filter .legend { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin: 0 0 10px; }
+
+/* definitions on two lines: the value keeps the width, the where/who/env line sits under it */
+.defs tr.defmain > td { border-bottom: none; padding-bottom: 2px; }
+.defs tr.defmeta > td { padding: 0 8px 8px 8px; }
+.defs tr.defmain > td.vcell { width: 55%; }
+.metaline { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 18px; font-size: 12px; }
+.metaitem { display: inline-flex; align-items: center; gap: 6px; }
+.metaitem .k { color: var(--muted); }
+.metaitem.env input { width: 150px; min-width: 0; font-size: 12px; padding: 2px 6px; }
+.metaline .usedby .link { margin-right: 6px; }

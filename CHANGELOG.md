@@ -7,6 +7,23 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- GCVs: each one takes two lines — name, type and the value with the room it needs, then where
+  it is defined, what uses it and the environment overrides underneath — instead of every field
+  squeezed into one row.
+- Filter: each channel mode and merge authority shows as a glyph and a colour on its select
+  (⇄ sync green, ⚑ notify blue, ∅ ignore grey, ↺ reset amber; ⬅ vault wins, ➡ app wins, ✕ none)
+  with a legend above the classes, so a filter reads at a glance.
+- Settings: the engine control values are folded away under their heading (with the count); open
+  the section when you need them. × on one is "back to the engine's default" (removed from the
+  tree; the engine rewrites its default at the next start) and says so; an engine value cannot be
+  cleared to empty.
+- A driver's GCV table is grouped by where each value comes from: the driver's own, GCV
+  resources the driver links (packages), and the ones inherited from the driver set (its own
+  GCVs, and Library resources linked at the set) — with the warning that the inherited ones are
+  shared by every driver. The rows carry a `scope` field.
+
 ## [0.14.0] - 2026-10-07
 
 Needs DirXMLDev 0.12.0 (`driver.set --clear`, `driver.setting.add/remove`).

@@ -9,6 +9,9 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Changed
 
+- Filter: each channel mode and merge authority shows as a glyph and a colour on its select
+  (⇄ sync green, ⚑ notify blue, ∅ ignore grey, ↺ reset amber; ⬅ vault wins, ➡ app wins, ✕ none)
+  with a legend above the classes, so a filter reads at a glance.
 - Settings: the engine control values are folded away under their heading (with the count); open
   the section when you need them. × on one is "back to the engine's default" (removed from the
   tree; the engine rewrites its default at the next start) and says so; an engine value cannot be

@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-10-07
+
 Needs the DirXML Trace Viewer's library `dirxml-trace-core` 1.5.0 on the class path (the launchers take it from `~/.m2`; CI and the image fetch it from the viewer's release).
 
 ### Added

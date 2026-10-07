@@ -9,6 +9,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Changed
 
+- Settings: the engine control values are folded away under their heading (with the count); open
+  the section when you need them.
 - A driver's GCV table is grouped by where each value comes from: the driver's own, GCV
   resources the driver links (packages), and the ones inherited from the driver set (its own
   GCVs, and Library resources linked at the set) — with the warning that the inherited ones are

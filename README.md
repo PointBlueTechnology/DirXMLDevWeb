@@ -113,6 +113,7 @@ for developing it or for a quick look at a tree. Upgrading an install is pulling
 | [docs/design.md](docs/design.md) | the assessment and the phases |
 | [docs/hosted.md](docs/hosted.md) | the hosted-mode design and its decisions |
 | [docs/event-logger.md](docs/event-logger.md) | the Event Logger integration: events as simulator cases, an Events view, the logger as a package (proposed) |
+| [docs/trace-viewer.md](docs/trace-viewer.md) | the DirXML Trace Viewer in the workbench: a shared trace library, live and file trace with colours, filters, find and links into the tree (proposed) |
 | [CHANGELOG.md](CHANGELOG.md) | every release |
 
 ## License

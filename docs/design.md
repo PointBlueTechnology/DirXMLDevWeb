@@ -197,6 +197,14 @@ Each is usable on its own and stops cleanly.
 W0 through W3 already replace the daily Designer loop for driver work. W2 and
 W5 are where most of the effort sits.
 
+### Later: engine debugging
+
+- **engine.debug** (lab only): sets `DHOST_JVM_OPTIONS` with the JDWP agent on a containerised
+  lab engine's compose environment, restarts the engine, opens the tunnel and prints the attach
+  settings; refuses on `prd` tier. The engine jars are stripped (no line tables), so this gives
+  method-entry breakpoints and slot variables; real stepping is the simulator in process. Docs:
+  DirXMLDev `docs/operate.md`, "Attaching a debugger".
+
 ## 5. Risks and open points
 
 - **Policy builder scope.** It is the feature people mean by "Designer". A

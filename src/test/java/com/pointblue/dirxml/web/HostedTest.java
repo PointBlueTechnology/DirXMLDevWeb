@@ -92,6 +92,33 @@ public class HostedTest {
     }
 
     @Test
+    public void aPersistentStoreSurvivesARestartAndRemembersTheLastBranch() throws Exception {
+        Path dir = Files.createTempDirectory("idmweb-sessions");
+        Path f = dir.resolve("sessions.json");
+        Session.Store store = Session.Store.persistent(3600, f);
+        Session.Principal alice = new Session.Principal("alice", "Alice", "alice@x", List.of("idm-editors"), true, false);
+        Session s = store.create(alice);
+        store.opened(s, "lab/alice/feature_x", "lab", "feature/x");
+        assertTrue(Files.exists(f));
+        assertEquals("rw-------", java.nio.file.attribute.PosixFilePermissions.toString(Files.getPosixFilePermissions(f)));
+        // a new server: the session is back, with its workspace and csrf, and the person's last branch is known
+        Session.Store again = Session.Store.persistent(3600, f);
+        Session back = again.get(s.id);
+        assertEquals("alice", back.principal.subject);
+        assertTrue(back.principal.editor);
+        assertEquals(s.csrf, back.csrf);
+        assertEquals("lab/alice/feature_x", back.workspace);
+        assertEquals("feature/x", again.lastOf("alice").branch);
+        assertEquals("lab", again.lastOf("alice").project);
+        // an expired one is dropped on load, the last branch is not
+        Session.Store expired = Session.Store.persistent(0, f);
+        assertNull(expired.get(s.id));
+        assertEquals("lab", expired.lastOf("alice").project);
+        // never expires
+        assertTrue(Session.Store.NEVER > 3600L * 24 * 365 * 10);
+    }
+
+    @Test
     public void theCompareLinkKnowsGitHubAndGitLab() {
         assertEquals("https://github.com/org/idm/compare/main...feature/x?expand=1", Git.compareUrl("https://github.com/org/idm.git", "main", "feature/x"));
         assertEquals("https://github.com/org/idm/compare/main...f?expand=1", Git.compareUrl("git@github.com:org/idm.git", "main", "f"));

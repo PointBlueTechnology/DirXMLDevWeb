@@ -76,6 +76,25 @@ public final class Api implements HttpHandler {
         return null;
     }
 
+    /** A session with no workspace yet gets the person's last project and branch back — once; the clone is still on disk. */
+    private Session restored(Session s) {
+        if (s == null || s.workspace != null || s.restoreTried) {
+            return s;
+        }
+        s.restoreTried = true;
+        Session.Last last = sessions.lastOf(s.principal.subject);
+        if (last == null) {
+            return s;
+        }
+        try {
+            Workspace w = workspaces.openBranch(s.principal, last.project, last.branch);
+            sessions.opened(s, w.id, last.project, last.branch);
+        } catch (IOException | RuntimeException e) {
+            // the project or branch is gone: the page asks, as on a first visit
+        }
+        return s;
+    }
+
     static String cookie(HttpExchange ex, String name) {
         for (String header : ex.getRequestHeaders().getOrDefault("Cookie", java.util.List.of())) {
             for (String part : header.split(";")) {
@@ -93,9 +112,9 @@ public final class Api implements HttpHandler {
         if (security.hostedMode()) {
             String auth = ex.getRequestHeaders().getFirst("Authorization");
             if (auth != null && auth.regionMatches(true, 0, "Bearer ", 0, 7)) {
-                return agentSession(auth.substring(7).trim());
+                return restored(agentSession(auth.substring(7).trim()));
             }
-            return sessions.get(cookie(ex, COOKIE));
+            return restored(sessions.get(cookie(ex, COOKIE)));
         }
         String presented = ex.getRequestHeaders().getFirst(Security.HEADER);
         if (presented == null) {
@@ -248,7 +267,8 @@ public final class Api implements HttpHandler {
             Map<String, Object> req = Json.asMap(Json.parse(new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8)));
             String branch = Json.asString(req.get("branch"));
             Workspace w = workspaces.openBranch(session.principal, Json.asString(req.get("project")), branch);
-            session.workspace = w.id;
+            Project opened = workspaces.projectOf(w);
+            sessions.opened(session, w.id, opened == null ? null : opened.name, w.id.endsWith("/in-place") ? null : branch);
             Project p = workspaces.projectOf(w);
             audit.log(session, w, "workspace.open", Map.of("project", p == null ? "" : p.name, "branch", String.valueOf(branch)), "ok");
             Map<String, Object> m = new LinkedHashMap<>();

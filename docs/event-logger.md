@@ -1,6 +1,6 @@
 # Event Logger integration: design note
 
-Status: **proposed 2026-10-07, awaiting Jerry's decisions** (section 6). Nothing is built.
+Status: **decided 2026-10-07** (Jerry took the proposals in section 6). Nothing is built yet; the stack side waits on the logger's first two items in section 3.
 
 The question: can [DIrXMLEventLogger](https://github.com/jcombs-pointblue/DIrXMLEventLogger)
 be used by, and folded into, the DirXMLDev / DirXMLDevWeb / DirXMLSimulator stack?
@@ -143,17 +143,15 @@ side depends on the first two.
 
 C1 and W1 follow L1's first two items; P1 follows the containerised logger; R1 last.
 
-## 6. Decisions needed
+## 6. Decisions (taken 2026-10-07)
 
-1. **Store per environment, or one store for all?** Proposed: per environment
-   (`<env>.events*`), because dev and production stores differ and the vault
-   credentials are already per environment.
-2. **Where do captured cases go?** Proposed: the tree's `cases/` directory (what the
-   simulator view already serves), committed with the tree, so a production sample
-   becomes a regression test in the repository. Alternative: a separate corpus
-   directory outside the tree, for samples that must not be committed.
-3. **Who may read the store?** Proposed: any signed-in user of the workbench (the reader
-   account is read-only), with the DN search limited by the same `pseudonymise` option
-   the vault clone has when a store holds production names. Alternative: deployers only.
-4. **The Flask UI**: keep it in the logger repo as the standalone viewer (proposed), or
-   retire it once W1 ships.
+1. **Store per environment.** `<env>.events*` keys beside the vault bind; dev and production
+   stores differ and the credentials are already per environment.
+2. **Captured cases go in the tree's `cases/` directory**, committed with the tree, so a
+   production sample becomes a regression test in the repository. A case that must not be
+   committed is saved outside the tree by choice, not by default.
+3. **Any signed-in user may read the store** through the read-only reader account; when a
+   store holds production names, the DN search and the saved cases go through the same
+   `pseudonymise` option the vault clone has.
+4. **The Flask UI stays in the logger repository** as the standalone viewer; the workbench's
+   Events view does not replace it for teams without the workbench.

@@ -7,8 +7,7 @@
   resource-request and notification settings, a form field's other properties and owners,
   approvers and other languages of a role go through Operations (`flow.activity.set`,
   `form.field.set --prop`, `role.set`). Branches are inserted with `flow.branch.add` there.
-- Packages with prompts take their answers file through Operations → package.install;
-  `package.import` (a jar from disk) is CLI-only — Update sites covers repositories.
+- `package.import` (a jar from disk) is CLI-only — Update sites covers repositories.
 - A setting cannot be cleared to empty from the Settings tab; do that in the document's XML.
 - Deploy from the page covers the common case. Secrets, deleting a driver, drift capture,
   stepwise deploys and rollback stay with `idm vault.deploy` and `idm vault.rollback`; a deploy's

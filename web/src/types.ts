@@ -446,6 +446,16 @@ export interface CatalogPackage {
   base: boolean;
   versions: string[];
   newest: string | null;
+  /** The feature packages the newest version declares (short is null when the catalog lacks the feature). */
+  features: { id: string; short: string | null; displayName: string | null; mandatory: boolean; group: string | null }[];
+  supportedDrivers: string[];
+  hasPrompts: boolean;
+}
+
+/** The questions installing a set of packages asks: one entry per prompt, its definitions pre-populated. */
+export interface PackagePrompts {
+  packages: string;
+  prompts: { package: string; version: string; prompt: string; definitions: Definition[]; unanswered: string[]; passwordRefs: string[] }[];
 }
 
 export interface InstalledPackage {

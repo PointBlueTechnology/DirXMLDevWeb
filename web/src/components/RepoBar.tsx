@@ -7,7 +7,7 @@ import type { GitStatus, Selection, Session, WorkspacesInfo } from "../types";
  * commit, commit and push, update from the base branch, the pull-request link, and in hosted
  * mode who is signed in. Local mode shows it only when the tree sits in a git checkout.
  */
-export function RepoBar({ session, revision, onWorkspaceChanged, onAddProject, onSelect }: { session: Session; revision: string; onWorkspaceChanged: () => void; onAddProject: () => void; onSelect: (s: Selection) => void }) {
+export function RepoBar({ session, revision, onWorkspaceChanged, onBusy, onAddProject, onSelect }: { session: Session; revision: string; onWorkspaceChanged: () => void; onBusy: (what: string | null) => void; onAddProject: () => void; onSelect: (s: Selection) => void }) {
   const [project, setProject] = useState<string>(session.project ?? "");
   const [status, setStatus] = useState<GitStatus | null>(null);
   const [info, setInfo] = useState<WorkspacesInfo | null>(null);
@@ -57,7 +57,14 @@ export function RepoBar({ session, revision, onWorkspaceChanged, onAddProject, o
     });
   const openBranch = () =>
     run("Opening…", async () => {
-      await api.openWorkspace(branch.trim(), project || undefined);
+      // the server clones the branch into a workspace of yours (the first time) — the page says so meanwhile
+      onBusy(`Opening ${branch.trim() || "the checkout"} — cloning it on the server…`);
+      try {
+        await api.openWorkspace(branch.trim(), project || undefined);
+      } catch (e) {
+        onBusy(null);
+        throw e;
+      }
       setOpen(false);
       onWorkspaceChanged();
       return { ok: true, text: `opened ${project ? project + " / " : ""}${branch.trim()}` };

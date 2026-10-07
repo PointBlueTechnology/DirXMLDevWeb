@@ -7,6 +7,12 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- A loading bar with a spinner under the repository bar while a branch is opened ("Opening X —
+  cloning it on the server…"), the tree read and validated; the outline is shown before the
+  (slower) validation finishes, so the page is usable sooner.
+
 ## [0.13.0] - 2026-10-06
 
 ### Added

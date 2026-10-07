@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../api";
 import { writeEntitlement } from "../prov/entitlement";
 import type { CatalogPackage, NewWhat, OpCall, Outline, Selection } from "../types";
+import { PromptsForm } from "./PromptsForm";
 import { ReviewDialog } from "./ReviewDialog";
 
 type What = NewWhat;
@@ -495,6 +496,10 @@ function NewDriver({ drivers, onStage }: { drivers: string[]; onStage: Stage }) 
   const [f, setF] = useState({ name: "", how: "package", copyOf: drivers[0] ?? "", shim: "", pkg: "", authServer: "", authId: "" });
   const [bases, setBases] = useState<CatalogPackage[]>([]);
   const [catalog, setCatalog] = useState(true);
+  const [features, setFeatures] = useState<string[]>([]);
+  const [answers, setAnswers] = useState({ text: "", complete: true });
+  const [exportXml, setExportXml] = useState<{ name: string; text: string; root: string; drivers: string[] } | null>(null);
+  const [sourceDriver, setSourceDriver] = useState("");
   useEffect(() => {
     api
       .packages()
@@ -504,7 +509,27 @@ function NewDriver({ drivers, onStage }: { drivers: string[]; onStage: Stage }) 
       })
       .catch(() => setCatalog(false));
   }, []);
-  const ok = NAME.test(f.name.trim()) && !drivers.includes(f.name.trim()) && (f.how === "copy" ? !!f.copyOf : f.how === "blank" ? !!f.shim.trim() : !!f.pkg);
+  const base = bases.find((b) => b.short === f.pkg) ?? null;
+  // the package set the driver is built from: the base, then every mandatory feature and the chosen optional ones
+  const packageSet = base ? [base.short, ...base.features.filter((x) => x.short && (x.mandatory || features.includes(x.short))).map((x) => x.short!)].join(",") : "";
+  const readExport = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = String(reader.result ?? "");
+      const doc = new DOMParser().parseFromString(text, "application/xml");
+      const root = doc.documentElement?.localName ?? "";
+      // a driver-set export holds its drivers as <driver-configuration name=…> children
+      const names = root === "driver-set-configuration" ? [...doc.documentElement.children].filter((c) => c.localName === "driver-configuration" || c.localName === "driver").map((c) => c.getAttribute("name") ?? "") : [];
+      setExportXml({ name: file.name, text, root, drivers: names });
+      setSourceDriver(names.length === 1 ? names[0]! : "");
+    };
+    reader.readAsText(file);
+  };
+  const exportOk = !!exportXml && (exportXml.root === "driver-configuration" || (exportXml.root === "driver-set-configuration" && (exportXml.drivers.length <= 1 || !!sourceDriver)));
+  const ok =
+    NAME.test(f.name.trim()) &&
+    !drivers.includes(f.name.trim()) &&
+    (f.how === "copy" ? !!f.copyOf : f.how === "blank" ? !!f.shim.trim() : f.how === "export" ? exportOk : !!f.pkg && answers.complete);
   return (
     <div className="attrs">
       <label className="field">
@@ -515,22 +540,75 @@ function NewDriver({ drivers, onStage }: { drivers: string[]; onStage: Stage }) 
         <em>Built from</em>
         <select value={f.how} onChange={(e) => setF({ ...f, how: e.target.value })} data-testid="new-driver-how">
           <option value="package">a base package in the catalog{catalog ? "" : " (no catalog on this server)"}</option>
+          <option value="export">a Designer export (a driver, or a driver set's driver)</option>
           <option value="copy">a copy of another driver</option>
           <option value="blank">a blank driver with a shim class</option>
         </select>
       </label>
       {f.how === "package" && (
-        <label className="field wide">
-          <em>Base package</em>
-          <select value={f.pkg} onChange={(e) => setF({ ...f, pkg: e.target.value })} disabled={!catalog}>
-            <option value="">choose…</option>
-            {bases.map((b) => (
-              <option key={b.short} value={b.short}>
-                {b.short} — {b.displayName ?? ""} ({b.newest})
-              </option>
-            ))}
-          </select>
-        </label>
+        <>
+          <label className="field wide">
+            <em>Base package</em>
+            <select
+              value={f.pkg}
+              onChange={(e) => {
+                setF({ ...f, pkg: e.target.value });
+                setFeatures([]);
+              }}
+              disabled={!catalog}
+              data-testid="new-driver-base"
+            >
+              <option value="">choose…</option>
+              {bases.map((b) => (
+                <option key={b.short} value={b.short}>
+                  {b.short} — {b.displayName ?? ""} ({b.newest})
+                </option>
+              ))}
+            </select>
+          </label>
+          {base && base.features.length > 0 && (
+            <div className="field wide">
+              <em>Features</em>
+              <div className="checks" data-testid="new-driver-features">
+                {base.features.map((x) => (
+                  <label key={x.id} className="checkchip" title={x.short ? (x.mandatory ? "mandatory: installed with the base" : x.group ? `group ${x.group}` : "") : "not in the catalog: fetch it on the Packages view first"}>
+                    <input type="checkbox" checked={!!x.short && (x.mandatory || features.includes(x.short))} disabled={!x.short || x.mandatory} onChange={(e) => x.short && setFeatures(e.target.checked ? [...features, x.short] : features.filter((s) => s !== x.short))} />{" "}
+                    {x.displayName || x.short || x.id}
+                    {x.short && x.displayName ? <span className="muted"> {x.short}</span> : ""}
+                    {x.short ? "" : " (not in the catalog)"}
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+          {packageSet && <PromptsForm packages={packageSet} driver={f.name.trim() || undefined} onChange={(text, complete) => setAnswers({ text, complete })} />}
+        </>
+      )}
+      {f.how === "export" && (
+        <>
+          <label className="field wide">
+            <em>Export file (Designer → Export Configuration, with referenced policies)</em>
+            <input type="file" accept=".xml,text/xml,application/xml" onChange={(e) => e.target.files?.[0] && readExport(e.target.files[0])} data-testid="new-driver-export" />
+            {exportXml && (
+              <span className={exportOk || exportXml.drivers.length > 1 ? "muted small" : "err-text small"}>
+                {exportXml.root === "driver-configuration" ? `${exportXml.name}: a driver export` : exportXml.root === "driver-set-configuration" ? `${exportXml.name}: a driver-set export with ${exportXml.drivers.length} driver${exportXml.drivers.length === 1 ? "" : "s"}` : `${exportXml.name}: not a Designer export (root <${exportXml.root}>)`}
+              </span>
+            )}
+          </label>
+          {exportXml && exportXml.drivers.length > 1 && (
+            <label className="field">
+              <em>Which driver</em>
+              <select value={sourceDriver} onChange={(e) => setSourceDriver(e.target.value)} data-testid="new-driver-source">
+                <option value="">choose…</option>
+                {exportXml.drivers.map((d) => (
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+        </>
       )}
       {f.how === "copy" && (
         <label className="field">
@@ -566,8 +644,20 @@ function NewDriver({ drivers, onStage }: { drivers: string[]; onStage: Stage }) 
           disabled={!ok}
           onClick={() => {
             const args: Record<string, string> = { name: f.name.trim() };
+            const files: Record<string, string> = {};
+            let label = `create driver ${f.name.trim()}`;
             if (f.how === "package") {
-              args.package = f.pkg;
+              args.package = packageSet;
+              if (answers.text) {
+                files.answers = answers.text;
+              }
+              label += ` from ${packageSet}`;
+            } else if (f.how === "export" && exportXml) {
+              files["from-export"] = exportXml.text;
+              if (sourceDriver) {
+                args["source-driver"] = sourceDriver;
+              }
+              label += ` from ${exportXml.name}${sourceDriver ? ` (${sourceDriver})` : ""}`;
             } else if (f.how === "copy") {
               args["copy-of"] = f.copyOf;
             } else {
@@ -579,14 +669,14 @@ function NewDriver({ drivers, onStage }: { drivers: string[]; onStage: Stage }) 
                 args["auth-id"] = f.authId;
               }
             }
-            onStage({ name: "driver.add", args, label: `create driver ${f.name.trim()}` }, () => ({ type: "flow", driver: f.name.trim() }));
+            onStage({ name: "driver.add", args, files: Object.keys(files).length ? files : undefined, label }, () => ({ type: "flow", driver: f.name.trim() }));
           }}
           data-testid="new-go"
         >
           Create
         </button>
       </div>
-      <p className="muted small">A packaged driver takes the base package's prompts with their defaults; the Packages view installs feature packages afterwards. A Designer export of a driver can be merged in through Operations → driver.add --from-export.</p>
+      <p className="muted small">A packaged driver is built from the base package and the features chosen, answering their questions above (the Packages view installs more later). An export is merged in with its referenced policies; a driver-set export needs the driver named.</p>
     </div>
   );
 }

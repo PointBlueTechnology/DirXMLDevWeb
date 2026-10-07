@@ -2,6 +2,13 @@ package com.pointblue.dirxml.web;
 
 import com.pointblue.dirxml.dev.json.Json;
 import com.pointblue.dirxml.dev.packages.Catalog;
+import com.pointblue.dirxml.dev.packages.Dependency;
+import com.pointblue.dirxml.dev.packages.PackageInstall;
+import com.pointblue.dirxml.dev.packages.PackageJar;
+import com.pointblue.dirxml.dev.packages.PackageChecksum;
+import com.pointblue.dirxml.dev.packages.PromptEngine;
+import com.pointblue.dirxml.dev.xml.CanonicalXml;
+import org.w3c.dom.Element;
 import com.pointblue.dirxml.dev.packages.PackageBuilder;
 import com.pointblue.dirxml.dev.packages.PackageStatus;
 import com.pointblue.dirxml.dev.packages.PackageVersion;
@@ -69,6 +76,31 @@ public final class PackageService {
                 one.put("base", e.base);
                 one.put("versions", new ArrayList<>(e.versions.keySet()));
                 one.put("newest", e.newestVersion());
+                // what the newest version declares: its feature packages (by short name where the catalog has
+                // them), the shims it supports, whether installing it asks questions
+                Catalog.VersionEntry ve = e.newestVersion() == null ? null : e.versions.get(e.newestVersion());
+                Map<String, String> ids = c.idIndex();
+                List<Object> features = new ArrayList<>();
+                if (ve != null) {
+                    for (Dependency.Feature f : ve.features) {
+                        Map<String, Object> fm = new LinkedHashMap<>();
+                        fm.put("id", f.packageId);
+                        fm.put("short", ids.get(f.packageId));
+                        fm.put("displayName", f.displayName);
+                        fm.put("mandatory", f.mandatory);
+                        fm.put("group", f.group);
+                        features.add(fm);
+                    }
+                }
+                one.put("features", features);
+                List<Object> shims = new ArrayList<>();
+                if (ve != null) {
+                    for (Dependency.SupportedDriver sd : ve.supportedDrivers) {
+                        shims.add(sd.driverId);
+                    }
+                }
+                one.put("supportedDrivers", shims);
+                one.put("hasPrompts", ve != null && ve.hasPrompts);
                 entries.add(one);
             }
         }
@@ -191,6 +223,58 @@ public final class PackageService {
         m.put("added", new ArrayList<>(r.added));
         m.put("skipped", new ArrayList<>(r.skipped));
         m.put("refused", new ArrayList<>(r.refused));
+        return m;
+    }
+
+    /**
+     * The questions installing {@code packages} (SHORT[_ver], comma-separated) would ask, each prompt's
+     * definitions pre-populated the way the install does (the prompt stylesheet run against a driver
+     * named {@code driver} with no other attributes — the new-driver case; an existing driver's
+     * attributes would only change defaults). The page renders them and sends the answers as a
+     * {@code name=value} file; a prompt that references a named password lists the keys it needs.
+     */
+    public Map<String, Object> prompts(String packages, String driver) throws IOException {
+        Catalog c = catalog();
+        if (c == null) {
+            throw new TreeService.BadRequest("no catalog on this server");
+        }
+        List<Object> out = new ArrayList<>();
+        List<java.nio.file.Path> jars;
+        try {
+            jars = PackageInstall.jarsOf(null, c.dir.toString(), packages);
+        } catch (RuntimeException e) {
+            throw new TreeService.BadRequest("packages: " + (e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage()));
+        }
+        for (java.nio.file.Path jar : jars) {
+            PackageJar p = PackageJar.read(jar);
+            List<PromptEngine.Prompt> prompts = new ArrayList<>();
+            for (PackageJar.Item it : p.items) {
+                if (PackageChecksum.RESOURCE.equals(it.objectClass) && it.contentType != null
+                    && it.contentType.startsWith(PackageInstall.PKG_PROMPT) && it.directive != null) {
+                    prompts.add(PromptEngine.read(it, p.propertiesFor(PackageInstall.LANGUAGE)));
+                }
+            }
+            prompts.sort((a, b) -> Integer.compare(a.order, b.order));
+            Element cur = CanonicalXml.parse("<ds-attributes/>").getDocumentElement();
+            if (driver != null && !driver.isBlank()) {
+                cur.setAttribute("name", driver);
+            }
+            Element np = CanonicalXml.parse("<named-passwords/>").getDocumentElement();
+            for (PromptEngine.Prompt pr : prompts) {
+                PromptEngine.answer(pr, Map.of(), cur, np, false);
+                Map<String, Object> pm = new LinkedHashMap<>();
+                pm.put("package", p.shortName);
+                pm.put("version", p.version);
+                pm.put("prompt", pr.name);
+                pm.put("definitions", ConfigViews.definitions(pr.definitions, null));
+                pm.put("unanswered", new ArrayList<>(pr.unanswered));
+                pm.put("passwordRefs", new ArrayList<>(pr.passwordRefs));
+                out.add(pm);
+            }
+        }
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("packages", packages);
+        m.put("prompts", out);
         return m;
     }
 

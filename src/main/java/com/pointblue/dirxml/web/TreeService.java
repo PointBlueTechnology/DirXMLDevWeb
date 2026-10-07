@@ -417,7 +417,8 @@ public final class TreeService {
         }
         Map<String, String> all = new LinkedHashMap<>(c.args);
         // the server's package catalog stands in for --catalog when a package operation names none
-        if (c.name.startsWith("package.") && !all.containsKey("catalog") && catalogArg != null
+        // every operation that takes the catalog gets the server's (package.*, and driver.add with --package)
+        if (!all.containsKey("catalog") && catalogArg != null
                 && spec.args.stream().anyMatch(a -> a.name.equals("catalog"))) {
             all.put("catalog", catalogArg);
         }

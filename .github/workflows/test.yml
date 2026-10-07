@@ -26,6 +26,11 @@ jobs:
           gh release download "v$SIM" --repo PointBlueTechnology/DirXMLSimulator -p "dirxml-simulator-$SIM.jar" -D /tmp
           mvn -B -q install:install-file -Dfile=/tmp/dirxml-dev-$CORE.jar -DgroupId=com.pointblue.dirxml -DartifactId=dirxml-dev -Dversion=$CORE -Dpackaging=jar
           mvn -B -q install:install-file -Dfile=/tmp/dirxml-simulator-$SIM.jar -DgroupId=com.pointblue.dirxml -DartifactId=dirxml-simulator -Dversion=$SIM -Dpackaging=jar
+          # the trace viewer's library: its jar carries a module pom with a parent nobody has, so install it with a flat one
+          TRACE=$(sed -n 's#.*<tracecore.version>\([^<]*\)</tracecore.version>.*#\1#p' pom.xml | head -1)
+          gh release download "v$TRACE" --repo PointBlueTechnology/DirXMLTraceViewer -p "dirxml-trace-core-$TRACE.jar" -D /tmp
+          printf '<project xmlns="http://maven.apache.org/POM/4.0.0"><modelVersion>4.0.0</modelVersion><groupId>com.pointbluetech</groupId><artifactId>dirxml-trace-core</artifactId><version>%s</version><dependencies><dependency><groupId>com.novell.ldap</groupId><artifactId>jldap</artifactId><version>4.3</version></dependency></dependencies></project>' "$TRACE" > /tmp/trace-core.pom
+          mvn -B -q install:install-file -Dfile=/tmp/dirxml-trace-core-$TRACE.jar -DpomFile=/tmp/trace-core.pom
       - run: mvn -B test
   page:
     runs-on: ubuntu-latest

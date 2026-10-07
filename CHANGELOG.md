@@ -7,6 +7,18 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+Needs the DirXML Trace Viewer's library `dirxml-trace-core` 1.5.0 on the class path (the launchers take it from `~/.m2`; CI and the image fetch it from the viewer's release).
+
+### Added
+
+- **Trace viewer**: the Vault view's Trace tab is now the DirXML Trace Viewer on the same parser and highlighting as the desktop app (`dirxml-trace-core`): every driver of the set streamed at once (one event registration per server, or one server chosen), channel, driver and text filters, find with every match marked and Enter/Shift-Enter stepping, the engine's own DSTrace colours, compact whitespace, timestamp formats, pause while the buffer keeps filling, save and copy of what is shown, wrap, font size, buffer sizes. The list is virtualised, so the default fifteen thousand shown records scroll without the DOM holding them all.
+- **Pop out**: the trace opens in its own window (`#type=trace&env=…`), the viewer alone, full height; the token travels in the link for the local install.
+- **Trace level**: the Drivers tab sets a driver's trace level (0–10) through the core's `driver.trace set`, with the environment's name typed like every vault write (`POST /api/vault/trace-level`, deployers).
+
+### Changed
+
+- Viewing trace is for every signed-in user; driver control and the trace level stay with deployers. The stream sends parsed records (`TraceService.json`) instead of raw lines.
+
 ## [0.15.0] - 2026-10-07
 
 Needs DirXMLDev 0.13.0 (the vault schema in the tree, `schema.*`, `vault.schema`, `vault.app-schema`, `vault.deploy-schema`).

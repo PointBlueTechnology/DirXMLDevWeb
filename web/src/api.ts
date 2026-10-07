@@ -1,3 +1,4 @@
+import type { TraceRec } from "./trace/model";
 import type { AppSchema, Artifact, AuditEntry, BuildResult, ConfigView, Connections, DeployResult, EnvSecrets, FetchResult, FormData as FormDoc, GitDiff, GitStatus, ImportResult, LifecycleResult, OpCall, OpResult, OpSpec, Outline, OverridesData, PackagePrompts, PackagesData, PrdData, RoleCatalog, SchemaActionResult, SchemaClass, SchemaData, Session, SetupResult, SimCaseFiles, SimCases, SimDetail, SimRun, SiteListing, TreeFile, UpdateSites, Validation, VaultDiffResult, VaultEnvironments, VaultStatus, WorkspacesInfo } from "./types";
 import type { FishboneModel } from "./fishbone/types";
 
@@ -12,13 +13,20 @@ export function takeToken(): string | null {
   const m = /[#&]token=([0-9a-f]+)/.exec(window.location.hash);
   if (m && m[1]) {
     sessionStorage.setItem(KEY, m[1]);
-    history.replaceState(null, "", window.location.pathname + window.location.search);
+    // the rest of the hash stays: a pop-out window opens at its view with the token appended
+    const rest = window.location.hash.replace(/[#&]token=[0-9a-f]+/, "").replace(/^&/, "#");
+    history.replaceState(null, "", window.location.pathname + window.location.search + (rest.length > 1 ? rest : ""));
   }
   return sessionStorage.getItem(KEY);
 }
 
 function token(): string {
   return sessionStorage.getItem(KEY) ?? "";
+}
+
+/** The token to append to a link that opens a new window (sessionStorage is per window); empty in hosted mode, where the cookie carries the session. */
+export function tokenForLink(): string {
+  return token();
 }
 
 /** Hosted mode: the session's CSRF token, learned from /api/session and sent on every write. */
@@ -169,6 +177,7 @@ export const api = {
     status: (env: string) => call<VaultStatus>("GET", `/api/vault/status?env=${q(env)}`),
     servers: (env: string) => call<{ environment: string; primary: string | null; servers: { dn: string; name: string; url: string | null; primary: boolean }[] }>("GET", `/api/vault/servers?env=${q(env)}`),
     driver: (env: string, driver: string, action: string, confirm: string) => call<LifecycleResult>("POST", "/api/vault/driver", { env, driver, action, confirm }),
+    traceLevel: (env: string, driver: string, level: number, confirm: string, server?: string) => call<LifecycleResult>("POST", "/api/vault/trace-level", { env, driver, level, confirm, ...(server ? { server } : {}) }),
   },
   /** Several operations as one change: validated once, written together or not at all. */
   batch: (ops: OpCall[], dryRun: boolean, revision: string) =>
@@ -196,8 +205,9 @@ export function followTree(onRevision: (revision: string) => void, onState: (liv
 }
 
 /** Follow a driver's trace: `onLine` per line, `onState` with open / closed / the failure's message. */
-export function followTrace(env: string, driver: string, engine: boolean, onLine: (line: string) => void, onState: (state: "open" | "closed" | { failed: string }) => void, server?: string): () => void {
-  const es = new EventSource(`/api/vault/trace?env=${q(env)}&driver=${q(driver)}${engine ? "&engine=true" : ""}${server ? `&server=${q(server)}` : ""}&token=${q(token())}`);
+/** The live trace stream: parsed records (see web/src/trace/model.ts), or `{error}` for a server whose stream failed. `driver` null = every driver. */
+export function followTrace(env: string, driver: string | null, engine: boolean, onRecord: (r: TraceRec | { error: string }) => void, onState: (state: "open" | "closed" | { failed: string }) => void, server?: string): () => void {
+  const es = new EventSource(`/api/vault/trace?env=${q(env)}${driver ? `&driver=${q(driver)}` : ""}${engine ? "&engine=true" : ""}${server ? `&server=${q(server)}` : ""}&token=${q(token())}`);
   es.addEventListener("open", () => onState("open"));
   es.addEventListener("fail", (ev) => {
     let message = "the trace stream failed";
@@ -211,7 +221,7 @@ export function followTrace(env: string, driver: string, engine: boolean, onLine
   });
   es.onmessage = (ev) => {
     try {
-      onLine(String(JSON.parse(ev.data as string)));
+      onRecord(JSON.parse(ev.data as string) as TraceRec | { error: string });
     } catch {
       // a malformed event is skipped
     }

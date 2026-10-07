@@ -136,5 +136,6 @@ ssh debian@192.168.103.99 'cd ~/idmweb && sed -i "s#^IDMWEB_IMAGE=.*#IDMWEB_IMAG
 - `docker compose pull && docker compose up -d` (or `docker load` a new tarball) upgrades.
 - Workspaces and `audit.log` live in the `idmweb-data` volume; the configuration in `./config`.
 - `audit.log` is one JSON line per event; ship it where the customer keeps logs.
-- Sessions live in memory: a restart signs everyone out.
+- Sessions are kept in `<data.dir>/sessions.json` (owner-only): a restart signs nobody out, and
+  each person gets their last project and branch back on their next session.
 - `bin/smoke-container.sh` runs the image end to end on a workstation with Docker.

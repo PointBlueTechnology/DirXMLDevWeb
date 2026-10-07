@@ -18,5 +18,5 @@
   but are edited in its files; comparing with another tree stays with `idm simulate --against`.
 - Cases are kept in `cases/` beside the tree (or `--cases DIR`). They are not part of the
   tree's revision: the page reloads them after its own writes.
-- Hosted sessions live in memory: a restart signs everyone out. Pull requests are a link to the
+- Pull requests are a link to the
   provider's compare page; creating them through an API is a follow-up.

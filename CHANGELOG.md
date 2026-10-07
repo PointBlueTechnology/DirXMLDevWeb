@@ -7,6 +7,13 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- Sessions survive a restart (`<data.dir>/sessions.json`, owner-only), a session timeout or a
+  restart no longer resets where you were — the last project and branch are reopened on the
+  next session, and the page returns to the view it was on after a sign-in. `session.hours=0`
+  means never; the one-person install sets it. (#37, #50)
+
 ### Security (hosted mode)
 
 - `POST /api/credentials/resolve` with a typed `command` needs the deployer role; an editor may

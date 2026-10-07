@@ -1,4 +1,4 @@
-import type { Artifact, BuildResult, ConfigView, Connections, DeployResult, EnvSecrets, FetchResult, FormData as FormDoc, GitDiff, GitStatus, LifecycleResult, OpCall, OpResult, OpSpec, Outline, OverridesData, PackagesData, PrdData, RoleCatalog, Session, SetupResult, SimCaseFiles, SimCases, SimDetail, SimRun, SiteListing, TreeFile, UpdateSites, Validation, VaultDiffResult, VaultEnvironments, VaultStatus, WorkspacesInfo } from "./types";
+import type { Artifact, BuildResult, ConfigView, Connections, DeployResult, EnvSecrets, FetchResult, FormData as FormDoc, GitDiff, GitStatus, LifecycleResult, OpCall, OpResult, OpSpec, Outline, OverridesData, PackagePrompts, PackagesData, PrdData, RoleCatalog, Session, SetupResult, SimCaseFiles, SimCases, SimDetail, SimRun, SiteListing, TreeFile, UpdateSites, Validation, VaultDiffResult, VaultEnvironments, VaultStatus, WorkspacesInfo } from "./types";
 import type { FishboneModel } from "./fishbone/types";
 
 /**
@@ -121,6 +121,7 @@ export const api = {
   },
   buildPackage: (req: Record<string, unknown>) => call<BuildResult>("POST", "/api/packages/build", req),
   packageSites: () => call<UpdateSites>("GET", "/api/packages/sites"),
+  packagePrompts: (packages: string, driver?: string) => call<PackagePrompts>("GET", `/api/packages/prompts?packages=${q(packages)}${driver ? `&driver=${q(driver)}` : ""}`),
   packageSite: (site: string) => call<SiteListing>("GET", `/api/packages/site?site=${q(site)}`),
   fetchPackages: (req: { site: string; packages: string[]; allVersions?: boolean; dryRun?: boolean }) => call<FetchResult>("POST", "/api/packages/fetch", req),
   sim: {

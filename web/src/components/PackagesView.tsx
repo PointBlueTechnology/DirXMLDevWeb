@@ -3,6 +3,7 @@ import { api } from "../api";
 import { usePending } from "../pending";
 import type { BuildResult, CatalogPackage, FetchResult, PackagesData, SiteListing } from "../types";
 import { PendingBar } from "./PendingBar";
+import { PromptsForm } from "./PromptsForm";
 
 const LIBRARY = "library";
 
@@ -16,6 +17,7 @@ export function PackagesView({ drivers, revision, onSaved, onOpen }: { drivers: 
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<"installed" | "catalog" | "sites" | "build">("installed");
   const [install, setInstall] = useState({ target: drivers[0] ?? LIBRARY, pkg: "", version: "" });
+  const [answers, setAnswers] = useState({ text: "", complete: true });
   const pending = usePending();
 
   const load = () => {
@@ -179,17 +181,22 @@ export function PackagesView({ drivers, revision, onSaved, onOpen }: { drivers: 
                 </select>
               )}
               <button
-                disabled={!chosen}
+                disabled={!chosen || !answers.complete}
                 onClick={() => {
                   const spec = install.version ? `${install.pkg}_${install.version}` : install.pkg;
-                  pending.add({ name: "package.install", args: { ...targetArgs(install.target), package: spec }, label: `install ${spec} on ${install.target}` });
+                  pending.add({ name: "package.install", args: { ...targetArgs(install.target), package: spec }, files: answers.text ? { answers: answers.text } : undefined, label: `install ${spec} on ${install.target}` });
                   setInstall({ ...install, pkg: "", version: "" });
+                  setAnswers({ text: "", complete: true });
                 }}
                 data-testid="pkg-install"
               >
                 Install
               </button>
-              <span className="muted small">Packages with prompts take an answers file through Operations → package.install.</span>
+            </div>
+          )}
+          {catalog.available && chosen?.hasPrompts && (
+            <div className="pad-x">
+              <PromptsForm key={install.pkg + install.version} packages={install.version ? `${install.pkg}_${install.version}` : install.pkg} driver={install.target === LIBRARY ? undefined : install.target} onChange={(text, complete) => setAnswers({ text, complete })} />
             </div>
           )}
         </div>

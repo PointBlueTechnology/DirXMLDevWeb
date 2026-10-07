@@ -13,7 +13,8 @@ Every view of the page, by area, in every install; the items marked *local and s
   set at a chosen position — first, last, before or after a policy there — or left unlinked), a
   mapping table, an ECMAScript or GCV resource (linked into the driver's set), an entitlement;
   on the User Application driver also a form, a PRD from a template, a role, a resource and a
-  directory-abstraction entity; "New driver" from a base package, a copy, or a shim class. Each
+  directory-abstraction entity; "New driver" from a base package with its features and their questions answered, a Designer
+  export (a driver, or one driver of a driver-set export), a copy, or a shim class. Each
   is the core's `*.add` operation through the review.
 - **Driver set**: its DN, the servers it runs on (the primary marked), its drivers, the Library,
   what is linked at the driver-set level, the packages recorded on it, and its GCVs with the

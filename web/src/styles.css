@@ -1195,3 +1195,6 @@ tr.newer td { background: color-mix(in srgb, var(--accent) 8%, transparent); }
 tr.warn-row td { background: color-mix(in srgb, var(--warn) 8%, transparent); }
 
 td.center { text-align: center; }
+
+/* definitions grouped by where they come from */
+.defs tr.group td { padding: 10px 8px 4px; border-bottom: 1px solid var(--border); background: color-mix(in srgb, var(--surface) 85%, var(--text) 15%); }

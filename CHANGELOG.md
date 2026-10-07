@@ -7,6 +7,13 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- A driver's GCV table is grouped by where each value comes from: the driver's own, GCV
+  resources the driver links (packages), and the ones inherited from the driver set (its own
+  GCVs, and Library resources linked at the set) — with the warning that the inherited ones are
+  shared by every driver. The rows carry a `scope` field.
+
 ## [0.14.0] - 2026-10-07
 
 Needs DirXMLDev 0.12.0 (`driver.set --clear`, `driver.setting.add/remove`).

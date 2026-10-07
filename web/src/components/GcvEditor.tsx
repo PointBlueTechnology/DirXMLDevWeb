@@ -13,6 +13,15 @@ interface Props {
 
 const TYPES = ["string", "boolean", "integer", "dn", "enum"];
 
+/** The GCVs a driver sees, in the order the engine resolves them: its own, then what it links, then the driver set's. */
+const SCOPE_ORDER = ["driver", "driver-link", "driverset-link", "driverset"];
+const SCOPE_GROUPS: Record<string, { key: string; title: string; note?: string }> = {
+  driver: { key: "driver", title: "This driver's own GCVs" },
+  "driver-link": { key: "driver-link", title: "From GCV resources this driver links", note: "a package's resource; changing a value changes it for every driver that links the same resource" },
+  "driverset-link": { key: "driverset-link", title: "Inherited from the driver set (Library GCV resources)", note: "shared by every driver in the set — a change here is a change for all of them" },
+  driverset: { key: "driverset", title: "Inherited from the driver set's own GCVs", note: "shared by every driver in the set" },
+};
+
 /**
  * The GCVs in a driver's scope (or the driver set's): each from the place the engine would take
  * it, editable there through `gcv.set`. A value that differs per environment is set in the environment
@@ -83,7 +92,8 @@ export function GcvEditor({ config, overrides, canOverride, pending, onOpen }: P
   return (
     <div className="pad">
       <DefinitionsTable
-        rows={config.gcvs}
+        rows={[...config.gcvs].sort((a, b) => SCOPE_ORDER.indexOf(a.scope ?? "driver") - SCOPE_ORDER.indexOf(b.scope ?? "driver"))}
+        group={driver ? (row) => SCOPE_GROUPS[row.scope ?? "driver"] ?? null : undefined}
         empty="No GCVs are defined in this scope."
         staged={stagedValue}
         onChange={setValue}

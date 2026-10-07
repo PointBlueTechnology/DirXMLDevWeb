@@ -39,8 +39,9 @@ export function fromHash(hash: string): Selection | null {
     case "simulator":
     case "roles":
     case "packages":
-    case "driverset":
       return { type: m.type };
+    case "driverset":
+      return m.tab === "schema" || m.tab === "gcvs" ? { type: "driverset", tab: m.tab } : { type: "driverset" };
     case "flow":
       return m.driver ? { type: "flow", driver: m.driver } : null;
     case "artifact":

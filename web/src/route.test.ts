@@ -17,6 +17,7 @@ describe("the selection in the address", () => {
       { type: "changes", against: "base" },
       { type: "new", what: "policy", driver: null },
       { type: "driverset" },
+      { type: "driverset", tab: "schema" },
     ];
     for (const s of all) {
       expect(fromHash(toHash(s))).toEqual(s);

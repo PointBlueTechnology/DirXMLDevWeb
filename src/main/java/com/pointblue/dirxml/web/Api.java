@@ -26,7 +26,7 @@ public final class Api implements HttpHandler {
     public static final String COOKIE = "idmweb_session";
     public static final String CSRF_HEADER = "X-IDMWeb-CSRF";
     /** POST routes only a deployer may call: they reach a vault or hold its credentials. */
-    private static final java.util.List<String> DEPLOYER_ONLY = java.util.List.of("/api/vault/deploy", "/api/vault/driver", "/api/credentials/environment", "/api/credentials/environment/remove", "/api/credentials/secret");
+    private static final java.util.List<String> DEPLOYER_ONLY = java.util.List.of("/api/vault/deploy", "/api/vault/driver", "/api/vault/deploy-schema", "/api/credentials/environment", "/api/credentials/environment/remove", "/api/credentials/secret");
 
     private final Workspaces workspaces;
     private final Session.Store sessions;
@@ -354,6 +354,12 @@ public final class Api implements HttpHandler {
                     return vault.status(required(query, "env"));
                 case "/api/vault/servers":
                     return vault.servers(required(query, "env"));
+                case "/api/schema":
+                    return vault.schema();
+                case "/api/schema/class":
+                    return vault.schemaClass(required(query, "name"));
+                case "/api/schema/app":
+                    return vault.appSchema(required(query, "driver"));
                 case "/api/catalog": {
                     Map<String, Object> m = new LinkedHashMap<>();
                     m.put("operations", TreeService.catalog());
@@ -416,6 +422,12 @@ public final class Api implements HttpHandler {
             }
             boolean restart = !Boolean.FALSE.equals(req.get("restart"));
             switch (path) {
+                case "/api/vault/schema":
+                    return vault.refreshSchema(Json.asString(req.get("env")));
+                case "/api/vault/app-schema":
+                    return vault.refreshAppSchema(Json.asString(req.get("env")), Json.asString(req.get("driver")));
+                case "/api/vault/deploy-schema":
+                    return vault.deploySchema(Json.asString(req.get("env")), Json.asString(req.get("confirm")));
                 case "/api/vault/plan":
                     return vault.plan(env, drivers, restart, Json.asString(req.get("secrets")));
                 case "/api/vault/deploy":

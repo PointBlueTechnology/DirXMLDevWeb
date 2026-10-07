@@ -133,6 +133,7 @@ public final class TreeService {
         set.put("packages", packages);
         set.put("meta", meta);
         set.put("libraryItems", ds.library.policies.size() + ds.library.resources.size());
+        set.put("schema", ds.schema == null ? null : ds.schema.summary());
         o.put("driverSet", set);
         Map<String, Object> lib = new LinkedHashMap<>();
         lib.put("policies", nodes(ds.library.policies, files));

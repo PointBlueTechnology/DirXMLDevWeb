@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { AppAttributeList, AppClassList, ClassAttributeList, SchemaClassList } from "./SchemaPickers";
 import { parseSchemaMap, type MapAttr } from "../configxml";
 import type { Pending } from "../pending";
 
@@ -11,6 +12,9 @@ export function SchemaMapEditor({ driver, content, pending }: { driver: string; 
     return <div className="banner error">The source is not an &lt;attr-name-map&gt;.</div>;
   }
   const staged = (key: string) => pending.ops.find((o) => o.key === key);
+  // the pickers narrow to the class a row belongs to; "" is the loose attributes
+  const ndsClassOf = (k: string) => k || null;
+  const appClassOf = (k: string) => (k ? (staged(`smc:${k}`)?.args["app-class"] ?? map?.classes.find((c) => c.nds === k)?.app ?? null) : null);
   const removed = (key: string) => !!staged(key);
 
   const appInput = (key: string, original: string, make: (app: string) => { args: Record<string, string>; label: string }) => (
@@ -58,8 +62,10 @@ export function SchemaMapEditor({ driver, content, pending }: { driver: string; 
     const d = newAttr[k] ?? { nds: "", app: "" };
     return (
       <div className="addrow">
-        <input placeholder="eDirectory attribute" value={d.nds} onChange={(e) => setNewAttr({ ...newAttr, [k]: { ...d, nds: e.target.value } })} />
-        <input placeholder="application attribute" value={d.app} onChange={(e) => setNewAttr({ ...newAttr, [k]: { ...d, app: e.target.value } })} />
+        <input placeholder="eDirectory attribute" value={d.nds} onChange={(e) => setNewAttr({ ...newAttr, [k]: { ...d, nds: e.target.value } })} list={`smap-nds-${k}`} />
+        <ClassAttributeList id={`smap-nds-${k}`} className={ndsClassOf(k)} />
+        <input placeholder="application attribute" value={d.app} onChange={(e) => setNewAttr({ ...newAttr, [k]: { ...d, app: e.target.value } })} list={`smap-app-${k}`} />
+        <AppAttributeList id={`smap-app-${k}`} driver={driver} className={appClassOf(k)} />
         <button
           disabled={!d.nds.trim() || !d.app.trim()}
           onClick={() => {
@@ -131,8 +137,10 @@ export function SchemaMapEditor({ driver, content, pending }: { driver: string; 
         ))}
       <div className="addrow">
         <strong className="small">New class</strong>
-        <input placeholder="eDirectory class" value={newClass.nds} onChange={(e) => setNewClass({ ...newClass, nds: e.target.value })} />
-        <input placeholder="application class" value={newClass.app} onChange={(e) => setNewClass({ ...newClass, app: e.target.value })} />
+        <input placeholder="eDirectory class" value={newClass.nds} onChange={(e) => setNewClass({ ...newClass, nds: e.target.value })} list="smap-classes" />
+        <SchemaClassList id="smap-classes" />
+        <input placeholder="application class" value={newClass.app} onChange={(e) => setNewClass({ ...newClass, app: e.target.value })} list="smap-app-classes" />
+        <AppClassList id="smap-app-classes" driver={driver} />
         <button
           disabled={!newClass.nds.trim() || !newClass.app.trim()}
           onClick={() => {

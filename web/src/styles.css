@@ -1198,3 +1198,10 @@ td.center { text-align: center; }
 
 /* definitions grouped by where they come from */
 .defs tr.group td { padding: 10px 8px 4px; border-bottom: 1px solid var(--border); background: color-mix(in srgb, var(--surface) 85%, var(--text) 15%); }
+
+/* engine control values fold away under their heading */
+details.ecvs > summary { cursor: pointer; display: flex; align-items: baseline; gap: 10px; list-style: none; }
+details.ecvs > summary::-webkit-details-marker { display: none; }
+details.ecvs > summary h3 { margin: 16px 0 8px; }
+details.ecvs > summary h3::before { content: "▸ "; color: var(--muted); }
+details.ecvs[open] > summary h3::before { content: "▾ "; }

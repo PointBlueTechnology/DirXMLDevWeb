@@ -81,9 +81,14 @@ export function SettingsEditor({ config, pending }: { config: ConfigView; pendin
       <h3>Shim parameters</h3>
       {table(config.params, "param", "This driver's shim configuration defines no parameters.")}
       {adder("param")}
-      <h3>Engine control values</h3>
-      {table(config.ecvs, "engine", "No engine control values in the tree. The engine writes its defaults when the driver first starts; import-live adopts them.")}
-      {adder("engine")}
+      <details className="ecvs" data-testid="ecvs">
+        <summary>
+          <h3>Engine control values {config.ecvs?.length ? <span className="count">{config.ecvs.length}</span> : null}</h3>
+          <span className="muted small">the engine's own knobs, rarely changed — folded away until you need them</span>
+        </summary>
+        {table(config.ecvs, "engine", "No engine control values in the tree. The engine writes its defaults when the driver first starts; import-live adopts them.")}
+        {adder("engine")}
+      </details>
     </div>
   );
 }

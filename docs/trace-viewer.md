@@ -1,6 +1,6 @@
 # Trace viewer in the workbench: design note
 
-Status: **proposed 2026-10-07, for Jerry's confirmation** (section 7). Nothing is built.
+Status: **decided 2026-10-07** (Jerry took the proposals in section 7). Nothing is built yet; T1 is first, in the viewer repository.
 
 The question: provide a web version of the
 [DirXML Trace Viewer](https://github.com/PointBlueTechnology/DirXMLTraceViewer) (desktop, Swing,
@@ -119,14 +119,12 @@ cursor.
 
 T1 is Jerry's repository; T2 starts when 1.5.0 exists.
 
-## 7. Decisions needed
+## 7. Decisions (taken 2026-10-07)
 
-1. **Module in the viewer repo** (proposed) or a copy of the model package in the web. A copy is
-   faster today and diverges tomorrow.
-2. **Trace viewing for any signed-in user** (proposed; driver control stays deployer-only), or
-   keep it deployer-only.
-3. **Recordings and uploads per project under the data directory** with a size limit (proposed
-   1 GB), or outside the project.
-4. **Live stream without a driver** (the whole set, page filters; proposed) or one driver per
-   stream as now — the former is one LDAP event registration per server instead of one per
-   driver per user.
+1. **A `dirxml-trace-core` module in the viewer repository**, released beside the app; the web
+   depends on it by version. No copy of the model.
+2. **Trace viewing for any signed-in user**; start, stop, restart and trace level stay
+   deployer-only.
+3. **Recordings and uploads per project under the data directory**, 1 GB limit by default.
+4. **The live stream carries the whole driver set** and the page filters; one event registration
+   per server.

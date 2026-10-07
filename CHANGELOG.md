@@ -7,6 +7,21 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-10-07
+
+Needs DirXMLDev 0.12.0 (`driver.set --clear`, `driver.setting.add/remove`).
+
+### Security (hosted mode)
+
+- `POST /api/credentials/resolve` with a typed `command` needs the deployer role; an editor may
+  still resolve a saved credential by key. (#38)
+- Path-based setup (`/api/setup/project`, `/existing`, `/directory`) needs the deployer role, and
+  the path must lie under `setup.roots` (default: the data directory and `/srv`). (#41)
+- A token typed for a clone is written to `<data.dir>/secrets/<project>.repo.token` (owner-only)
+  and referenced as `tokenCommand`, never as a literal in `hosted.properties`. (#40)
+- A project used in place is one person's working copy: a second principal is refused, and the
+  workspace list shows it to its holder only. (#39)
+
 ### Added
 
 - Sessions survive a restart (`<data.dir>/sessions.json`, owner-only), a session timeout or a
@@ -19,6 +34,20 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   (`POST /api/packages/import`). (#36)
 - Settings: a value can be cleared to empty (`driver.set --clear`, DirXMLDev 0.12.0; the review
   says "cleared"). (#45)
+- CI: `.github/workflows/test.yml` runs the server's tests (DirXMLDev's and the simulator's jars
+  from their releases) and the page's tests and build on every pull request and push to main. (#43)
+- New driver, the whole of `driver.add`: from a Designer export (a driver export, or a driver-set
+  export with the driver picked from the file), from a base package with its features (mandatory
+  ones locked, optional ones chosen) and the packages' questions answered in a form, as a copy,
+  or blank. The same form answers a package's questions on the Packages view, so an install with
+  prompts no longer needs Operations. `GET /api/packages/prompts?packages=…&driver=…` (the
+  prompts' definitions, pre-populated by the package's prompt stylesheet); the catalog listing
+  carries each package's features, supported shims and whether it asks questions. (#31)
+- A loading bar with a spinner under the repository bar while a branch is opened ("Opening X —
+  cloning it on the server…"), the tree read and validated; the outline is shown before the
+  (slower) validation finishes, so the page is usable sooner.
+- MIT license (`LICENSE`, the pom and `package.json`); two screenshots in the README: adding a
+  project, a PRD workflow.
 
 ### Fixed
 
@@ -35,40 +64,6 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   XML (`driver.setting.add` / `remove`, DirXMLDev 0.12.0).
 - Podman: `CONTAINER=podman setup.sh …` for the one-person install (`podman compose` or
   `podman-compose`; `compose.podman.yml` keeps your uid in a rootless container). (#33)
-
-### Security (hosted mode)
-
-- `POST /api/credentials/resolve` with a typed `command` needs the deployer role; an editor may
-  still resolve a saved credential by key. (#38)
-- Path-based setup (`/api/setup/project`, `/existing`, `/directory`) needs the deployer role, and
-  the path must lie under `setup.roots` (default: the data directory and `/srv`). (#41)
-- A token typed for a clone is written to `<data.dir>/secrets/<project>.repo.token` (owner-only)
-  and referenced as `tokenCommand`, never as a literal in `hosted.properties`. (#40)
-- A project used in place is one person's working copy: a second principal is refused, and the
-  workspace list shows it to its holder only. (#39)
-
-### Added
-
-- CI: `.github/workflows/test.yml` runs the server's tests (DirXMLDev's and the simulator's jars
-  from their releases) and the page's tests and build on every pull request and push to main. (#43)
-
-### Added
-
-- New driver, the whole of `driver.add`: from a Designer export (a driver export, or a driver-set
-  export with the driver picked from the file), from a base package with its features (mandatory
-  ones locked, optional ones chosen) and the packages' questions answered in a form, as a copy,
-  or blank. The same form answers a package's questions on the Packages view, so an install with
-  prompts no longer needs Operations. `GET /api/packages/prompts?packages=…&driver=…` (the
-  prompts' definitions, pre-populated by the package's prompt stylesheet); the catalog listing
-  carries each package's features, supported shims and whether it asks questions. (#31)
-
-### Added
-
-- A loading bar with a spinner under the repository bar while a branch is opened ("Opening X —
-  cloning it on the server…"), the tree read and validated; the outline is shown before the
-  (slower) validation finishes, so the page is usable sooner.
-- MIT license (`LICENSE`, the pom and `package.json`); two screenshots in the README: adding a
-  project, a PRD workflow.
 
 ## [0.13.0] - 2026-10-06
 

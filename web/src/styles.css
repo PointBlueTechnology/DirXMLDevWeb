@@ -1191,3 +1191,7 @@ tr.newer td { background: color-mix(in srgb, var(--accent) 8%, transparent); }
 .checks { display: flex; flex-wrap: wrap; gap: 6px 14px; }
 
 .outline-filter { width: calc(100% - 16px); margin: 6px 8px 4px; padding: 4px 8px; font: inherit; font-size: 12px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); color: var(--text); }
+.nowrap { white-space: nowrap; }
+tr.warn-row td { background: color-mix(in srgb, var(--warn) 8%, transparent); }
+
+td.center { text-align: center; }

@@ -112,6 +112,7 @@ for developing it or for a quick look at a tree. Upgrading an install is pulling
 | [docs/limits.md](docs/limits.md) | what still goes through Operations or the CLI |
 | [docs/design.md](docs/design.md) | the assessment and the phases |
 | [docs/hosted.md](docs/hosted.md) | the hosted-mode design and its decisions |
+| [docs/event-logger.md](docs/event-logger.md) | the Event Logger integration: events as simulator cases, an Events view, the logger as a package (proposed) |
 | [CHANGELOG.md](CHANGELOG.md) | every release |
 
 ## License

@@ -63,6 +63,11 @@ public final class Hosted {
     public volatile Path repoSshKey;
     public final Path catalog;
     public final Path environmentsFile;
+
+    /** Where a person's environments come from: today the server's one file for everyone (per-person credentials follow in docs/multi-user.md U2). */
+    public EnvFiles envFiles(Session.Principal who) {
+        return EnvFiles.single(environmentsFile);
+    }
     public final String identity;
     public final List<String> editorGroups;
     public final List<String> deployerGroups;

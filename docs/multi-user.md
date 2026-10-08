@@ -1,6 +1,6 @@
 # Per-user data: design note
 
-Status: **decided 2026-10-08** (section 7); U1 in progress. Jerry's direction: "each user's workspace
+Status: **decided 2026-10-08** (section 7); U1 built (core 0.16.0, web `EnvFiles`), U2 next. Jerry's direction: "each user's workspace
 needs to be unique to them. They get their own data, their own connections, nothing shared —
 except perhaps secrets."
 

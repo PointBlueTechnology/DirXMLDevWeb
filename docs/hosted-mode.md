@@ -80,3 +80,22 @@ builds an image with the server, the page and the `idm` CLI on a JRE with git; t
 are mounted, never shipped. `hosted/docker/compose.yml` runs it behind Caddy (TLS) with Keycloak.
 **Agents** (CI, an MCP server) use the same server with `Authorization: Bearer <token>` from
 `agents=`, or the CLI with `docker exec idmweb idm …`; `bin/smoke-container.sh` proves the image.
+
+## Archiving and removing a project
+
+Deployers, from **Projects** in the sidebar (or `POST /api/setup/archive` and `/api/setup/remove`).
+
+- **Archive** puts a project away without losing anything: its repository is written as a git
+  bundle (`git bundle create … --all`: the complete history, every branch and tag; a remote is
+  mirrored first), then everything the server holds for it moves into
+  `data.dir/archive/<project>-<yyyymmdd-hhmmss>/` — `workspaces/`, every person's `traces/<subject>/`,
+  a repository the server made for it (`<project>.git`), its token file — and the project leaves
+  `hosted.properties`. `archive.properties` in that directory says what, when, by whom. The bundle
+  downloads from the Projects view (`GET /api/setup/archive/file?name=…`); `git clone <bundle>`
+  restores the repository anywhere. The directory stays until the operator removes it; the
+  server never deletes an archive.
+- **Remove** only forgets the project: its workspaces, recordings and a server-made repository
+  stay on disk (the start-up NOTICE names them). Use it when the repository lives elsewhere and
+  nothing on this server matters.
+
+Both are audited (`project.archive`, `project.remove`).

@@ -90,6 +90,15 @@ public class CredentialServiceSplitTest {
         assertTrue(defsText.contains("edir3.tier=stg"));
         assertFalse("bindDn is a person's, never a definition's", defsText.contains("bindDn"));
 
+        bob.save(req("name", "edir3", "eventsUrl", "db:5432/idmEvent", "eventsUser", "reader", "eventsPseudonymise", true));
+        assertTrue("the event store's location is a definition", Files.readString(defs).contains("edir3.eventsUrl=db:5432/idmEvent"));
+        bob.saveMine(req("name", "edir3", "bindDn", "cn=bob,o=x", "passwordStore", "file", "password", "pw", "eventsPasswordStore", "env:EV_PW"));
+        Map<String, Object> e3 = env(bob.list(), "edir3");
+        assertEquals("env", e3.get("eventsPassword"));
+        assertEquals("db:5432/idmEvent", e3.get("eventsUrl"));
+        assertTrue(Files.readString(mine).contains("edir3.eventsPasswordEnv=EV_PW"));
+        assertFalse("the event store's password is the person's", Files.readString(defs).contains("eventsPassword"));
+
         bob.saveMine(req("name", "lab", "url", "ldaps://mine:636", "driverSet", "cn=ds,o=mine", "bindDn", "cn=bob,o=mine", "passwordStore", "env:LAB_PW"));
         Map<String, Object> e = env(bob.list(), "lab");
         assertEquals(true, e.get("own"));

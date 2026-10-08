@@ -31,9 +31,9 @@ public final class CredentialService {
 
     private static final Pattern NAME = Pattern.compile("[A-Za-z0-9][A-Za-z0-9_.-]*");
     /** Properties of an environment the page may set, besides the password. */
-    private static final List<String> FIELDS = List.of("url", "bindDn", "driverSet", "tier", "trustAll", "requires", "sshHost", "sshUser", "secrets");
+    private static final List<String> FIELDS = List.of("url", "bindDn", "driverSet", "tier", "trustAll", "requires", "sshHost", "sshUser", "secrets", "eventsUrl", "eventsUser", "eventsTable", "eventsPseudonymise", "eventsTree");
     /** With two files (docs/multi-user.md): the project's definition holds these… */
-    private static final List<String> DEFINITION_FIELDS = List.of("url", "driverSet", "tier", "requires", "sshHost", "sshUser", "secrets");
+    private static final List<String> DEFINITION_FIELDS = List.of("url", "driverSet", "tier", "requires", "sshHost", "sshUser", "secrets", "eventsUrl", "eventsUser", "eventsTable", "eventsPseudonymise", "eventsTree");
     /** …and a person's credential holds these, plus the password. */
     private static final List<String> CREDENTIAL_FIELDS = List.of("bindDn", "trustAll");
     private static final String KEYCHAIN_PREFIX = "idm-";
@@ -129,6 +129,7 @@ public final class CredentialService {
                 e.put(field, props.get(n + "." + field));
             }
             e.put("password", sourceKind(mine, n + ".password"));
+            e.put("eventsPassword", sourceKind(mine, n + ".eventsPassword"));
             e.put("secretsFile", secretsFile(definitionsFile(), props, n).toString());
             e.put("secretsFileExists", Files.isRegularFile(secretsFile(definitionsFile(), props, n)));
             boolean connected = mine.get(n + ".bindDn") != null && sourceKind(mine, n + ".password") != null;
@@ -296,7 +297,8 @@ public final class CredentialService {
             }
         }
         List<String> notes = new ArrayList<>();
-        storePassword(pf, name, Json.asString(req.get("passwordStore")), Json.asString(req.get("password")), f, notes);
+        storePassword(pf, name, "password", Json.asString(req.get("passwordStore")), Json.asString(req.get("password")), f, notes);
+        storePassword(pf, name, "eventsPassword", Json.asString(req.get("eventsPasswordStore")), Json.asString(req.get("eventsPassword")), f, notes);
         pf.save();
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("name", name);
@@ -330,7 +332,8 @@ public final class CredentialService {
             }
         }
         List<String> notes = new ArrayList<>();
-        storePassword(pf, name, Json.asString(req.get("passwordStore")), Json.asString(req.get("password")), f, notes);
+        storePassword(pf, name, "password", Json.asString(req.get("passwordStore")), Json.asString(req.get("password")), f, notes);
+        storePassword(pf, name, "eventsPassword", Json.asString(req.get("eventsPasswordStore")), Json.asString(req.get("eventsPassword")), f, notes);
         pf.save();
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("name", name);
@@ -362,40 +365,40 @@ public final class CredentialService {
     }
 
     /** Where a given password goes, as {@link #save} documents; nothing when no store is named. */
-    private static void storePassword(PropertiesFile pf, String name, String store, String password, Path f, List<String> notes) throws IOException {
+    private static void storePassword(PropertiesFile pf, String name, String key, String store, String password, Path f, List<String> notes) throws IOException {
         if (store != null && !store.isBlank()) {
             if (store.equals("keychain") || store.equals("file")) {
                 if (password == null || password.isEmpty()) {
-                    throw new TreeService.BadRequest("no password given");
+                    throw new TreeService.BadRequest("no " + (key.equals("password") ? "password" : key) + " given");
                 }
             }
-            clearPassword(pf, name);
+            clearPassword(pf, name, key);
             if (store.equals("keychain")) {
                 if (!keychainAvailable()) {
                     throw new TreeService.BadRequest("the Keychain is macOS only; store the password in the file, an environment variable or a command");
                 }
-                String service = KEYCHAIN_PREFIX + name;
+                String service = KEYCHAIN_PREFIX + name + (key.equals("password") ? "" : "/" + key);
                 String account = pf.entries().getOrDefault(name + ".bindDn", "vault");
                 keychainPut(service, account, password);
-                pf.set(name + ".passwordKeychain", service + "/" + account);
-                notes.add("password stored in the Keychain as " + service + " / " + account);
+                pf.set(name + "." + key + "Keychain", service + "/" + account);
+                notes.add(key + " stored in the Keychain as " + service + " / " + account);
             } else if (store.equals("file")) {
-                pf.set(name + ".password", password);
-                notes.add("password stored as a literal in " + f + " (owner-only)");
+                pf.set(name + "." + key, password);
+                notes.add(key + " stored as a literal in " + f + " (owner-only)");
             } else if (store.startsWith("env:")) {
-                pf.set(name + ".passwordEnv", store.substring(4).trim());
+                pf.set(name + "." + key + "Env", store.substring(4).trim());
             } else if (store.startsWith("command:")) {
-                pf.set(name + ".passwordCommand", store.substring(8).trim());
+                pf.set(name + "." + key + "Command", store.substring(8).trim());
             } else {
                 throw new TreeService.BadRequest("passwordStore is keychain, file, env:VAR or command:…");
             }
         }
     }
 
-    private static void clearPassword(PropertiesFile pf, String name) {
-        pf.remove(name + ".password");
+    private static void clearPassword(PropertiesFile pf, String name, String key) {
+        pf.remove(name + "." + key);
         for (String form : SecretSource.FORMS) {
-            pf.remove(name + ".password" + form);
+            pf.remove(name + "." + key + form);
         }
     }
 

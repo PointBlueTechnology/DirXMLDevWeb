@@ -275,10 +275,18 @@ export interface VaultEnvironment {
   tier: string;
   ready: boolean;
   hasOverrides: boolean;
+  /** The project defines it (URL and driver set present). */
+  defined?: boolean;
+  /** The person has a bind DN and a password source for it. */
+  connected?: boolean;
+  /** Named only in the person's own file (a hosted server with two files). */
+  own?: boolean;
 }
 
 export interface VaultEnvironments {
   available: boolean;
+  /** A hosted server: the project's definitions and the person's credentials are two files. */
+  split?: boolean;
   why?: string;
   file?: string;
   environments: VaultEnvironment[];
@@ -612,8 +620,15 @@ export interface ConnectionEnv {
   sshHost: string | null;
   sshUser: string | null;
   secrets: string | null;
+  eventsUrl: string | null;
+  eventsUser: string | null;
+  eventsTable: string | null;
+  eventsPseudonymise: string | null;
+  eventsTree: string | null;
   /** How the password is configured: literal, env, command, keychain, or null for none. */
   password: string | null;
+  /** How the event store's password is configured, the same way; null for none. */
+  eventsPassword: string | null;
   secretsFile: string;
   secretsFileExists: boolean;
   ready: boolean;

@@ -44,25 +44,43 @@ export function useEnvironment(): { envs: VaultEnvironment[] | null; env: string
   return { envs, env, setEnv, why };
 }
 
-/** The environment as a select when there is a choice, as a name otherwise. */
+/** Why an environment is not ready: the person has not connected to one the project defines, or it is incomplete. */
+function notReady(e: VaultEnvironment): string {
+  return e.defined && !e.connected ? "set up your connection" : "not configured";
+}
+
+/**
+ * The environment as a select when there is a choice, as a name otherwise. One the person has
+ * not connected to says so, with the way to Connections.
+ */
 export function EnvPicker({ envs, env, setEnv, testid }: { envs: VaultEnvironment[]; env: string; setEnv: (name: string) => void; testid?: string }) {
   const chosen = envs.find((e) => e.name === env);
+  const hint =
+    chosen && !chosen.ready ? (
+      <a className="pill warn" href={"#type=connections&env=" + encodeURIComponent(chosen.name)} title="Open Connections for this environment">
+        {notReady(chosen)}
+      </a>
+    ) : null;
   if (envs.length <= 1) {
     return (
       <span className="envname" data-testid={testid}>
         <strong>{chosen?.name ?? env}</strong>
         {chosen && <span className={"pill tier-" + chosen.tier}> {chosen.tier}</span>}
+        {hint}
       </span>
     );
   }
   return (
-    <select value={env} onChange={(e) => setEnv(e.target.value)} data-testid={testid}>
-      {!chosen && <option value="">choose…</option>}
-      {envs.map((e) => (
-        <option key={e.name} value={e.name} disabled={!e.ready}>
-          {e.name} ({e.tier}){e.ready ? "" : " — not configured"}
-        </option>
-      ))}
-    </select>
+    <span className="envname">
+      <select value={env} onChange={(e) => setEnv(e.target.value)} data-testid={testid}>
+        {!chosen && <option value="">choose…</option>}
+        {envs.map((e) => (
+          <option key={e.name} value={e.name}>
+            {e.name} ({e.tier}){e.ready ? "" : " — " + notReady(e)}
+          </option>
+        ))}
+      </select>
+      {hint}
+    </span>
   );
 }

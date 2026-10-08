@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.25.0] - 2026-10-08
+
 ### Changed
 
 - **Definitions in full from the page** (docs/multi-user.md U4): the environment definition form

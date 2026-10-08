@@ -105,6 +105,7 @@ for developing it or for a quick look at a tree. Upgrading an install is pulling
 | [docs/quickstart.md](docs/quickstart.md) | one person, one container, one command |
 | [docs/features.md](docs/features.md) | every view, by area |
 | [docs/data-model.md](docs/data-model.md) | projects, workspaces, trees, environments and vaults: the entity relationship diagram |
+| [docs/multi-user.md](docs/multi-user.md) | design note: per-user connections, data and traces on a hosted server |
 | [docs/hosted-install.md](docs/hosted-install.md) | the container for a team: image, host layout, proxy, Keycloak, the lab |
 | [docs/hosted-mode.md](docs/hosted-mode.md) | hosted configuration: projects, repositories, identity (`none`, `oidc`), roles, agents |
 | [docs/security.md](docs/security.md) | what the server refuses, where credentials live, what never leaves it |

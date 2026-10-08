@@ -208,8 +208,30 @@ public final class Api implements HttpHandler {
                 return;
             }
             if (path.equals("/api/vault/trace") && method.equals("GET")) {
-                audit.log(session, w, "trace", Map.of("env", String.valueOf(query.get("env")), "driver", String.valueOf(query.get("driver")), "server", String.valueOf(query.get("server"))), "started");
+                audit.log(session, w, "trace", Map.of("env", String.valueOf(query.get("env")), "driver", String.valueOf(query.get("driver")), "server", String.valueOf(query.get("server")), "record", String.valueOf(query.get("record"))), "started");
                 trace(ex, w, query);
+                return;
+            }
+            if (path.equals("/api/traces/upload") && method.equals("POST")) {
+                // the raw body is the file (no multipart); the size is checked against the limit as it streams
+                String lenHeader = ex.getRequestHeaders().getFirst("Content-Length");
+                long len = lenHeader == null ? -1 : Long.parseLong(lenHeader);
+                String stored = w.traces.upload(query.get("name"), ex.getRequestBody(), len);
+                audit.log(session, w, "traces/upload", Map.of("name", stored, "bytes", String.valueOf(len)), "ok");
+                send(ex, 200, Map.of("ok", true, "name", stored));
+                return;
+            }
+            if (path.equals("/api/traces/file") && method.equals("GET")) {
+                java.nio.file.Path f = w.traces.path(required(query, "name"));
+                if (!java.nio.file.Files.isRegularFile(f)) {
+                    throw new TreeService.NotFound("no trace file " + query.get("name"));
+                }
+                ex.getResponseHeaders().set("Content-Type", "text/plain; charset=utf-8");
+                ex.getResponseHeaders().set("Content-Disposition", "attachment; filename=\"" + f.getFileName() + "\"");
+                ex.sendResponseHeaders(200, java.nio.file.Files.size(f));
+                try (OutputStream out = ex.getResponseBody()) {
+                    java.nio.file.Files.copy(f, out);
+                }
                 return;
             }
             Object body = route(session, w, method, path, query, ex);
@@ -355,6 +377,10 @@ public final class Api implements HttpHandler {
                     return vault.status(required(query, "env"));
                 case "/api/vault/servers":
                     return vault.servers(required(query, "env"));
+                case "/api/traces":
+                    return Map.of("dir", w.traces.dir().toString(), "files", w.traces.list());
+                case "/api/traces/records":
+                    return w.traces.records(required(query, "name"), query.get("from") == null ? 0 : Integer.parseInt(query.get("from")), query.get("count") == null ? 15000 : Integer.parseInt(query.get("count")), TraceFiles.channels(query.get("channels")), query.get("driver"), query.get("text"));
                 case "/api/vault/cache":
                     return vault.cacheView(required(query, "env"), required(query, "driver"), query.get("count") == null ? 200 : Integer.parseInt(query.get("count")));
                 case "/api/eventlog/describe":
@@ -419,6 +445,11 @@ public final class Api implements HttpHandler {
                 default:
                     break;
             }
+        }
+        if (method.equals("POST") && path.equals("/api/traces/delete")) {
+            Map<String, Object> req = Json.asMap(Json.parse(new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8)));
+            w.traces.delete(Json.asString(req.get("name")));
+            return Map.of("ok", true);
         }
         if (method.equals("POST") && (path.startsWith("/api/vault/") || path.equals("/api/eventlog/case"))) {
             Map<String, Object> req = Json.asMap(Json.parse(new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8)));
@@ -497,9 +528,15 @@ public final class Api implements HttpHandler {
         }, "trace-beat");
         beat.setDaemon(true);
         beat.start();
+        com.pointbluetech.dirxml.trace.model.TraceFileWriter recording = null;
         try {
+            // record=true: every record of the stream, unfiltered, into a file the Trace files view lists
+            if ("true".equals(query.get("record"))) {
+                recording = w.traces.record(required(query, "env"), query.get("driver"));
+            }
+            final com.pointbluetech.dirxml.trace.model.TraceFileWriter rec = recording;
             synchronized (lock) {
-                write(out, "event: open\ndata: {}\n\n");
+                write(out, "event: open\ndata: " + Json.compact(rec == null ? Map.of() : Map.of("recording", w.traces.dir().relativize(rec.path()).toString().replace('\\', '/'))) + "\n\n");
             }
             vault.trace(required(query, "env"), query.get("driver"), "true".equals(query.get("engine")), query.get("server"), record -> {
                 try {
@@ -508,6 +545,14 @@ public final class Api implements HttpHandler {
                     }
                 } catch (IOException e) {
                     me.interrupt();
+                }
+            }, rec == null ? null : r -> {
+                try {
+                    synchronized (lock) {
+                        rec.write(r, false);   // no server tag: the reader would not see the header behind it
+                    }
+                } catch (IOException e) {
+                    // the recording stops; the stream goes on
                 }
             });
         } catch (InterruptedException e) {
@@ -521,6 +566,13 @@ public final class Api implements HttpHandler {
                 // nobody is listening
             }
         } finally {
+            if (recording != null) {
+                try {
+                    recording.close();
+                } catch (IOException ignore) {
+                    // closing
+                }
+            }
             beat.interrupt();
             Thread.interrupted();
             try {

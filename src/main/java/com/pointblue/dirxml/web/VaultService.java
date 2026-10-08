@@ -535,6 +535,11 @@ public final class VaultService {
      */
     @SuppressWarnings("unchecked")
     public void trace(String envName, String driver, boolean engineToo, String serverDn, Consumer<Map<String, Object>> sink) throws Exception {
+        trace(envName, driver, engineToo, serverDn, sink, null);
+    }
+
+    /** As above, with every parsed record (before the driver filter) also handed to {@code raw} — the recording. */
+    public void trace(String envName, String driver, boolean engineToo, String serverDn, Consumer<Map<String, Object>> sink, Consumer<com.pointbluetech.dirxml.trace.model.TraceRecord> raw) throws Exception {
         Environments.Environment e = env(envName);
         List<TraceService.Source> sources = new ArrayList<>();
         List<Map<String, Object>> servers = (List<Map<String, Object>>) servers(envName).get("servers");
@@ -557,7 +562,7 @@ public final class VaultService {
             }
             sources.add(new TraceService.Source(e.name, e.url));
         }
-        TraceService.stream(e, sources, driver, engineToo, sink);
+        TraceService.stream(e, sources, driver, engineToo, sink, raw);
     }
 
     /**

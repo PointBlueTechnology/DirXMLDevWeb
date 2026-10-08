@@ -106,6 +106,8 @@ public final class Workspaces {
             if (w == null) {
                 String current = git.run(p.inPlace, "rev-parse", "--abbrev-ref", "HEAD").out.trim();
                 w = Workspace.open(id, current.isEmpty() ? "HEAD" : current, p.inPlace, p.inPlace.resolve(p.tree).normalize(), p.inPlace.resolve(p.cases).normalize(), hosted.catalog);
+
+                w.traces = new TraceFiles(hosted.dataDir.resolve("traces").resolve(safe(p.name)));
                 open.put(id, w);
             }
             return w;
@@ -123,6 +125,8 @@ public final class Workspaces {
             git.checkout(p.url, branch, p.base, dir);
         }
         w = Workspace.open(id, branch, dir, dir.resolve(p.tree).normalize(), dir.resolve(p.cases).normalize(), hosted.catalog);
+
+        w.traces = new TraceFiles(hosted.dataDir.resolve("traces").resolve(safe(p.name)));
         open.put(id, w);
         return w;
     }

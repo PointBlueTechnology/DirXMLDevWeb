@@ -1295,3 +1295,12 @@ table.grid tr.detail td { background: var(--bg); padding-top: 4px; padding-botto
 
 .cachepanel { margin-top: 10px; }
 .cachepanel .danger { color: var(--err); border-color: var(--err); }
+
+.tv .tvlink { cursor: pointer; text-decoration: underline dotted; text-underline-offset: 2px; }
+.tv .tvlink:hover { background: rgba(255,255,255,0.12); }
+
+/* the compare view's diff: which side is which */
+.difflegend { display: flex; gap: 16px; margin: 4px 0 2px; }
+.diffside.vault { color: var(--err); } .diffside.tree { color: var(--ok); }
+.diffline.vault { color: var(--err); background: color-mix(in srgb, var(--err) 8%, transparent); }
+.diffline.tree { color: var(--ok); background: color-mix(in srgb, var(--ok) 8%, transparent); }

@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { api } from "../api";
 import { usePending } from "../pending";
 import { invalidateSchema, loadClass } from "../schema";
-import type { SchemaActionResult, SchemaClass, SchemaData, VaultEnvironment } from "../types";
+import { EnvPicker, useEnvironment } from "../env";
+import type { SchemaActionResult, SchemaClass, SchemaData } from "../types";
 import { PendingBar } from "./PendingBar";
 
 const SYNTAXES: [string, string][] = [
@@ -26,8 +27,7 @@ export function SchemaView({ revision, onSaved }: { revision: string; onSaved: (
   const [tab, setTab] = useState<"classes" | "attributes">("classes");
   const [filter, setFilter] = useState("");
   const [open, setOpen] = useState<Record<string, SchemaClass | null>>({});
-  const [envs, setEnvs] = useState<VaultEnvironment[]>([]);
-  const [env, setEnv] = useState("");
+  const { envs, env, setEnv } = useEnvironment();
   const [busy, setBusy] = useState<string | null>(null);
   const [result, setResult] = useState<SchemaActionResult | null>(null);
   const [confirm, setConfirm] = useState("");
@@ -43,15 +43,6 @@ export function SchemaView({ revision, onSaved }: { revision: string; onSaved: (
       .catch((e: Error) => setError(e.message));
   };
   useEffect(load, [revision]);
-  useEffect(() => {
-    api
-      .vault.environments()
-      .then((v) => {
-        setEnvs(v.environments);
-        setEnv((cur) => cur || v.environments[0]?.name || "");
-      })
-      .catch(() => setEnvs([]));
-  }, []);
 
   const act = (what: string, run: () => Promise<SchemaActionResult>) => {
     setBusy(what);
@@ -107,14 +98,7 @@ export function SchemaView({ revision, onSaved }: { revision: string; onSaved: (
             <span className="muted small">The tree has no schema yet. Read it from a vault, or import a Designer project (its copy comes along).</span>
           )}
           <span className="spacer" />
-          <select value={env} onChange={(e) => setEnv(e.target.value)} data-testid="schema-env">
-            {envs.length === 0 && <option value="">no environment</option>}
-            {envs.map((e) => (
-              <option key={e.name} value={e.name}>
-                {e.name} ({e.tier})
-              </option>
-            ))}
-          </select>
+          {envs && envs.length > 0 ? <EnvPicker envs={envs} env={env} setEnv={setEnv} testid="schema-env" /> : <span className="muted small">no environment</span>}
           <button disabled={!env || busy !== null} onClick={() => act("refresh", () => api.vault.refreshSchema(env))} title="Read cn=schema of the environment into the tree (a read of the vault)" data-testid="schema-refresh">
             {busy === "refresh" ? "Reading…" : "Refresh from vault"}
           </button>

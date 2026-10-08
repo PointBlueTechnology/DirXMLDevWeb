@@ -30,6 +30,7 @@ project.customer-a.repo.inPlace=/srv/customer-a   # a checkout used in place ins
 repo.tokenKeychain=idm-repo/token       # a token for https remotes (project.<name>.repo.token for one project's own)
 catalog.dir=/srv/idm/catalog
 environments.file=/etc/idmweb/environments.properties
+project.<name>.environments=edir3,edir3-prd   # optional: the environments (names from that file) this project's tree is deployed to; without it, every environment is offered
 identity=none                           # none (loopback only, for a trusted host) or oidc
 none.users=alice:Alice:alice@example.com:idm-editors;bob:Bob:bob@example.com:idm-deployers
 roles.editor=idm-editors,idm-deployers

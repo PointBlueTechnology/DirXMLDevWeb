@@ -17,6 +17,8 @@ public final class Project {
     public volatile String base;
     public volatile String token;      // for an https remote, or null (the server's repo.token applies)
     public volatile Path sshKey;       // or null (the server's repo.sshKey applies)
+    /** The environments (names from the environments file) this tree is deployed to; empty = every one the file names. */
+    public volatile java.util.List<String> environments = java.util.List.of();
 
     public Project(String name, String url, Path inPlace, String tree, String cases, String base, String token, Path sshKey) {
         this.name = name;

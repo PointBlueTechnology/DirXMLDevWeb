@@ -41,7 +41,21 @@ public final class VaultService {
         this.tree = tree.toAbsolutePath().normalize();
     }
 
-    private static Environments.Environment env(String name) throws IOException {
+    /** The environments this tree is deployed to (hosted: the project's list); empty = every one the file names. */
+    private volatile List<String> environmentFilter = List.of();
+
+    public void setEnvironmentFilter(List<String> names) {
+        this.environmentFilter = names == null ? List.of() : List.copyOf(names);
+    }
+
+    private boolean offered(String name) {
+        return environmentFilter.isEmpty() || environmentFilter.contains(name);
+    }
+
+    private Environments.Environment env(String name) throws IOException {
+        if (name != null && !offered(name)) {
+            throw new TreeService.BadRequest("environment '" + name + "' is not one of this project's (" + String.join(", ", environmentFilter) + ")");
+        }
         if (name == null || name.isBlank()) {
             throw new TreeService.BadRequest("no environment named");
         }
@@ -60,6 +74,9 @@ public final class VaultService {
             Environments envs = Environments.load();
             m.put("file", envs.file().toString());
             for (Environments.Described d : envs.describe()) {
+                if (!offered(d.name)) {
+                    continue;
+                }
                 Map<String, Object> e = new LinkedHashMap<>();
                 e.put("name", d.name);
                 e.put("tier", d.tier);

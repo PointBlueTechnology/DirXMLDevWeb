@@ -1,6 +1,6 @@
 import type { CacheView, CaseFiles, CasePlan, EventDetail, EventRow, EventsDescribe, TraceFileEntry } from "./types";
 import type { TraceRec } from "./trace/model";
-import type { AppSchema, SchemaDiffResult, Artifact, AuditEntry, BuildResult, ConfigView, Connections, DeployResult, EnvSecrets, FetchResult, FormData as FormDoc, GitDiff, GitStatus, ImportResult, LifecycleResult, OpCall, OpResult, OpSpec, Outline, OverridesData, PackagePrompts, PackagesData, PrdData, RoleCatalog, SchemaActionResult, SchemaClass, SchemaData, Session, SetupResult, SimCaseFiles, SimCases, SimDetail, SimRun, SiteListing, TreeFile, UpdateSites, Validation, VaultDiffResult, VaultEnvironments, VaultStatus, WorkspacesInfo } from "./types";
+import type { AppSchema, SchemaDiffResult, ProjectArchive, ProjectArchiveResult, Artifact, AuditEntry, BuildResult, ConfigView, Connections, DeployResult, EnvSecrets, FetchResult, FormData as FormDoc, GitDiff, GitStatus, ImportResult, LifecycleResult, OpCall, OpResult, OpSpec, Outline, OverridesData, PackagePrompts, PackagesData, PrdData, RoleCatalog, SchemaActionResult, SchemaClass, SchemaData, Session, SetupResult, SimCaseFiles, SimCases, SimDetail, SimRun, SiteListing, TreeFile, UpdateSites, Validation, VaultDiffResult, VaultEnvironments, VaultStatus, WorkspacesInfo } from "./types";
 import type { FishboneModel } from "./fishbone/types";
 
 /**
@@ -102,6 +102,10 @@ export const api = {
     directory: (project: string, path: string) => call<SetupResult>("POST", "/api/setup/directory", { project, path }),
     clone: (project: string, url: string, token: string, base: string) => call<SetupResult>("POST", "/api/setup/clone", { project, url, token, base }),
     remove: (project: string) => call<{ removed: string }>("POST", "/api/setup/remove", { project }),
+    /** Bundle the repository, move the project's data aside, forget it (deployers, #76). */
+    archive: (project: string) => call<ProjectArchiveResult>("POST", "/api/setup/archive", { project }),
+    archives: () => call<{ dir: string; archives: ProjectArchive[] }>("GET", "/api/setup/archives"),
+    archiveFileUrl: (name: string) => `/api/setup/archive/file?name=${q(name)}${tokenForLink() ? `&token=${encodeURIComponent(tokenForLink())}` : ""}`,
     /** A Designer project (zip) or export (xml), streamed as the request body. */
     upload: async (project: string, kind: "project" | "export", file: File): Promise<SetupResult> => {
       const res = await fetch(`/api/setup/upload?kind=${kind}&project=${encodeURIComponent(project)}&name=${encodeURIComponent(file.name)}`, {

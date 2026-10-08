@@ -7,6 +7,15 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- **Projects view** for deployers on a hosted server (#76): every project with **Archive…** —
+  the repository as a git bundle (complete history), the project's workspaces, recordings,
+  server-made repository and token moved into `data.dir/archive/<project>-<when>/`, the project
+  forgotten; the bundle downloads from the page — and **Remove…**, the plain forget. Past archives
+  are listed with what they hold. (`POST /api/setup/archive`, `GET /api/setup/archives`,
+  `GET /api/setup/archive/file`; audited as `project.archive`.)
+
 ## [0.26.0] - 2026-10-08
 
 ### Added

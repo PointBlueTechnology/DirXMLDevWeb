@@ -37,9 +37,12 @@ public final class Api implements HttpHandler {
     private final Map<String, String> agentSessions = new java.util.concurrent.ConcurrentHashMap<>();
     private SetupService setup;              // hosted mode only
 
-    /** Hosted mode: the first-run setup (the connections view before any workspace is open is built per session). */
-    public Api withSetup(SetupService setup) {
+    private ArchiveService archive;          // hosted mode only (#76)
+
+    /** Hosted mode: the first-run setup (the connections view before any workspace is open is built per session), and project archives. */
+    public Api withSetup(SetupService setup, ArchiveService archive) {
         this.setup = setup;
+        this.archive = archive;
         return this;
     }
 
@@ -183,6 +186,19 @@ public final class Api implements HttpHandler {
             }
             if (path.equals("/api/session") || path.startsWith("/api/workspaces")) {
                 send(ex, 200, path.equals("/api/session") ? sessionInfo(session) : workspaceRoute(session, method, path, query, ex));
+                return;
+            }
+            if (path.equals("/api/setup/archive/file") && method.equals("GET") && archive != null) {
+                if (!session.principal.deployer) {
+                    throw new Forbidden("an archive is the deployer's");
+                }
+                java.nio.file.Path f = archive.bundle(required(query, "name"));
+                ex.getResponseHeaders().set("Content-Type", "application/octet-stream");
+                ex.getResponseHeaders().set("Content-Disposition", "attachment; filename=\"" + f.getFileName() + "\"");
+                ex.sendResponseHeaders(200, java.nio.file.Files.size(f));
+                try (OutputStream out = ex.getResponseBody()) {
+                    java.nio.file.Files.copy(f, out);
+                }
                 return;
             }
             if (path.startsWith("/api/setup") && setup != null) {
@@ -668,6 +684,12 @@ public final class Api implements HttpHandler {
         if (method.equals("GET") && path.equals("/api/setup/driversets")) {
             return setup.driverSets(session, required(query, "env"));
         }
+        if (method.equals("GET") && path.equals("/api/setup/archives")) {
+            if (!session.principal.deployer) {
+                throw new Forbidden("archives are the deployer's");
+            }
+            return Map.of("dir", archive.root().toString(), "archives", archive.list());
+        }
         if (!method.equals("POST")) {
             throw new TreeService.NotFound("no such endpoint: " + method + " " + path);
         }
@@ -676,8 +698,8 @@ public final class Api implements HttpHandler {
         }
         // attaching a path of this host (a checkout in place, a repository, a directory of files) is the
         // deployer's (#41); an upload, a vault export or a clone stays an editor's
-        if (!session.principal.deployer && (path.equals("/api/setup/project") || path.equals("/api/setup/existing") || path.equals("/api/setup/directory"))) {
-            throw new Forbidden("attaching a path on this host needs the deployer role");
+        if (!session.principal.deployer && (path.equals("/api/setup/project") || path.equals("/api/setup/existing") || path.equals("/api/setup/directory") || path.equals("/api/setup/archive") || path.equals("/api/setup/remove"))) {
+            throw new Forbidden("attaching a path on this host, archiving or removing a project needs the deployer role");
         }
         if (path.equals("/api/setup/upload")) {
             return setup.fromUpload(session, query.get("project"), query.get("kind"), query.get("name"), ex.getRequestBody());
@@ -697,6 +719,8 @@ public final class Api implements HttpHandler {
                 return setup.cloneRemote(session, project, Json.asString(req.get("url")), Json.asString(req.get("token")), Json.asString(req.get("base")));
             case "/api/setup/remove":
                 return setup.remove(session, project);
+            case "/api/setup/archive":
+                return archive.archive(session, project);
             default:
                 throw new TreeService.NotFound("no such endpoint: " + method + " " + path);
         }

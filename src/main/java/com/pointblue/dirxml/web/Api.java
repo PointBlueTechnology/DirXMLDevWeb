@@ -386,6 +386,8 @@ public final class Api implements HttpHandler {
                     return vault.environments();
                 case "/api/vault/diff":
                     return vault.diff(required(query, "env"), list(query.get("driver")));
+                case "/api/vault/schema-diff":
+                    return vault.schemaDiff(required(query, "env"), query.get("other"));
                 case "/api/vault/status":
                     return vault.status(required(query, "env"));
                 case "/api/vault/servers":

@@ -1,6 +1,6 @@
 import type { CacheView, CaseFiles, CasePlan, EventDetail, EventRow, EventsDescribe, TraceFileEntry } from "./types";
 import type { TraceRec } from "./trace/model";
-import type { AppSchema, Artifact, AuditEntry, BuildResult, ConfigView, Connections, DeployResult, EnvSecrets, FetchResult, FormData as FormDoc, GitDiff, GitStatus, ImportResult, LifecycleResult, OpCall, OpResult, OpSpec, Outline, OverridesData, PackagePrompts, PackagesData, PrdData, RoleCatalog, SchemaActionResult, SchemaClass, SchemaData, Session, SetupResult, SimCaseFiles, SimCases, SimDetail, SimRun, SiteListing, TreeFile, UpdateSites, Validation, VaultDiffResult, VaultEnvironments, VaultStatus, WorkspacesInfo } from "./types";
+import type { AppSchema, SchemaDiffResult, Artifact, AuditEntry, BuildResult, ConfigView, Connections, DeployResult, EnvSecrets, FetchResult, FormData as FormDoc, GitDiff, GitStatus, ImportResult, LifecycleResult, OpCall, OpResult, OpSpec, Outline, OverridesData, PackagePrompts, PackagesData, PrdData, RoleCatalog, SchemaActionResult, SchemaClass, SchemaData, Session, SetupResult, SimCaseFiles, SimCases, SimDetail, SimRun, SiteListing, TreeFile, UpdateSites, Validation, VaultDiffResult, VaultEnvironments, VaultStatus, WorkspacesInfo } from "./types";
 import type { FishboneModel } from "./fishbone/types";
 
 /**
@@ -198,6 +198,8 @@ export const api = {
     refreshSchema: (env: string) => call<SchemaActionResult>("POST", "/api/vault/schema", { env }),
     refreshAppSchema: (env: string, driver: string) => call<SchemaActionResult>("POST", "/api/vault/app-schema", { env, driver }),
     deploySchema: (env: string, confirm?: string) => call<SchemaActionResult>("POST", "/api/vault/deploy-schema", { env, confirm: confirm ?? "" }),
+    /** The model's schema against the environment's live one, or (with `other`) two environments' live schemas; nothing written. */
+    schemaDiff: (env: string, other?: string) => call<SchemaDiffResult>("GET", `/api/vault/schema-diff?env=${q(env)}${other ? `&other=${q(other)}` : ""}`),
     diff: (env: string, drivers: string[]) => call<VaultDiffResult>("GET", `/api/vault/diff?env=${q(env)}${drivers.map((d) => `&driver=${q(d)}`).join("")}`),
     plan: (env: string, drivers: string[], restart: boolean) => call<DeployResult>("POST", "/api/vault/plan", { env, drivers, restart }),
     /** `confirm` is the environment's name, typed by the person: the server refuses anything else. */

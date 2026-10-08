@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.22.0] - 2026-10-08
+
 ### Changed
 
 - **Environments come from an explicit pair of files** (docs/multi-user.md U1): every service

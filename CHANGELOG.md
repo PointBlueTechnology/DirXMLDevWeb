@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-10-08
+
 Needs DirXMLDev 0.15.0 and its PostgreSQL JDBC jar (`postgresql-42.7.7.jar`, attached to the core's release; the launchers take it from `~/.m2`, the image carries it).
 
 ### Added

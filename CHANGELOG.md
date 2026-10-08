@@ -7,6 +7,15 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- **Schema compare** (#77; needs DirXMLDev 0.17.0): *Compare with vault* on the Schema tab sets the
+  tree's `schema/vault.xml` against the chosen environment's live `cn=schema` — only here, only
+  there, or in both with another syntax, OID, flag, superclass or attribute list — with a custom
+  definition not yet pushed marked; *against* another environment compares two live schemas;
+  *All environments* fills a matrix of every environment of the project against the model.
+  Nothing written. (`GET /api/vault/schema-diff?env=E[&other=F]`.)
+
 ## [0.25.0] - 2026-10-08
 
 ### Changed

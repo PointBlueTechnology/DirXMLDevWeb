@@ -29,6 +29,9 @@ Every view of the page, by area, in every install; the items marked *local and s
   from a vault's schema. The same schema fills the pickers: eDirectory class and attribute
   fields in the filter, the schema map and the entity editor offer its names, attributes
   narrowed to the class.
+  *Compare with vault* sets the tree's copy against an environment's live schema (or two
+  environments against each other), and a matrix shows every environment of the project against
+  the model; nothing written (#77).
 - **Events** (a tab on the Vault view, per environment): the Event Logger's store — an object's
   timeline, a subtree, a driver, a policy's logged documents, types, class, a time window, free
   text, a modified attribute; a row with its modify diff, JSON and XML and the other rows of the

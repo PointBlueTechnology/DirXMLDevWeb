@@ -62,11 +62,21 @@ public final class Hosted {
     public final String repoUser;
     public volatile Path repoSshKey;
     public final Path catalog;
+    /** The project's environment definitions, no secrets (docs/multi-user.md); the driver secrets sit beside it. */
     public final Path environmentsFile;
+    /** Each person's own directory: credentials, profile. */
+    public final UserData users;
 
-    /** Where a person's environments come from: today the server's one file for everyone (per-person credentials follow in docs/multi-user.md U2). */
-    public EnvFiles envFiles(Session.Principal who) {
-        return EnvFiles.single(environmentsFile);
+    /**
+     * Where a person's environments come from: the definitions merged with their own credentials
+     * file. The person's directory is created (and their profile touched) on first use.
+     */
+    public EnvFiles envFiles(Session.Principal who) throws IOException {
+        if (who == null) {
+            return EnvFiles.single(environmentsFile);
+        }
+        users.touch(who);
+        return EnvFiles.split(environmentsFile, users.credentials(who));
     }
     public final String identity;
     public final List<String> editorGroups;
@@ -111,6 +121,7 @@ public final class Hosted {
         this.catalog = cat == null || cat.isBlank() ? null : Path.of(cat.trim());
         String env = p.getProperty("environments.file");
         this.environmentsFile = env == null || env.isBlank() ? dataDir.resolve("environments.properties") : Path.of(env.trim());
+        this.users = new UserData(dataDir);
         this.identity = p.getProperty("identity", "none").trim();
         this.editorGroups = list(p.getProperty("roles.editor", "*"));
         this.deployerGroups = list(p.getProperty("roles.deployer", ""));

@@ -7,6 +7,18 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- **Per-person connections on a hosted server** (docs/multi-user.md U2). The environments file
+  is now the project's *definitions* — vault URL, driver set, tier, prerequisite, SSH host, event
+  store — and holds no password: the server refuses to start while it does, naming the keys. Each
+  person's bind DN and password source live in their own `data.dir/users/<subject>/
+  environments.properties` (`0600`), written from **Connections → My connections** by any
+  signed-in role; the definitions are edited by deployers. A name the project does not define is
+  the person's own environment. Driver secrets stay beside the definitions, deployer-only.
+  (`POST /api/credentials/mine`, `/api/credentials/mine/remove`; `GET /api/credentials` carries
+  `split`, `defined`, `own`, `connected`.)
+
 ## [0.22.0] - 2026-10-08
 
 ### Changed

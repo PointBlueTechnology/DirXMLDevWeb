@@ -32,6 +32,10 @@ public final class CredentialService {
     private static final Pattern NAME = Pattern.compile("[A-Za-z0-9][A-Za-z0-9_.-]*");
     /** Properties of an environment the page may set, besides the password. */
     private static final List<String> FIELDS = List.of("url", "bindDn", "driverSet", "tier", "trustAll", "requires", "sshHost", "sshUser", "secrets");
+    /** With two files (docs/multi-user.md): the project's definition holds these… */
+    private static final List<String> DEFINITION_FIELDS = List.of("url", "driverSet", "tier", "requires", "sshHost", "sshUser", "secrets");
+    /** …and a person's credential holds these, plus the password. */
+    private static final List<String> CREDENTIAL_FIELDS = List.of("bindDn", "trustAll");
     private static final String KEYCHAIN_PREFIX = "idm-";
 
     private final Path tree;
@@ -45,6 +49,35 @@ public final class CredentialService {
     /** The file the page's entries go to: the person's credentials, or the one file. */
     private Path environmentsFile() {
         return files.writeTarget();
+    }
+
+    /** The definitions (two files) or the one file: where the driver secrets and the non-secret keys live. */
+    private Path definitionsFile() {
+        return files.definitions();
+    }
+
+    private static Map<String, String> entries(Path f) throws IOException {
+        return Files.isRegularFile(f) ? new PropertiesFile(f).entries() : Map.of();
+    }
+
+    /** Every key the core would see: the definitions, then the person's keys over them. */
+    private Map<String, String> merged() throws IOException {
+        Map<String, String> m = new LinkedHashMap<>(entries(definitionsFile()));
+        if (files.isSplit()) {
+            m.putAll(entries(files.credentials()));
+        }
+        return m;
+    }
+
+    private static List<String> namesOf(Map<String, String> props) {
+        List<String> names = new ArrayList<>();
+        for (String k : props.keySet()) {
+            int dot = k.indexOf('.');
+            if (dot > 0 && !names.contains(k.substring(0, dot))) {
+                names.add(k.substring(0, dot));
+            }
+        }
+        return names;
     }
 
     static boolean keychainAvailable() {
@@ -77,36 +110,42 @@ public final class CredentialService {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("file", f.toString());
         m.put("exists", Files.isRegularFile(f));
+        m.put("split", files.isSplit());
+        if (files.isSplit()) {
+            m.put("definitions", definitionsFile().toString());
+        }
         m.put("keychain", keychainAvailable());
         m.put("helpers", Paths.get(System.getProperty("idmweb.home", System.getProperty("user.dir")), "bin", "secrets").toAbsolutePath().normalize().toString());
         List<Object> envs = new ArrayList<>();
-        if (Files.isRegularFile(f)) {
-            Map<String, String> props = new PropertiesFile(f).entries();
-            List<String> names = new ArrayList<>();
-            for (String k : props.keySet()) {
-                int dot = k.indexOf('.');
-                if (dot > 0 && !names.contains(k.substring(0, dot))) {
-                    names.add(k.substring(0, dot));
-                }
+        Map<String, String> defs = entries(definitionsFile());
+        Map<String, String> mine = files.isSplit() ? entries(files.credentials()) : defs;
+        Map<String, String> props = merged();
+        List<String> names = namesOf(props);
+        List<String> defined = namesOf(defs);
+        for (String n : names) {
+            Map<String, Object> e = new LinkedHashMap<>();
+            e.put("name", n);
+            for (String field : FIELDS) {
+                e.put(field, props.get(n + "." + field));
             }
-            for (String n : names) {
-                Map<String, Object> e = new LinkedHashMap<>();
-                e.put("name", n);
-                for (String field : FIELDS) {
-                    e.put(field, props.get(n + "." + field));
-                }
-                e.put("password", sourceKind(props, n + ".password"));
-                e.put("secretsFile", secretsFile(f, props, n).toString());
-                e.put("secretsFileExists", Files.isRegularFile(secretsFile(f, props, n)));
-                boolean ready = props.get(n + ".url") != null && props.get(n + ".bindDn") != null && props.get(n + ".driverSet") != null && sourceKind(props, n + ".password") != null;
-                e.put("ready", ready);
-                envs.add(e);
+            e.put("password", sourceKind(mine, n + ".password"));
+            e.put("secretsFile", secretsFile(definitionsFile(), props, n).toString());
+            e.put("secretsFileExists", Files.isRegularFile(secretsFile(definitionsFile(), props, n)));
+            boolean connected = mine.get(n + ".bindDn") != null && sourceKind(mine, n + ".password") != null;
+            boolean ready = props.get(n + ".url") != null && props.get(n + ".driverSet") != null && connected;
+            e.put("ready", ready);
+            if (files.isSplit()) {
+                e.put("defined", defined.contains(n));
+                e.put("own", !defined.contains(n));
+                e.put("connected", connected);
             }
+            envs.add(e);
         }
         m.put("environments", envs);
         return m;
     }
 
+    /** The driver secrets file: beside the definitions, shared by everyone who deploys there. */
     private static Path secretsFile(Path envFile, Map<String, String> props, String env) {
         String s = props.get(env + ".secrets");
         Path dir = envFile.getParent() == null ? Paths.get(".") : envFile.getParent();
@@ -226,6 +265,27 @@ public final class CredentialService {
      */
     public Map<String, Object> save(Map<String, Object> req) throws IOException {
         String name = nameOk(Json.asString(req.get("name")));
+        if (files.isSplit()) {
+            // the project's definition: no secret, no bind identity — those are each person's own
+            if (req.get("password") != null || req.get("passwordStore") != null) {
+                throw new TreeService.BadRequest("a password belongs to your own connection (My connections), not to the project's definition");
+            }
+            Path f = definitionsFile();
+            PropertiesFile pf = new PropertiesFile(f);
+            for (String field : DEFINITION_FIELDS) {
+                if (req.containsKey(field)) {
+                    Object v = req.get(field);
+                    String s = v == null ? null : String.valueOf(v).trim();
+                    pf.set(name + "." + field, s == null || s.isEmpty() ? null : s);
+                }
+            }
+            pf.save();
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("name", name);
+            m.put("file", f.toString());
+            m.put("notes", List.of());
+            return m;
+        }
         Path f = environmentsFile();
         PropertiesFile pf = new PropertiesFile(f);
         for (String field : FIELDS) {
@@ -235,9 +295,74 @@ public final class CredentialService {
                 pf.set(name + "." + field, s == null || s.isEmpty() || "false".equals(s) && field.equals("trustAll") ? null : s);
             }
         }
-        String store = Json.asString(req.get("passwordStore"));
-        String password = Json.asString(req.get("password"));
         List<String> notes = new ArrayList<>();
+        storePassword(pf, name, Json.asString(req.get("passwordStore")), Json.asString(req.get("password")), f, notes);
+        pf.save();
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("name", name);
+        m.put("file", f.toString());
+        m.put("notes", notes);
+        return m;
+    }
+
+    /**
+     * A person's own connection to an environment (two files only): their bind DN, trust choice and
+     * where their password comes from. For a name the project does not define, their file takes the
+     * definition fields too (an environment of their own).
+     */
+    public Map<String, Object> saveMine(Map<String, Object> req) throws IOException {
+        if (!files.isSplit()) {
+            throw new TreeService.BadRequest("this server keeps one environments file; use the environment form");
+        }
+        String name = nameOk(Json.asString(req.get("name")));
+        boolean defined = namesOf(entries(definitionsFile())).contains(name);
+        Path f = files.credentials();
+        PropertiesFile pf = new PropertiesFile(f);
+        List<String> fields = new ArrayList<>(CREDENTIAL_FIELDS);
+        if (!defined) {
+            fields.addAll(DEFINITION_FIELDS);
+        }
+        for (String field : fields) {
+            if (req.containsKey(field)) {
+                Object v = req.get(field);
+                String s = v == null ? null : String.valueOf(v).trim();
+                pf.set(name + "." + field, s == null || s.isEmpty() || "false".equals(s) && field.equals("trustAll") ? null : s);
+            }
+        }
+        List<String> notes = new ArrayList<>();
+        storePassword(pf, name, Json.asString(req.get("passwordStore")), Json.asString(req.get("password")), f, notes);
+        pf.save();
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("name", name);
+        m.put("file", f.toString());
+        m.put("own", !defined);
+        m.put("notes", notes);
+        return m;
+    }
+
+    /** Forget a person's connection to an environment: their keys for the name, nothing else. */
+    public Map<String, Object> removeMine(String name) throws IOException {
+        if (!files.isSplit()) {
+            throw new TreeService.BadRequest("this server keeps one environments file; use the environment form");
+        }
+        nameOk(name);
+        PropertiesFile pf = new PropertiesFile(files.credentials());
+        int n = 0;
+        for (String k : new ArrayList<>(pf.entries().keySet())) {
+            if (k.startsWith(name + ".")) {
+                pf.remove(k);
+                n++;
+            }
+        }
+        pf.save();
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("name", name);
+        m.put("removed", n);
+        return m;
+    }
+
+    /** Where a given password goes, as {@link #save} documents; nothing when no store is named. */
+    private static void storePassword(PropertiesFile pf, String name, String store, String password, Path f, List<String> notes) throws IOException {
         if (store != null && !store.isBlank()) {
             if (store.equals("keychain") || store.equals("file")) {
                 if (password == null || password.isEmpty()) {
@@ -265,12 +390,6 @@ public final class CredentialService {
                 throw new TreeService.BadRequest("passwordStore is keychain, file, env:VAR or command:…");
             }
         }
-        pf.save();
-        Map<String, Object> m = new LinkedHashMap<>();
-        m.put("name", name);
-        m.put("file", f.toString());
-        m.put("notes", notes);
-        return m;
     }
 
     private static void clearPassword(PropertiesFile pf, String name) {
@@ -283,7 +402,7 @@ public final class CredentialService {
     /** Remove an environment's lines; its secrets file and Keychain items stay. */
     public Map<String, Object> remove(String name) throws IOException {
         nameOk(name);
-        Path f = environmentsFile();
+        Path f = definitionsFile();
         PropertiesFile pf = new PropertiesFile(f);
         int n = 0;
         for (String k : new ArrayList<>(pf.entries().keySet())) {
@@ -302,9 +421,7 @@ public final class CredentialService {
     /** The secrets the tree's drivers need for an environment, and which the secrets file configures. */
     public Map<String, Object> secrets(String env) throws IOException {
         nameOk(env);
-        Path f = environmentsFile();
-        Map<String, String> props = Files.isRegularFile(f) ? new PropertiesFile(f).entries() : Map.of();
-        Path sf = secretsFile(f, props, env);
+        Path sf = secretsFile(definitionsFile(), merged(), env);
         Map<String, String> configured = Files.isRegularFile(sf) ? new PropertiesFile(sf, true).entries() : Map.of();
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("environment", env);
@@ -349,9 +466,9 @@ public final class CredentialService {
         if (key == null || key.isBlank() || key.contains("\n") || key.contains("=")) {
             throw new TreeService.BadRequest("a secret key is needed, e.g. AD Driver.shim-auth-password");
         }
-        Path f = environmentsFile();
+        Path f = definitionsFile();
         PropertiesFile envs = new PropertiesFile(f);
-        Path sf = secretsFile(f, envs.entries(), env);
+        Path sf = secretsFile(f, merged(), env);
         if (!envs.entries().containsKey(env + ".secrets")) {
             envs.set(env + ".secrets", sf.getFileName().toString());
             envs.save();
@@ -412,14 +529,13 @@ public final class CredentialService {
             what = "the command";
         } else {
             nameOk(env);
-            Path f = environmentsFile();
-            Map<String, String> envProps = Files.isRegularFile(f) ? new PropertiesFile(f).entries() : Map.of();
+            Map<String, String> envProps = merged();
             if (key == null || key.isBlank()) {
                 key = env + ".password";
                 props.putAll(envProps);
                 what = "the password of '" + env + "'";
             } else {
-                Path sf = secretsFile(f, envProps, env);
+                Path sf = secretsFile(definitionsFile(), envProps, env);
                 if (Files.isRegularFile(sf)) {
                     props.putAll(new PropertiesFile(sf, true).entries());
                 }

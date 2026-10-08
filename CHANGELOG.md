@@ -7,6 +7,15 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- **Driver cache** on the Drivers tab: *view* beside the cache size lists the queued events
+  (operation, class, object) through the core's `driver.cache view`, with the cache document;
+  *Save as case* turns the whole cache into one simulator case (the core's simulator-ready
+  input; the files shown first, then written where the simulator lists them); *Clear cache*
+  for deployers with the environment's name typed, the count shown, the core's snapshot taken
+  first (`GET /api/vault/cache`, `POST /api/vault/cache-case`, `POST /api/vault/cache-clear`).
+
 ## [0.19.0] - 2026-10-08
 
 Needs DirXMLDev 0.15.0 and its PostgreSQL JDBC jar (`postgresql-42.7.7.jar`, attached to the core's release; the launchers take it from `~/.m2`, the image carries it).

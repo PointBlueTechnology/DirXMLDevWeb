@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.23.0] - 2026-10-08
+
 ### Changed
 
 - **Per-person connections on a hosted server** (docs/multi-user.md U2). The environments file

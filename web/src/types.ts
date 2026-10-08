@@ -588,6 +588,17 @@ export interface AppSchema {
 }
 
 /** A vault schema action: refresh, application refresh, or push (plan / written). */
+/** Two schemas side by side: the model against an environment's live schema, or two environments' (#77). */
+export interface SchemaDiffResult {
+  left: string;
+  right: string;
+  inSync: boolean;
+  attributesCompared: number;
+  classesCompared: number;
+  counts: Record<string, number>;
+  changes: { kind: "attribute" | "class"; name: string; where: "left-only" | "right-only" | "differs"; fields: string[]; custom: boolean }[];
+}
+
 export interface SchemaActionResult {
   ok: boolean;
   refusal?: string | null;

@@ -25,6 +25,32 @@ public final class Workspaces {
     private final Git defaultGit;
     private final Map<String, Git> gits = new LinkedHashMap<>();
 
+    /**
+     * Directories under {@code data.dir} that nothing claims any more: {@code workspaces/<x>} where
+     * {@code x} is no project (checkouts from before project names were part of the id, or of a
+     * project since removed), and {@code traces/<x>} (recordings from before they were per person,
+     * docs/multi-user.md U3). Listed at start-up; never removed by the server.
+     */
+    public static List<String> unclaimed(Path dataDir, java.util.Set<String> projects) throws IOException {
+        List<String> out = new ArrayList<>();
+        for (String sub : List.of("workspaces", "traces")) {
+            Path d = dataDir.resolve(sub);
+            if (!Files.isDirectory(d)) {
+                continue;
+            }
+            try (java.util.stream.Stream<Path> s = Files.list(d)) {
+                for (Path p : (Iterable<Path>) s.sorted()::iterator) {
+                    String name = p.getFileName().toString();
+                    if (!Files.isDirectory(p) || (sub.equals("workspaces") && projects.contains(name))) {
+                        continue;
+                    }
+                    out.add(sub + "/" + name);
+                }
+            }
+        }
+        return out;
+    }
+
     public Workspaces(Hosted hosted, Git git) {
         this.hosted = hosted;
         this.defaultGit = git;
@@ -107,7 +133,7 @@ public final class Workspaces {
                 String current = git.run(p.inPlace, "rev-parse", "--abbrev-ref", "HEAD").out.trim();
                 w = Workspace.open(id, current.isEmpty() ? "HEAD" : current, p.inPlace, p.inPlace.resolve(p.tree).normalize(), p.inPlace.resolve(p.cases).normalize(), hosted.catalog, hosted.envFiles(who));
 
-                w.traces = new TraceFiles(hosted.dataDir.resolve("traces").resolve(safe(p.name)));
+                w.traces = new TraceFiles(hosted.users.dir(who).resolve("traces").resolve(safe(p.name)));
                 w.vault.setEnvironmentFilter(p.environments);
                 open.put(id, w);
             }
@@ -127,7 +153,7 @@ public final class Workspaces {
         }
         w = Workspace.open(id, branch, dir, dir.resolve(p.tree).normalize(), dir.resolve(p.cases).normalize(), hosted.catalog, hosted.envFiles(who));
 
-        w.traces = new TraceFiles(hosted.dataDir.resolve("traces").resolve(safe(p.name)));
+        w.traces = new TraceFiles(hosted.users.dir(who).resolve("traces").resolve(safe(p.name)));
         w.vault.setEnvironmentFilter(p.environments);
         open.put(id, w);
         return w;

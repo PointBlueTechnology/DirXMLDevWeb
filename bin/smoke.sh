@@ -250,7 +250,7 @@ s, det = call("POST", "/api/sim/detail", {"name": "add-user", "input": xds.repla
 check("simulator: another input is tried without saving it, and fails what was recorded",
       s == 200 and det["outcome"] == "fail" and ">Engineer<" in det["final"] and det["against"]["same"] and ">mgr<" in call("GET", "/api/sim/case?name=add-user")[1]["input"])
 s, ve = call("GET", "/api/vault/environments")
-check("vault: the environments, by name and tier, without their values", s == 200 and ve["available"] and ve["environments"] == [{"name": "lab", "tier": "dev", "ready": True, "hasOverrides": False}])
+check("vault: the environments, by name and tier, without their values", s == 200 and ve["available"] and ve["environments"] == [{"name": "lab", "tier": "dev", "ready": True, "defined": True, "connected": True, "own": False, "hasOverrides": False}] and ve["split"] is False)
 check("vault: an unknown environment is 400", call("GET", "/api/vault/diff?env=nope")[0] == 400)
 s, dep = call("POST", "/api/vault/deploy", {"env": "lab"})
 check("vault: a deploy without the typed environment name is refused before any connection", s == 200 and not dep["ok"] and "confirm" in dep["refusal"])

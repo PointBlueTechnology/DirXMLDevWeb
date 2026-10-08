@@ -220,9 +220,18 @@ function EnvForm({
     trustAll: env?.trustAll === "true",
     sshHost: env?.sshHost ?? "",
     sshUser: env?.sshUser ?? "",
+    requires: env?.requires ?? "",
+    eventsUrl: env?.eventsUrl ?? "",
+    eventsUser: env?.eventsUser ?? "",
+    eventsTable: env?.eventsTable ?? "",
+    eventsPseudonymise: env?.eventsPseudonymise === "true",
+    eventsTree: env?.eventsTree ?? "",
     password: "",
     store: keychain ? "keychain" : "file",
     ref: "",
+    eventsPassword: "",
+    eventsStore: "",
+    eventsRef: "",
   });
   const [test, setTest] = useState<{ ok: boolean; message: string } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -281,7 +290,7 @@ function EnvForm({
     setError(null);
     const req: Record<string, unknown> = { name: f.name };
     if (showDefinition) {
-      Object.assign(req, { url: f.url, driverSet: f.driverSet, tier: f.tier, sshHost: f.sshHost, sshUser: f.sshUser });
+      Object.assign(req, { url: f.url, driverSet: f.driverSet, tier: f.tier, sshHost: f.sshHost, sshUser: f.sshUser, requires: f.requires, eventsUrl: f.eventsUrl, eventsUser: f.eventsUser, eventsTable: f.eventsTable, eventsPseudonymise: f.eventsPseudonymise ? "true" : "", eventsTree: f.eventsTree });
     }
     if (showCredential) {
       Object.assign(req, { bindDn: f.bindDn, trustAll: f.trustAll });
@@ -290,6 +299,13 @@ function EnvForm({
         if (passwordGiven) {
           req.password = f.password;
         }
+      }
+      const evRef = f.eventsStore === "env" || f.eventsStore === "command" || f.eventsStore === "manager";
+      if (f.eventsStore === "file" && f.eventsPassword) {
+        req.eventsPasswordStore = "file";
+        req.eventsPassword = f.eventsPassword;
+      } else if (evRef && f.eventsRef) {
+        req.eventsPasswordStore = f.eventsStore === "manager" ? `command:${f.eventsRef}` : `${f.eventsStore}:${f.eventsRef}`;
       }
     }
     (mode === "mine" || mode === "own" ? api.connections.saveMine(req) : api.connections.save(req))
@@ -386,8 +402,37 @@ function EnvForm({
           <em>SSH user</em>
           <input value={f.sshUser} onChange={(e) => setF({ ...f, sshUser: e.target.value })} spellCheck={false} />
         </label>
+        <label className="field">
+          <em>Requires (deployed first)</em>
+          <input value={f.requires} onChange={(e) => setF({ ...f, requires: e.target.value })} placeholder="stg" spellCheck={false} title="An environment a green deploy of the same commit must have reached first (the production gate)" />
+        </label>
         </>)}
       </div>
+      {showDefinition && (<>
+      <h4>Event store</h4>
+      <p className="muted small">The Event Logger's PostgreSQL table for this environment, read-only (docs/event-logger.md). Leave the URL empty for none.{showCredential ? "" : " The reader account's password is each person's own, under their connection."}</p>
+      <div className="attrs">
+        <label className="field wide">
+          <em>JDBC URL or host:port/db</em>
+          <input value={f.eventsUrl} onChange={(e) => setF({ ...f, eventsUrl: e.target.value })} placeholder="db.example:5432/idmEvent" spellCheck={false} data-testid="conn-events-url" />
+        </label>
+        <label className="field">
+          <em>Reader account</em>
+          <input value={f.eventsUser} onChange={(e) => setF({ ...f, eventsUser: e.target.value })} placeholder="eventlogger_reader" spellCheck={false} />
+        </label>
+        <label className="field">
+          <em>Table</em>
+          <input value={f.eventsTable} onChange={(e) => setF({ ...f, eventsTable: e.target.value })} placeholder="public.dxmlevent" spellCheck={false} />
+        </label>
+        <label className="field">
+          <em>Tree name in the store</em>
+          <input value={f.eventsTree} onChange={(e) => setF({ ...f, eventsTree: e.target.value })} placeholder="from the vault" spellCheck={false} />
+        </label>
+        <label className="checkchip">
+          <input type="checkbox" checked={f.eventsPseudonymise} onChange={(e) => setF({ ...f, eventsPseudonymise: e.target.checked })} /> pseudonymise people in what leaves the server (a store holding real people)
+        </label>
+      </div>
+      </>)}
       {showCredential && (<>
       <h4>Password</h4>
       {!isNew && <p className="muted small">Configured: {env!.password ? `from the ${env!.password === "literal" ? "file" : env!.password}` : "none"}. Leave the field empty to keep it.</p>}
@@ -406,6 +451,27 @@ function EnvForm({
         )}
       </div>
       {f.store === "manager" && <ManagerPicker helpers={helpers} onCommand={(c) => setF((cur) => ({ ...cur, ref: c }))} />}
+      {(f.eventsUrl || env?.eventsUrl) && (
+        <>
+          <h4>Event store password</h4>
+          {!isNew && <p className="muted small">Configured: {env!.eventsPassword ? `from the ${env!.eventsPassword === "literal" ? "file" : env!.eventsPassword}` : "none"}. Leave it as is to keep it.</p>}
+          <div className="addrow">
+            <select value={f.eventsStore} onChange={(e) => setF({ ...f, eventsStore: e.target.value })} data-testid="conn-events-store">
+              <option value="">keep as is</option>
+              <option value="file">keep it in my file (readable by me only)</option>
+              <option value="manager">read it from a secret manager</option>
+              <option value="env">read it from an environment variable</option>
+              <option value="command">read it from a command's output</option>
+            </select>
+            {f.eventsStore === "file" ? (
+              <input type="password" value={f.eventsPassword} onChange={(e) => setF({ ...f, eventsPassword: e.target.value })} placeholder="reader password" autoComplete="new-password" />
+            ) : f.eventsStore === "env" || f.eventsStore === "command" ? (
+              <input className="wide" value={f.eventsRef} onChange={(e) => setF({ ...f, eventsRef: e.target.value })} placeholder={f.eventsStore === "env" ? "VARIABLE_NAME" : "a command printing the password"} spellCheck={false} />
+            ) : null}
+          </div>
+          {f.eventsStore === "manager" && <ManagerPicker helpers={helpers} onCommand={(c) => setF((cur) => ({ ...cur, eventsRef: c }))} />}
+        </>
+      )}
       </>)}
       <div className="addrow">
         {showCredential && (

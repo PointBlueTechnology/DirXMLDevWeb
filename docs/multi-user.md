@@ -1,6 +1,6 @@
 # Per-user data: design note
 
-Status: **decided 2026-10-08** (section 7); U1 built (core 0.16.0, web 0.22.0), U2 built (per-person credentials, the split Connections view), U3 built (traces per person, unclaimed-directory notice); see "As built" at the end; U4 next. Jerry's direction: "each user's workspace
+Status: **decided 2026-10-08** (section 7); U1 built (core 0.16.0, web 0.22.0), U2 built (per-person credentials, the split Connections view), U3 built (traces per person, unclaimed-directory notice), U4 built (definitions in full from the page, "set up your connection" in the pickers); see "As built" at the end. Jerry's direction: "each user's workspace
 needs to be unique to them. They get their own data, their own connections, nothing shared —
 except perhaps secrets."
 
@@ -170,3 +170,11 @@ in the credential file taken whole. `Environments.load()` with no argument stays
   Recordings from before (`data.dir/traces/<project>/`) are not attributed; the server lists
   such directories at start-up (with `workspaces/<x>` of no project) as a NOTICE and never removes
   them — the operator moves a recording under the person who made it, or deletes it.
+- **U4:** the definition form holds everything a definition can: URL, driver set, tier,
+  `requires`, SSH host and user, and the event store (`eventsUrl`, `eventsUser`, `eventsTable`,
+  `eventsPseudonymise`, `eventsTree`); the person's connection holds the bind DN, trust, the
+  vault password and the event store's reader password (`eventsPassword…`), each from a file, a
+  variable, a command or a manager. The environment pickers (Vault, Schema, App schema, Events,
+  Trace) mark an environment the project defines but the person has not connected to with *set up
+  your connection*, linking to Connections; `GET /api/vault/environments` carries `split`,
+  `defined`, `connected`, `own`.

@@ -26,7 +26,7 @@ public final class Api implements HttpHandler {
     public static final String COOKIE = "idmweb_session";
     public static final String CSRF_HEADER = "X-IDMWeb-CSRF";
     /** POST routes only a deployer may call: they reach a vault or hold its credentials. */
-    private static final java.util.List<String> DEPLOYER_ONLY = java.util.List.of("/api/vault/deploy", "/api/vault/driver", "/api/vault/trace-level", "/api/vault/deploy-schema", "/api/credentials/environment", "/api/credentials/environment/remove", "/api/credentials/secret");
+    private static final java.util.List<String> DEPLOYER_ONLY = java.util.List.of("/api/vault/deploy", "/api/vault/driver", "/api/vault/trace-level", "/api/vault/cache-clear", "/api/vault/deploy-schema", "/api/credentials/environment", "/api/credentials/environment/remove", "/api/credentials/secret");
 
     private final Workspaces workspaces;
     private final Session.Store sessions;
@@ -355,6 +355,8 @@ public final class Api implements HttpHandler {
                     return vault.status(required(query, "env"));
                 case "/api/vault/servers":
                     return vault.servers(required(query, "env"));
+                case "/api/vault/cache":
+                    return vault.cacheView(required(query, "env"), required(query, "driver"), query.get("count") == null ? 200 : Integer.parseInt(query.get("count")));
                 case "/api/eventlog/describe":
                     return w.events.describe(required(query, "env"));
                 case "/api/eventlog":
@@ -443,6 +445,10 @@ public final class Api implements HttpHandler {
                     return vault.deploy(env, drivers, restart, Json.asString(req.get("secrets")), Json.asString(req.get("confirm")));
                 case "/api/vault/driver":
                     return vault.lifecycle(env, Json.asString(req.get("driver")), Json.asString(req.get("action")), Json.asString(req.get("confirm")));
+                case "/api/vault/cache-case":
+                    return vault.cacheCase(env, Json.asString(req.get("driver")), Json.asString(req.get("name")), Json.asString(req.get("channel")), Boolean.TRUE.equals(req.get("replace")), Boolean.TRUE.equals(req.get("dryRun")));
+                case "/api/vault/cache-clear":
+                    return vault.cacheClear(env, Json.asString(req.get("driver")), Json.asString(req.get("confirm")));
                 case "/api/vault/trace-level":
                     return vault.traceLevel(env, Json.asString(req.get("driver")), (int) Double.parseDouble(String.valueOf(req.get("level"))), Json.asString(req.get("server")), Json.asString(req.get("confirm")));
                 default:

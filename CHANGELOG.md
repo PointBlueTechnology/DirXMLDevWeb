@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-10-08
+
 ### Added
 
 - **Trace recordings and files** (docs/trace-viewer.md, T3): *record to a file* on the Trace tab

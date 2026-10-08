@@ -59,7 +59,7 @@ public final class Serve {
         int bound = server.getAddress().getPort();
         Security security = new Security(Security.newToken(), bound);
         Workspaces workspaces = new Workspaces(null, new Git(null, null));
-        Workspace local = workspaces.local(tree, cases, PackageService.locate(catalog, System.getenv("IDM_CATALOG")));
+        Workspace local = workspaces.local(tree, cases, PackageService.locate(catalog, System.getenv("IDM_CATALOG")), EnvFiles.single(EnvFiles.defaultFile()));
         Session.Store sessions = new Session.Store(365L * 24 * 3600);   // local mode: the token lives as long as the server
         Session session = sessions.createWithId(security.token(), Session.Principal.local());
         session.workspace = local.id;
@@ -81,11 +81,6 @@ public final class Serve {
         Hosted h = Hosted.load(config);
         Path web = Path.of(System.getProperty("idmweb.home", System.getProperty("user.dir")), "web", "dist");
         Files.createDirectories(h.dataDir);
-        CredentialService.override = h.environmentsFile;
-        String envVar = System.getenv("IDM_ENVIRONMENTS");
-        if (envVar == null || !Path.of(envVar).toAbsolutePath().normalize().equals(h.environmentsFile.toAbsolutePath().normalize())) {
-            System.err.println("WARNING: set IDM_ENVIRONMENTS=" + h.environmentsFile + " in the server's environment so the core reads the same environments file the page edits (the launcher does this from environments.file).");
-        }
         Git git = new Git(h.dataDir, h.repoToken(), h.repoSshKey);
         Workspaces workspaces = new Workspaces(h, git);
         // kept in the data directory: a restart signs nobody out, and everyone gets their last branch back
@@ -108,7 +103,7 @@ public final class Serve {
         }
         HttpServer server = HttpServer.create(new InetSocketAddress(InetAddress.getByName(h.bind), h.port), 0);
         Map<String, Session.Principal> agents = h.agents();
-        Api api = new Api(workspaces, sessions, security, audit, VERSION, agents).withSetup(new SetupService(h, workspaces, audit), new CredentialService(h.dataDir));
+        Api api = new Api(workspaces, sessions, security, audit, VERSION, agents).withSetup(new SetupService(h, workspaces, audit, h.envFiles(null)), new CredentialService(h.dataDir, h.envFiles(null)));
         server.createContext("/api/", api);
         server.createContext("/auth/", new Auth(identity, sessions, security, audit, h.publicUrl));
         server.createContext("/", new StaticFiles(web));

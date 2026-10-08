@@ -36,9 +36,11 @@ import java.util.function.Consumer;
 public final class VaultService {
 
     private final Path tree;
+    private final EnvFiles files;
 
-    public VaultService(Path tree) {
+    public VaultService(Path tree, EnvFiles files) {
         this.tree = tree.toAbsolutePath().normalize();
+        this.files = files;
     }
 
     /** The environments this tree is deployed to (hosted: the project's list); empty = every one the file names. */
@@ -60,7 +62,7 @@ public final class VaultService {
             throw new TreeService.BadRequest("no environment named");
         }
         try {
-            return Environments.load().get(name);
+            return files.load().get(name);
         } catch (IOException e) {
             throw new TreeService.BadRequest(e.getMessage());
         }
@@ -71,7 +73,7 @@ public final class VaultService {
         Map<String, Object> m = new LinkedHashMap<>();
         List<Object> list = new ArrayList<>();
         try {
-            Environments envs = Environments.load();
+            Environments envs = files.load();
             m.put("file", envs.file().toString());
             for (Environments.Described d : envs.describe()) {
                 if (!offered(d.name)) {

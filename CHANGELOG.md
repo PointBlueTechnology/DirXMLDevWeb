@@ -7,6 +7,20 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- **Trace recordings and files** (docs/trace-viewer.md, T3): *record to a file* on the Trace tab
+  writes every record of the live stream, unfiltered, to `<env>/<driver or all>-<time>.trace`
+  under the project's data directory (`~/.idm/traces/<tree>` locally); **Trace files** in the
+  sidebar lists recordings and uploads, opens one in the viewer (parsed once on the server, read
+  in pages with the channel, driver and text filters applied there, so a large file never travels
+  whole), downloads it, removes it; *Upload a trace file…* takes a file from a server, up to 1 GB.
+  The viewer's pop-out works for a file too (`#type=trace&file=…`).
+- **Links into the tree** (T4): in the trace, a driver's name in a header opens the driver, and a
+  policy's name — in "Applying policy" lines and anywhere else — opens the policy, dotted-underlined.
+- **Compare & deploy**: a change's diff says which side is which — "−" is what the vault holds
+  now, "+" is what the tree holds and a deploy writes — with the lines coloured by side.
+
 ## [0.20.0] - 2026-10-08
 
 ### Added

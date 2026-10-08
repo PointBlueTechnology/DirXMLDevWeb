@@ -243,7 +243,8 @@ export type Selection =
   | { type: "driverset"; tab?: "overview" | "gcvs" | "schema" }
   | { type: "overrides" }
   | { type: "vault" }
-  | { type: "trace"; env: string }
+  | { type: "trace"; env?: string; file?: string; popout?: "1" }
+  | { type: "traces" }
   | { type: "simulator" }
   | { type: "prd"; driver: string; name: string }
   | { type: "form"; driver: string; name: string }
@@ -741,4 +742,12 @@ export interface CaseFiles {
   replaced?: boolean;
   events?: number;
   written?: boolean;
+}
+
+/** A recording or an uploaded trace file on the server. */
+export interface TraceFileEntry {
+  name: string;
+  bytes: number;
+  modified: string;
+  parsed: boolean;
 }

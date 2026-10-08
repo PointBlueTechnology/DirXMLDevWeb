@@ -1,13 +1,21 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { api, followTrace, tokenForLink } from "../api";
-import { ALL, CHANNELS, TIMESTAMP_FORMATS, compact as compactRec, findRanges, lineCount, matches, segments, withTimestamp, type ChannelCode, type Filter, type TimestampFormat, type TraceRec } from "../trace/model";
+import { ALL, CHANNELS, TIMESTAMP_FORMATS, compact as compactRec, findRanges, lineCount, matches, segments, withTimestamp, type ChannelCode, type Filter, type Segment, type TimestampFormat, type TraceRec } from "../trace/model";
+import type { Outline, Selection } from "../types";
 
 interface Props {
-  env: string;
+  /** live trace of this environment (one of env or file) */
+  env?: string;
+  /** a recording or an uploaded file on the server, read in pages */
+  file?: string;
   /** the tree's driver names, offered in the driver filter before any trace arrives */
   drivers: string[];
   /** rendered alone in its own window: no pop-out button */
   popout?: boolean;
+  /** the tree, for links: a driver name or a policy name in the trace opens it */
+  outline?: Outline | null;
+  onSelect?: (s: Selection) => void;
+  onOpen?: (path: string) => void;
 }
 
 interface Settings {
@@ -38,11 +46,39 @@ function loadSettings(): Settings {
  * save and copy of what is shown, wrap, font size, buffer sizes. The list is virtualised by line
  * count, so fifteen thousand records with XML bodies scroll without the DOM holding them all.
  */
-export function TraceViewer({ env, drivers, popout }: Props) {
+export function TraceViewer({ env, file, drivers, popout, outline, onSelect, onOpen }: Props) {
   const popOut = () => {
     const tok = tokenForLink();
-    const url = `${window.location.pathname}${window.location.search}#type=trace&env=${encodeURIComponent(env)}${tok ? `&token=${tok}` : ""}`;
+    const target = file ? `file=${encodeURIComponent(file)}` : `env=${encodeURIComponent(env ?? "")}`;
+    const url = `${window.location.pathname}${window.location.search}#type=trace&${target}&popout=1${tok ? `&token=${tok}` : ""}`;
     window.open(url, "_blank", "popup=yes,width=1280,height=860");
+  };
+  // links into the tree: a driver by its name, a policy by its name (any driver's, or the Library's)
+  const driverSet = useMemo(() => new Set(drivers), [drivers]);
+  const policyPaths = useMemo(() => {
+    const m = new Map<string, string>();
+    if (outline) {
+      for (const d of outline.drivers) {
+        for (const p of [...d.policies.driver, ...d.policies.subscriber, ...d.policies.publisher]) {
+          m.set(p.name, p.path);
+        }
+      }
+      for (const p of outline.library.policies) {
+        m.set(p.name, p.path);
+      }
+    }
+    return m;
+  }, [outline]);
+  const linkFor = (s: Segment): (() => void) | null => {
+    const t = s.text.trim();
+    if (!t) {
+      return null;
+    }
+    if (s.token === "DRIVER" && onSelect && driverSet.has(t)) {
+      return () => onSelect({ type: "config", driver: t });
+    }
+    const path = policyPaths.get(t);
+    return path && onOpen ? () => onOpen(path) : null;
   };
   const [settings, setSettings] = useState<Settings>(loadSettings);
   const update = (patch: Partial<Settings>) => {
@@ -63,11 +99,18 @@ export function TraceViewer({ env, drivers, popout }: Props) {
   const [streamErrors, setStreamErrors] = useState<string[]>([]);
   const stop = useRef<(() => void) | null>(null);
   useEffect(() => {
+    if (!env) {
+      setServers([]);
+      return;
+    }
     api.vault
       .servers(env)
       .then((r) => setServers(r.servers))
       .catch(() => setServers([]));
   }, [env]);
+  const [record, setRecord] = useState(false);
+  const [recording, setRecording] = useState<string | null>(null);
+  const [fileInfo, setFileInfo] = useState<{ matched: number; total: number; drivers: string[] } | null>(null);
 
   // the buffer: records arrive on the stream's thread of events; the view re-renders at most every 100 ms
   const buffer = useRef<TraceRec[]>([]);
@@ -104,9 +147,13 @@ export function TraceViewer({ env, drivers, popout }: Props) {
   };
   useEffect(() => end, []);
   const start = () => {
+    if (!env) {
+      return;
+    }
     end();
     setFailure(null);
     setStreamErrors([]);
+    setRecording(null);
     setState("connecting");
     stop.current = followTrace(
       env,
@@ -121,13 +168,18 @@ export function TraceViewer({ env, drivers, popout }: Props) {
       },
       (s) => {
         if (typeof s === "object") {
-          setFailure(s.failed);
-          setState("closed");
+          if ("failed" in s) {
+            setFailure(s.failed);
+            setState("closed");
+          } else {
+            setRecording(s.recording);
+          }
         } else {
           setState(s);
         }
       },
       server || undefined,
+      record,
     );
   };
   const running = state === "connecting" || state === "open";
@@ -142,6 +194,35 @@ export function TraceViewer({ env, drivers, popout }: Props) {
   const [driverSel, setDriverSel] = useState<Set<string> | null>(null);
   const [text, setText] = useState("");
   const filter: Filter = useMemo(() => ({ channels, drivers: driverSel, text }), [channels, driverSel, text]);
+  const [fileBusy, setFileBusy] = useState(false);
+  const loadFile = useCallback(() => {
+    if (!file) {
+      return;
+    }
+    setFileBusy(true);
+    setFailure(null);
+    const letters = channels.size === 4 ? undefined : [...channels].join("");
+    const oneDriver = driverSel && driverSel.size === 1 ? [...driverSel][0] : undefined;
+    api.traces
+      .records(file, 0, settings.bufferMax, { channels: letters, driver: oneDriver, text: text.trim() || undefined })
+      .then((r) => {
+        buffer.current = r.records;
+        r.drivers.forEach((d) => seenDrivers.current.add(d));
+        setFileInfo({ matched: r.matched, total: r.total, drivers: r.drivers });
+        dirty.current = true;
+        bump((n) => n + 1);
+        setState("open");
+      })
+      .catch((e: Error) => setFailure(e.message))
+      .finally(() => setFileBusy(false));
+  }, [file, channels, driverSel, text, settings.bufferMax]);
+  useEffect(() => {
+    if (!file) {
+      return;
+    }
+    const id = setTimeout(loadFile, 250);
+    return () => clearTimeout(id);
+  }, [file, loadFile]);
   const [query, setQuery] = useState("");
   const [current, setCurrent] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -323,21 +404,49 @@ export function TraceViewer({ env, drivers, popout }: Props) {
             </select>
           </label>
         )}
-        {running ? (
-          <button onClick={() => (end(), setState("closed"))} data-testid="trace-stop">
-            Stop
-          </button>
+        {file ? (
+          <>
+            <span className="small" data-testid="trace-file">
+              <strong>{file}</strong>
+              {fileInfo && (
+                <span className="muted">
+                  {" "}
+                  · {fileInfo.matched === fileInfo.total ? `${fileInfo.total} records` : `${fileInfo.matched} of ${fileInfo.total} records match`}
+                  {fileInfo.matched > settings.bufferMax ? `, the first ${settings.bufferMax} loaded` : ""}
+                </span>
+              )}
+            </span>
+            <button onClick={loadFile} disabled={fileBusy} title="Read the file again">
+              {fileBusy ? "Reading…" : "Reload"}
+            </button>
+          </>
         ) : (
-          <button className="primary" onClick={start} data-testid="trace-start">
-            Start
-          </button>
+          <>
+            {running ? (
+              <button onClick={() => (end(), setState("closed"))} data-testid="trace-stop">
+                Stop
+              </button>
+            ) : (
+              <button className="primary" onClick={start} data-testid="trace-start">
+                Start
+              </button>
+            )}
+            <label className="checkchip" title="Write every record of the stream, unfiltered, to a file the Trace files view lists; applies when the stream starts">
+              <input type="checkbox" checked={record} onChange={(e) => setRecord(e.target.checked)} disabled={running} data-testid="trace-record" /> record to a file
+            </label>
+            {recording && (
+              <span className="small muted" data-testid="trace-recording">
+                recording {recording}
+              </span>
+            )}
+            <button className={paused ? "on" : ""} onClick={() => setPaused(!paused)} title="Freeze the view; trace keeps being collected" data-testid="trace-pause">
+              {paused ? "Resume" : "Pause"}
+            </button>
+            <button onClick={clear} title="Empty the buffer">
+              Clear
+            </button>
+          </>
         )}
-        <button className={paused ? "on" : ""} onClick={() => setPaused(!paused)} title="Freeze the view; trace keeps being collected" data-testid="trace-pause">
-          {paused ? "Resume" : "Pause"}
-        </button>
-        <button onClick={clear} title="Empty the buffer">
-          Clear
-        </button>
         <button onClick={save} disabled={prepared.length === 0} title="Download what is shown, filters applied">
           Save displayed…
         </button>
@@ -345,9 +454,11 @@ export function TraceViewer({ env, drivers, popout }: Props) {
           Copy
         </button>
         <span className="spacer" />
-        <span className={state === "open" ? "live on" : "live off"} data-testid="trace-state">
-          {state === "idle" ? "not started" : state}
-        </span>
+        {!file && (
+          <span className={state === "open" ? "live on" : "live off"} data-testid="trace-state">
+            {state === "idle" ? "not started" : state}
+          </span>
+        )}
         <span className="muted small" data-testid="trace-counts">
           {prepared.length} shown of {buffer.current.length}
         </span>
@@ -441,16 +552,19 @@ export function TraceViewer({ env, drivers, popout }: Props) {
             const row = first + i;
             return (
               <div key={row} className="tvrec" style={{ position: "absolute", top: offsets[row], left: 0, right: 0 }} data-driver={p.rec.d ?? ""} data-channel={p.rec.c}>
-                {segments(p.rec.x, p.rec.r, hitRows.get(row) ?? []).map((s, j) => (
-                  <span key={j} className={"tk-" + s.token + (s.ds >= 0 ? " ds-" + s.ds : "") + (s.hit ? " hit" : "")}>
-                    {s.text}
-                  </span>
-                ))}
+                {segments(p.rec.x, p.rec.r, hitRows.get(row) ?? []).map((s, j) => {
+                  const link = linkFor(s);
+                  return (
+                    <span key={j} className={"tk-" + s.token + (s.ds >= 0 ? " ds-" + s.ds : "") + (s.hit ? " hit" : "") + (link ? " tvlink" : "")} onClick={link ?? undefined} title={link ? "Open in the tree" : undefined}>
+                      {s.text}
+                    </span>
+                  );
+                })}
               </div>
             );
           })}
         </div>
-        {prepared.length === 0 && <div className="muted tvempty">{state === "idle" ? "Start to stream the driver set's trace. Every driver's trace is kept; the filters choose what is shown." : "Nothing matches, or nothing has arrived yet."}</div>}
+        {prepared.length === 0 && <div className="muted tvempty">{file ? (fileBusy ? "Reading the file…" : "Nothing in the file matches.") : state === "idle" ? "Start to stream the driver set's trace. Every driver's trace is kept; the filters choose what is shown." : "Nothing matches, or nothing has arrived yet."}</div>}
       </div>
     </div>
   );

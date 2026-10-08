@@ -90,7 +90,7 @@ export function VaultView({ drivers, revision, outline, onOpen, onSelect, onSave
         <Drivers key={chosen.name} env={chosen.name} onFix={() => onSelect({ type: "connections", env: chosen.name })} onSelect={onSelect} onSaved={onSaved} />
       ) : (
         tab === "trace" ? (
-        <TraceViewer key={chosen.name} env={chosen.name} drivers={drivers} />
+        <TraceViewer key={chosen.name} env={chosen.name} drivers={drivers} outline={outline} onSelect={onSelect} onOpen={onOpen} />
       ) : (
         <EventsView key={chosen.name} env={chosen.name} outline={outline} drivers={drivers} onSelect={onSelect} onOpen={onOpen} onSaved={onSaved} />
       )
@@ -246,7 +246,7 @@ function Compare({ env, drivers, revision, onOpen, onFix }: { env: string; drive
                       {openRow === i && c.detail && (
                         <tr>
                           <td colSpan={4}>
-                            <pre className="outcome">{c.detail}</pre>
+                            <DiffText text={c.detail} env={env} />
                           </td>
                         </tr>
                       )}
@@ -431,3 +431,29 @@ function Drivers({ env, onFix, onSelect, onSaved }: { env: string; onFix: () => 
     </div>
   );
 }
+
+/**
+ * A change's unified text with its sides named: the core diffs the vault against the tree, so a
+ * "−" line is what the vault holds now and a "+" line is what the tree holds — and what a deploy
+ * writes. Each line is coloured by side.
+ */
+function DiffText({ text, env }: { text: string; env: string }) {
+  const lines = text.split("\n");
+  return (
+    <div className="difftext" data-testid="diff-text">
+      <div className="difflegend small">
+        <span className="diffside vault">− in the vault ({env}) now</span>
+        <span className="diffside tree">+ in the tree — what a deploy writes</span>
+      </div>
+      <pre className="outcome">
+        {lines.map((l, i) => (
+          <span key={i} className={l.startsWith("-") && !l.startsWith("---") ? "diffline vault" : l.startsWith("+") && !l.startsWith("+++") ? "diffline tree" : "diffline"}>
+            {l}
+            {"\n"}
+          </span>
+        ))}
+      </pre>
+    </div>
+  );
+}
+

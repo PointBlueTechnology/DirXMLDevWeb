@@ -12,6 +12,7 @@ import { OperationsView } from "./components/OperationsView";
 import { AuditView } from "./components/AuditView";
 import { SEVERITIES, ValidationPanel, ValidationSummary } from "./components/ValidationPanel";
 import type { Severity } from "./components/ValidationPanel";
+import { TraceFilesView } from "./components/TraceFilesView";
 import { TraceViewer } from "./components/TraceViewer";
 import { VaultView } from "./components/VaultView";
 import { SimView } from "./components/SimView";
@@ -236,11 +237,11 @@ export function App() {
     return null;
   };
 
-  if (selection.type === "trace") {
-    // a pop-out window: the trace viewer alone, full height
+  if (selection.type === "trace" && selection.popout) {
+    // a pop-out window: the trace viewer alone, full height — live for an environment, or a trace file
     return (
       <div className="app popout" data-testid="trace-popout">
-        <TraceViewer env={selection.env} drivers={outline?.drivers.map((d) => d.name) ?? []} popout />
+        <TraceViewer env={selection.env} file={selection.file} drivers={outline?.drivers.map((d) => d.name) ?? []} outline={outline} onSelect={setSelection} onOpen={open} popout />
       </div>
     );
   }
@@ -362,6 +363,9 @@ export function App() {
           <button className={selection.type === "vault" ? "navbtn active" : "navbtn"} onClick={() => setSelection({ type: "vault" })}>
             Vault
           </button>
+          <button className={selection.type === "traces" ? "navbtn active" : "navbtn"} onClick={() => setSelection({ type: "traces" })} title="Recordings of the live trace and uploaded trace files, in the viewer">
+            Trace files
+          </button>
           <button className={selection.type === "simulator" ? "navbtn active" : "navbtn"} onClick={() => setSelection({ type: "simulator" })}>
             Simulator
           </button>
@@ -410,6 +414,8 @@ export function App() {
           {selection.type === "form" && <FormView key={selection.driver + "/" + selection.name} driver={selection.driver} name={selection.name} revision={revision} onSelect={setSelection} onSaved={reload} />}
           {selection.type === "roles" && <RolesView revision={revision} onSaved={reload} />}
           {selection.type === "audit" && <AuditView />}
+          {selection.type === "traces" && <TraceFilesView onSelect={setSelection} />}
+          {selection.type === "trace" && !selection.popout && <TraceViewer key={selection.file ?? selection.env ?? ""} env={selection.env} file={selection.file} drivers={outline?.drivers.map((d) => d.name) ?? []} outline={outline} onSelect={setSelection} onOpen={open} />}
           {selection.type === "changes" && <ChangesView key={selection.against ?? "head"} initial={selection.against ?? "head"} revision={revision} onSelect={setSelection} />}
           {selection.type === "new" && outline && <NewItemView key={selection.what + (selection.driver ?? "")} what={selection.what} driver={selection.driver} outline={outline} onSelect={setSelection} onSaved={reload} />}
           {selection.type === "entitlement" && <EntitlementView key={selection.file} driver={selection.driver} name={selection.name} file={selection.file} revision={revision} onSelect={setSelection} onSaved={reload} />}

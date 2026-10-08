@@ -19,6 +19,9 @@ describe("the selection in the address", () => {
       { type: "driverset" },
       { type: "driverset", tab: "schema" },
       { type: "trace", env: "edir3" },
+      { type: "trace", file: "edir3/all-20261008-101500.trace" },
+      { type: "trace", env: "edir3", popout: "1" },
+      { type: "traces" },
     ];
     for (const s of all) {
       expect(fromHash(toHash(s))).toEqual(s);

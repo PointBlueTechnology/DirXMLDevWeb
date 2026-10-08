@@ -75,6 +75,7 @@ public final class VaultService {
         try {
             Environments envs = files.load();
             m.put("file", envs.file().toString());
+            m.put("split", files.isSplit());
             for (Environments.Described d : envs.describe()) {
                 if (!offered(d.name)) {
                     continue;
@@ -83,6 +84,10 @@ public final class VaultService {
                 e.put("name", d.name);
                 e.put("tier", d.tier);
                 e.put("ready", d.urlPresent && d.bindDnPresent && d.passwordConfigured && d.driverSetPresent);
+                // two files: the project defines it, the person may not have connected yet (docs/multi-user.md)
+                e.put("defined", d.urlPresent && d.driverSetPresent);
+                e.put("connected", d.bindDnPresent && d.passwordConfigured);
+                e.put("own", d.own);
                 e.put("hasOverrides", java.nio.file.Files.isRegularFile(tree.resolve(Overrides.DIR).resolve(d.name + Overrides.EXT)));
                 list.add(e);
             }

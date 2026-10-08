@@ -355,6 +355,12 @@ public final class Api implements HttpHandler {
                     return vault.status(required(query, "env"));
                 case "/api/vault/servers":
                     return vault.servers(required(query, "env"));
+                case "/api/eventlog/describe":
+                    return w.events.describe(required(query, "env"));
+                case "/api/eventlog":
+                    return w.events.list(required(query, "env"), query);
+                case "/api/eventlog/event":
+                    return w.events.get(required(query, "env"), Long.parseLong(required(query, "id")));
                 case "/api/schema":
                     return vault.schema();
                 case "/api/schema/class":
@@ -412,7 +418,7 @@ public final class Api implements HttpHandler {
                     break;
             }
         }
-        if (method.equals("POST") && path.startsWith("/api/vault/")) {
+        if (method.equals("POST") && (path.startsWith("/api/vault/") || path.equals("/api/eventlog/case"))) {
             Map<String, Object> req = Json.asMap(Json.parse(new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8)));
             String env = Json.asString(req.get("env"));
             java.util.List<String> drivers = new java.util.ArrayList<>();
@@ -429,6 +435,8 @@ public final class Api implements HttpHandler {
                     return vault.refreshAppSchema(Json.asString(req.get("env")), Json.asString(req.get("driver")));
                 case "/api/vault/deploy-schema":
                     return vault.deploySchema(Json.asString(req.get("env")), Json.asString(req.get("confirm")));
+                case "/api/eventlog/case":
+                    return w.events.saveCase(env, (long) Double.parseDouble(String.valueOf(req.get("id"))), Json.asString(req.get("name")), Json.asString(req.get("driver")), Json.asString(req.get("channel")), Boolean.TRUE.equals(req.get("replace")), Boolean.TRUE.equals(req.get("dryRun")));
                 case "/api/vault/plan":
                     return vault.plan(env, drivers, restart, Json.asString(req.get("secrets")));
                 case "/api/vault/deploy":

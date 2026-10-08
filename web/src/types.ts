@@ -659,3 +659,62 @@ export interface GitDiff {
   ref: string;
   files: { file: string; status: string; from?: string | null; language?: string; before?: string; after?: string }[];
 }
+
+/** The Event Logger's store, per environment (docs/event-logger.md). */
+export interface EventsDescribe {
+  environment: string;
+  configured: boolean;
+  ok?: boolean;
+  message?: string;
+  pseudonymise?: boolean;
+  url?: string;
+  table?: string;
+  rows?: number;
+  newest?: string | null;
+  minSchemaVersion?: number | null;
+  maxSchemaVersion?: number | null;
+  migrated?: boolean;
+  drivers?: { dn: string; name: string | null }[];
+}
+
+export interface EventChange {
+  attribute: string;
+  removeAll: boolean;
+  removed: string[];
+  added: string[];
+}
+
+export interface EventRow {
+  id: number;
+  eventId: string | null;
+  type: string;
+  class: string;
+  srcDn: string | null;
+  srcEntryId: string | null;
+  time: string | null;
+  srcDriver: string | null;
+  driver: string | null;
+  channel: string | null;
+  policy: string | null;
+  stage: string | null;
+  schemaVersion: number;
+  json: Record<string, unknown>;
+  hasXml?: boolean;
+  xml?: string | null;
+  changes?: EventChange[];
+}
+
+export interface EventDetail extends EventRow {
+  sameEvent: EventRow[];
+}
+
+export interface CasePlan {
+  ok: boolean;
+  refusal?: string;
+  dir: string | null;
+  files: Record<string, string>;
+  reconstructed: boolean;
+  replaced: boolean;
+  name: string;
+  written: boolean;
+}

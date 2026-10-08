@@ -416,7 +416,7 @@ export function App() {
           {selection.type === "connections" && <ConnectionsView key={selection.env ?? ""} initialEnv={selection.env ?? null} />}
           {selection.type === "packages" && outline && <PackagesView drivers={outline.drivers.map((d) => d.name)} revision={revision} onSaved={reload} onOpen={open} />}
           {selection.type === "simulator" && outline && <SimView drivers={outline.drivers.map((d) => d.name)} revision={revision} />}
-          {selection.type === "vault" && outline && <VaultView drivers={outline.drivers.map((d) => d.name)} revision={revision} onOpen={open} onSelect={setSelection} />}
+          {selection.type === "vault" && outline && <VaultView drivers={outline.drivers.map((d) => d.name)} revision={revision} outline={outline} onOpen={open} onSelect={setSelection} onSaved={reload} />}
         </main>
         {!problemsHidden && (
           <aside className="problems">

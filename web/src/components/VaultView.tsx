@@ -1,16 +1,17 @@
 import { Fragment, useEffect, useState } from "react";
 import { api } from "../api";
+import { EventsView } from "./EventsView";
 import { TraceViewer } from "./TraceViewer";
-import type { DeployResult, Selection, VaultDiffResult, VaultEnvironments, VaultStatus } from "../types";
+import type { DeployResult, Outline, Selection, VaultDiffResult, VaultEnvironments, VaultStatus } from "../types";
 
-type Tab = "compare" | "drivers" | "trace";
+type Tab = "compare" | "drivers" | "trace" | "events";
 
 /**
  * The tree against a vault: what differs, a deploy planned and run, the drivers' state and
  * control, a driver's live trace. The environments are the ones the `idm` CLI knows; a write
  * to a vault happens only after the person types that environment's name.
  */
-export function VaultView({ drivers, revision, onOpen, onSelect }: { drivers: string[]; revision: string; onOpen: (path: string) => void; onSelect: (s: Selection) => void }) {
+export function VaultView({ drivers, revision, outline, onOpen, onSelect, onSaved }: { drivers: string[]; revision: string; outline: Outline | null; onOpen: (path: string) => void; onSelect: (s: Selection) => void; onSaved: () => void }) {
   const [envs, setEnvs] = useState<VaultEnvironments | null>(null);
   const [env, setEnv] = useState("");
   const [tab, setTab] = useState<Tab>("compare");
@@ -73,9 +74,9 @@ export function VaultView({ drivers, revision, onOpen, onSelect }: { drivers: st
         </button>
         <span className="spacer" />
         <div className="tabs">
-          {(["compare", "drivers", "trace"] as Tab[]).map((t) => (
-            <button key={t} className={tab === t ? "tab active" : "tab"} onClick={() => setTab(t)}>
-              {t === "compare" ? "Compare & deploy" : t === "drivers" ? "Drivers" : "Trace"}
+          {(["compare", "drivers", "trace", "events"] as Tab[]).map((t) => (
+            <button key={t} className={tab === t ? "tab active" : "tab"} onClick={() => setTab(t)} data-testid={"vault-tab-" + t}>
+              {t === "compare" ? "Compare & deploy" : t === "drivers" ? "Drivers" : t === "trace" ? "Trace" : "Events"}
             </button>
           ))}
         </div>
@@ -87,7 +88,11 @@ export function VaultView({ drivers, revision, onOpen, onSelect }: { drivers: st
       ) : tab === "drivers" ? (
         <Drivers key={chosen.name} env={chosen.name} onFix={() => onSelect({ type: "connections", env: chosen.name })} />
       ) : (
+        tab === "trace" ? (
         <TraceViewer key={chosen.name} env={chosen.name} drivers={drivers} />
+      ) : (
+        <EventsView key={chosen.name} env={chosen.name} outline={outline} drivers={drivers} onSelect={onSelect} onOpen={onOpen} onSaved={onSaved} />
+      )
       )}
     </div>
   );

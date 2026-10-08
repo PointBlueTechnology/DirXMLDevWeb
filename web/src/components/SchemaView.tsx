@@ -3,7 +3,7 @@ import { api } from "../api";
 import { usePending } from "../pending";
 import { invalidateSchema, loadClass } from "../schema";
 import { EnvPicker, useEnvironment } from "../env";
-import type { SchemaActionResult, SchemaClass, SchemaData } from "../types";
+import type { SchemaActionResult, SchemaClass, SchemaData, SchemaDiffResult } from "../types";
 import { PendingBar } from "./PendingBar";
 
 const SYNTAXES: [string, string][] = [
@@ -30,6 +30,35 @@ export function SchemaView({ revision, onSaved }: { revision: string; onSaved: (
   const { envs, env, setEnv } = useEnvironment();
   const [busy, setBusy] = useState<string | null>(null);
   const [result, setResult] = useState<SchemaActionResult | null>(null);
+  /** Compare: the model against the chosen environment, or against another environment (#77). */
+  const [compare, setCompare] = useState<{ against: string; result: SchemaDiffResult | null; error: string | null } | null>(null);
+  /** The matrix: every environment of the project against the model, filled on request. */
+  const [matrix, setMatrix] = useState<Record<string, SchemaDiffResult | { error: string }> | null>(null);
+  const runCompare = (against: string) => {
+    setBusy("compare");
+    setCompare({ against, result: null, error: null });
+    (against === "model" ? api.vault.schemaDiff(env) : api.vault.schemaDiff(env, against))
+      .then((r) => setCompare({ against, result: r, error: null }))
+      .catch((e: Error) => setCompare({ against, result: null, error: e.message }))
+      .finally(() => setBusy(null));
+  };
+  const runMatrix = async () => {
+    if (!envs) {
+      return;
+    }
+    setBusy("matrix");
+    const out: Record<string, SchemaDiffResult | { error: string }> = {};
+    setMatrix(out);
+    for (const e of envs) {
+      try {
+        out[e.name] = await api.vault.schemaDiff(e.name);
+      } catch (err) {
+        out[e.name] = { error: (err as Error).message };
+      }
+      setMatrix({ ...out });
+    }
+    setBusy(null);
+  };
   const [confirm, setConfirm] = useState("");
   const [addAttr, setAddAttr] = useState({ name: "", ldap: "", syntax: SYNTAXES[0]![0], oid: "", single: false });
   const [addClass, setAddClass] = useState({ name: "", ldap: "", kind: "auxiliary", oid: "", superclasses: "Top", mandatory: "", optional: "" });
@@ -99,6 +128,9 @@ export function SchemaView({ revision, onSaved }: { revision: string; onSaved: (
           )}
           <span className="spacer" />
           {envs && envs.length > 0 ? <EnvPicker envs={envs} env={env} setEnv={setEnv} testid="schema-env" /> : <span className="muted small">no environment</span>}
+          <button disabled={!env || busy !== null || !data.present} onClick={() => runCompare("model")} title="The tree's schema against the environment's live cn=schema; nothing written" data-testid="schema-compare">
+            {busy === "compare" ? "Comparing…" : "Compare with vault"}
+          </button>
           <button disabled={!env || busy !== null} onClick={() => act("refresh", () => api.vault.refreshSchema(env))} title="Read cn=schema of the environment into the tree (a read of the vault)" data-testid="schema-refresh">
             {busy === "refresh" ? "Reading…" : "Refresh from vault"}
           </button>
@@ -122,6 +154,94 @@ export function SchemaView({ revision, onSaved }: { revision: string; onSaved: (
             {result.failures.length > 0 && <div className="err-text">{result.failures.join(" · ")}</div>}
             {!result.refusal && result.done.length === 0 && result.failures.length === 0 && <div>{(result.text || "").trim() || "done"}</div>}
           </div>
+        )}
+        {compare && (
+          <section className="block" data-testid="schema-diff">
+            <div className="addrow tight">
+              <h3 style={{ margin: 0 }}>{compare.result ? `${compare.result.left} vs ${compare.result.right}` : "Compare"}</h3>
+              <span className="spacer" />
+              {envs && envs.length > 1 && (
+                <label className="small">
+                  against{" "}
+                  <select value={compare.against} onChange={(e) => runCompare(e.target.value)} disabled={busy !== null} data-testid="schema-diff-against">
+                    <option value="model">the model (tree)</option>
+                    {envs.filter((e) => e.name !== env).map((e) => (
+                      <option key={e.name} value={e.name}>
+                        {e.name} ({e.tier}), live
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              {envs && envs.length > 1 && data.present && (
+                <button disabled={busy !== null} onClick={() => void runMatrix()} title="Every environment of the project against the model" data-testid="schema-matrix">
+                  {busy === "matrix" ? "Comparing all…" : "All environments"}
+                </button>
+              )}
+              <button onClick={() => (setCompare(null), setMatrix(null))}>Close</button>
+            </div>
+            {compare.error && <div className="banner error">{compare.error}</div>}
+            {compare.result && (
+              <>
+                <p className="small">
+                  {compare.result.inSync ? <span className="pill ok">in sync</span> : <span className="pill warn">{compare.result.changes.length} difference{compare.result.changes.length === 1 ? "" : "s"}</span>}{" "}
+                  <span className="muted">
+                    {compare.result.attributesCompared} attributes and {compare.result.classesCompared} classes compared · <span className="diffside vault">&lt;</span> only in {compare.result.left} · <span className="diffside tree">&gt;</span> only in {compare.result.right} · ~ in both, different
+                  </span>
+                </p>
+                {!compare.result.inSync && (
+                  <table className="grid" data-testid="schema-diff-table">
+                    <thead>
+                      <tr>
+                        <th />
+                        <th>Kind</th>
+                        <th>Name</th>
+                        <th>What differs</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {compare.result.changes.map((c) => (
+                        <tr key={c.kind + c.name}>
+                          <td className={c.where === "left-only" ? "diffside vault" : c.where === "right-only" ? "diffside tree" : ""}>{c.where === "left-only" ? "<" : c.where === "right-only" ? ">" : "~"}</td>
+                          <td className="muted small">{c.kind}</td>
+                          <td>
+                            <code>{c.name}</code>
+                            {c.custom && <span className="pill warn">defined here, not pushed</span>}
+                          </td>
+                          <td className="small">{c.where === "left-only" ? `only in ${compare.result!.left}` : c.where === "right-only" ? `only in ${compare.result!.right}` : c.fields.join("; ")}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </>
+            )}
+            {matrix && (
+              <table className="grid" data-testid="schema-matrix-table" style={{ marginTop: 10 }}>
+                <thead>
+                  <tr>
+                    <th>Environment</th>
+                    <th>Against the model</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {(envs ?? []).map((e) => {
+                    const r = matrix[e.name];
+                    return (
+                      <tr key={e.name}>
+                        <td>
+                          <code>{e.name}</code> <span className={"pill tier-" + e.tier}>{e.tier}</span>
+                        </td>
+                        <td>{!r ? <span className="muted">…</span> : "error" in r ? <span className="err-text small">{r.error}</span> : r.inSync ? <span className="pill ok">in sync</span> : <span className="pill warn">{r.changes.length} difference{r.changes.length === 1 ? "" : "s"}</span>}</td>
+                        <td className="right">{r && !("error" in r) && !r.inSync && <button className="mini" onClick={() => (setEnv(e.name), setCompare({ against: "model", result: r, error: null }))}>open</button>}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </section>
         )}
         <div className="tabs">
           <button className={tab === "classes" ? "tab active" : "tab"} onClick={() => setTab("classes")} data-testid="schema-tab-classes">

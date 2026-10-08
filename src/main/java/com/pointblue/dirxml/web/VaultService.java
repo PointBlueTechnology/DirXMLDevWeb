@@ -338,6 +338,25 @@ public final class VaultService {
         return schemaResult(SchemaOps.deploySchema(tree, e, write, confirm));
     }
 
+    /**
+     * The tree's schema against the environment's live one, or two environments' live schemas
+     * ({@code other}); a read of each vault, nothing written (#77, docs/schema.md "Comparing").
+     */
+    public Map<String, Object> schemaDiff(String envName, String other) throws IOException {
+        Environments.Environment e = env(envName);
+        if (other != null && !other.isBlank()) {
+            if (other.equals(envName)) {
+                throw new TreeService.BadRequest("compare two different environments, or the model against one");
+            }
+            return com.pointblue.dirxml.dev.deploy.SchemaDiff.liveVsLive(e, env(other)).toMap();
+        }
+        try {
+            return com.pointblue.dirxml.dev.deploy.SchemaDiff.modelVsLive(tree, e).toMap();
+        } catch (IOException ex) {
+            throw new TreeService.BadRequest(ex.getMessage());
+        }
+    }
+
     private static Map<String, Object> schemaResult(SchemaOps.Result r) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("ok", r.ok);

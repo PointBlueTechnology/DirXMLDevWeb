@@ -7,6 +7,16 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-10-08
+
+Needs DirXMLDev 0.15.0 (a blank driver's templates).
+
+### Changed
+
+- New driver, "a blank driver with a shim class": the core now writes a starting filter (User and
+  Group), shim settings with an example parameter per section, and configuration values, so the
+  option says so and the review shows them.
+
 ### Added
 
 - Connections: *Look up* beside the driver set field connects with the URL, bind DN and password

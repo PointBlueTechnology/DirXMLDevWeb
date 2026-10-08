@@ -1,6 +1,6 @@
 # Per-user data: design note
 
-Status: **decided 2026-10-08** (section 7); U1 built (core 0.16.0, web 0.22.0), U2 built (per-person credentials, the split Connections view; see "As built" at the end), U3/U4 next. Jerry's direction: "each user's workspace
+Status: **decided 2026-10-08** (section 7); U1 built (core 0.16.0, web 0.22.0), U2 built (per-person credentials, the split Connections view), U3 built (traces per person, unclaimed-directory notice); see "As built" at the end; U4 next. Jerry's direction: "each user's workspace
 needs to be unique to them. They get their own data, their own connections, nothing shared —
 except perhaps secrets."
 
@@ -166,4 +166,7 @@ in the credential file taken whole. `Environments.load()` with no argument stays
   `/api/credentials/mine/remove`, any signed-in role) write the person's file, and for a name the
   project does not define take the definition fields too. Driver secrets and `<env>.secrets`
   stay in the definitions, deployer-only.
-- Trace recordings are still per project (U3).
+- **U3:** trace recordings and uploads are the person's: `users/<subject>/traces/<project>/`.
+  Recordings from before (`data.dir/traces/<project>/`) are not attributed; the server lists
+  such directories at start-up (with `workspaces/<x>` of no project) as a NOTICE and never removes
+  them — the operator moves a recording under the person who made it, or deletes it.

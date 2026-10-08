@@ -55,7 +55,7 @@ this source only.
   and the page filters, which is how the desktop works and what a multi-driver investigation
   needs. The core's `LdapTrace` stays for the CLI and the agent (`driver.trace tail`).
 - **Recording.** `record=true` on the stream also writes the formatted text through
-  `TraceFileWriter` to `<data.dir>/traces/<env>/<driver or all>-<timestamp>.trace`, unfiltered
+  `TraceFileWriter` to `<data.dir>/users/<subject>/traces/<project>/<env>/<driver or all>-<timestamp>.trace` (the person's own; `~/.idm/traces/<tree>/` locally), unfiltered
   (the desktop records what passes the filter; the page can save the displayed text itself, so
   the server keeps everything). `GET /api/traces` lists them, `GET /api/traces/<name>` serves one,
   `DELETE` removes one; recordings are per project like audit lines.

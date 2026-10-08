@@ -1,6 +1,6 @@
 # Per-user data: design note
 
-Status: **proposed 2026-10-08**, for Jerry to confirm. Jerry's direction: "each user's workspace
+Status: **decided 2026-10-08** (section 7); U1 in progress. Jerry's direction: "each user's workspace
 needs to be unique to them. They get their own data, their own connections, nothing shared —
 except perhaps secrets."
 
@@ -132,15 +132,14 @@ in the credential file taken whole. `Environments.load()` with no argument stays
   commands, and that identity is shared by nature. Say so in `security.md`.
 - Removing a person's directory when they leave (an admin operation, later).
 
-## 7. Decisions for Jerry
+## 7. Decisions (taken 2026-10-08)
 
-1. **Definitions + per-person credentials** (recommended, section 2), or **whole entries per
-   person** with no shared definitions?
-2. **Driver secrets shared** per environment, deployer-only, in `secrets.dir` (Jerry's exception;
-   recommended), or per person as well?
-3. **Agents hold their own credentials** like a person (recommended), or borrow a named person's?
-4. **Refuse to start** when the shared file still holds a password key (recommended), or warn and
-   ignore the keys?
+1. **Definitions + per-person credentials** (section 2): the project's definitions hold no
+   secrets; each person's file holds their bind DN and password source per environment name.
+2. **Driver secrets are shared** per environment, deployer-only, in `secrets.dir`.
+3. **Agents hold their own credentials**, like a person.
+4. **The server refuses to start** when the shared definitions file still holds a password key,
+   naming the keys to move.
 
 ## 8. Phases
 

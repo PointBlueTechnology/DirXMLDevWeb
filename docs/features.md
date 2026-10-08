@@ -29,6 +29,12 @@ Every view of the page, by area, in every install; the items marked *local and s
   from a vault's schema. The same schema fills the pickers: eDirectory class and attribute
   fields in the filter, the schema map and the entity editor offer its names, attributes
   narrowed to the class.
+- **Events** (a tab on the Vault view, per environment): the Event Logger's store — an object's
+  timeline, a subtree, a driver, a policy's logged documents, types, class, a time window, free
+  text, a modified attribute; a row with its modify diff, JSON and XML and the other rows of the
+  same engine event; the driver or policy named opens in the tree; *Save as case* turns a row
+  into a simulator case in `cases/` (planned, shown, then written). Needs `eventsUrl` and the
+  reader account in the environments file; `eventsPseudonymise=true` masks people.
 - **App schema** (a tab on a driver): what the shim says it can synchronize, read through the
   engine on request (`DriverGetSchema`, the driver stopped) and kept in the tree; the
   application side of the schema map offers its names.

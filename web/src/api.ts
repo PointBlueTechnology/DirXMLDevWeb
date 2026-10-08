@@ -1,3 +1,4 @@
+import type { CasePlan, EventDetail, EventRow, EventsDescribe } from "./types";
 import type { TraceRec } from "./trace/model";
 import type { AppSchema, Artifact, AuditEntry, BuildResult, ConfigView, Connections, DeployResult, EnvSecrets, FetchResult, FormData as FormDoc, GitDiff, GitStatus, ImportResult, LifecycleResult, OpCall, OpResult, OpSpec, Outline, OverridesData, PackagePrompts, PackagesData, PrdData, RoleCatalog, SchemaActionResult, SchemaClass, SchemaData, Session, SetupResult, SimCaseFiles, SimCases, SimDetail, SimRun, SiteListing, TreeFile, UpdateSites, Validation, VaultDiffResult, VaultEnvironments, VaultStatus, WorkspacesInfo } from "./types";
 import type { FishboneModel } from "./fishbone/types";
@@ -156,6 +157,13 @@ export const api = {
   packagePrompts: (packages: string, driver?: string) => call<PackagePrompts>("GET", `/api/packages/prompts?packages=${q(packages)}${driver ? `&driver=${q(driver)}` : ""}`),
   packageSite: (site: string) => call<SiteListing>("GET", `/api/packages/site?site=${q(site)}`),
   fetchPackages: (req: { site: string; packages: string[]; allVersions?: boolean; dryRun?: boolean }) => call<FetchResult>("POST", "/api/packages/fetch", req),
+  events: {
+    describe: (env: string) => call<EventsDescribe>("GET", `/api/eventlog/describe?env=${q(env)}`),
+    list: (env: string, query: Record<string, string>) =>
+      call<{ environment: string; count: number; limit: number; events: EventRow[] }>("GET", `/api/eventlog?env=${q(env)}` + Object.entries(query).map(([k, v]) => `&${k}=${q(v)}`).join("")),
+    get: (env: string, id: number) => call<EventDetail>("GET", `/api/eventlog/event?env=${q(env)}&id=${id}`),
+    saveCase: (env: string, req: { id: number; name?: string; driver?: string; channel?: string; replace?: boolean; dryRun?: boolean }) => call<CasePlan>("POST", "/api/eventlog/case", { env, ...req }),
+  },
   sim: {
     cases: () => call<SimCases>("GET", "/api/sim/cases"),
     files: (name: string) => call<SimCaseFiles>("GET", `/api/sim/case?name=${q(name)}`),

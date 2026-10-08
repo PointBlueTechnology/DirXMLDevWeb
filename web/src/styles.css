@@ -1281,3 +1281,14 @@ table.grid tr.detail td { background: var(--bg); padding-top: 4px; padding-botto
 
 .withbtn { display: flex; gap: 6px; align-items: center; }
 .withbtn > input, .withbtn > select { flex: 1; min-width: 0; }
+
+/* events (the Event Logger's store) */
+.events .evfilters { flex-wrap: wrap; }
+.events .evbody { display: flex; gap: 12px; align-items: flex-start; min-height: 0; }
+.events .evlist { flex: 1 1 auto; min-width: 0; }
+.events .evpanel { flex: 0 0 440px; max-width: 48%; }
+.events .evstats { margin: 4px 0 6px; }
+.events .nowrap { white-space: nowrap; }
+.events .evdoc { max-height: 320px; overflow: auto; font-size: 11px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 8px; white-space: pre-wrap; word-break: break-all; }
+.events .evcase { display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--border); padding-top: 8px; margin-top: 8px; }
+.pill.ev-add { color: var(--ok); } .pill.ev-delete { color: var(--err); } .pill.ev-modify { color: var(--accent); }

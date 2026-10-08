@@ -7,6 +7,12 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+Needs DirXMLDev 0.15.0 and its PostgreSQL JDBC jar (`postgresql-42.7.7.jar`, attached to the core's release; the launchers take it from `~/.m2`, the image carries it).
+
+### Added
+
+- **Events**: a tab on the Vault view reads the environment's Event Logger store (docs/event-logger.md) through the core's event store: filters for an object's timeline, a subtree, a name, a driver, a policy and stage, the driver's own rows or what policies logged, types, class, a time window, free text and a modified attribute; a row opens with its modify diff, JSON, the stored XML and the other rows of the same engine event; the driver and a policy named in a row open in the tree. **Save as case** plans a simulator case from the row (the files shown first), writes it into the tree's `cases/`, and opens the simulator. A store flagged `eventsPseudonymise` is masked before the page sees it. Counts by type, class and driver are over the rows shown.
+
 ## [0.18.0] - 2026-10-08
 
 Needs DirXMLDev 0.15.0 (a blank driver's templates).

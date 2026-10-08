@@ -25,7 +25,7 @@ public final class Workspace implements AutoCloseable {
     /** Recordings and uploaded trace files; under the data directory in hosted mode, under ~/.idm locally. */
     public TraceFiles traces;
 
-    private Workspace(String id, String branch, Path root, Path tree, Path cases, Path catalog) throws IOException {
+    private Workspace(String id, String branch, Path root, Path tree, Path cases, Path catalog, EnvFiles files) throws IOException {
         this.id = id;
         this.branch = branch;
         this.root = root;
@@ -37,18 +37,18 @@ public final class Workspace implements AutoCloseable {
         this.service = new TreeService(tree, watcher);
         this.packages = new PackageService(tree, catalog);
         service.catalog(packages.catalogArg());
-        this.vault = new VaultService(tree);
+        this.vault = new VaultService(tree, files);
         this.sim = new SimService(tree, SimService.locate(tree, cases));
         this.vault.setCasesDir(this.sim.casesDir());
         this.prov = new ProvisioningService(tree);
-        this.credentials = new CredentialService(tree);
-        this.events = new EventsService(tree, sim.casesDir());
+        this.credentials = new CredentialService(tree, files);
+        this.events = new EventsService(tree, sim.casesDir(), files);
         this.traces = new TraceFiles(Path.of(System.getProperty("user.home"), ".idm", "traces", id.replaceAll("[^A-Za-z0-9._-]+", "-")));
         watcher.start();
     }
 
-    public static Workspace open(String id, String branch, Path root, Path tree, Path cases, Path catalog) throws IOException {
-        return new Workspace(id, branch, root.toAbsolutePath().normalize(), tree.toAbsolutePath().normalize(), cases, catalog);
+    public static Workspace open(String id, String branch, Path root, Path tree, Path cases, Path catalog, EnvFiles files) throws IOException {
+        return new Workspace(id, branch, root.toAbsolutePath().normalize(), tree.toAbsolutePath().normalize(), cases, catalog, files);
     }
 
     @Override

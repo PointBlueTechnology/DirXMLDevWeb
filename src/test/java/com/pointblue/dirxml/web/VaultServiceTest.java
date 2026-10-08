@@ -23,7 +23,7 @@ public class VaultServiceTest {
 
     @Test
     public void anUnknownDriverActionIsRefusedBeforeAnyEnvironmentIsRead() throws Exception {
-        VaultService vault = new VaultService(Path.of("."));
+        VaultService vault = new VaultService(Path.of("."), EnvFiles.single(Path.of("no-such-environments.properties")));
         try {
             vault.lifecycle("lab", "Loop", "explode", "lab");
             fail("expected a refusal");

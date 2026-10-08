@@ -32,8 +32,10 @@ public final class SetupService {
     private final Hosted hosted;
     private final Workspaces workspaces;
     private final Audit audit;
+    private final EnvFiles files;
 
-    public SetupService(Hosted hosted, Workspaces workspaces, Audit audit) {
+    public SetupService(Hosted hosted, Workspaces workspaces, Audit audit, EnvFiles files) {
+        this.files = files;
         this.hosted = hosted;
         this.workspaces = workspaces;
         this.audit = audit;
@@ -81,7 +83,7 @@ public final class SetupService {
         if (envName == null || envName.isBlank()) {
             throw new TreeService.BadRequest("which environment?");
         }
-        Environments.Environment env = Environments.load().get(envName);
+        Environments.Environment env = files.load().get(envName);
         List<Object> sets = new ArrayList<>();
         try (com.pointblue.dirxml.dev.deploy.Vault v = com.pointblue.dirxml.dev.deploy.Vault.connect(env.vaultConfig())) {
             List<com.pointblue.dirxml.dev.deploy.Vault.Entry> found = new ArrayList<>();
@@ -128,7 +130,7 @@ public final class SetupService {
         if (envName == null || envName.isBlank()) {
             throw new TreeService.BadRequest("which environment?");
         }
-        Environments.Environment env = Environments.load().get(envName);
+        Environments.Environment env = files.load().get(envName);
         String dn = driverSetDn == null || driverSetDn.isBlank() ? env.driverSetDn : driverSetDn.trim();
         String setName = dn.replaceFirst("^[^=]+=", "").replaceFirst(",.*$", "");
         String name = projectName(projectName, dn.equalsIgnoreCase(env.driverSetDn) ? envName : envName + "-" + setName);

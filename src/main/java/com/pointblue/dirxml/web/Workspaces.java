@@ -44,8 +44,8 @@ public final class Workspaces {
     }
 
     /** Local mode: the tree on the command line, as the only workspace. */
-    public synchronized Workspace local(Path tree, Path cases, Path catalog) throws IOException {
-        Workspace w = Workspace.open("local", null, tree, tree, cases, catalog);
+    public synchronized Workspace local(Path tree, Path cases, Path catalog, EnvFiles files) throws IOException {
+        Workspace w = Workspace.open("local", null, tree, tree, cases, catalog, files);
         open.put(w.id, w);
         return w;
     }
@@ -105,7 +105,7 @@ public final class Workspaces {
             Workspace w = open.get(id);
             if (w == null) {
                 String current = git.run(p.inPlace, "rev-parse", "--abbrev-ref", "HEAD").out.trim();
-                w = Workspace.open(id, current.isEmpty() ? "HEAD" : current, p.inPlace, p.inPlace.resolve(p.tree).normalize(), p.inPlace.resolve(p.cases).normalize(), hosted.catalog);
+                w = Workspace.open(id, current.isEmpty() ? "HEAD" : current, p.inPlace, p.inPlace.resolve(p.tree).normalize(), p.inPlace.resolve(p.cases).normalize(), hosted.catalog, hosted.envFiles(who));
 
                 w.traces = new TraceFiles(hosted.dataDir.resolve("traces").resolve(safe(p.name)));
                 w.vault.setEnvironmentFilter(p.environments);
@@ -125,7 +125,7 @@ public final class Workspaces {
         if (!Files.isDirectory(dir.resolve(".git"))) {
             git.checkout(p.url, branch, p.base, dir);
         }
-        w = Workspace.open(id, branch, dir, dir.resolve(p.tree).normalize(), dir.resolve(p.cases).normalize(), hosted.catalog);
+        w = Workspace.open(id, branch, dir, dir.resolve(p.tree).normalize(), dir.resolve(p.cases).normalize(), hosted.catalog, hosted.envFiles(who));
 
         w.traces = new TraceFiles(hosted.dataDir.resolve("traces").resolve(safe(p.name)));
         w.vault.setEnvironmentFilter(p.environments);

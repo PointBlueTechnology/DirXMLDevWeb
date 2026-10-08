@@ -37,6 +37,14 @@ public class HostedTest {
     }
 
     @Test
+    public void aProjectNamesItsOwnEnvironments() throws Exception {
+        Hosted h = hosted("projects=lab,other\nproject.lab.repo.url=https://github.com/org/lab.git\nproject.lab.environments=edir3, edir3-prd\nproject.other.repo.url=https://github.com/org/other.git\n");
+        assertEquals(List.of("edir3", "edir3-prd"), h.projects.get("lab").environments);
+        assertEquals(List.of(), h.projects.get("other").environments);
+        assertEquals(List.of("a"), hosted("repo.environments=a\n").projects.values().iterator().next().environments);
+    }
+
+    @Test
     public void theNoneProviderParsesItsUsersAndIsLoopbackOnly() throws Exception {
         Hosted h = hosted("identity=none\nnone.users=alice:Alice:alice@x:idm-editors|qa;bob:Bob\n");
         List<Session.Principal> users = h.noneUsers();

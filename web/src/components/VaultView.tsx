@@ -1,9 +1,10 @@
 import { Fragment, useEffect, useState } from "react";
 import { api } from "../api";
+import { EnvPicker, useEnvironment } from "../env";
 import { CachePanel } from "./CachePanel";
 import { EventsView } from "./EventsView";
 import { TraceViewer } from "./TraceViewer";
-import type { DeployResult, Outline, Selection, VaultDiffResult, VaultEnvironments, VaultStatus } from "../types";
+import type { DeployResult, Outline, Selection, VaultDiffResult, VaultStatus } from "../types";
 
 type Tab = "compare" | "drivers" | "trace" | "events";
 
@@ -13,33 +14,18 @@ type Tab = "compare" | "drivers" | "trace" | "events";
  * to a vault happens only after the person types that environment's name.
  */
 export function VaultView({ drivers, revision, outline, onOpen, onSelect, onSaved }: { drivers: string[]; revision: string; outline: Outline | null; onOpen: (path: string) => void; onSelect: (s: Selection) => void; onSaved: () => void }) {
-  const [envs, setEnvs] = useState<VaultEnvironments | null>(null);
-  const [env, setEnv] = useState("");
+  const { envs, env, setEnv, why } = useEnvironment();
   const [tab, setTab] = useState<Tab>("compare");
-  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    api.vault
-      .environments()
-      .then((e) => {
-        setEnvs(e);
-        setError(null);
-      })
-      .catch((e: Error) => setError(e.message));
-  }, []);
-
-  if (error) {
-    return <div className="banner error">{error}</div>;
-  }
   if (!envs) {
     return <p className="muted pad">Loading…</p>;
   }
-  if (!envs.available || envs.environments.length === 0) {
+  if (envs.length === 0) {
     return (
       <div className="pad">
         <h1>Vault</h1>
         <p>No environments are configured, so there is no vault to compare with.</p>
-        <p className="muted">{envs.why ?? "The environments file names none."}</p>
+        <p className="muted">{why ?? "The environments file names none."}</p>
         <p>
           <button className="primary" onClick={() => onSelect({ type: "connections" })} data-testid="vault-setup">
             Set up a connection
@@ -51,7 +37,7 @@ export function VaultView({ drivers, revision, outline, onOpen, onSelect, onSave
       </div>
     );
   }
-  const chosen = envs.environments.find((e) => e.name === env) ?? null;
+  const chosen = envs.find((e) => e.name === env) ?? null;
 
   return (
     <div className="view vault">
@@ -59,14 +45,7 @@ export function VaultView({ drivers, revision, outline, onOpen, onSelect, onSave
         <h2>Vault</h2>
         <label className="field">
           <em>Environment</em>
-          <select value={env} onChange={(e) => setEnv(e.target.value)} data-testid="vault-env">
-            <option value="">choose…</option>
-            {envs.environments.map((e) => (
-              <option key={e.name} value={e.name} disabled={!e.ready}>
-                {e.name} ({e.tier}){e.ready ? "" : " — incomplete"}
-              </option>
-            ))}
-          </select>
+          <EnvPicker envs={envs} env={env} setEnv={setEnv} testid="vault-env" />
         </label>
         {chosen && <span className={chosen.tier === "prod" ? "pill err" : "pill"}>{chosen.tier}</span>}
         {chosen?.hasOverrides && <span className="pill ok" title="overrides/<env>.properties is applied to the tree before it is compared or deployed">overrides</span>}

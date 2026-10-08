@@ -79,8 +79,6 @@ Every view of the page, by area, in every install; the items marked *local and s
     overrides applied; each difference opens its detail.
   - *Deploy*: the plan step by step with nothing written, then the deploy itself (snapshot,
     write, restart, verify) once you type the environment's name.
-  - *Drivers*: every driver's state, start option and cache; start, stop and restart behind
-    the same typed confirmation.
   - *Drivers*: state, start option, cache size and trace level per driver; start, stop, restart;
     set the trace level; *view* the event cache in pages — pick an event to see its document,
     export it, make a case from it or delete it (deployers; its document is kept first) — export

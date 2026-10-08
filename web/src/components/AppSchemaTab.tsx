@@ -1,25 +1,16 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { api } from "../api";
 import { useAppSchema } from "../schema";
-import type { SchemaActionResult, VaultEnvironment } from "../types";
+import { EnvPicker, useEnvironment } from "../env";
+import type { SchemaActionResult } from "../types";
 
 /** What the shim says it can synchronize: its classes and attributes, read through the engine on request (the driver stopped). */
 export function AppSchemaTab({ driver, revision, onSaved }: { driver: string; revision: string; onSaved: () => void }) {
   const schema = useAppSchema(driver, revision);
-  const [envs, setEnvs] = useState<VaultEnvironment[]>([]);
-  const [env, setEnv] = useState("");
+  const { envs, env, setEnv } = useEnvironment();
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<SchemaActionResult | null>(null);
   const [filter, setFilter] = useState("");
-  useEffect(() => {
-    api
-      .vault.environments()
-      .then((v) => {
-        setEnvs(v.environments);
-        setEnv((cur) => cur || v.environments[0]?.name || "");
-      })
-      .catch(() => setEnvs([]));
-  }, []);
   const refresh = () => {
     setBusy(true);
     setResult(null);
@@ -46,14 +37,7 @@ export function AppSchemaTab({ driver, revision, onSaved }: { driver: string; re
           <span className="muted small">Not read yet: ask the engine for it (the driver must be stopped; the shim must be able to connect).</span>
         )}
         <span className="spacer" />
-        <select value={env} onChange={(e) => setEnv(e.target.value)} data-testid="app-schema-env">
-          {envs.length === 0 && <option value="">no environment</option>}
-          {envs.map((e) => (
-            <option key={e.name} value={e.name}>
-              {e.name} ({e.tier})
-            </option>
-          ))}
-        </select>
+        {envs && envs.length > 0 ? <EnvPicker envs={envs} env={env} setEnv={setEnv} testid="app-schema-env" /> : <span className="muted small">no environment</span>}
         <button disabled={!env || busy} onClick={refresh} title="DriverGetSchema: the engine asks the shim and the tree keeps the answer" data-testid="app-schema-refresh">
           {busy ? "Asking the shim…" : "Refresh application schema"}
         </button>

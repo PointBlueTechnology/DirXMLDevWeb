@@ -120,7 +120,7 @@ Every view of the page, by area, in every install; the items marked *local and s
   - Edit the input and *run without saving*; record the output a case should keep producing.
   - Run with a stage's override values, and compare the result with another stage's.
 - **Connections** (the driver set is looked up from the vault and chosen from a list): the environments the `idm` CLI reads, set up from the page — vault URL, bind
-  DN, driver set, tier, trust, SSH host — with a connection test before saving; the password
+  DN, driver set, tier, trust, SSH host, prerequisite, event store — with a connection test before saving; on a hosted server the project's *definitions* (deployers) and each person's *own connection* (bind DN, passwords) are two files (docs/multi-user.md); the password
   and each driver secret a deploy needs (shim, Remote Loader, named passwords, read off the
   tree) typed once and kept in the macOS Keychain or an owner-only file, never shown again.
 - **Secret managers**: a password or driver secret can be a *reference* instead of a stored

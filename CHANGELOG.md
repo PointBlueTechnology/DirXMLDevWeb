@@ -7,6 +7,15 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- **Definitions in full from the page** (docs/multi-user.md U4): the environment definition form
+  takes `requires` and the event store (URL, reader account, table, pseudonymise, tree name); a
+  person's connection takes the event store's reader password beside the vault password, from
+  a file, a variable, a command or a secret manager. The environment pickers mark an environment
+  the project defines but you have not connected to with *set up your connection*, linking to
+  Connections (`GET /api/vault/environments` carries `split`, `defined`, `connected`, `own`).
+
 ## [0.24.0] - 2026-10-08
 
 ### Changed

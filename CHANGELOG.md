@@ -7,6 +7,16 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- **Environments come from an explicit pair of files** (docs/multi-user.md U1): every service
+  that opens an environment takes an `EnvFiles` — one file as the CLI reads it, or the project's
+  definitions merged with one person's credentials by the core (DirXMLDev 0.16.0,
+  `Environments.load(definitions, credentials)`). Nothing in the server reads the environments
+  file by name any more, so `IDM_ENVIRONMENTS` no longer matters to a hosted server and its
+  start-up warning is gone. A hosted server still offers everyone the one `environments.file`
+  until U2 adds the per-person credentials directory.
+
 ## [0.21.0] - 2026-10-08
 
 ### Added

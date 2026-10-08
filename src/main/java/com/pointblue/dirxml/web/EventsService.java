@@ -27,17 +27,19 @@ public final class EventsService {
     private final Path tree;
     /** the simulator's case directory, so a saved case is where the simulator view lists it */
     private final Path cases;
+    private final EnvFiles files;
 
-    public EventsService(Path tree, Path cases) {
+    public EventsService(Path tree, Path cases, EnvFiles files) {
         this.tree = tree;
         this.cases = cases;
+        this.files = files;
     }
 
-    private static Environments.Environment env(String name) throws IOException {
+    private Environments.Environment env(String name) throws IOException {
         if (name == null || name.isBlank()) {
             throw new TreeService.BadRequest("no environment named");
         }
-        Environments.Environment e = Environments.load().get(name);
+        Environments.Environment e = files.load().get(name);
         if (e.events == null) {
             throw new TreeService.BadRequest("environment '" + name + "' has no event store: set " + name + ".eventsUrl, eventsUser and eventsPassword… in the environments file");
         }

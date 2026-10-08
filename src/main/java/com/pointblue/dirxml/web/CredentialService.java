@@ -35,28 +35,16 @@ public final class CredentialService {
     private static final String KEYCHAIN_PREFIX = "idm-";
 
     private final Path tree;
+    private final EnvFiles files;
 
-    public CredentialService(Path tree) {
+    public CredentialService(Path tree, EnvFiles files) {
         this.tree = tree.toAbsolutePath().normalize();
+        this.files = files;
     }
 
-    /** Hosted mode names the file in its configuration; the CLI's lookup stands otherwise. */
-    static volatile Path override;
-
-    /** The environments file the CLI would read, or the one it would create. */
-    static Path environmentsFile() {
-        if (override != null) {
-            return override;
-        }
-        String env = System.getenv("IDM_ENVIRONMENTS");
-        if (env != null && !env.isBlank()) {
-            return Paths.get(env).toAbsolutePath().normalize();
-        }
-        Path cwd = Paths.get("environments.properties").toAbsolutePath().normalize();
-        if (Files.isRegularFile(cwd)) {
-            return cwd;
-        }
-        return Paths.get(System.getProperty("user.home"), ".idm", "environments.properties");
+    /** The file the page's entries go to: the person's credentials, or the one file. */
+    private Path environmentsFile() {
+        return files.writeTarget();
     }
 
     static boolean keychainAvailable() {
@@ -147,7 +135,7 @@ public final class CredentialService {
                 throw new TreeService.BadRequest("no password given, and no environment to take one from");
             }
             try {
-                c.password = Environments.load().get(nameOk(env)).password;
+                c.password = files.load().get(nameOk(env)).password;
             } catch (IOException e) {
                 m.put("ok", false);
                 m.put("message", e.getMessage());
@@ -200,7 +188,7 @@ public final class CredentialService {
                 throw new TreeService.BadRequest("no password given, and no environment to take one from");
             }
             try {
-                c.password = Environments.load().get(nameOk(env)).password;
+                c.password = files.load().get(nameOk(env)).password;
             } catch (IOException e) {
                 m.put("ok", false);
                 m.put("message", e.getMessage());

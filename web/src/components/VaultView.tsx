@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useState } from "react";
 import { api } from "../api";
+import { CachePanel } from "./CachePanel";
 import { EventsView } from "./EventsView";
 import { TraceViewer } from "./TraceViewer";
 import type { DeployResult, Outline, Selection, VaultDiffResult, VaultEnvironments, VaultStatus } from "../types";
@@ -86,7 +87,7 @@ export function VaultView({ drivers, revision, outline, onOpen, onSelect, onSave
       ) : tab === "compare" ? (
         <Compare key={chosen.name} env={chosen.name} drivers={drivers} revision={revision} onOpen={onOpen} onFix={() => onSelect({ type: "connections", env: chosen.name })} />
       ) : tab === "drivers" ? (
-        <Drivers key={chosen.name} env={chosen.name} onFix={() => onSelect({ type: "connections", env: chosen.name })} />
+        <Drivers key={chosen.name} env={chosen.name} onFix={() => onSelect({ type: "connections", env: chosen.name })} onSelect={onSelect} onSaved={onSaved} />
       ) : (
         tab === "trace" ? (
         <TraceViewer key={chosen.name} env={chosen.name} drivers={drivers} />
@@ -313,7 +314,8 @@ function subject(kind: string): string {
     .replace(/_/g, " ");
 }
 
-function Drivers({ env, onFix }: { env: string; onFix: () => void }) {
+function Drivers({ env, onFix, onSelect, onSaved }: { env: string; onFix: () => void; onSelect: (s: Selection) => void; onSaved: () => void }) {
+  const [cacheOf, setCacheOf] = useState<string | null>(null);
   const [status, setStatus] = useState<VaultStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -391,7 +393,12 @@ function Drivers({ env, onFix }: { env: string; onFix: () => void }) {
                   <span className={d.state === "running" ? "pill ok" : d.state === "stopped" ? "pill" : "pill warn"}>{d.state}</span>
                 </td>
                 <td>{d.startOption}</td>
-                <td>{d.cacheSize ?? ""}</td>
+                <td className="nowrap">
+                  {d.cacheSize ?? ""}{" "}
+                  <button className="mini" onClick={() => setCacheOf(cacheOf === d.name ? null : d.name)} title="The queued events: view them, save them as a simulator case, clear the cache" data-testid={"cache-view-" + d.name}>
+                    {cacheOf === d.name ? "hide" : "view"}
+                  </button>
+                </td>
                 <td className="tracelevel" data-testid={"trace-level-" + d.name}>
                   <select value={(levels[d.name] ?? Number(d.traceLevel ?? 0))} onChange={(e) => setLevels({ ...levels, [d.name]: Number(e.target.value) })} disabled={!armed || busy !== null} title="DirXML-TraceLevel, kept per server; 0 is off, 3 shows policy results, 5 and above every document">
                     {Array.from({ length: 11 }, (_, i) => (
@@ -420,6 +427,7 @@ function Drivers({ env, onFix }: { env: string; onFix: () => void }) {
           </tbody>
         </table>
       )}
+      {cacheOf && <CachePanel key={cacheOf} env={env} driver={cacheOf} armed={armed} confirm={confirm} deployer onClose={() => setCacheOf(null)} onSaved={onSaved} onSimulator={() => onSelect({ type: "simulator" })} />}
     </div>
   );
 }

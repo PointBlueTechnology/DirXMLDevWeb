@@ -718,3 +718,27 @@ export interface CasePlan {
   name: string;
   written: boolean;
 }
+
+/** A driver's event cache as the core's driver.cache view reports it. */
+export interface CacheView {
+  environment: string;
+  driver: string;
+  ok: boolean;
+  count?: number;
+  events?: { operation: string; eventId: string | null; className: string | null; srcDn: string | null }[];
+  text: string;
+  inputXds: string | null;
+  cacheXds: string | null;
+}
+
+/** The files a case made from a cache would have, or the refusal. */
+export interface CaseFiles {
+  ok: boolean;
+  refusal?: string;
+  name?: string;
+  dir?: string;
+  files?: Record<string, string>;
+  replaced?: boolean;
+  events?: number;
+  written?: boolean;
+}

@@ -1,4 +1,4 @@
-import type { CasePlan, EventDetail, EventRow, EventsDescribe } from "./types";
+import type { CacheView, CaseFiles, CasePlan, EventDetail, EventRow, EventsDescribe } from "./types";
 import type { TraceRec } from "./trace/model";
 import type { AppSchema, Artifact, AuditEntry, BuildResult, ConfigView, Connections, DeployResult, EnvSecrets, FetchResult, FormData as FormDoc, GitDiff, GitStatus, ImportResult, LifecycleResult, OpCall, OpResult, OpSpec, Outline, OverridesData, PackagePrompts, PackagesData, PrdData, RoleCatalog, SchemaActionResult, SchemaClass, SchemaData, Session, SetupResult, SimCaseFiles, SimCases, SimDetail, SimRun, SiteListing, TreeFile, UpdateSites, Validation, VaultDiffResult, VaultEnvironments, VaultStatus, WorkspacesInfo } from "./types";
 import type { FishboneModel } from "./fishbone/types";
@@ -186,6 +186,9 @@ export const api = {
     status: (env: string) => call<VaultStatus>("GET", `/api/vault/status?env=${q(env)}`),
     servers: (env: string) => call<{ environment: string; primary: string | null; servers: { dn: string; name: string; url: string | null; primary: boolean }[] }>("GET", `/api/vault/servers?env=${q(env)}`),
     driver: (env: string, driver: string, action: string, confirm: string) => call<LifecycleResult>("POST", "/api/vault/driver", { env, driver, action, confirm }),
+    cache: (env: string, driver: string, count = 200) => call<CacheView>("GET", `/api/vault/cache?env=${q(env)}&driver=${q(driver)}&count=${count}`),
+    cacheCase: (env: string, req: { driver: string; name?: string; channel?: string; replace?: boolean; dryRun?: boolean }) => call<CaseFiles>("POST", "/api/vault/cache-case", { env, ...req }),
+    cacheClear: (env: string, driver: string, confirm: string) => call<LifecycleResult>("POST", "/api/vault/cache-clear", { env, driver, confirm }),
     traceLevel: (env: string, driver: string, level: number, confirm: string, server?: string) => call<LifecycleResult>("POST", "/api/vault/trace-level", { env, driver, level, confirm, ...(server ? { server } : {}) }),
   },
   /** Several operations as one change: validated once, written together or not at all. */

@@ -399,6 +399,135 @@ public final class VaultService {
         return m;
     }
 
+    /** The simulator's case directory, for a cache saved as a case; set by the workspace once the simulator service exists. */
+    private Path casesDir;
+
+    public void setCasesDir(Path dir) {
+        this.casesDir = dir;
+    }
+
+    /**
+     * A driver's event cache through the core's {@code driver.cache view}: the queued events
+     * (operation, class, DN, event id), the merged cache document, and a simulator-ready input
+     * document built from them. A read; any signed-in user.
+     */
+    public Map<String, Object> cacheView(String envName, String driver, int count) throws IOException {
+        if (driver == null || driver.isBlank()) {
+            throw new TreeService.BadRequest("no driver named");
+        }
+        Environments.Environment e = env(envName);
+        Path out = java.nio.file.Files.createTempDirectory("idmweb-cache");
+        try (Vault vault = Vault.connect(e.vaultConfig())) {
+            Operate.Result r = Operate.cacheView(Operate.vaultEngine(vault), e, driver, Math.max(1, Math.min(count, 1000)), out);
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("environment", e.name);
+            m.put("driver", driver);
+            m.put("ok", r.ok);
+            Object parsed = Json.parse(r.json);
+            if (parsed instanceof Map) {
+                Map<?, ?> pm = (Map<?, ?>) parsed;
+                m.put("count", pm.get("count"));
+                m.put("events", pm.get("events"));
+            }
+            m.put("text", r.text());
+            Path input = out.resolve("input.xds");
+            Path cache = out.resolve("cache.xds");
+            m.put("inputXds", java.nio.file.Files.exists(input) ? java.nio.file.Files.readString(input) : null);
+            m.put("cacheXds", java.nio.file.Files.exists(cache) ? java.nio.file.Files.readString(cache) : null);
+            return m;
+        } finally {
+            deleteQuietly(out);
+        }
+    }
+
+    /**
+     * The cache's events as one simulator case: {@code input.xds} is the core's simulator-ready
+     * document, {@code case.properties} names the driver and channel and where it came from.
+     * {@code dryRun} returns the files without writing. Refused when the cache is empty.
+     */
+    public Map<String, Object> cacheCase(String envName, String driver, String name, String channel, boolean replace, boolean dryRun) throws IOException {
+        Map<String, Object> view = cacheView(envName, driver, 1000);
+        String input = (String) view.get("inputXds");
+        Object count = view.get("count");
+        Map<String, Object> m = new LinkedHashMap<>();
+        if (!Boolean.TRUE.equals(view.get("ok")) || input == null || count == null || ((Number) count).intValue() == 0) {
+            m.put("ok", false);
+            m.put("refusal", "the cache of " + driver + " is empty; nothing to save");
+            return m;
+        }
+        String caseName = name == null || name.isBlank() ? driver.replaceAll("[^A-Za-z0-9._-]+", "-") + "-cache-" + CACHE_STAMP.format(java.time.Instant.now()) : name.trim();
+        if (!caseName.matches("[A-Za-z0-9][A-Za-z0-9._ -]{0,79}")) {
+            throw new TreeService.BadRequest("a case name is a short file name (letters, digits, . _ - and spaces)");
+        }
+        String ch = "publisher".equalsIgnoreCase(channel) ? "publisher" : "subscriber";
+        if (casesDir == null) {
+            throw new IllegalStateException("no case directory");
+        }
+        Path dir = casesDir.resolve(caseName);
+        boolean exists = java.nio.file.Files.exists(dir.resolve("case.properties"));
+        if (exists && !replace) {
+            m.put("ok", false);
+            m.put("refusal", "case '" + caseName + "' exists at " + dir + " (tick replace to overwrite it)");
+            return m;
+        }
+        Map<String, String> files = new LinkedHashMap<>();
+        files.put("case.properties", "driver=" + driver + "\nchannel=" + ch + "\nsource=cache:" + envName + ":" + driver + "\nsourceTime=" + java.time.Instant.now() + "\nsourceEvents=" + count + "\n");
+        files.put("input.xds", input.endsWith("\n") ? input : input + "\n");
+        if (!dryRun) {
+            java.nio.file.Files.createDirectories(dir);
+            for (Map.Entry<String, String> f : files.entrySet()) {
+                java.nio.file.Files.writeString(dir.resolve(f.getKey()), f.getValue(), java.nio.charset.StandardCharsets.UTF_8);
+            }
+        }
+        m.put("ok", true);
+        m.put("name", caseName);
+        m.put("dir", dir.toString());
+        m.put("files", files);
+        m.put("replaced", exists);
+        m.put("events", count);
+        m.put("written", !dryRun);
+        return m;
+    }
+
+    private static final java.time.format.DateTimeFormatter CACHE_STAMP = java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd-HHmm").withZone(java.time.ZoneId.systemDefault());
+
+    /** Empties a driver's cache through the core's {@code driver.cache clear} (a snapshot first); gated like every vault write. */
+    public Map<String, Object> cacheClear(String envName, String driver, String confirm) throws IOException {
+        if (driver == null || driver.isBlank()) {
+            throw new TreeService.BadRequest("no driver named");
+        }
+        Environments.Environment e = env(envName);
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("environment", e.name);
+        m.put("driver", driver);
+        String refusal = gate(e.name, confirm);
+        if (refusal != null) {
+            m.put("ok", false);
+            m.put("text", refusal);
+            return m;
+        }
+        try (Vault vault = Vault.connect(e.vaultConfig())) {
+            Operate.Result r = Operate.cacheClear(Operate.vaultEngine(vault), e, driver, true, confirm, tree);
+            m.put("ok", r.ok);
+            m.put("text", r.text());
+            return m;
+        }
+    }
+
+    private static void deleteQuietly(Path dir) {
+        try (java.util.stream.Stream<Path> s = java.nio.file.Files.walk(dir)) {
+            s.sorted(java.util.Comparator.reverseOrder()).forEach(p -> {
+                try {
+                    java.nio.file.Files.deleteIfExists(p);
+                } catch (IOException ignored) {
+                    // a temp directory
+                }
+            });
+        } catch (IOException ignored) {
+            // a temp directory
+        }
+    }
+
     /**
      * Live trace as parsed records (see {@link TraceService#json}), until the calling thread is
      * interrupted: from every server of the driver set at its own LDAP address (each keeps its own

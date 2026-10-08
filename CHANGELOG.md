@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.24.0] - 2026-10-08
+
 ### Changed
 
 - **Trace recordings and uploads are the person's** (docs/multi-user.md U3): on a hosted server

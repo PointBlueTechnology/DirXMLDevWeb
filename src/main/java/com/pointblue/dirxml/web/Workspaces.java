@@ -108,6 +108,7 @@ public final class Workspaces {
                 w = Workspace.open(id, current.isEmpty() ? "HEAD" : current, p.inPlace, p.inPlace.resolve(p.tree).normalize(), p.inPlace.resolve(p.cases).normalize(), hosted.catalog);
 
                 w.traces = new TraceFiles(hosted.dataDir.resolve("traces").resolve(safe(p.name)));
+                w.vault.setEnvironmentFilter(p.environments);
                 open.put(id, w);
             }
             return w;
@@ -127,6 +128,7 @@ public final class Workspaces {
         w = Workspace.open(id, branch, dir, dir.resolve(p.tree).normalize(), dir.resolve(p.cases).normalize(), hosted.catalog);
 
         w.traces = new TraceFiles(hosted.dataDir.resolve("traces").resolve(safe(p.name)));
+        w.vault.setEnvironmentFilter(p.environments);
         open.put(id, w);
         return w;
     }

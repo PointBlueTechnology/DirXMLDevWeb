@@ -129,9 +129,12 @@ public final class Hosted {
         if ((url == null || url.isBlank()) && (ip == null || ip.isBlank())) {
             return null;
         }
-        return new Project(name, url == null || url.isBlank() ? null : url.trim(), ip == null || ip.isBlank() ? null : Path.of(ip.trim()),
+        Project pr = new Project(name, url == null || url.isBlank() ? null : url.trim(), ip == null || ip.isBlank() ? null : Path.of(ip.trim()),
             p.getProperty(pre + "tree", "."), p.getProperty(pre + "cases", "cases"), p.getProperty(pre + "base", "main"),
             null, key == null || key.isBlank() ? null : Path.of(key.trim()));
+        // project.<name>.environments=a,b (repo.environments for the single-project form): the tree's own environments
+        pr.environments = list(p.getProperty(prefix.equals("repo.") ? "repo.environments" : prefix + "environments", ""));
+        return pr;
     }
 
     /** A project's token from the configuration: its own, else the server's. */

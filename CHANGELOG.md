@@ -29,6 +29,16 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   `GET /api/vault/cache-file?kind=cache|input`, `POST /api/vault/cache-event-case`,
   `POST /api/vault/cache-delete`.)
 
+### Changed
+
+- **One environment per tree, chosen once.** The Vault view, the Schema and App schema tabs and
+  everything under the Vault view share one remembered choice of environment, and with a single
+  environment there is nothing to choose: the name is shown. In hosted mode a project names the
+  environments its tree is deployed to with `project.<name>.environments=…` (names from the
+  environments file); only those are offered, and a request for another is refused. Jerry: "the
+  tree on the left represents a single IDV at a time" — it represents one driver set, deployed to
+  its own dev/stage/production environments, and no others.
+
 ## [0.20.0] - 2026-10-08
 
 ### Added

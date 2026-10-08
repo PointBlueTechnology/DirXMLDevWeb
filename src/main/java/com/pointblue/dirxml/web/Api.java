@@ -26,7 +26,7 @@ public final class Api implements HttpHandler {
     public static final String COOKIE = "idmweb_session";
     public static final String CSRF_HEADER = "X-IDMWeb-CSRF";
     /** POST routes only a deployer may call: they reach a vault or hold its credentials. */
-    private static final java.util.List<String> DEPLOYER_ONLY = java.util.List.of("/api/vault/deploy", "/api/vault/driver", "/api/vault/trace-level", "/api/vault/cache-clear", "/api/vault/deploy-schema", "/api/credentials/environment", "/api/credentials/environment/remove", "/api/credentials/secret");
+    private static final java.util.List<String> DEPLOYER_ONLY = java.util.List.of("/api/vault/deploy", "/api/vault/driver", "/api/vault/trace-level", "/api/vault/cache-clear", "/api/vault/cache-delete", "/api/vault/deploy-schema", "/api/credentials/environment", "/api/credentials/environment/remove", "/api/credentials/secret");
 
     private final Workspaces workspaces;
     private final Session.Store sessions;
@@ -207,6 +207,20 @@ public final class Api implements HttpHandler {
                 events(ex, w);
                 return;
             }
+            if (path.equals("/api/vault/cache-file") && method.equals("GET")) {
+                // the whole cache as a file: kind=cache (the merged ViewCacheEntries document, for recovery) or input (simulator-ready)
+                String kind = "input".equals(query.get("kind")) ? "input" : "cache";
+                String doc = w.vault.cacheDocument(required(query, "env"), required(query, "driver"), kind);
+                String fname = required(query, "driver").replaceAll("[^A-Za-z0-9._-]+", "-") + "-" + kind + ".xds";
+                byte[] bytes = doc.getBytes(StandardCharsets.UTF_8);
+                ex.getResponseHeaders().set("Content-Type", "application/xml; charset=utf-8");
+                ex.getResponseHeaders().set("Content-Disposition", "attachment; filename=\"" + fname + "\"");
+                ex.sendResponseHeaders(200, bytes.length);
+                try (OutputStream out = ex.getResponseBody()) {
+                    out.write(bytes);
+                }
+                return;
+            }
             if (path.equals("/api/vault/trace") && method.equals("GET")) {
                 audit.log(session, w, "trace", Map.of("env", String.valueOf(query.get("env")), "driver", String.valueOf(query.get("driver")), "server", String.valueOf(query.get("server")), "record", String.valueOf(query.get("record"))), "started");
                 trace(ex, w, query);
@@ -382,7 +396,7 @@ public final class Api implements HttpHandler {
                 case "/api/traces/records":
                     return w.traces.records(required(query, "name"), query.get("from") == null ? 0 : Integer.parseInt(query.get("from")), query.get("count") == null ? 15000 : Integer.parseInt(query.get("count")), TraceFiles.channels(query.get("channels")), query.get("driver"), query.get("text"));
                 case "/api/vault/cache":
-                    return vault.cacheView(required(query, "env"), required(query, "driver"), query.get("count") == null ? 200 : Integer.parseInt(query.get("count")));
+                    return vault.cacheView(required(query, "env"), required(query, "driver"), query.get("from") == null ? 0 : Integer.parseInt(query.get("from")), query.get("count") == null ? 200 : Integer.parseInt(query.get("count")), "true".equals(query.get("fresh")));
                 case "/api/eventlog/describe":
                     return w.events.describe(required(query, "env"));
                 case "/api/eventlog":
@@ -478,6 +492,10 @@ public final class Api implements HttpHandler {
                     return vault.lifecycle(env, Json.asString(req.get("driver")), Json.asString(req.get("action")), Json.asString(req.get("confirm")));
                 case "/api/vault/cache-case":
                     return vault.cacheCase(env, Json.asString(req.get("driver")), Json.asString(req.get("name")), Json.asString(req.get("channel")), Boolean.TRUE.equals(req.get("replace")), Boolean.TRUE.equals(req.get("dryRun")));
+                case "/api/vault/cache-event-case":
+                    return vault.cacheEventCase(env, Json.asString(req.get("driver")), (int) Double.parseDouble(String.valueOf(req.get("index"))) - 1, Json.asString(req.get("name")), Json.asString(req.get("channel")), Boolean.TRUE.equals(req.get("replace")), Boolean.TRUE.equals(req.get("dryRun")));
+                case "/api/vault/cache-delete":
+                    return vault.cacheDeleteEvent(env, Json.asString(req.get("driver")), (int) Double.parseDouble(String.valueOf(req.get("index"))) - 1, Json.asString(req.get("confirm")));
                 case "/api/vault/cache-clear":
                     return vault.cacheClear(env, Json.asString(req.get("driver")), Json.asString(req.get("confirm")));
                 case "/api/vault/trace-level":

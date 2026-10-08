@@ -406,39 +406,147 @@ public final class VaultService {
         this.casesDir = dir;
     }
 
-    /**
-     * A driver's event cache through the core's {@code driver.cache view}: the queued events
-     * (operation, class, DN, event id), the merged cache document, and a simulator-ready input
-     * document built from them. A read; any signed-in user.
-     */
-    public Map<String, Object> cacheView(String envName, String driver, int count) throws IOException {
-        if (driver == null || driver.isBlank()) {
-            throw new TreeService.BadRequest("no driver named");
+    /** A parsed cache: the events of the merged document, kept a short while so pages are cheap. */
+    private static final class CachedCache {
+        final long at = System.currentTimeMillis();
+        final List<org.w3c.dom.Element> events;
+        final String inputXds;
+        final String cacheXds;
+
+        CachedCache(List<org.w3c.dom.Element> events, String inputXds, String cacheXds) {
+            this.events = events;
+            this.inputXds = inputXds;
+            this.cacheXds = cacheXds;
         }
-        Environments.Environment e = env(envName);
+    }
+
+    private final Map<String, CachedCache> cacheViews = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final long CACHE_TTL_MS = 20_000;
+
+    private void forgetCache(String envName, String driver) {
+        cacheViews.remove(envName + "\u0000" + driver);
+    }
+
+    /** The whole cache read through the core (a page size of 500 per LDAP call), parsed; reused for 20 seconds. */
+    private CachedCache readCache(Environments.Environment e, String driver, boolean fresh) throws IOException {
+        String key = e.name + "\u0000" + driver;
+        CachedCache c = cacheViews.get(key);
+        if (c != null && !fresh && System.currentTimeMillis() - c.at < CACHE_TTL_MS) {
+            return c;
+        }
         Path out = java.nio.file.Files.createTempDirectory("idmweb-cache");
         try (Vault vault = Vault.connect(e.vaultConfig())) {
-            Operate.Result r = Operate.cacheView(Operate.vaultEngine(vault), e, driver, Math.max(1, Math.min(count, 1000)), out);
-            Map<String, Object> m = new LinkedHashMap<>();
-            m.put("environment", e.name);
-            m.put("driver", driver);
-            m.put("ok", r.ok);
-            Object parsed = Json.parse(r.json);
-            if (parsed instanceof Map) {
-                Map<?, ?> pm = (Map<?, ?>) parsed;
-                m.put("count", pm.get("count"));
-                m.put("events", pm.get("events"));
+            Operate.Result r = Operate.cacheView(Operate.vaultEngine(vault), e, driver, 500, out);
+            if (!r.ok) {
+                throw new IOException(r.text());
             }
-            m.put("text", r.text());
             Path input = out.resolve("input.xds");
             Path cache = out.resolve("cache.xds");
-            m.put("inputXds", java.nio.file.Files.exists(input) ? java.nio.file.Files.readString(input) : null);
-            m.put("cacheXds", java.nio.file.Files.exists(cache) ? java.nio.file.Files.readString(cache) : null);
-            return m;
+            String inputXds = java.nio.file.Files.exists(input) ? java.nio.file.Files.readString(input) : "";
+            String cacheXds = java.nio.file.Files.exists(cache) ? java.nio.file.Files.readString(cache) : "";
+            c = new CachedCache(CacheEvents.events(inputXds), inputXds, cacheXds);
+            cacheViews.put(key, c);
+            return c;
         } finally {
             deleteQuietly(out);
         }
     }
+
+    /**
+     * A page of a driver's event cache through the core's {@code driver.cache view}: the queued
+     * events from {@code from}, each with its operation, class, DN, event id and its XML; the
+     * total. A read; any signed-in user.
+     */
+    public Map<String, Object> cacheView(String envName, String driver, int from, int count, boolean fresh) throws IOException {
+        if (driver == null || driver.isBlank()) {
+            throw new TreeService.BadRequest("no driver named");
+        }
+        Environments.Environment e = env(envName);
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("environment", e.name);
+        m.put("driver", driver);
+        try {
+            CachedCache c = readCache(e, driver, fresh);
+            List<Object> page = new ArrayList<>();
+            int start = Math.max(0, from);
+            int end = Math.min(c.events.size(), start + Math.max(1, Math.min(count, 1000)));
+            for (int i = start; i < end; i++) {
+                page.add(CacheEvents.summary(i, c.events.get(i), true));
+            }
+            m.put("ok", true);
+            m.put("count", c.events.size());
+            m.put("from", start);
+            m.put("events", page);
+            m.put("readAt", java.time.Instant.ofEpochMilli(c.at).toString());
+        } catch (IOException ex) {
+            m.put("ok", false);
+            m.put("text", ex.getMessage());
+        }
+        return m;
+    }
+
+    /** The whole cache as a document: {@code cache} (the merged ViewCacheEntries document, for recovery) or {@code input} (simulator-ready). */
+    public String cacheDocument(String envName, String driver, String kind) throws IOException {
+        Environments.Environment e = env(envName);
+        CachedCache c = readCache(e, driver, false);
+        return "input".equals(kind) ? c.inputXds : c.cacheXds;
+    }
+
+    /** One event of the cache as a simulator case ({@code <nds><input>the event</input></nds>}). */
+    public Map<String, Object> cacheEventCase(String envName, String driver, int index, String name, String channel, boolean replace, boolean dryRun) throws IOException {
+        Environments.Environment e = env(envName);
+        CachedCache c = readCache(e, driver, false);
+        Map<String, Object> m = new LinkedHashMap<>();
+        if (index < 0 || index >= c.events.size()) {
+            m.put("ok", false);
+            m.put("refusal", "no event " + (index + 1) + " in the cache (it holds " + c.events.size() + "); read it again");
+            return m;
+        }
+        org.w3c.dom.Element ev = c.events.get(index);
+        String leaf = CacheEvents.leaf(ev);
+        String caseName = name == null || name.isBlank()
+            ? (driver + "-" + ev.getTagName() + (leaf.isEmpty() ? "" : "-" + leaf) + "-" + CACHE_STAMP.format(java.time.Instant.now())).replaceAll("[^A-Za-z0-9._-]+", "-")
+            : name.trim();
+        return writeCase(envName, driver, caseName, channel, replace, dryRun, CacheEvents.inputOf(ev), "cache-event:" + envName + ":" + driver + ":" + (index + 1), 1, m);
+    }
+
+    /** Deletes one event of the cache by its position (DeleteCacheEntries(position, 1)); its XML is kept in deploy-snapshots first. Gated like every vault write. */
+    public Map<String, Object> cacheDeleteEvent(String envName, String driver, int index, String confirm) throws IOException {
+        Environments.Environment e = env(envName);
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("environment", e.name);
+        m.put("driver", driver);
+        m.put("index", index + 1);
+        String refusal = gate(e.name, confirm);
+        if (refusal != null) {
+            m.put("ok", false);
+            m.put("text", refusal);
+            return m;
+        }
+        CachedCache c = readCache(e, driver, true);
+        if (index < 0 || index >= c.events.size()) {
+            m.put("ok", false);
+            m.put("text", "no event " + (index + 1) + " in the cache (it holds " + c.events.size() + ")");
+            return m;
+        }
+        org.w3c.dom.Element ev = c.events.get(index);
+        Path snapDir = tree.resolve("deploy-snapshots").resolve(e.name);
+        java.nio.file.Files.createDirectories(snapDir);
+        Path snap = snapDir.resolve(CACHE_SNAP.format(java.time.Instant.now()) + "-cache-" + driver.replaceAll("[^A-Za-z0-9._-]+", "-") + "-event" + (index + 1) + ".xds");
+        java.nio.file.Files.writeString(snap, CacheEvents.inputOf(ev), java.nio.charset.StandardCharsets.UTF_8);
+        String dn = com.pointblue.dirxml.dev.deploy.VaultMapping.driverDn(e.driverSetDn, driver);
+        try (Vault vault = Vault.connect(e.vaultConfig())) {
+            vault.deleteCacheEntries(dn, index, 1, "", 0);
+        } finally {
+            forgetCache(e.name, driver);
+        }
+        m.put("ok", true);
+        m.put("snapshot", tree.toAbsolutePath().relativize(snap.toAbsolutePath()).toString().replace('\\', '/'));
+        m.put("text", "deleted event " + (index + 1) + " (" + CacheEvents.summary(index, ev, false).get("operation") + " " + CacheEvents.summary(index, ev, false).get("srcDn") + "); its XML is in " + m.get("snapshot"));
+        return m;
+    }
+
+    private static final java.time.format.DateTimeFormatter CACHE_SNAP = java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss").withZone(java.time.ZoneId.systemDefault());
 
     /**
      * The cache's events as one simulator case: {@code input.xds} is the core's simulator-ready
@@ -446,16 +554,19 @@ public final class VaultService {
      * {@code dryRun} returns the files without writing. Refused when the cache is empty.
      */
     public Map<String, Object> cacheCase(String envName, String driver, String name, String channel, boolean replace, boolean dryRun) throws IOException {
-        Map<String, Object> view = cacheView(envName, driver, 1000);
-        String input = (String) view.get("inputXds");
-        Object count = view.get("count");
+        Environments.Environment e = env(envName);
+        CachedCache c = readCache(e, driver, false);
         Map<String, Object> m = new LinkedHashMap<>();
-        if (!Boolean.TRUE.equals(view.get("ok")) || input == null || count == null || ((Number) count).intValue() == 0) {
+        if (c.events.isEmpty()) {
             m.put("ok", false);
             m.put("refusal", "the cache of " + driver + " is empty; nothing to save");
             return m;
         }
         String caseName = name == null || name.isBlank() ? driver.replaceAll("[^A-Za-z0-9._-]+", "-") + "-cache-" + CACHE_STAMP.format(java.time.Instant.now()) : name.trim();
+        return writeCase(envName, driver, caseName, channel, replace, dryRun, c.inputXds, "cache:" + envName + ":" + driver, c.events.size(), m);
+    }
+
+    private Map<String, Object> writeCase(String envName, String driver, String caseName, String channel, boolean replace, boolean dryRun, String input, String source, int events, Map<String, Object> m) throws IOException {
         if (!caseName.matches("[A-Za-z0-9][A-Za-z0-9._ -]{0,79}")) {
             throw new TreeService.BadRequest("a case name is a short file name (letters, digits, . _ - and spaces)");
         }
@@ -471,7 +582,7 @@ public final class VaultService {
             return m;
         }
         Map<String, String> files = new LinkedHashMap<>();
-        files.put("case.properties", "driver=" + driver + "\nchannel=" + ch + "\nsource=cache:" + envName + ":" + driver + "\nsourceTime=" + java.time.Instant.now() + "\nsourceEvents=" + count + "\n");
+        files.put("case.properties", "driver=" + driver + "\nchannel=" + ch + "\nsource=" + source + "\nsourceTime=" + java.time.Instant.now() + "\nsourceEvents=" + events + "\n");
         files.put("input.xds", input.endsWith("\n") ? input : input + "\n");
         if (!dryRun) {
             java.nio.file.Files.createDirectories(dir);
@@ -484,7 +595,7 @@ public final class VaultService {
         m.put("dir", dir.toString());
         m.put("files", files);
         m.put("replaced", exists);
-        m.put("events", count);
+        m.put("events", events);
         m.put("written", !dryRun);
         return m;
     }
@@ -511,6 +622,8 @@ public final class VaultService {
             m.put("ok", r.ok);
             m.put("text", r.text());
             return m;
+        } finally {
+            forgetCache(e.name, driver);
         }
     }
 

@@ -719,16 +719,26 @@ export interface CasePlan {
   written: boolean;
 }
 
-/** A driver's event cache as the core's driver.cache view reports it. */
+/** One queued event of a driver's cache: its position (1-based), what it is, and its document. */
+export interface CacheEvent {
+  index: number;
+  operation: string;
+  className: string | null;
+  srcDn: string | null;
+  eventId: string | null;
+  xml?: string;
+}
+
+/** A page of a driver's event cache as the core's driver.cache view reports it. */
 export interface CacheView {
   environment: string;
   driver: string;
   ok: boolean;
   count?: number;
-  events?: { operation: string; eventId: string | null; className: string | null; srcDn: string | null }[];
-  text: string;
-  inputXds: string | null;
-  cacheXds: string | null;
+  from?: number;
+  events?: CacheEvent[];
+  readAt?: string;
+  text?: string;
 }
 
 /** The files a case made from a cache would have, or the refusal. */

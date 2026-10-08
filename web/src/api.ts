@@ -126,6 +126,7 @@ export const api = {
     list: () => call<Connections>("GET", "/api/credentials"),
     /** The parameters as typed; a password given here is used once and not kept. */
     test: (req: Record<string, unknown>) => call<{ ok: boolean; message: string; driverSetFound?: boolean }>("POST", "/api/credentials/test", req),
+    driverSets: (req: Record<string, unknown>) => call<{ ok: boolean; message: string; driverSets?: { dn: string; name: string | null; servers: string[] }[] }>("POST", "/api/credentials/driversets", req),
     save: (req: Record<string, unknown>) => call<{ name: string; file: string; notes: string[] }>("POST", "/api/credentials/environment", req),
     remove: (name: string) => call<{ name: string; removed: number }>("POST", "/api/credentials/environment/remove", { name }),
     /** Does a reference yield a value? A configured one (env, optional key) or a command not yet saved. */

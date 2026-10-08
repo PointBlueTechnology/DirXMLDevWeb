@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.20.0] - 2026-10-08
+
 ### Added
 
 - **Driver cache** on the Drivers tab: *view* beside the cache size lists the queued events

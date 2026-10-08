@@ -22,6 +22,8 @@ public final class Workspace implements AutoCloseable {
     public final PackageService packages;
     public final CredentialService credentials;
     public final EventsService events;
+    /** Recordings and uploaded trace files; under the data directory in hosted mode, under ~/.idm locally. */
+    public TraceFiles traces;
 
     private Workspace(String id, String branch, Path root, Path tree, Path cases, Path catalog) throws IOException {
         this.id = id;
@@ -41,6 +43,7 @@ public final class Workspace implements AutoCloseable {
         this.prov = new ProvisioningService(tree);
         this.credentials = new CredentialService(tree);
         this.events = new EventsService(tree, sim.casesDir());
+        this.traces = new TraceFiles(Path.of(System.getProperty("user.home"), ".idm", "traces", id.replaceAll("[^A-Za-z0-9._-]+", "-")));
         watcher.start();
     }
 

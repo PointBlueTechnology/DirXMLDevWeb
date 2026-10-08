@@ -1,4 +1,4 @@
-import type { CacheView, CaseFiles, CasePlan, EventDetail, EventRow, EventsDescribe } from "./types";
+import type { CacheView, CaseFiles, CasePlan, EventDetail, EventRow, EventsDescribe, TraceFileEntry } from "./types";
 import type { TraceRec } from "./trace/model";
 import type { AppSchema, Artifact, AuditEntry, BuildResult, ConfigView, Connections, DeployResult, EnvSecrets, FetchResult, FormData as FormDoc, GitDiff, GitStatus, ImportResult, LifecycleResult, OpCall, OpResult, OpSpec, Outline, OverridesData, PackagePrompts, PackagesData, PrdData, RoleCatalog, SchemaActionResult, SchemaClass, SchemaData, Session, SetupResult, SimCaseFiles, SimCases, SimDetail, SimRun, SiteListing, TreeFile, UpdateSites, Validation, VaultDiffResult, VaultEnvironments, VaultStatus, WorkspacesInfo } from "./types";
 import type { FishboneModel } from "./fishbone/types";
@@ -157,6 +157,22 @@ export const api = {
   packagePrompts: (packages: string, driver?: string) => call<PackagePrompts>("GET", `/api/packages/prompts?packages=${q(packages)}${driver ? `&driver=${q(driver)}` : ""}`),
   packageSite: (site: string) => call<SiteListing>("GET", `/api/packages/site?site=${q(site)}`),
   fetchPackages: (req: { site: string; packages: string[]; allVersions?: boolean; dryRun?: boolean }) => call<FetchResult>("POST", "/api/packages/fetch", req),
+  traces: {
+    list: () => call<{ dir: string; files: TraceFileEntry[] }>("GET", "/api/traces"),
+    records: (name: string, from: number, count: number, filters: { channels?: string; driver?: string; text?: string }) =>
+      call<{ name: string; from: number; count: number; matched: number; total: number; drivers: string[]; records: TraceRec[] }>("GET", `/api/traces/records?name=${q(name)}&from=${from}&count=${count}${filters.channels ? `&channels=${q(filters.channels)}` : ""}${filters.driver ? `&driver=${q(filters.driver)}` : ""}${filters.text ? `&text=${q(filters.text)}` : ""}`),
+    remove: (name: string) => call<{ ok: boolean }>("POST", "/api/traces/delete", { name }),
+    fileUrl: (name: string) => `/api/traces/file?name=${q(name)}${token() ? `&token=${q(token())}` : ""}`,
+    /** the raw file as the body; the server checks the size against its limit as it streams */
+    upload: async (file: File) => {
+      const res = await fetch(`/api/traces/upload?name=${q(file.name)}`, { method: "POST", headers: { "X-IDMWeb-Token": token(), ...(csrf ? { "X-IDMWeb-CSRF": csrf } : {}), "Content-Type": "application/octet-stream" }, body: file });
+      const body = (await res.json()) as { ok?: boolean; name?: string; error?: string };
+      if (!res.ok) {
+        throw new Error(body.error ?? `upload failed (${res.status})`);
+      }
+      return body as { ok: boolean; name: string };
+    },
+  },
   events: {
     describe: (env: string) => call<EventsDescribe>("GET", `/api/eventlog/describe?env=${q(env)}`),
     list: (env: string, query: Record<string, string>) =>
@@ -218,9 +234,19 @@ export function followTree(onRevision: (revision: string) => void, onState: (liv
 
 /** Follow a driver's trace: `onLine` per line, `onState` with open / closed / the failure's message. */
 /** The live trace stream: parsed records (see web/src/trace/model.ts), or `{error}` for a server whose stream failed. `driver` null = every driver. */
-export function followTrace(env: string, driver: string | null, engine: boolean, onRecord: (r: TraceRec | { error: string }) => void, onState: (state: "open" | "closed" | { failed: string }) => void, server?: string): () => void {
-  const es = new EventSource(`/api/vault/trace?env=${q(env)}${driver ? `&driver=${q(driver)}` : ""}${engine ? "&engine=true" : ""}${server ? `&server=${q(server)}` : ""}&token=${q(token())}`);
-  es.addEventListener("open", () => onState("open"));
+export function followTrace(env: string, driver: string | null, engine: boolean, onRecord: (r: TraceRec | { error: string }) => void, onState: (state: "open" | "closed" | { failed: string } | { recording: string }) => void, server?: string, record?: boolean): () => void {
+  const es = new EventSource(`/api/vault/trace?env=${q(env)}${driver ? `&driver=${q(driver)}` : ""}${engine ? "&engine=true" : ""}${server ? `&server=${q(server)}` : ""}${record ? "&record=true" : ""}&token=${q(token())}`);
+  es.addEventListener("open", (ev) => {
+    onState("open");
+    try {
+      const d = JSON.parse((ev as MessageEvent<string>).data) as { recording?: string };
+      if (d.recording) {
+        onState({ recording: d.recording });
+      }
+    } catch {
+      // the open event may carry nothing
+    }
+  });
   es.addEventListener("fail", (ev) => {
     let message = "the trace stream failed";
     try {

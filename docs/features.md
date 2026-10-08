@@ -84,10 +84,14 @@ Every view of the page, by area, in every install; the items marked *local and s
   - *Drivers*: state, start option, cache size and trace level per driver; start, stop, restart;
     set the trace level; *view* the event cache (the queued events and the cache document), save it
     as one simulator case, or clear it (deployers; the core snapshots it first).
+  - *Trace files* (sidebar): recordings of the live trace (*record to a file* on the Trace tab)
+    and uploaded trace files, opened in the viewer — parsed once on the server, read in pages
+    with the filters applied there — downloaded, removed.
   - *Trace*: the DirXML Trace Viewer in the page (its `dirxml-trace-core` library does the parsing
     and highlighting, so a line reads the same as in the desktop app): the driver set's trace live
     from every server or one, channel/driver/text filters, find, DSTrace colours, compact
-    whitespace, timestamp formats, pause, save, copy, a pop-out window; the Drivers tab sets a
+    whitespace, timestamp formats, pause, save, copy, a pop-out window, recording to a file; a
+    driver's or a policy's name in the trace opens it in the tree; the Drivers tab sets a
     driver's trace level. Before this it was a driver's raw lines with a filter — from any server of the driver set, each of
     which keeps its own (the servers are read from the vault, their addresses from the
     environment's `servers=` mapping or the server object).

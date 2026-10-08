@@ -50,6 +50,11 @@ public final class TraceService {
      * later sends an {@code error} record and the others go on.
      */
     public static void stream(Environments.Environment env, List<Source> sources, String driver, boolean engineToo, Consumer<Map<String, Object>> sink) throws Exception {
+        stream(env, sources, driver, engineToo, sink, null);
+    }
+
+    /** As above; {@code raw} (may be null) gets every record before the driver filter, for a recording. */
+    public static void stream(Environments.Environment env, List<Source> sources, String driver, boolean engineToo, Consumer<Map<String, Object>> sink, Consumer<TraceRecord> raw) throws Exception {
         List<LdapTraceEventSource> open = new ArrayList<>();
         try {
             for (Source s : sources) {
@@ -59,10 +64,13 @@ public final class TraceService {
                 }
                 TraceParser parser = new TraceParser();
                 LdapTraceEventSource source = new LdapTraceEventSource(settings, s.name());
-                source.start(raw -> {
+                source.start(ev -> {
                     TraceRecord r;
                     synchronized (parser) {
-                        r = parser.parse(raw);
+                        r = parser.parse(ev);
+                    }
+                    if (r != null && raw != null) {
+                        raw.accept(r);
                     }
                     if (r != null && wanted(r, driver, engineToo)) {
                         sink.accept(json(r));

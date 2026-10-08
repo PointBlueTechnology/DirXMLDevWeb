@@ -12,10 +12,12 @@ const TIERS = ["dev", "stg", "prd"];
  * once to the local server and stored (Keychain by default on macOS, else an owner-only file);
  * the page is never shown a value again.
  */
-export function ConnectionsView({ initialEnv }: { initialEnv: string | null }) {
+export function ConnectionsView({ initialEnv, deployer }: { initialEnv: string | null; deployer: boolean }) {
   const [data, setData] = useState<Connections | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [editing, setEditing] = useState<string | null | "new">(initialEnv ?? null);
+  const [editing, setEditing] = useState<string | null | "new" | "new-mine">(initialEnv ?? null);
+  /** Two files: which half of an environment is being edited. */
+  const [half, setHalf] = useState<"definition" | "mine">("mine");
 
   const load = () =>
     api.connections
@@ -32,7 +34,90 @@ export function ConnectionsView({ initialEnv }: { initialEnv: string | null }) {
   if (!data) {
     return <p className="muted pad">Loading…</p>;
   }
-  const current = editing && editing !== "new" ? (data.environments.find((e) => e.name === editing) ?? null) : null;
+  const current = editing && editing !== "new" && editing !== "new-mine" ? (data.environments.find((e) => e.name === editing) ?? null) : null;
+
+  if (data.split) {
+    const defined = data.environments.filter((e) => e.defined);
+    const own = data.environments.filter((e) => e.own);
+    const mode = current ? (current.own ? "own" : half) : editing === "new" ? "definition" : "own";
+    return (
+      <div className="view connections">
+        <div className="viewhead">
+          <div>
+            <div className="kicker">{data.file}{data.exists ? "" : " (not there yet; saving creates it, readable by you only)"}</div>
+            <h2>Connections</h2>
+          </div>
+          <span className="spacer" />
+          <button onClick={() => (setEditing("new-mine"), setHalf("mine"))} data-testid="conn-new-mine">
+            An environment of my own
+          </button>{" "}
+          {deployer && (
+            <button className="primary" onClick={() => (setEditing("new"), setHalf("definition"))} data-testid="conn-new">
+              New environment
+            </button>
+          )}
+        </div>
+        <div className="pad scroll connbody">
+          <h3>My connections</h3>
+          <p className="muted small">The project's environments, and whether you are connected to each: your own bind DN and password, kept in your file and never shown again.</p>
+          <table className="grid" data-testid="conn-table">
+            <thead>
+              <tr>
+                <th>Environment</th>
+                <th>Tier</th>
+                <th>Vault</th>
+                <th>Driver set</th>
+                <th>Bind as</th>
+                <th>Password</th>
+                <th>Status</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {[...defined, ...own].map((e) => (
+                <tr key={e.name} className={editing === e.name ? "selected" : ""}>
+                  <td>
+                    <code>{e.name}</code>
+                    {e.own && <span className="pill" title="named only in your own file">mine</span>}
+                  </td>
+                  <td>
+                    <span className={e.tier === "prd" ? "pill err" : "pill"}>{e.tier ?? "dev"}</span>
+                  </td>
+                  <td className="small">
+                    {e.url ?? <span className="muted">—</span>}
+                    {e.trustAll === "true" && <span className="muted"> (any certificate)</span>}
+                  </td>
+                  <td className="small">{e.driverSet ?? <span className="muted">—</span>}</td>
+                  <td className="small">{e.bindDn ?? <span className="muted">—</span>}</td>
+                  <td>{e.password ? <span className="pill ok">{e.password}</span> : <span className="muted">—</span>}</td>
+                  <td>{e.connected ? <span className="pill ok">connected</span> : <span className="pill warn">not connected</span>}</td>
+                  <td className="right">
+                    <button onClick={() => (setEditing(e.name), setHalf("mine"))} data-testid={"conn-mine-" + e.name}>
+                      {e.connected ? "My connection" : "Set up…"}
+                    </button>{" "}
+                    {deployer && e.defined && (
+                      <button onClick={() => (setEditing(e.name), setHalf("definition"))} data-testid={"conn-edit-" + e.name}>
+                        Definition
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {data.environments.length === 0 && <p className="muted">No environments yet. {deployer ? "Add the project's first: the vault's LDAPS URL and the driver set's DN; everyone then adds their own bind DN and password." : "A deployer adds the project's environments; you then add your own bind DN and password to each."}</p>}
+          {editing === "new" && deployer && <EnvForm key="new" env={null} mode="definition" keychain={data.keychain} helpers={data.helpers} onDone={(name) => (void load(), setEditing(name))} onCancel={() => setEditing(null)} />}
+          {editing === "new-mine" && <EnvForm key="new-mine" env={null} mode="own" keychain={data.keychain} helpers={data.helpers} onDone={(name) => (void load(), setEditing(name))} onCancel={() => setEditing(null)} />}
+          {current && (
+            <>
+              <EnvForm key={mode + current.name} env={current} mode={mode} keychain={data.keychain} helpers={data.helpers} onDone={() => void load()} onCancel={() => setEditing(null)} onRemoved={() => (void load(), setEditing(null))} />
+              {deployer && current.defined && mode === "definition" && <SecretsPanel key={"s" + current.name} env={current.name} keychain={data.keychain} helpers={data.helpers} />}
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="view connections">
@@ -90,10 +175,10 @@ export function ConnectionsView({ initialEnv }: { initialEnv: string | null }) {
           </tbody>
         </table>
         {data.environments.length === 0 && <p className="muted">No environments yet. Add one: the vault's LDAPS URL, the account to bind as and its password, and the driver set's DN.</p>}
-        {editing === "new" && <EnvForm key="new" env={null} keychain={data.keychain} helpers={data.helpers} onDone={(name) => (void load(), setEditing(name))} onCancel={() => setEditing(null)} />}
+        {editing === "new" && <EnvForm key="new" env={null} mode="all" keychain={data.keychain} helpers={data.helpers} onDone={(name) => (void load(), setEditing(name))} onCancel={() => setEditing(null)} />}
         {current && (
           <>
-            <EnvForm key={current.name} env={current} keychain={data.keychain} helpers={data.helpers} onDone={() => void load()} onCancel={() => setEditing(null)} onRemoved={() => (void load(), setEditing(null))} />
+            <EnvForm key={current.name} env={current} mode="all" keychain={data.keychain} helpers={data.helpers} onDone={() => void load()} onCancel={() => setEditing(null)} onRemoved={() => (void load(), setEditing(null))} />
             <SecretsPanel key={"s" + current.name} env={current.name} keychain={data.keychain} helpers={data.helpers} />
           </>
         )}
@@ -102,8 +187,16 @@ export function ConnectionsView({ initialEnv }: { initialEnv: string | null }) {
   );
 }
 
+/**
+ * One file (`all`): every field. Two files: the project's `definition` (no bind DN, no password:
+ * deployers), the person's `mine` (bind DN, trust, password: anyone), or an environment of their
+ * `own` (everything, in their file).
+ */
+type FormMode = "all" | "definition" | "mine" | "own";
+
 function EnvForm({
   env,
+  mode,
   keychain,
   helpers,
   onDone,
@@ -111,6 +204,7 @@ function EnvForm({
   onRemoved,
 }: {
   env: ConnectionEnv | null;
+  mode: FormMode;
   keychain: boolean;
   helpers: string;
   onDone: (name: string) => void;
@@ -136,6 +230,8 @@ function EnvForm({
   const [notes, setNotes] = useState<string[]>([]);
   const [confirmRemove, setConfirmRemove] = useState(false);
   const isNew = env === null;
+  const showDefinition = mode !== "mine";
+  const showCredential = mode !== "definition";
   const refStore = f.store === "env" || f.store === "command" || f.store === "manager";
   const passwordGiven = f.password.length > 0;
   const storeArg = f.store === "manager" ? `command:${f.ref}` : refStore ? `${f.store}:${f.ref}` : f.store;
@@ -162,7 +258,13 @@ function EnvForm({
       .catch((e: Error) => setLookupMsg(e.message))
       .finally(() => setLooking(false));
   };
-  const canSave = /^[A-Za-z0-9][A-Za-z0-9_.-]*$/.test(f.name) && f.url.length > 8 && f.bindDn && f.driverSet && (isNew ? passwordGiven || (refStore && f.ref) : true);
+  const nameOk = /^[A-Za-z0-9][A-Za-z0-9_.-]*$/.test(f.name);
+  const canSave =
+    mode === "definition"
+      ? nameOk && f.url.length > 8 && f.driverSet
+      : mode === "mine"
+        ? !!f.bindDn && (env?.connected ? true : passwordGiven || (refStore && f.ref))
+        : nameOk && f.url.length > 8 && f.bindDn && f.driverSet && (isNew ? passwordGiven || (refStore && f.ref) : true);
 
   const runTest = () => {
     setBusy("Connecting…");
@@ -177,15 +279,20 @@ function EnvForm({
   const save = () => {
     setBusy("Saving…");
     setError(null);
-    const req: Record<string, unknown> = { name: f.name, url: f.url, bindDn: f.bindDn, driverSet: f.driverSet, tier: f.tier, trustAll: f.trustAll, sshHost: f.sshHost, sshUser: f.sshUser };
-    if (passwordGiven || (refStore && f.ref)) {
-      req.passwordStore = storeArg;
-      if (passwordGiven) {
-        req.password = f.password;
+    const req: Record<string, unknown> = { name: f.name };
+    if (showDefinition) {
+      Object.assign(req, { url: f.url, driverSet: f.driverSet, tier: f.tier, sshHost: f.sshHost, sshUser: f.sshUser });
+    }
+    if (showCredential) {
+      Object.assign(req, { bindDn: f.bindDn, trustAll: f.trustAll });
+      if (passwordGiven || (refStore && f.ref)) {
+        req.passwordStore = storeArg;
+        if (passwordGiven) {
+          req.password = f.password;
+        }
       }
     }
-    api.connections
-      .save(req)
+    (mode === "mine" || mode === "own" ? api.connections.saveMine(req) : api.connections.save(req))
       .then((r) => {
         setNotes(r.notes);
         setF({ ...f, password: "" });
@@ -196,8 +303,7 @@ function EnvForm({
   };
   const remove = () => {
     setBusy("Removing…");
-    api.connections
-      .remove(f.name)
+    (mode === "mine" || mode === "own" ? api.connections.removeMine(f.name) : api.connections.remove(f.name))
       .then(() => onRemoved?.())
       .catch((e: Error) => setError(e.message))
       .finally(() => setBusy(null));
@@ -205,7 +311,9 @@ function EnvForm({
 
   return (
     <section className="block connform" data-testid="conn-form">
-      <h3>{isNew ? "New environment" : env!.name}</h3>
+      <h3>{isNew ? (mode === "own" ? "An environment of my own" : "New environment") : mode === "definition" ? `${env!.name}: the project's definition` : mode === "mine" ? `${env!.name}: my connection` : env!.name}</h3>
+      {mode === "definition" && <p className="muted small">Where the project deploys: shared by everyone on it. Each person's bind DN and password are their own, under "My connection".</p>}
+      {mode === "mine" && <p className="muted small">Your own account in this vault and where its password comes from. Kept in your file only; nobody else sees it.</p>}
       <div className="attrs">
         {isNew && (
           <label className="field">
@@ -213,6 +321,7 @@ function EnvForm({
             <input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder="stg" spellCheck={false} data-testid="conn-name" />
           </label>
         )}
+        {showDefinition && (<>
         <label className="field">
           <em>Tier</em>
           <select value={f.tier} onChange={(e) => setF({ ...f, tier: e.target.value })}>
@@ -227,10 +336,14 @@ function EnvForm({
           <em>Vault URL</em>
           <input value={f.url} onChange={(e) => setF({ ...f, url: e.target.value })} placeholder="ldaps://vault.example.com:636" spellCheck={false} data-testid="conn-url" />
         </label>
+        </>)}
+        {showCredential && (
         <label className="field wide">
           <em>Bind DN</em>
           <input value={f.bindDn} onChange={(e) => setF({ ...f, bindDn: e.target.value })} placeholder="cn=admin,ou=sa,o=system" spellCheck={false} data-testid="conn-binddn" />
         </label>
+        )}
+        {showDefinition && (<>
         <label className="field wide">
           <em>Driver set DN</em>
           <span className="withbtn">
@@ -247,7 +360,7 @@ function EnvForm({
             ) : (
               <input value={f.driverSet} onChange={(e) => setF({ ...f, driverSet: e.target.value })} placeholder="cn=driverset1,o=system" spellCheck={false} data-testid="conn-driverset" />
             )}
-            <button type="button" disabled={!(f.url.length > 8 && f.bindDn && (passwordGiven || !isNew)) || looking} onClick={lookUp} title="Connect with the URL, bind DN and password above and list the driver sets the account sees" data-testid="conn-lookup">
+            <button type="button" disabled={!(f.url.length > 8 && (mode === "definition" ? !!env?.connected : f.bindDn && (passwordGiven || !isNew))) || looking} onClick={lookUp} title={mode === "definition" ? "Connect with your own connection to this environment and list the driver sets it sees (set up your connection first)" : "Connect with the URL, bind DN and password above and list the driver sets the account sees"} data-testid="conn-lookup">
               {looking ? "Looking…" : "Look up"}
             </button>
             {sets && sets.length > 0 && (
@@ -258,9 +371,13 @@ function EnvForm({
           </span>
           {lookupMsg && <span className="muted small">{lookupMsg}</span>}
         </label>
+        </>)}
+        {showCredential && (
         <label className="checkchip">
           <input type="checkbox" checked={f.trustAll} onChange={(e) => setF({ ...f, trustAll: e.target.checked })} /> accept any certificate (a lab or a tunnel; never production)
         </label>
+        )}
+        {showDefinition && (<>
         <label className="field">
           <em>SSH host (for trace)</em>
           <input value={f.sshHost} onChange={(e) => setF({ ...f, sshHost: e.target.value })} spellCheck={false} />
@@ -269,7 +386,9 @@ function EnvForm({
           <em>SSH user</em>
           <input value={f.sshUser} onChange={(e) => setF({ ...f, sshUser: e.target.value })} spellCheck={false} />
         </label>
+        </>)}
       </div>
+      {showCredential && (<>
       <h4>Password</h4>
       {!isNew && <p className="muted small">Configured: {env!.password ? `from the ${env!.password === "literal" ? "file" : env!.password}` : "none"}. Leave the field empty to keep it.</p>}
       <div className="addrow">
@@ -287,10 +406,13 @@ function EnvForm({
         )}
       </div>
       {f.store === "manager" && <ManagerPicker helpers={helpers} onCommand={(c) => setF((cur) => ({ ...cur, ref: c }))} />}
+      </>)}
       <div className="addrow">
-        <button onClick={runTest} disabled={busy !== null || !f.url || !f.bindDn || (!passwordGiven && isNew)} data-testid="conn-test">
+        {showCredential && (
+        <button onClick={runTest} disabled={busy !== null || !f.url || !f.bindDn || (!passwordGiven && (isNew || !env?.connected))} data-testid="conn-test">
           Test connection
         </button>
+        )}
         <button className="primary" onClick={save} disabled={busy !== null || !canSave} data-testid="conn-save">
           Save
         </button>
@@ -299,12 +421,12 @@ function EnvForm({
           (confirmRemove ? (
             <>
               <button className="danger" onClick={remove} disabled={busy !== null}>
-                Remove {env!.name} from the file
+                {mode === "mine" ? `Forget my connection to ${env!.name}` : `Remove ${env!.name} from the file`}
               </button>
               <button onClick={() => setConfirmRemove(false)}>Keep it</button>
             </>
           ) : (
-            <button onClick={() => setConfirmRemove(true)}>Remove…</button>
+            <button onClick={() => setConfirmRemove(true)}>{mode === "mine" ? "Forget…" : "Remove…"}</button>
           ))}
         {busy && <span className="muted">{busy}</span>}
       </div>
@@ -319,7 +441,7 @@ function EnvForm({
           {n}
         </p>
       ))}
-      <p className="muted small">The password is sent once to the local server and stored where you chose; this page never shows it again. A test with a typed password uses it without saving.</p>
+      {showCredential && <p className="muted small">The password is sent once to the server and stored where you chose; this page never shows it again. A test with a typed password uses it without saving.</p>}
     </section>
   );
 }

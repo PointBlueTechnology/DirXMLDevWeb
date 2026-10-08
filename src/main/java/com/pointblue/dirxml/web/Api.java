@@ -36,12 +36,10 @@ public final class Api implements HttpHandler {
     private final Map<String, Session.Principal> agents;
     private final Map<String, String> agentSessions = new java.util.concurrent.ConcurrentHashMap<>();
     private SetupService setup;              // hosted mode only
-    private CredentialService setupCredentials;   // the connections before a workspace exists
 
-    /** Hosted mode: the first-run setup, and the connections view before any workspace is open. */
-    public Api withSetup(SetupService setup, CredentialService credentials) {
+    /** Hosted mode: the first-run setup (the connections view before any workspace is open is built per session). */
+    public Api withSetup(SetupService setup) {
         this.setup = setup;
-        this.setupCredentials = credentials;
         return this;
     }
 
@@ -192,9 +190,10 @@ public final class Api implements HttpHandler {
                 return;
             }
             w = workspaces.get(session.workspace);
-            if (w == null && path.startsWith("/api/credentials") && setupCredentials != null) {
-                // the connections are the server's, not a workspace's: reachable before one is open
-                send(ex, 200, credentialsRoute(setupCredentials, session, method, path, query, ex));
+            if (w == null && path.startsWith("/api/credentials") && workspaces.hosted()) {
+                // the connections are the person's and the project's, not a workspace's: reachable before one is open
+                Hosted h = workspaces.config();
+                send(ex, 200, credentialsRoute(new CredentialService(h.dataDir, h.envFiles(session.principal)), session, method, path, query, ex));
                 return;
             }
             if (w == null) {
@@ -649,6 +648,10 @@ public final class Api implements HttpHandler {
                 return credentials.save(req);
             case "/api/credentials/environment/remove":
                 return credentials.remove(Json.asString(req.get("name")));
+            case "/api/credentials/mine":
+                return credentials.saveMine(req);
+            case "/api/credentials/mine/remove":
+                return credentials.removeMine(Json.asString(req.get("name")));
             case "/api/credentials/secret":
                 return credentials.setSecret(req);
             default:
@@ -661,7 +664,7 @@ public final class Api implements HttpHandler {
             return setup.state();
         }
         if (method.equals("GET") && path.equals("/api/setup/driversets")) {
-            return setup.driverSets(required(query, "env"));
+            return setup.driverSets(session, required(query, "env"));
         }
         if (!method.equals("POST")) {
             throw new TreeService.NotFound("no such endpoint: " + method + " " + path);

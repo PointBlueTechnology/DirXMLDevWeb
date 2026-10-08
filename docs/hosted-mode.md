@@ -20,7 +20,7 @@ also deploy, control drivers, trace and change connections.
 public.url=https://idm.example.com      # what the browser sees; TLS terminates at a reverse proxy
 bind=127.0.0.1                          # the proxy's side (0.0.0.0 in a container)
 port=8080
-data.dir=/var/lib/idmweb                # workspaces, audit.log
+data.dir=/var/lib/idmweb                # workspaces, users/<subject>/ (credentials, traces), audit.log
 projects=idm-lab,customer-a             # the trees this server holds (the single repo.* keys still work for one)
 project.idm-lab.repo.url=https://github.com/org/idm-config.git
 project.idm-lab.repo.tree=tree          # the tree's directory inside the repository

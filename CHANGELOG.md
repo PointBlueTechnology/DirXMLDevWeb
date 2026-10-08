@@ -7,6 +7,14 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- **Trace recordings and uploads are the person's** (docs/multi-user.md U3): on a hosted server
+  they live under `data.dir/users/<subject>/traces/<project>/`, so one person's recordings are
+  never listed for another. Recordings from before stay where they were; at start-up the server
+  prints a NOTICE naming every `traces/<x>` and `workspaces/<x>` directory no project claims, and
+  never removes one.
+
 ## [0.23.0] - 2026-10-08
 
 ### Changed

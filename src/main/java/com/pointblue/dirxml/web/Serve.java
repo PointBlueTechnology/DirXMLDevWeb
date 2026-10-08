@@ -89,6 +89,10 @@ public final class Serve {
         }
         Git git = new Git(h.dataDir, h.repoToken(), h.repoSshKey);
         Workspaces workspaces = new Workspaces(h, git);
+        java.util.List<String> unclaimed = Workspaces.unclaimed(h.dataDir, h.projects.keySet());
+        if (!unclaimed.isEmpty()) {
+            System.err.println("NOTICE: directories under " + h.dataDir + " that no project claims (recordings from before per-person traces, checkouts of removed projects or from before project names were in the path): " + String.join(", ", unclaimed) + " — move a recording under users/<subject>/traces/<project>/, or remove them; the server never does.");
+        }
         // kept in the data directory: a restart signs nobody out, and everyone gets their last branch back
         Session.Store sessions = Session.Store.persistent(h.sessionHours <= 0 ? Session.Store.NEVER : h.sessionHours * 3600, h.dataDir.resolve("sessions.json"));
         Security security = Security.hosted(h.publicUrl);

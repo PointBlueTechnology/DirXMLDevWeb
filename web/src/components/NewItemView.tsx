@@ -542,7 +542,7 @@ function NewDriver({ drivers, onStage }: { drivers: string[]; onStage: Stage }) 
           <option value="package">a base package in the catalog{catalog ? "" : " (no catalog on this server)"}</option>
           <option value="export">a Designer export (a driver, or a driver set's driver)</option>
           <option value="copy">a copy of another driver</option>
-          <option value="blank">a blank driver with a shim class</option>
+          <option value="blank">a blank driver with a shim class (a starting filter, settings and configuration values to edit)</option>
         </select>
       </label>
       {f.how === "package" && (

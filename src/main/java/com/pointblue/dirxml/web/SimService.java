@@ -61,6 +61,11 @@ public final class SimService {
         return Files.isDirectory(inside) && !Files.isDirectory(beside) ? inside : beside;
     }
 
+    /** Where the cases are: inside the tree when it has a cases/ directory, else beside it (or as given). */
+    public Path casesDir() {
+        return cases;
+    }
+
     private Path dir(String name) {
         if (name == null || !NAME.matcher(name).matches()) {
             throw new TreeService.BadRequest("a case name is letters, digits, '.', '_' and '-', with '/' between folders");

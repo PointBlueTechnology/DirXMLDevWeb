@@ -617,11 +617,21 @@ export interface ConnectionEnv {
   secretsFile: string;
   secretsFileExists: boolean;
   ready: boolean;
+  /** Two files only (docs/multi-user.md): named by the project's definitions. */
+  defined?: boolean;
+  /** Two files only: named only in the person's own file. */
+  own?: boolean;
+  /** Two files only: the person has a bind DN and a password source for it. */
+  connected?: boolean;
 }
 
 export interface Connections {
+  /** The file the person's entries go to: their own credentials on a hosted server, else the one file. */
   file: string;
   exists: boolean;
+  /** A hosted server: the project's definitions and the person's credentials are two files. */
+  split: boolean;
+  definitions?: string;
   keychain: boolean;
   /** The directory of the helper scripts a secret-manager reference may call. */
   helpers: string;

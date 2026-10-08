@@ -293,7 +293,7 @@ export function App() {
               ← back to adding the project
             </button>
           </p>
-          <ConnectionsView initialEnv={null} />
+          <ConnectionsView initialEnv={null} deployer={session?.user.deployer ?? true} />
         </div>
       )}
       {addingProject && session && selection.type !== "connections" && (
@@ -342,7 +342,7 @@ export function App() {
               ← back to setup
             </button>
           </p>
-          <ConnectionsView initialEnv={null} />
+          <ConnectionsView initialEnv={null} deployer={session?.user.deployer ?? true} />
         </div>
       )}
       {noWorkspace && session && !session.setup && !addingProject && (
@@ -419,7 +419,7 @@ export function App() {
           {selection.type === "changes" && <ChangesView key={selection.against ?? "head"} initial={selection.against ?? "head"} revision={revision} onSelect={setSelection} />}
           {selection.type === "new" && outline && <NewItemView key={selection.what + (selection.driver ?? "")} what={selection.what} driver={selection.driver} outline={outline} onSelect={setSelection} onSaved={reload} />}
           {selection.type === "entitlement" && <EntitlementView key={selection.file} driver={selection.driver} name={selection.name} file={selection.file} revision={revision} onSelect={setSelection} onSaved={reload} />}
-          {selection.type === "connections" && <ConnectionsView key={selection.env ?? ""} initialEnv={selection.env ?? null} />}
+          {selection.type === "connections" && <ConnectionsView key={selection.env ?? ""} initialEnv={selection.env ?? null} deployer={session?.user.deployer ?? true} />}
           {selection.type === "packages" && outline && <PackagesView drivers={outline.drivers.map((d) => d.name)} revision={revision} onSaved={reload} onOpen={open} />}
           {selection.type === "simulator" && outline && <SimView drivers={outline.drivers.map((d) => d.name)} revision={revision} />}
           {selection.type === "vault" && outline && <VaultView drivers={outline.drivers.map((d) => d.name)} revision={revision} outline={outline} onOpen={open} onSelect={setSelection} onSaved={reload} />}

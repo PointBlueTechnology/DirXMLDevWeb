@@ -37,6 +37,7 @@ public final class Workspace implements AutoCloseable {
         service.catalog(packages.catalogArg());
         this.vault = new VaultService(tree);
         this.sim = new SimService(tree, SimService.locate(tree, cases));
+        this.vault.setCasesDir(this.sim.casesDir());
         this.prov = new ProvisioningService(tree);
         this.credentials = new CredentialService(tree);
         this.events = new EventsService(tree, sim.casesDir());

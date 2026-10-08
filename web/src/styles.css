@@ -1292,3 +1292,6 @@ table.grid tr.detail td { background: var(--bg); padding-top: 4px; padding-botto
 .events .evdoc { max-height: 320px; overflow: auto; font-size: 11px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 8px; white-space: pre-wrap; word-break: break-all; }
 .events .evcase { display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--border); padding-top: 8px; margin-top: 8px; }
 .pill.ev-add { color: var(--ok); } .pill.ev-delete { color: var(--err); } .pill.ev-modify { color: var(--accent); }
+
+.cachepanel { margin-top: 10px; }
+.cachepanel .danger { color: var(--err); border-color: var(--err); }

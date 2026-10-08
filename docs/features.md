@@ -81,6 +81,9 @@ Every view of the page, by area, in every install; the items marked *local and s
     write, restart, verify) once you type the environment's name.
   - *Drivers*: every driver's state, start option and cache; start, stop and restart behind
     the same typed confirmation.
+  - *Drivers*: state, start option, cache size and trace level per driver; start, stop, restart;
+    set the trace level; *view* the event cache (the queued events and the cache document), save it
+    as one simulator case, or clear it (deployers; the core snapshots it first).
   - *Trace*: the DirXML Trace Viewer in the page (its `dirxml-trace-core` library does the parsing
     and highlighting, so a line reads the same as in the desktop app): the driver set's trace live
     from every server or one, channel/driver/text filters, find, DSTrace colours, compact

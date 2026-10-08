@@ -9,6 +9,11 @@
 - Vault access uses the environments file and credential sources of the `idm` CLI
   (`IDM_ENVIRONMENTS`, `./environments.properties`, `~/.idm/environments.properties`). The page
   is told an environment's name and tier, never a URL, bind DN or secret.
+- On a hosted server the environments file holds the project's definitions only; a person's
+  bind DN and password source go to their own `data.dir/users/<subject>/environments.properties`
+  (`0600` in a `0700` directory), reached only through their session and never listed, read or
+  returned for anyone else. Driver secrets stay beside the definitions, deployer-only
+  (docs/multi-user.md).
 - A password or driver secret typed into the Connections view crosses the loopback connection
   once and is stored where you chose: the macOS Keychain (`<env>.passwordKeychain`,
   `<key>Keychain`) or the owner-only environments / secrets file as a literal; or the page

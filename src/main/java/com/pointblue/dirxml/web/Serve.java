@@ -81,6 +81,12 @@ public final class Serve {
         Hosted h = Hosted.load(config);
         Path web = Path.of(System.getProperty("idmweb.home", System.getProperty("user.dir")), "web", "dist");
         Files.createDirectories(h.dataDir);
+        java.util.List<String> secretKeys = com.pointblue.dirxml.dev.deploy.Environments.secretKeys(h.environmentsFile);
+        if (!secretKeys.isEmpty()) {
+            System.err.println("ERROR: " + h.environmentsFile + " holds secret keys, and the environments file is now the project's definitions, shared by everyone: " + String.join(", ", secretKeys));
+            System.err.println("       Remove them; each person sets their own bind DN and password under Connections → My connections (docs/multi-user.md).");
+            System.exit(2);
+        }
         Git git = new Git(h.dataDir, h.repoToken(), h.repoSshKey);
         Workspaces workspaces = new Workspaces(h, git);
         // kept in the data directory: a restart signs nobody out, and everyone gets their last branch back
@@ -103,7 +109,7 @@ public final class Serve {
         }
         HttpServer server = HttpServer.create(new InetSocketAddress(InetAddress.getByName(h.bind), h.port), 0);
         Map<String, Session.Principal> agents = h.agents();
-        Api api = new Api(workspaces, sessions, security, audit, VERSION, agents).withSetup(new SetupService(h, workspaces, audit, h.envFiles(null)), new CredentialService(h.dataDir, h.envFiles(null)));
+        Api api = new Api(workspaces, sessions, security, audit, VERSION, agents).withSetup(new SetupService(h, workspaces, audit));
         server.createContext("/api/", api);
         server.createContext("/auth/", new Auth(identity, sessions, security, audit, h.publicUrl));
         server.createContext("/", new StaticFiles(web));

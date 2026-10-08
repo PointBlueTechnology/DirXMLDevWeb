@@ -1,6 +1,6 @@
 # Per-user data: design note
 
-Status: **decided 2026-10-08** (section 7); U1 built (core 0.16.0, web `EnvFiles`), U2 next. Jerry's direction: "each user's workspace
+Status: **decided 2026-10-08** (section 7); U1 built (core 0.16.0, web 0.22.0), U2 built (per-person credentials, the split Connections view; see "As built" at the end), U3/U4 next. Jerry's direction: "each user's workspace
 needs to be unique to them. They get their own data, their own connections, nothing shared —
 except perhaps secrets."
 
@@ -149,3 +149,21 @@ in the credential file taken whole. `Environments.load()` with no argument stays
 | U2 | `UserData`, per-person credential files, the split Connections view, migration | U1 |
 | U3 | traces per person; orphan workspace cleanup | U2 |
 | U4 | definitions editing by deployers in the page | U2 |
+
+## 9. As built (U2)
+
+- `environments.file` keeps its name and becomes the **definitions** file; the server refuses to
+  start while it holds a secret key (`Environments.secretKeys`), naming them. The driver secrets
+  stay **beside it** (`secrets-<env>.properties` in the same directory), so an existing install
+  moves nothing; `secrets.dir` was not added.
+- `data.dir/users/<subject>/` (`UserData`, `0700`): `environments.properties` (the person's
+  credentials: `bindDn`, `password…`, `trustAll`, or whole environments of their own) and
+  `profile.properties` (subject, name, email, last seen). Created on first use; the profile is
+  touched whenever their environments are opened.
+- `CredentialService` with two files: `list` marks each environment `defined`, `own`,
+  `connected`; `save` (deployers, `/api/credentials/environment`) writes the definition fields
+  only and refuses a password; `saveMine` / `removeMine` (`/api/credentials/mine`,
+  `/api/credentials/mine/remove`, any signed-in role) write the person's file, and for a name the
+  project does not define take the definition fields too. Driver secrets and `<env>.secrets`
+  stay in the definitions, deployer-only.
+- Trace recordings are still per project (U3).

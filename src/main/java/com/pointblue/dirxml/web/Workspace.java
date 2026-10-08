@@ -21,6 +21,7 @@ public final class Workspace implements AutoCloseable {
     public final ProvisioningService prov;
     public final PackageService packages;
     public final CredentialService credentials;
+    public final EventsService events;
 
     private Workspace(String id, String branch, Path root, Path tree, Path cases, Path catalog) throws IOException {
         this.id = id;
@@ -38,6 +39,7 @@ public final class Workspace implements AutoCloseable {
         this.sim = new SimService(tree, SimService.locate(tree, cases));
         this.prov = new ProvisioningService(tree);
         this.credentials = new CredentialService(tree);
+        this.events = new EventsService(tree, sim.casesDir());
         watcher.start();
     }
 

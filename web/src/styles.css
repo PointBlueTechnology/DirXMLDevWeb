@@ -1304,3 +1304,9 @@ table.grid tr.detail td { background: var(--bg); padding-top: 4px; padding-botto
 .diffside.vault { color: var(--err); } .diffside.tree { color: var(--ok); }
 .diffline.vault { color: var(--err); background: color-mix(in srgb, var(--err) 8%, transparent); }
 .diffline.tree { color: var(--ok); background: color-mix(in srgb, var(--ok) 8%, transparent); }
+.cachepanel .cacheactions { position: sticky; top: 0; z-index: 2; background: var(--surface); padding: 6px 0; flex-wrap: wrap; }
+.cachepanel .cachebody { display: flex; gap: 12px; align-items: flex-start; }
+.cachepanel .cachelist { flex: 1 1 auto; min-width: 0; }
+.cachepanel .cacheevent { flex: 0 0 460px; max-width: 50%; border: 1px solid var(--border); border-radius: 6px; padding: 8px; }
+a.button { display: inline-block; padding: 5px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; text-decoration: none; color: inherit; background: var(--surface); }
+.button.off { opacity: 0.5; pointer-events: none; }

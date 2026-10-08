@@ -20,6 +20,14 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   policy's name — in "Applying policy" lines and anywhere else — opens the policy, dotted-underlined.
 - **Compare & deploy**: a change's diff says which side is which — "−" is what the vault holds
   now, "+" is what the tree holds and a deploy writes — with the lines coloured by side.
+- **Driver cache, per event**: the cache panel shows the queued events in pages of 200; picking
+  one shows its document, exports it, makes a simulator case from it alone, or deletes it — a
+  deployer, the environment's name typed, the event's document kept in `deploy-snapshots/` first
+  (`DeleteCacheEntries` by position). The whole cache exports as the engine's merged document
+  (a recovery copy) or as one simulator input; *Whole cache as a case* and *Clear cache* stay,
+  now in an action bar that stays visible above a long list. (`GET /api/vault/cache?from&count`,
+  `GET /api/vault/cache-file?kind=cache|input`, `POST /api/vault/cache-event-case`,
+  `POST /api/vault/cache-delete`.)
 
 ## [0.20.0] - 2026-10-08
 

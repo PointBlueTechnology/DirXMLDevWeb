@@ -163,6 +163,14 @@ public final class TreeService {
                 ents.add(fileNode(e.name, dir + "/entitlements/" + AsCodeWriter.fileSafe(e.name) + ".xml"));
             }
             m.put("entitlements", ents);
+            List<Object> jobs = new ArrayList<>();
+            for (com.pointblue.dirxml.dev.model.Job j : d.jobs) {
+                Map<String, Object> jn = fileNode(j.name, dir + "/jobs/" + AsCodeWriter.fileSafe(j.name) + ".xml");
+                jn.put("disabled", j.disabled());
+                jn.put("javaClass", j.javaClass());
+                jobs.add(jn);
+            }
+            m.put("jobs", jobs);
             List<Object> forms = new ArrayList<>();
             List<Object> prds = new ArrayList<>();
             if (d.provisioning != null) {
@@ -184,6 +192,14 @@ public final class TreeService {
             drivers.add(m);
         }
         o.put("drivers", drivers);
+        List<Object> setJobs = new ArrayList<>();
+        for (com.pointblue.dirxml.dev.model.Job j : ds.jobs) {
+            Map<String, Object> jn = fileNode(j.name, "jobs/" + AsCodeWriter.fileSafe(j.name) + ".xml");
+            jn.put("disabled", j.disabled());
+            jn.put("javaClass", j.javaClass());
+            setJobs.add(jn);
+        }
+        set.put("jobs", setJobs);
         return o;
     }
 
@@ -381,6 +397,14 @@ public final class TreeService {
         }
         sc.add(leaf("set-schema", "Vault schema", "schema", Map.of("type", "driverset", "tab", "schema")));
         sc.add(leaf("set-overrides", "Environment overrides", "overrides", sel("overrides")));
+        if (!ds.jobs.isEmpty()) {
+            Map<String, Object> setJobsNode = node("set-jobs", "Jobs", "folder", null);
+            List<Object> sk = kids(setJobsNode);
+            for (com.pointblue.dirxml.dev.model.Job j : ds.jobs) {
+                sk.add(leaf("set-job:" + j.name, j.name + (j.disabled() ? " (disabled)" : ""), "job", Map.of("type", "file", "file", "jobs/" + AsCodeWriter.fileSafe(j.name) + ".xml")));
+            }
+            rootKids.add(setJobsNode);
+        }
         rootKids.add(setConf);
         // the library
         Map<String, Object> lib = node("library", "Library", "folder", null);
@@ -446,6 +470,15 @@ public final class TreeService {
                     ek.add(leaf("ent:" + d.name + ":" + e.name, e.name, "entitlement", Map.of("type", "entitlement", "driver", d.name, "name", e.name, "file", f)));
                 }
                 dkids.add(ents);
+            }
+            if (!d.jobs.isEmpty()) {
+                Map<String, Object> jobs = node("jobs:" + d.name, "Jobs", "folder", null);
+                List<Object> jk = kids(jobs);
+                for (com.pointblue.dirxml.dev.model.Job j : d.jobs) {
+                    Map<String, Object> leaf = leaf("job:" + d.name + ":" + j.name, j.name + (j.disabled() ? " (disabled)" : ""), "job", Map.of("type", "file", "file", dir + "/jobs/" + AsCodeWriter.fileSafe(j.name) + ".xml"));
+                    jk.add(leaf);
+                }
+                dkids.add(jobs);
             }
             if (d.provisioning != null && !d.provisioning.forms.isEmpty()) {
                 Map<String, Object> forms = node("forms:" + d.name, "Forms", "folder", null);

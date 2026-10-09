@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.30.0] - 2026-10-09
+
 ### Added
 
 - **Vault: rollback, driver delete and deploy-time secrets from the page** (#34). *Compare &

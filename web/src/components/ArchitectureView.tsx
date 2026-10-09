@@ -7,7 +7,7 @@ import type { ArchApplication, Architecture, DriverState, Selection } from "../t
  * The driver set as Designer's Modeler draws it in Architect mode (#32, docs/architecture-view.md):
  * the Identity Vault in the centre with its driver set, one application per driver in two
  * columns with the driver's own icon and its application type's name, the driver drawn as a
- * badge on the connector, the drivers that serve the vault itself beneath it. Hover for the
+ * badge on the connector, the drivers that serve the vault itself at the foot of each column. Hover for the
  * driver's facts, click for its flow or configuration; a live overlay colours the badges by the
  * driver's state in the chosen environment; the picture exports as a self-contained SVG or PNG.
  */
@@ -23,10 +23,8 @@ const L = {
   vaultMinH: 360,
   top: 40,
   side: 40,
-  belowGap: 44,
-  smallW: 184,
-  smallH: 52,
-  smallGap: 14,
+  /** room under the picture for the state legend */
+  foot: 36,
   badgeR: 11,
   /** the driver set panel's inset inside the vault: the vault's title above it, nothing beside it */
   setTop: 56,
@@ -42,16 +40,19 @@ export interface ArchLayout {
   set: { x: number; y: number; w: number; h: number };
   left: { app: ArchApplication; x: number; y: number }[];
   right: { app: ArchApplication; x: number; y: number }[];
-  below: { app: ArchApplication; x: number; y: number }[];
 }
 
-/** Applications in two balanced columns around the vault, sorted by name and alternated; vault-only drivers in a row beneath. */
+/**
+ * Every driver in two balanced columns around the vault: the applications first, sorted by name
+ * and alternated, then the vault-only drivers the same way, so they sit at the foot of each column.
+ */
 export function archLayout(apps: ArchApplication[]): ArchLayout {
-  const external = apps.filter((a) => !a.vaultOnly).sort((a, b) => label(a).localeCompare(label(b)));
-  const below = apps.filter((a) => a.vaultOnly).sort((a, b) => label(a).localeCompare(label(b)));
+  const byName = (a: ArchApplication, b: ArchApplication) => label(a).localeCompare(label(b));
+  const external = apps.filter((a) => !a.vaultOnly).sort(byName);
+  const vaultOnly = apps.filter((a) => a.vaultOnly).sort(byName);
   const left: ArchApplication[] = [];
   const right: ArchApplication[] = [];
-  external.forEach((a, i) => (i % 2 === 0 ? left : right).push(a));
+  [...external, ...vaultOnly].forEach((a, i) => (i % 2 === 0 ? left : right).push(a));
   const rows = Math.max(left.length, right.length, 1);
   const colH = rows * L.cardH + (rows - 1) * L.rowGap;
   const vaultH = Math.max(L.vaultMinH, colH + L.setTop + L.setBottom);
@@ -61,13 +62,9 @@ export function archLayout(apps: ArchApplication[]): ArchLayout {
   const rightX = vaultX + L.vaultW + L.colGap;
   const place = (col: ArchApplication[], x: number) =>
     col.map((app, i) => ({ app, x, y: set.y + (set.h - colH) / 2 + i * (L.cardH + L.rowGap) }));
-  const belowY = L.top + vaultH + L.belowGap;
-  const belowTotal = below.length * L.smallW + Math.max(0, below.length - 1) * L.smallGap;
-  const belowStart = vaultX + L.vaultW / 2 - belowTotal / 2;
-  const belowPlaced = below.map((app, i) => ({ app, x: belowStart + i * (L.smallW + L.smallGap), y: belowY }));
   const width = rightX + L.cardW + L.side;
-  const height = (below.length > 0 ? belowY + L.smallH : L.top + vaultH) + 64;
-  return { width: Math.max(width, belowStart + belowTotal + L.side), height, vault, set, left: place(left, L.side), right: place(right, rightX), below: belowPlaced };
+  const height = L.top + vaultH + L.foot;
+  return { width, height, vault, set, left: place(left, L.side), right: place(right, rightX) };
 }
 
 export function label(a: ArchApplication): string {
@@ -99,7 +96,7 @@ const CSS = `
 .arch-svg .dot.other { fill: var(--warn, #b7791f); }
 .arch-svg .generic { fill: var(--surface-2, #f0f2f5); stroke: var(--border, #d9dde3); }
 .arch-svg .generic-text { font-size: 11px; font-weight: 700; fill: var(--muted, #6b7280); }
-.arch-svg .legend { font-size: 11px; fill: var(--muted, #6b7280); }
+.arch-svg .legend { font-size: 12px; fill: var(--muted, #6b7280); }
 `;
 
 function stateClass(s: string | undefined): string {
@@ -278,7 +275,7 @@ export function ArchitectureView({ revision, onSelect }: { revision: string; onS
     const midX = (fromX + toX) / 2;
     const vaultY = Math.min(Math.max(cy, st0.y + 24), st0.y + st0.h - 24);
     const st = states?.[a.driver];
-    const tip = `${a.driver}\n${a.shimClass ?? "no shim class"}\n${a.counts.policies} policies · ${a.counts.entitlements} entitlements · ${a.counts.resources} resources${a.counts.forms + a.counts.prds > 0 ? ` · ${a.counts.forms} forms · ${a.counts.prds} PRDs` : ""}${st ? `\n${st.state}${st.cacheSize ? ` · cache ${st.cacheSize}` : ""}` : ""}`;
+    const tip = `${a.driver}${a.vaultOnly ? " (serves the vault, no external system)" : ""}\n${a.shimClass ?? "no shim class"}\n${a.counts.policies} policies · ${a.counts.entitlements} entitlements · ${a.counts.resources} resources${a.counts.forms + a.counts.prds > 0 ? ` · ${a.counts.forms} forms · ${a.counts.prds} PRDs` : ""}${st ? `\n${st.state}${st.cacheSize ? ` · cache ${st.cacheSize}` : ""}` : ""}`;
     return (
       <g key={a.driver}>
         <path className="conn" d={`M${fromX},${cy} C${midX},${cy} ${midX},${vaultY} ${toX},${vaultY}`} />
@@ -299,36 +296,6 @@ export function ArchitectureView({ revision, onSelect }: { revision: string; onS
           <title>{`${a.driver}: configuration${st ? ` · ${st.state}` : ""}`}</title>
           <circle className="badge" cx={midX} cy={(cy + vaultY) / 2} r={L.badgeR} />
           {st && <circle className={"dot " + stateClass(st.state)} cx={midX + 8} cy={(cy + vaultY) / 2 - 8} r={4} />}
-        </g>
-      </g>
-    );
-  };
-
-  const small = (p: { app: ArchApplication; x: number; y: number }) => {
-    const a = p.app;
-    const dim = !matches(a);
-    const cx = p.x + L.smallW / 2;
-    const st = states?.[a.driver];
-    return (
-      <g key={a.driver}>
-        <path className="conn" d={`M${cx},${st0.y + st0.h} L${cx},${p.y}`} />
-        <g className={"badge-g" + (dim ? " dim" : "")} onClick={() => onSelect({ type: "config", driver: a.driver })}>
-          <title>{`${a.driver}: configuration${st ? ` · ${st.state}` : ""}`}</title>
-          <circle className="badge" cx={cx} cy={(st0.y + st0.h + p.y) / 2} r={9} />
-          {st && <circle className={"dot " + stateClass(st.state)} cx={cx + 6} cy={(st0.y + st0.h + p.y) / 2 - 6} r={3.5} />}
-        </g>
-        <g className={"app-g" + (dim ? " dim" : "") + (selected === a.driver ? " selected" : "")} onClick={() => (setSelected(a.driver), onSelect({ type: "flow", driver: a.driver }))} data-testid={"arch-app-" + a.driver}>
-          <title>{`${a.driver}\n${a.shimClass ?? ""}\n${a.counts.policies} policies${a.counts.forms + a.counts.prds > 0 ? ` · ${a.counts.forms} forms · ${a.counts.prds} PRDs` : ""}`}</title>
-          <rect className="app" x={p.x} y={p.y} width={L.smallW} height={L.smallH} rx={8} />
-          {icon(a, p.x + 8, p.y + 11, 28, data.revision)}
-          <svg x={p.x + 44} y={p.y} width={L.smallW - 50} height={L.smallH}>
-            <text className="app-name" x={0} y={22} style={{ fontSize: 12 }}>
-              {label(a)}
-            </text>
-            <text className="drv-name" x={0} y={39}>
-              {label(a) === a.driver ? shortShim(a.shimClass) : a.driver}
-            </text>
-          </svg>
         </g>
       </g>
     );
@@ -410,29 +377,26 @@ export function ArchitectureView({ revision, onSelect }: { revision: string; onS
           )}
           {layout.left.map((p) => card(p, "left"))}
           {layout.right.map((p) => card(p, "right"))}
-          {layout.below.map(small)}
-          <g transform={`translate(${L.side},${layout.height - 14})`}>
-            {states && (
-              <>
-                <circle className="dot running" cx={4} cy={-4} r={4} />
-                <text className="legend" x={12} y={0}>
-                  running
-                </text>
-                <circle className="dot stopped" cx={70} cy={-4} r={4} />
-                <text className="legend" x={78} y={0}>
-                  stopped
-                </text>
-                <circle className="dot disabled" cx={136} cy={-4} r={4} />
-                <text className="legend" x={144} y={0}>
-                  disabled
-                </text>
-              </>
-            )}
-            <text className="legend" x={states ? 210 : 0} y={0}>
-              the drivers belong to the driver set inside the vault · click an application: its policy flow · click a driver badge: its configuration · hover: shim, policies, entitlements{states ? ", state" : ""}
-            </text>
-          </g>
+          {states && (
+            <g transform={`translate(${L.side},${layout.height - 12})`}>
+              <circle className="dot running" cx={4} cy={-4} r={4} />
+              <text className="legend" x={12} y={0}>
+                running
+              </text>
+              <circle className="dot stopped" cx={70} cy={-4} r={4} />
+              <text className="legend" x={78} y={0}>
+                stopped
+              </text>
+              <circle className="dot disabled" cx={136} cy={-4} r={4} />
+              <text className="legend" x={144} y={0}>
+                disabled
+              </text>
+            </g>
+          )}
         </svg>
+      </div>
+      <div className="muted small pad-x archhint">
+        The drivers belong to the driver set inside the vault; the ones that serve the vault itself sit at the foot of each column. Click an application for its policy flow, a driver badge for its configuration; hover for shim, policies, entitlements{states ? " and state" : ""}.
       </div>
     </div>
   );

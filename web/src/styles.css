@@ -1332,3 +1332,4 @@ a.button { display: inline-block; padding: 5px 10px; border: 1px solid var(--bor
 .devrow .kindtag:empty { display: none; }
 .devrow .devicon { border-radius: 3px; }
 .devnode.unresolved > .devrow .leaf { color: var(--warn); }
+.archhint { padding-top: 8px; padding-bottom: 12px; }

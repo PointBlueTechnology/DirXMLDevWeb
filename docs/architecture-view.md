@@ -37,9 +37,10 @@ same file Designer shows). What is missing is the two pictures.
 - A **connector** from the vault's edge to each application, with the **driver badge** on it: a
   small round node holding the driver's icon, as Designer draws the driver object on the line.
 - **Vault-only drivers** — those with no external system: User Application, Loopback, Null,
-  Entitlements Service, Role and Resource Service, Managed System Gateway, Data Collection — are
-  drawn in a row **beneath the vault**, attached to its driver-set band, so the picture says what
-  they are: part of the vault, not an application (decision 2).
+  Entitlements Service, Role and Resource Service, Managed System Gateway, Data Collection — take
+  the same columns, **at the foot of each column** after the applications, so the connectors all
+  read the same way; the hover text says they serve the vault (decision 2, revised 2026-10-09: the
+  earlier row beneath the vault did not connect cleanly and its caption overran the cards).
 - **Hover** on an application or badge: shim class, package, policy and entitlement counts,
   and, when an environment is chosen, the driver's state and cache size. **Click** an application
   → the driver's Flow view; **click** a badge → its Configuration; the User Application card also
@@ -115,7 +116,8 @@ for orientation and the round-trip check the issue names.
 ## 6. Decisions (taken 2026-10-09)
 
 1. **Two columns around the vault**, Designer's own arrangement.
-2. **Vault-only drivers beneath the vault.**
+2. **Vault-only drivers beneath the vault.** Revised 2026-10-09: at the foot of the two columns
+   instead — the row beneath did not connect cleanly to the set and its caption overran the cards.
 3. **Developer view as a full-page tree** now; the canvas Developer mode is a possible follow-up.
 4. **Live state overlay in the first release.**
 5. **Export both SVG and PNG.**
@@ -133,8 +135,8 @@ for orientation and the round-trip check the issue names.
 - `GET /api/architecture`: the set (name, DN, servers, drivers, library items, installed
   packages) and one application per driver (`type`, `typeName`, `vaultOnly`, `icon`, counts).
   `GET /api/driver-icon?driver=…`: the icon bytes with their image type, 404 when none.
-- `ArchitectureView`: `archLayout` places external applications in two columns alternated by
-  name order and vault-only drivers beneath; cards carry the driver's icon (an initials glyph
+- `ArchitectureView`: `archLayout` places every driver in two columns alternated by name order,
+  the applications first and the vault-only drivers at the foot of each column; cards carry the driver's icon (an initials glyph
   when it has none), the application type's name and the driver name with its shim class; the
   driver badge sits on the connector. Hover: shim, counts, state. Click a card: the Flow view;
   click a badge: Configuration. Filter dims. Zoom and Fit. *show state* (remembered) reads

@@ -7,6 +7,14 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- **Architecture view**: the drivers that serve the vault itself (User Application, Loopback,
+  Role and Resource Service, …) now take the two columns like every other driver, at the foot of
+  each column, instead of a row of small cards beneath the vault whose connectors did not meet the
+  set cleanly; the usage hint moved out of the picture to a readable line under the canvas, so it
+  no longer overran the cards (the state legend stays in the picture for the export).
+
 ## [0.33.0] - 2026-10-09
 
 ### Added

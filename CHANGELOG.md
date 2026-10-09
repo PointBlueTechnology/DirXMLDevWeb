@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.27.0] - 2026-10-09
+
 ### Added
 
 - **Projects view** for deployers on a hosted server (#76): every project with **Archive…** —

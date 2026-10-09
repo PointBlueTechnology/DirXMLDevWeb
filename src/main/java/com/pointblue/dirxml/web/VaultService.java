@@ -512,6 +512,79 @@ public final class VaultService {
         }
     }
 
+    /** A driver's start option, live (`driver.start-option`): the environment's name typed again. */
+    public Map<String, Object> startOption(String envName, String driver, String option, String confirm) throws IOException {
+        if (driver == null || driver.isBlank()) {
+            throw new TreeService.BadRequest("no driver named");
+        }
+        if (!List.of("auto", "manual", "disabled").contains(option == null ? "" : option)) {
+            throw new TreeService.BadRequest("option is auto, manual or disabled");
+        }
+        Environments.Environment e = env(envName);
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("environment", e.name);
+        m.put("driver", driver);
+        m.put("action", "start-option");
+        String refusal = gate(e.name, confirm);
+        if (refusal != null) {
+            m.put("ok", false);
+            m.put("text", refusal);
+            return m;
+        }
+        try (Vault vault = Vault.connect(e.vaultConfig())) {
+            Operate.Result r = Operate.startOption(Operate.vaultEngine(vault), e, driver, option, true, confirm, tree);
+            m.put("ok", r.ok);
+            m.put("text", r.text());
+            return m;
+        }
+    }
+
+    /** The objects associated with a driver, by state (`driver.associations`); read-only. */
+    public Map<String, Object> associations(String envName, String driver, String state, int limit) throws IOException {
+        if (driver == null || driver.isBlank()) {
+            throw new TreeService.BadRequest("no driver named");
+        }
+        Environments.Environment e = env(envName);
+        try (Vault vault = Vault.connect(e.vaultConfig())) {
+            return operateResult(Operate.driverAssociations(Operate.vaultEngine(vault), e, driver, state, null, limit), e);
+        }
+    }
+
+    /** One object as the vault has it: classes, associations across drivers, password-sync status (`object.inspect`); read-only. */
+    public Map<String, Object> inspect(String envName, String dn) throws IOException {
+        if (dn == null || dn.isBlank()) {
+            throw new TreeService.BadRequest("which object? give its DN");
+        }
+        Environments.Environment e = env(envName);
+        try (Vault vault = Vault.connect(e.vaultConfig())) {
+            return operateResult(Operate.inspectObject(Operate.vaultEngine(vault), e, dn.trim()), e);
+        }
+    }
+
+    /** The driver set's password-sync timeout and the driver's password-related settings, live (`driver.password-sync`); read-only. */
+    public Map<String, Object> passwordSync(String envName, String driver) throws IOException {
+        if (driver == null || driver.isBlank()) {
+            throw new TreeService.BadRequest("no driver named");
+        }
+        Environments.Environment e = env(envName);
+        try (Vault vault = Vault.connect(e.vaultConfig())) {
+            return operateResult(Operate.passwordSync(Operate.vaultEngine(vault), e, driver), e);
+        }
+    }
+
+    /** An operate result as the page reads it: its JSON fields, plus the text and the environment. */
+    private static Map<String, Object> operateResult(Operate.Result r, Environments.Environment e) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        try {
+            m.putAll(Json.asMap(Json.parse(r.json())));
+        } catch (RuntimeException ex) {
+            m.put("ok", r.ok);
+        }
+        m.put("environment", e.name);
+        m.put("text", r.text());
+        return m;
+    }
+
     /**
      * The servers the environment's driver set runs on, read from the vault ({@code DirXML-ServerList}),
      * each with the LDAP address the trace is read from (the environment's {@code servers=} mapping,

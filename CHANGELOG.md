@@ -7,6 +7,17 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- **Identity Console gaps in the Vault view** (needs DirXMLDev 0.19.0): on the Drivers tab, each
+  driver's **start option** (auto, manual, disabled) set live behind the typed environment
+  name, and *objects* — the objects associated with the driver by state (processed, pending,
+  manual, disabled, migrate) with their association values, and the driver set's password-sync
+  timeout with the driver's password-related settings; an **Objects** tab that inspects one object
+  by DN: its classes, its associations across every driver with their state, its password-sync
+  status. (`POST /api/vault/start-option` (deployers); `GET /api/vault/associations`,
+  `/api/vault/inspect`, `/api/vault/password-sync`.)
+
 ## [0.31.0] - 2026-10-09
 
 ### Changed

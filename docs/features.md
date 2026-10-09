@@ -87,7 +87,11 @@ Every view of the page, by area, in every install; the items marked *local and s
     as only there (stopped first; the snapshot keeps it).
   - *Snapshots*: every snapshot a deploy or a rollback took, with *Roll back…* — the typed name
     again; the current state is snapshotted first and the result verified.
-  - *Drivers*: state, start option, cache size and trace level per driver; start, stop, restart;
+  - *Objects*: one object by DN — its classes, what state it is in on each driver (its
+    associations) and its password-sync status; the Identity Console's object inspector.
+  - *Drivers*: state, start option (set live: auto, manual, disabled), cache size and trace level
+    per driver; *objects* — the driver's associated objects by state with their values, and its
+    password-sync settings; start, stop, restart;
     set the trace level; *view* the event cache in pages — pick an event to see its document,
     export it, make a case from it or delete it (deployers; its document is kept first) — export
     the whole cache (the engine's document, or one simulator input), save it as one case, or

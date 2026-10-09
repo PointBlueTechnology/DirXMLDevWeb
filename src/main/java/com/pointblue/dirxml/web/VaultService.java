@@ -123,15 +123,112 @@ public final class VaultService {
     }
 
     /** What a deploy would do, step by step, with nothing written. */
+    /** What a deploy asks for beyond its scope (#34): the secrets mode, first-deploy leniency, drivers to delete from the vault. */
+    public static final class DeployChoices {
+        public boolean restart = true;
+        public String secretsMode = "none";
+        public boolean allowMissingSecrets;
+        public List<String> deleteDrivers = List.of();
+    }
+
     public Map<String, Object> plan(String envName, List<String> drivers, boolean restart, String secretsMode) throws IOException {
-        Deployer.Options o = options(envName, drivers, restart, secretsMode);
+        DeployChoices c = new DeployChoices();
+        c.restart = restart;
+        c.secretsMode = secretsMode;
+        return plan(envName, drivers, c);
+    }
+
+    public Map<String, Object> plan(String envName, List<String> drivers, DeployChoices choices) throws IOException {
+        Deployer.Options o = options(envName, drivers, choices);
         o.dryRun = true;
         return result(new Deployer(o).run(), o.env);
     }
 
+    /** The snapshots a deploy to the environment took, newest first: what each holds and where it is. */
+    public Map<String, Object> snapshots(String envName) throws IOException {
+        Environments.Environment e = env(envName);
+        Path dir = tree.resolve("deploy-snapshots").resolve(e.name);
+        List<Object> list = new ArrayList<>();
+        if (java.nio.file.Files.isDirectory(dir)) {
+            List<Path> files = new ArrayList<>();
+            try (java.util.stream.Stream<Path> s = java.nio.file.Files.walk(dir, 2)) {
+                for (Path p : (Iterable<Path>) s::iterator) {
+                    if (java.nio.file.Files.isRegularFile(p) && p.getFileName().toString().endsWith(".ldif") && java.nio.file.Files.isRegularFile(p.resolveSibling(p.getFileName().toString().replaceFirst("\\.ldif$", ".json")))) {
+                        files.add(p);
+                    }
+                }
+            }
+            files.sort((a, b) -> b.getFileName().toString().compareTo(a.getFileName().toString()));
+            int n = 0;
+            for (Path p : files) {
+                if (n++ >= 60) {
+                    break;
+                }
+                Map<String, Object> m = new LinkedHashMap<>();
+                m.put("file", tree.relativize(p).toString().replace('\\', '/'));
+                m.put("name", p.getFileName().toString());
+                Path parent = p.getParent();
+                m.put("server", parent.equals(dir) ? null : parent.getFileName().toString());
+                m.put("bytes", java.nio.file.Files.size(p));
+                try {
+                    com.pointblue.dirxml.dev.deploy.Snapshot snap = com.pointblue.dirxml.dev.deploy.Snapshot.read(p);
+                    m.put("timestamp", snap.timestamp);
+                    m.put("label", snap.label);
+                    m.put("user", snap.user);
+                    m.put("treeCommit", snap.treeCommit);
+                    m.put("objects", snap.entries.size());
+                    m.put("drivers", snap.drivers.size());
+                    m.put("ok", true);
+                } catch (IOException | RuntimeException ex) {
+                    m.put("ok", false);
+                    m.put("message", ex.getMessage());
+                }
+                list.add(m);
+            }
+        }
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("environment", e.name);
+        m.put("dir", tree.relativize(dir).toString().replace('\\', '/'));
+        m.put("snapshots", list);
+        return m;
+    }
+
+    /**
+     * Put a snapshot back (`idm vault.rollback`, #34): the environment's name typed again; the
+     * file must be one of the environment's own snapshots; the core snapshots the current state
+     * first, so a rollback is itself reversible, and verifies afterwards.
+     */
+    public Map<String, Object> rollback(String envName, String snapshot, String confirm, String server) throws IOException {
+        Environments.Environment e = env(envName);
+        Map<String, Object> m = new LinkedHashMap<>();
+        String refusal = gate(e.name, confirm);
+        if (refusal != null) {
+            m.put("ok", false);
+            m.put("refusal", refusal);
+            m.put("environment", e.name);
+            return m;
+        }
+        if (snapshot == null || snapshot.isBlank()) {
+            throw new TreeService.BadRequest("which snapshot?");
+        }
+        Path dir = tree.resolve("deploy-snapshots").resolve(e.name).toAbsolutePath().normalize();
+        Path file = tree.resolve(snapshot).toAbsolutePath().normalize();
+        if (!file.startsWith(dir) || !java.nio.file.Files.isRegularFile(file) || !file.getFileName().toString().endsWith(".ldif")) {
+            throw new TreeService.BadRequest("the snapshot must be one of " + e.name + "'s under deploy-snapshots/");
+        }
+        return result(Deployer.rollback(tree, e, file, true, server == null || server.isBlank() ? null : server), e);
+    }
+
     /** Run the deploy. {@code confirm} must be the environment's name. */
     public Map<String, Object> deploy(String envName, List<String> drivers, boolean restart, String secretsMode, String confirm) throws IOException {
-        Deployer.Options o = options(envName, drivers, restart, secretsMode);
+        DeployChoices c = new DeployChoices();
+        c.restart = restart;
+        c.secretsMode = secretsMode;
+        return deploy(envName, drivers, c, confirm);
+    }
+
+    public Map<String, Object> deploy(String envName, List<String> drivers, DeployChoices choices, String confirm) throws IOException {
+        Deployer.Options o = options(envName, drivers, choices);
         String refusal = gate(o.env.name, confirm);
         if (refusal != null) {
             Map<String, Object> m = new LinkedHashMap<>();
@@ -145,13 +242,18 @@ public final class VaultService {
         return result(new Deployer(o).run(), o.env);
     }
 
-    private Deployer.Options options(String envName, List<String> drivers, boolean restart, String secretsMode) throws IOException {
+    private Deployer.Options options(String envName, List<String> drivers, DeployChoices c) throws IOException {
         Deployer.Options o = new Deployer.Options();
         o.tree = tree;
         o.env = env(envName);
         o.drivers = drivers;
-        o.restart = restart;
-        o.secretsMode = secretsMode == null || secretsMode.isBlank() ? "none" : secretsMode;
+        o.restart = c.restart;
+        o.secretsMode = c.secretsMode == null || c.secretsMode.isBlank() ? "none" : c.secretsMode;
+        if (!List.of("none", "missing", "all").contains(o.secretsMode)) {
+            throw new TreeService.BadRequest("secrets is none, missing or all");
+        }
+        o.allowMissingSecrets = c.allowMissingSecrets;
+        o.deleteDrivers = c.deleteDrivers == null ? List.of() : c.deleteDrivers;
         return o;
     }
 

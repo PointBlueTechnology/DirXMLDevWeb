@@ -1,6 +1,6 @@
 import type { CacheView, CaseFiles, CasePlan, EventDetail, EventRow, EventsDescribe, TraceFileEntry } from "./types";
 import type { TraceRec } from "./trace/model";
-import type { AppSchema, Architecture, DevNode, SchemaDiffResult, ProjectArchive, ProjectArchiveResult, Artifact, AuditEntry, BuildResult, ConfigView, Connections, DeployResult, EnvSecrets, FetchResult, FormData as FormDoc, GitDiff, GitStatus, ImportResult, LifecycleResult, OpCall, OpResult, OpSpec, Outline, OverridesData, PackagePrompts, PackagesData, PrdData, RoleCatalog, SchemaActionResult, SchemaClass, SchemaData, Session, SetupResult, SimCaseFiles, SimCases, SimDetail, SimRun, SiteListing, TreeFile, UpdateSites, Validation, VaultDiffResult, VaultEnvironments, VaultStatus, WorkspacesInfo } from "./types";
+import type { AppSchema, Architecture, DevNode, DeployChoices, VaultSnapshot, SchemaDiffResult, ProjectArchive, ProjectArchiveResult, Artifact, AuditEntry, BuildResult, ConfigView, Connections, DeployResult, EnvSecrets, FetchResult, FormData as FormDoc, GitDiff, GitStatus, ImportResult, LifecycleResult, OpCall, OpResult, OpSpec, Outline, OverridesData, PackagePrompts, PackagesData, PrdData, RoleCatalog, SchemaActionResult, SchemaClass, SchemaData, Session, SetupResult, SimCaseFiles, SimCases, SimDetail, SimRun, SiteListing, TreeFile, UpdateSites, Validation, VaultDiffResult, VaultEnvironments, VaultStatus, WorkspacesInfo } from "./types";
 import type { FishboneModel } from "./fishbone/types";
 
 /**
@@ -216,9 +216,12 @@ export const api = {
     /** The model's schema against the environment's live one, or (with `other`) two environments' live schemas; nothing written. */
     schemaDiff: (env: string, other?: string) => call<SchemaDiffResult>("GET", `/api/vault/schema-diff?env=${q(env)}${other ? `&other=${q(other)}` : ""}`),
     diff: (env: string, drivers: string[]) => call<VaultDiffResult>("GET", `/api/vault/diff?env=${q(env)}${drivers.map((d) => `&driver=${q(d)}`).join("")}`),
-    plan: (env: string, drivers: string[], restart: boolean) => call<DeployResult>("POST", "/api/vault/plan", { env, drivers, restart }),
+    plan: (env: string, drivers: string[], choices: DeployChoices) => call<DeployResult>("POST", "/api/vault/plan", { env, drivers, ...choices }),
+    snapshots: (env: string) => call<{ environment: string; dir: string; snapshots: VaultSnapshot[] }>("GET", `/api/vault/snapshots?env=${q(env)}`),
+    /** Put a snapshot back; the environment's name typed again (deployers). */
+    rollback: (env: string, snapshot: string, confirm: string, server?: string | null) => call<DeployResult>("POST", "/api/vault/rollback", { env, snapshot, confirm, ...(server ? { server } : {}) }),
     /** `confirm` is the environment's name, typed by the person: the server refuses anything else. */
-    deploy: (env: string, drivers: string[], restart: boolean, confirm: string) => call<DeployResult>("POST", "/api/vault/deploy", { env, drivers, restart, confirm }),
+    deploy: (env: string, drivers: string[], choices: DeployChoices, confirm: string) => call<DeployResult>("POST", "/api/vault/deploy", { env, drivers, ...choices, confirm }),
     status: (env: string) => call<VaultStatus>("GET", `/api/vault/status?env=${q(env)}`),
     servers: (env: string) => call<{ environment: string; primary: string | null; servers: { dn: string; name: string; url: string | null; primary: boolean }[] }>("GET", `/api/vault/servers?env=${q(env)}`),
     driver: (env: string, driver: string, action: string, confirm: string) => call<LifecycleResult>("POST", "/api/vault/driver", { env, driver, action, confirm }),

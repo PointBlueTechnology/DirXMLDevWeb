@@ -7,6 +7,13 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- **Architecture view**: the driver set is drawn as its own panel inside the Identity Vault and
+  the connectors run to it — the drivers belong to the set, not to the vault (Jerry). Card text
+  is clipped to its card (the second line is the driver's name when the application type names
+  it, else the shim), the vault-only cards are wider, and the legend has its own room.
+
 ## [0.30.0] - 2026-10-09
 
 ### Added

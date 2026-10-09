@@ -255,6 +255,11 @@ check("vault: an unknown environment is 400", call("GET", "/api/vault/diff?env=n
 s, arch = call("GET", "/api/architecture")
 check("architecture: the set and one application per driver, typed", s == 200 and arch["driverSet"]["name"] and len(arch["applications"]) == len(outline["drivers"]) and arch["applications"][0]["driver"] == "Loop" and arch["applications"][0]["type"] == "LoopBack" and arch["applications"][0]["vaultOnly"] is True and arch["applications"][0]["typeName"] == "Loopback")
 check("architecture: a driver without an icon is 404", call("GET", "/api/driver-icon?driver=Loop")[0] == 404)
+s, dev = call("GET", "/api/developer")
+kids = {c["label"]: c for c in dev["root"]["children"]}
+loop = kids["Drivers"]["children"][0]
+check("developer: the set, its library and each driver as a tree with counts", s == 200 and dev["root"]["kind"] == "driverset" and "Library" in kids and loop["label"] == "Loop" and loop["count"] > 0 and [c["label"] for c in loop["children"][:3]] == ["Configuration", "Subscriber", "Publisher"])
+check("developer: a policy set lists its policies in order with what to open", any(len(ps["children"]) == 1 and ps["children"][0]["select"]["type"] == "artifact" for ch in loop["children"] if ch["kind"] == "channel" for ps in ch["children"]))
 check("schema: a compare names an unknown environment as 400", call("GET", "/api/vault/schema-diff?env=nope")[0] == 400)
 s, sd = call("GET", "/api/vault/schema-diff?env=lab")
 check("schema: a compare without a schema in the tree says to read one first", s == 400 and "vault.schema" in sd["error"])

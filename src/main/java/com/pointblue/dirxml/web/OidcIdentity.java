@@ -1,131 +1,43 @@
 package com.pointblue.dirxml.web;
 
-import com.pointblue.dirxml.dev.json.Json;
+import com.pointblue.console.auth.OidcClient;
+import com.pointblue.console.auth.OidcConfig;
+import com.pointblue.console.auth.OidcException;
+import com.pointblue.console.auth.TrustManagers;
 import com.sun.net.httpserver.HttpExchange;
 import java.io.IOException;
-import java.math.BigInteger;
-import java.net.URI;
-import java.net.URLEncoder;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
-import java.security.KeyFactory;
-import java.security.MessageDigest;
-import java.security.PublicKey;
-import java.security.SecureRandom;
-import java.security.Signature;
-import java.security.spec.ECPoint;
-import java.security.spec.ECPublicKeySpec;
-import java.security.spec.RSAPublicKeySpec;
-import java.time.Duration;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Base64;
+import java.nio.file.Path;
+import java.security.GeneralSecurityException;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import javax.net.ssl.SSLContext;
 
 /**
- * OpenID Connect sign-in with discovery: the authorization-code flow with PKCE against any
- * provider (Keycloak, Entra ID, Okta, OSP). The ID token is verified here — signature against
- * the provider's JWKS (RS256/384/512, ES256), issuer, audience, expiry, nonce — and its claims
- * become the principal; groups come from a configurable claim path, with the userinfo endpoint
- * consulted when the token lacks it.
+ * OpenID Connect sign-in with discovery (Keycloak, Entra ID, Okta, OSP), configured from the
+ * hosted properties ({@code oidc.*}). The protocol — authorization code with PKCE, ID-token
+ * verification against the provider's JWKS, the groups claim — is console-auth's
+ * {@link OidcClient}; this class maps it onto {@code /auth/login} and {@code /auth/callback} and
+ * turns the verified person into a principal with the hosted roles.
  */
 public final class OidcIdentity implements Identity {
 
-    private static final SecureRandom RANDOM = new SecureRandom();
-
     private final Hosted hosted;
-    private final String issuer;
-    private final String clientId;
-    private final String clientSecret;
-    private final String scopes;
-    private final String groupsClaim;
-    private final String redirect;
-    private final HttpClient http;
-    private volatile Map<String, Object> discovery;
-    private volatile Map<String, Map<String, Object>> keys = Map.of();   // kid -> JWK
-    private final Map<String, Pending> pending = new ConcurrentHashMap<>();
-
-    private static final class Pending {
-        final String next;
-        final String nonce;
-        final String verifier;
-        final Instant created = Instant.now();
-
-        Pending(String next, String nonce, String verifier) {
-            this.next = next;
-            this.nonce = nonce;
-            this.verifier = verifier;
-        }
-    }
+    private final OidcClient client;
 
     public OidcIdentity(Hosted hosted) throws IOException {
         this.hosted = hosted;
-        this.issuer = need(hosted, "oidc.issuer").replaceAll("/+$", "");
-        this.clientId = need(hosted, "oidc.clientId");
-        this.clientSecret = hosted.secret("oidc.clientSecret");
-        this.scopes = hosted.props.getProperty("oidc.scopes", "openid profile email").trim();
-        this.groupsClaim = hosted.props.getProperty("oidc.groupsClaim", "groups").trim();
-        this.redirect = hosted.publicUrl + "/auth/callback";
-        HttpClient.Builder b = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).followRedirects(HttpClient.Redirect.NEVER);
         String ca = hosted.props.getProperty("oidc.caFile");
+        SSLContext tls = null;
         if (ca != null && !ca.isBlank()) {
-            b.sslContext(trusting(java.nio.file.Path.of(ca.trim())));
-        }
-        this.http = b.build();
-    }
-
-    /** The JDK's trust plus the certificates in {@code pem} (a private CA, a reverse proxy's internal root). */
-    static javax.net.ssl.SSLContext trusting(java.nio.file.Path pem) throws IOException {
-        try {
-            java.security.cert.CertificateFactory cf = java.security.cert.CertificateFactory.getInstance("X.509");
-            java.security.KeyStore ks = java.security.KeyStore.getInstance(java.security.KeyStore.getDefaultType());
-            ks.load(null, null);
-            int n = 0;
-            try (java.io.InputStream in = java.nio.file.Files.newInputStream(pem)) {
-                for (java.security.cert.Certificate c : cf.generateCertificates(in)) {
-                    ks.setCertificateEntry("extra-" + n++, c);
-                }
+            try {
+                tls = TrustManagers.sslContext(TrustManagers.jdkPlus(Path.of(ca.trim())));
+            } catch (GeneralSecurityException e) {
+                throw new IOException("oidc.caFile " + ca.trim() + ": " + e.getMessage(), e);
             }
-            javax.net.ssl.TrustManagerFactory extra = javax.net.ssl.TrustManagerFactory.getInstance(javax.net.ssl.TrustManagerFactory.getDefaultAlgorithm());
-            extra.init(ks);
-            javax.net.ssl.TrustManagerFactory dflt = javax.net.ssl.TrustManagerFactory.getInstance(javax.net.ssl.TrustManagerFactory.getDefaultAlgorithm());
-            dflt.init((java.security.KeyStore) null);
-            javax.net.ssl.X509TrustManager a = (javax.net.ssl.X509TrustManager) dflt.getTrustManagers()[0];
-            javax.net.ssl.X509TrustManager x = (javax.net.ssl.X509TrustManager) extra.getTrustManagers()[0];
-            javax.net.ssl.X509TrustManager both = new javax.net.ssl.X509TrustManager() {
-                @Override
-                public void checkClientTrusted(java.security.cert.X509Certificate[] chain, String authType) throws java.security.cert.CertificateException {
-                    a.checkClientTrusted(chain, authType);
-                }
-
-                @Override
-                public void checkServerTrusted(java.security.cert.X509Certificate[] chain, String authType) throws java.security.cert.CertificateException {
-                    try {
-                        a.checkServerTrusted(chain, authType);
-                    } catch (java.security.cert.CertificateException e) {
-                        x.checkServerTrusted(chain, authType);
-                    }
-                }
-
-                @Override
-                public java.security.cert.X509Certificate[] getAcceptedIssuers() {
-                    java.security.cert.X509Certificate[] p = a.getAcceptedIssuers();
-                    java.security.cert.X509Certificate[] q = x.getAcceptedIssuers();
-                    java.security.cert.X509Certificate[] all = java.util.Arrays.copyOf(p, p.length + q.length);
-                    System.arraycopy(q, 0, all, p.length, q.length);
-                    return all;
-                }
-            };
-            javax.net.ssl.SSLContext ctx = javax.net.ssl.SSLContext.getInstance("TLS");
-            ctx.init(null, new javax.net.ssl.TrustManager[] {both}, null);
-            return ctx;
-        } catch (java.security.GeneralSecurityException e) {
-            throw new IOException("oidc.caFile " + pem + ": " + e.getMessage(), e);
         }
+        this.client = new OidcClient(new OidcConfig(need(hosted, "oidc.issuer"), need(hosted, "oidc.clientId"),
+            hosted.secret("oidc.clientSecret"), hosted.props.getProperty("oidc.scopes"), hosted.props.getProperty("oidc.groupsClaim"),
+            hosted.publicUrl + "/auth/callback", tls));
     }
 
     private static String need(Hosted h, String key) {
@@ -141,263 +53,26 @@ public final class OidcIdentity implements Identity {
         return "oidc";
     }
 
-    private Map<String, Object> discovery() throws IOException {
-        Map<String, Object> d = discovery;
-        if (d == null) {
-            d = Json.asMap(Json.parse(get(issuer + "/.well-known/openid-configuration")));
-            for (String k : new String[] {"authorization_endpoint", "token_endpoint", "jwks_uri"}) {
-                if (!(d.get(k) instanceof String)) {
-                    throw new IOException("the provider's discovery document lacks " + k);
-                }
-            }
-            discovery = d;
-        }
-        return d;
-    }
-
-    private String get(String url) throws IOException {
-        try {
-            HttpResponse<String> r = http.send(HttpRequest.newBuilder(URI.create(url)).timeout(Duration.ofSeconds(10)).GET().build(), HttpResponse.BodyHandlers.ofString());
-            if (r.statusCode() != 200) {
-                throw new IOException("GET " + url + ": HTTP " + r.statusCode());
-            }
-            return r.body();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new IOException("interrupted");
-        }
-    }
-
-    static String random() {
-        byte[] b = new byte[32];
-        RANDOM.nextBytes(b);
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(b);
-    }
-
-    static String enc(String s) {
-        return URLEncoder.encode(s, StandardCharsets.UTF_8);
-    }
-
     @Override
     public void login(HttpExchange ex, String next) throws IOException {
-        Map<String, Object> d = discovery();
-        String state = random();
-        String nonce = random();
-        String verifier = random() + random();
-        pending.entrySet().removeIf(e -> e.getValue().created.plusSeconds(600).isBefore(Instant.now()));
-        pending.put(state, new Pending(next, nonce, verifier));
-        String challenge;
-        try {
-            challenge = Base64.getUrlEncoder().withoutPadding().encodeToString(MessageDigest.getInstance("SHA-256").digest(verifier.getBytes(StandardCharsets.US_ASCII)));
-        } catch (java.security.NoSuchAlgorithmException e) {
-            throw new IOException(e);
-        }
-        String url = d.get("authorization_endpoint") + "?response_type=code&client_id=" + enc(clientId) + "&redirect_uri=" + enc(redirect)
-            + "&scope=" + enc(scopes) + "&state=" + enc(state) + "&nonce=" + enc(nonce) + "&code_challenge=" + challenge + "&code_challenge_method=S256";
-        Auth.redirect(ex, url);
+        Auth.redirect(ex, client.start(next).url());
     }
 
     @Override
     public Session.Principal callback(HttpExchange ex) throws IOException {
         Map<String, String> q = Api.query(ex.getRequestURI().getRawQuery());
-        if (q.get("error") != null) {
-            throw new TreeService.BadRequest("the identity provider refused: " + q.get("error") + (q.get("error_description") == null ? "" : " — " + q.get("error_description")));
-        }
-        Pending p = q.get("state") == null ? null : pending.remove(q.get("state"));
-        if (p == null || q.get("code") == null) {
-            throw new TreeService.BadRequest("this sign-in was not started here, or it expired; start again at /auth/login");
-        }
-        ex.setAttribute("next", p.next);
-        Map<String, Object> d = discovery();
-        String form = "grant_type=authorization_code&code=" + enc(q.get("code")) + "&redirect_uri=" + enc(redirect) + "&client_id=" + enc(clientId) + "&code_verifier=" + enc(p.verifier)
-            + (clientSecret == null ? "" : "&client_secret=" + enc(clientSecret));
-        Map<String, Object> tokens;
+        OidcClient.SignIn s;
         try {
-            HttpResponse<String> r = http.send(HttpRequest.newBuilder(URI.create((String) d.get("token_endpoint"))).timeout(Duration.ofSeconds(15))
-                .header("Content-Type", "application/x-www-form-urlencoded").POST(HttpRequest.BodyPublishers.ofString(form)).build(), HttpResponse.BodyHandlers.ofString());
-            tokens = Json.asMap(Json.parse(r.body()));
-            if (r.statusCode() != 200) {
-                throw new TreeService.BadRequest("the token exchange failed: " + tokens.getOrDefault("error", "HTTP " + r.statusCode()) + " " + tokens.getOrDefault("error_description", ""));
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new IOException("interrupted");
+            s = client.finish(q);
+        } catch (OidcException e) {
+            throw new TreeService.BadRequest(e.getMessage());
         }
-        String idToken = Json.asString(tokens.get("id_token"));
-        if (idToken == null) {
-            throw new TreeService.BadRequest("the provider returned no ID token");
-        }
-        Map<String, Object> claims = verify(idToken, p.nonce);
-        List<String> groups = groups(claims);
-        if (groups.isEmpty() && d.get("userinfo_endpoint") instanceof String && tokens.get("access_token") != null) {
-            try {
-                HttpResponse<String> u = http.send(HttpRequest.newBuilder(URI.create((String) d.get("userinfo_endpoint"))).timeout(Duration.ofSeconds(10))
-                    .header("Authorization", "Bearer " + tokens.get("access_token")).GET().build(), HttpResponse.BodyHandlers.ofString());
-                if (u.statusCode() == 200) {
-                    Map<String, Object> info = Json.asMap(Json.parse(u.body()));
-                    groups = groups(info);
-                    for (String k : new String[] {"name", "preferred_username", "email"}) {
-                        if (claims.get(k) == null && info.get(k) != null) {
-                            claims.put(k, info.get(k));
-                        }
-                    }
-                }
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new IOException("interrupted");
-            }
-        }
-        String subject = Json.asString(claims.get("sub"));
-        String name = Json.asString(claims.get("name"));
-        if (name == null) {
-            name = Json.asString(claims.get("preferred_username"));
-        }
-        if (name == null) {
-            name = subject;
-        }
-        return hosted.principal(subject, name, Json.asString(claims.get("email")), groups);
+        ex.setAttribute("next", s.next());
+        return hosted.principal(s.subject(), s.name(), s.email(), s.groups());
     }
 
-    /** The groups claim at a dotted path ({@code groups}, {@code realm_access.roles}); names are taken as given, a leading '/' (Keycloak group paths) dropped. */
+    /** The groups claim at the configured dotted path ({@code oidc.groupsClaim}). */
     List<String> groups(Map<String, Object> claims) {
-        Object v = claims;
-        for (String part : groupsClaim.split("\\.")) {
-            v = v instanceof Map ? ((Map<?, ?>) v).get(part) : null;
-        }
-        List<String> out = new ArrayList<>();
-        if (v instanceof List) {
-            for (Object o : (List<?>) v) {
-                String s = String.valueOf(o);
-                out.add(s.startsWith("/") ? s.substring(1) : s);
-            }
-        } else if (v instanceof String) {
-            out.add((String) v);
-        }
-        return out;
-    }
-
-    /** The ID token's claims once its signature, issuer, audience, expiry and nonce hold. */
-    Map<String, Object> verify(String jwt, String nonce) throws IOException {
-        String[] parts = jwt.split("\\.");
-        if (parts.length != 3) {
-            throw new TreeService.BadRequest("the ID token is not a JWS");
-        }
-        Base64.Decoder b64 = Base64.getUrlDecoder();
-        Map<String, Object> header = Json.asMap(Json.parse(new String(b64.decode(parts[0]), StandardCharsets.UTF_8)));
-        Map<String, Object> claims = Json.asMap(Json.parse(new String(b64.decode(parts[1]), StandardCharsets.UTF_8)));
-        String alg = Json.asString(header.get("alg"));
-        String kid = Json.asString(header.get("kid"));
-        Map<String, Object> jwk = key(kid, alg);
-        if (!signatureHolds(alg, jwk, (parts[0] + "." + parts[1]).getBytes(StandardCharsets.US_ASCII), b64.decode(parts[2]))) {
-            throw new TreeService.BadRequest("the ID token's signature does not verify");
-        }
-        if (!issuer.equals(Json.asString(claims.get("iss")))) {
-            throw new TreeService.BadRequest("the ID token is from " + claims.get("iss") + ", not " + issuer);
-        }
-        Object aud = claims.get("aud");
-        boolean audOk = clientId.equals(aud) || (aud instanceof List && ((List<?>) aud).contains(clientId));
-        if (!audOk) {
-            throw new TreeService.BadRequest("the ID token is for another client");
-        }
-        Object exp = claims.get("exp");
-        if (!(exp instanceof Number) || Instant.ofEpochSecond(((Number) exp).longValue()).plusSeconds(60).isBefore(Instant.now())) {
-            throw new TreeService.BadRequest("the ID token has expired");
-        }
-        if (nonce != null && !nonce.equals(Json.asString(claims.get("nonce")))) {
-            throw new TreeService.BadRequest("the ID token's nonce does not match this sign-in");
-        }
-        return claims;
-    }
-
-    private Map<String, Object> key(String kid, String alg) throws IOException {
-        Map<String, Object> k = kid == null ? null : keys.get(kid);
-        if (k == null) {
-            // a key we have not seen: read the JWKS again (rotation), once
-            Map<String, Map<String, Object>> fresh = new ConcurrentHashMap<>();
-            Object list = Json.asMap(Json.parse(get((String) discovery().get("jwks_uri")))).get("keys");
-            if (list instanceof List) {
-                for (Object o : (List<?>) list) {
-                    Map<String, Object> jwk = Json.asMap(o);
-                    String id = Json.asString(jwk.get("kid"));
-                    fresh.put(id == null ? "" : id, jwk);
-                }
-            }
-            keys = fresh;
-            k = kid == null ? (fresh.size() == 1 ? fresh.values().iterator().next() : null) : fresh.get(kid);
-        }
-        if (k == null) {
-            throw new TreeService.BadRequest("the ID token is signed with a key (" + kid + ") the provider does not publish");
-        }
-        return k;
-    }
-
-    static boolean signatureHolds(String alg, Map<String, Object> jwk, byte[] signed, byte[] signature) throws IOException {
-        try {
-            Base64.Decoder b64 = Base64.getUrlDecoder();
-            PublicKey key;
-            Signature sig;
-            byte[] sigBytes = signature;
-            switch (alg == null ? "" : alg) {
-                case "RS256":
-                case "RS384":
-                case "RS512": {
-                    BigInteger n = new BigInteger(1, b64.decode(Json.asString(jwk.get("n"))));
-                    BigInteger e = new BigInteger(1, b64.decode(Json.asString(jwk.get("e"))));
-                    key = KeyFactory.getInstance("RSA").generatePublic(new RSAPublicKeySpec(n, e));
-                    sig = Signature.getInstance("SHA" + alg.substring(2) + "withRSA");
-                    break;
-                }
-                case "ES256": {
-                    BigInteger x = new BigInteger(1, b64.decode(Json.asString(jwk.get("x"))));
-                    BigInteger y = new BigInteger(1, b64.decode(Json.asString(jwk.get("y"))));
-                    java.security.AlgorithmParameters params = java.security.AlgorithmParameters.getInstance("EC");
-                    params.init(new java.security.spec.ECGenParameterSpec("secp256r1"));
-                    key = KeyFactory.getInstance("EC").generatePublic(new ECPublicKeySpec(new ECPoint(x, y), params.getParameterSpec(java.security.spec.ECParameterSpec.class)));
-                    sig = Signature.getInstance("SHA256withECDSA");
-                    sigBytes = derFromJose(signature);
-                    break;
-                }
-                default:
-                    throw new TreeService.BadRequest("the ID token's algorithm " + alg + " is not supported (RS256/384/512, ES256 are)");
-            }
-            sig.initVerify(key);
-            sig.update(signed);
-            return sig.verify(sigBytes);
-        } catch (java.security.GeneralSecurityException e) {
-            throw new IOException("verifying the ID token: " + e.getMessage(), e);
-        }
-    }
-
-    /** A JOSE ECDSA signature is r||s; the JDK verifies DER. */
-    static byte[] derFromJose(byte[] rs) {
-        int half = rs.length / 2;
-        byte[] r = unsigned(java.util.Arrays.copyOfRange(rs, 0, half));
-        byte[] s = unsigned(java.util.Arrays.copyOfRange(rs, half, rs.length));
-        byte[] out = new byte[6 + r.length + s.length];
-        int i = 0;
-        out[i++] = 0x30;
-        out[i++] = (byte) (4 + r.length + s.length);
-        out[i++] = 0x02;
-        out[i++] = (byte) r.length;
-        System.arraycopy(r, 0, out, i, r.length);
-        i += r.length;
-        out[i++] = 0x02;
-        out[i++] = (byte) s.length;
-        System.arraycopy(s, 0, out, i, s.length);
-        return out;
-    }
-
-    private static byte[] unsigned(byte[] v) {
-        int start = 0;
-        while (start < v.length - 1 && v[start] == 0) {
-            start++;
-        }
-        byte[] t = java.util.Arrays.copyOfRange(v, start, v.length);
-        if ((t[0] & 0x80) != 0) {
-            byte[] p = new byte[t.length + 1];
-            System.arraycopy(t, 0, p, 1, t.length);
-            return p;
-        }
-        return t;
+        return client.groups(claims);
     }
 }

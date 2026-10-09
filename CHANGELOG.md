@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.29.0] - 2026-10-09
+
 ### Added
 
 - **Developer view** (#32 A2, docs/architecture-view.md §3): the whole driver set as one tree —

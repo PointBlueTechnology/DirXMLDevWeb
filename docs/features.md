@@ -81,7 +81,12 @@ Every view of the page, by area, in every install; the items marked *local and s
   - *Compare*: the tree against the vault, for the driver set or one driver, with the stage's
     overrides applied; each difference opens its detail.
   - *Deploy*: the plan step by step with nothing written, then the deploy itself (snapshot,
-    write, restart, verify) once you type the environment's name.
+    write, restart, verify) once you type the environment's name; the secrets mode (leave alone,
+    set the named passwords the vault lacks, re-set every provided secret), *allow missing
+    secrets* for a first deploy, and *delete from the vault* for a driver the comparison reports
+    as only there (stopped first; the snapshot keeps it).
+  - *Snapshots*: every snapshot a deploy or a rollback took, with *Roll back…* — the typed name
+    again; the current state is snapshotted first and the result verified.
   - *Drivers*: state, start option, cache size and trace level per driver; start, stop, restart;
     set the trace level; *view* the event cache in pages — pick an event to see its document,
     export it, make a case from it or delete it (deployers; its document is kept first) — export

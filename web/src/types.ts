@@ -314,6 +314,33 @@ export interface VaultDiffResult {
   overrides: string | null;
 }
 
+/** What a deploy asks for beyond its scope (#34). */
+export interface DeployChoices {
+  restart: boolean;
+  /** none (leave secrets alone), missing (set named passwords the vault lacks), all (re-set every provided secret). */
+  secrets: "none" | "missing" | "all";
+  /** A first deploy may create the driver stopped when a secret is not provided. */
+  allowMissingSecrets: boolean;
+  /** Drivers the diff reports as only in the vault, to delete (stopped ones only; the core refuses otherwise). */
+  deleteDrivers: string[];
+}
+
+/** A snapshot a deploy (or a rollback) took before writing. */
+export interface VaultSnapshot {
+  file: string;
+  name: string;
+  server: string | null;
+  bytes: number;
+  ok: boolean;
+  message?: string;
+  timestamp?: string;
+  label?: string | null;
+  user?: string | null;
+  treeCommit?: string | null;
+  objects?: number;
+  drivers?: number;
+}
+
 export interface DeployResult {
   ok: boolean;
   environment: string;

@@ -8,9 +8,11 @@
   approvers and other languages of a role go through Operations (`flow.activity.set`,
   `form.field.set --prop`, `role.set`). Branches are inserted with `flow.branch.add` there.
 - `package.import` (a jar from disk) is CLI-only — Update sites covers repositories.
-- Deploy from the page covers the common case. Secrets, deleting a driver, drift capture,
-  stepwise deploys and rollback stay with `idm vault.deploy` and `idm vault.rollback`; a deploy's
-  result names its snapshot.
+- Deploy from the page covers deploys, the secrets mode (`none` / `missing` / `all`), a first
+  deploy with missing secrets, deleting a driver the diff reports as only in the vault, and
+  rollback to any of the environment's snapshots. Drift capture and the interactive step-by-step
+  deploy (`--step`, a question per change) stay with `idm vault.deploy`; the page's way to deploy
+  in parts is the scope selector, one driver at a time.
 - The trace view reads over the environment's LDAPS connection and keeps the last 5,000 lines.
 - The simulator view creates plain cases (a driver, a channel, an input document). A case's
   other keys (schema, a fake directory, assertions, a live query source) are honoured when run

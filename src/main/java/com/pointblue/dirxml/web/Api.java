@@ -26,7 +26,7 @@ public final class Api implements HttpHandler {
     public static final String COOKIE = "idmweb_session";
     public static final String CSRF_HEADER = "X-IDMWeb-CSRF";
     /** POST routes only a deployer may call: they reach a vault or hold its credentials. */
-    private static final java.util.List<String> DEPLOYER_ONLY = java.util.List.of("/api/vault/deploy", "/api/vault/driver", "/api/vault/trace-level", "/api/vault/cache-clear", "/api/vault/cache-delete", "/api/vault/deploy-schema", "/api/credentials/environment", "/api/credentials/environment/remove", "/api/credentials/secret");
+    private static final java.util.List<String> DEPLOYER_ONLY = java.util.List.of("/api/vault/deploy", "/api/vault/driver", "/api/vault/trace-level", "/api/vault/cache-clear", "/api/vault/cache-delete", "/api/vault/deploy-schema", "/api/vault/rollback", "/api/credentials/environment", "/api/credentials/environment/remove", "/api/credentials/secret");
 
     private final Workspaces workspaces;
     private final Session.Store sessions;
@@ -421,6 +421,8 @@ public final class Api implements HttpHandler {
                     return vault.environments();
                 case "/api/vault/diff":
                     return vault.diff(required(query, "env"), list(query.get("driver")));
+                case "/api/vault/snapshots":
+                    return vault.snapshots(required(query, "env"));
                 case "/api/vault/schema-diff":
                     return vault.schemaDiff(required(query, "env"), query.get("other"));
                 case "/api/vault/status":
@@ -521,9 +523,11 @@ public final class Api implements HttpHandler {
                 case "/api/eventlog/case":
                     return w.events.saveCase(env, (long) Double.parseDouble(String.valueOf(req.get("id"))), Json.asString(req.get("name")), Json.asString(req.get("driver")), Json.asString(req.get("channel")), Boolean.TRUE.equals(req.get("replace")), Boolean.TRUE.equals(req.get("dryRun")));
                 case "/api/vault/plan":
-                    return vault.plan(env, drivers, restart, Json.asString(req.get("secrets")));
+                    return vault.plan(env, drivers, deployChoices(req, restart));
                 case "/api/vault/deploy":
-                    return vault.deploy(env, drivers, restart, Json.asString(req.get("secrets")), Json.asString(req.get("confirm")));
+                    return vault.deploy(env, drivers, deployChoices(req, restart), Json.asString(req.get("confirm")));
+                case "/api/vault/rollback":
+                    return vault.rollback(env, Json.asString(req.get("snapshot")), Json.asString(req.get("confirm")), Json.asString(req.get("server")));
                 case "/api/vault/driver":
                     return vault.lifecycle(env, Json.asString(req.get("driver")), Json.asString(req.get("action")), Json.asString(req.get("confirm")));
                 case "/api/vault/cache-case":
@@ -655,6 +659,25 @@ public final class Api implements HttpHandler {
             }
         }
         return out;
+    }
+
+    /** A deploy's choices beyond its scope (#34): secrets mode, first-deploy leniency, drivers to delete. */
+    private static VaultService.DeployChoices deployChoices(Map<String, Object> req, boolean restart) {
+        VaultService.DeployChoices c = new VaultService.DeployChoices();
+        c.restart = restart;
+        c.secretsMode = Json.asString(req.get("secrets"));
+        c.allowMissingSecrets = Boolean.TRUE.equals(req.get("allowMissingSecrets"));
+        java.util.List<String> del = new java.util.ArrayList<>();
+        Object d = req.get("deleteDrivers");
+        if (d instanceof java.util.List<?> list) {
+            for (Object o : list) {
+                if (o != null && !String.valueOf(o).isBlank()) {
+                    del.add(String.valueOf(o));
+                }
+            }
+        }
+        c.deleteDrivers = del;
+        return c;
     }
 
     private Object credentialsRoute(CredentialService credentials, Session session, String method, String path, Map<String, String> query, HttpExchange ex) throws IOException {

@@ -257,6 +257,7 @@ export type Selection =
   | { type: "audit" }
   | { type: "projects" }
   | { type: "architecture" }
+  | { type: "developer" }
   | { type: "operations" };
 
 /** One audit line: who did what, where, with what (names and flags only), and how it went. */
@@ -702,6 +703,22 @@ export interface ArchApplication {
   /** The driver carries an icon (`/api/driver-icon?driver=`). */
   icon: boolean;
   counts: { policies: number; subscriber: number; publisher: number; driver: number; entitlements: number; resources: number; forms: number; prds: number };
+}
+
+/** The Developer view's tree (#32 A2): the whole driver set, every node saying what it opens. */
+export interface DevNode {
+  id: string;
+  label: string;
+  /** driverset | folder | driver | channel | policyset | policy kinds | file | config | gcv | schema | overrides | filter | entitlement | form | prd */
+  kind: string;
+  count?: number;
+  select?: Record<string, unknown>;
+  children?: DevNode[];
+  driver?: string;
+  typeName?: string | null;
+  shimClass?: string | null;
+  icon?: boolean;
+  unresolved?: boolean;
 }
 
 /** A project put away (#76): its bundle and what moved aside. */

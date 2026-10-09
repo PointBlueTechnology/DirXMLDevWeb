@@ -1,6 +1,6 @@
 import type { CacheView, CaseFiles, CasePlan, EventDetail, EventRow, EventsDescribe, TraceFileEntry } from "./types";
 import type { TraceRec } from "./trace/model";
-import type { AppSchema, Architecture, SchemaDiffResult, ProjectArchive, ProjectArchiveResult, Artifact, AuditEntry, BuildResult, ConfigView, Connections, DeployResult, EnvSecrets, FetchResult, FormData as FormDoc, GitDiff, GitStatus, ImportResult, LifecycleResult, OpCall, OpResult, OpSpec, Outline, OverridesData, PackagePrompts, PackagesData, PrdData, RoleCatalog, SchemaActionResult, SchemaClass, SchemaData, Session, SetupResult, SimCaseFiles, SimCases, SimDetail, SimRun, SiteListing, TreeFile, UpdateSites, Validation, VaultDiffResult, VaultEnvironments, VaultStatus, WorkspacesInfo } from "./types";
+import type { AppSchema, Architecture, DevNode, SchemaDiffResult, ProjectArchive, ProjectArchiveResult, Artifact, AuditEntry, BuildResult, ConfigView, Connections, DeployResult, EnvSecrets, FetchResult, FormData as FormDoc, GitDiff, GitStatus, ImportResult, LifecycleResult, OpCall, OpResult, OpSpec, Outline, OverridesData, PackagePrompts, PackagesData, PrdData, RoleCatalog, SchemaActionResult, SchemaClass, SchemaData, Session, SetupResult, SimCaseFiles, SimCases, SimDetail, SimRun, SiteListing, TreeFile, UpdateSites, Validation, VaultDiffResult, VaultEnvironments, VaultStatus, WorkspacesInfo } from "./types";
 import type { FishboneModel } from "./fishbone/types";
 
 /**
@@ -87,6 +87,8 @@ export const api = {
   session: () => call<Session>("GET", "/api/session"),
   authHeaders,
   outline: () => call<Outline>("GET", "/api/outline"),
+  /** The whole driver set as one tree (#32 A2). */
+  developer: () => call<{ revision: string; root: DevNode }>("GET", "/api/developer"),
   /** The driver set as applications around the vault (#32). */
   architecture: () => call<Architecture>("GET", "/api/architecture"),
   driverIconUrl: (driver: string, revision: string) => `/api/driver-icon?driver=${q(driver)}&rev=${q(revision)}${tokenForLink() ? `&token=${encodeURIComponent(tokenForLink())}` : ""}`,

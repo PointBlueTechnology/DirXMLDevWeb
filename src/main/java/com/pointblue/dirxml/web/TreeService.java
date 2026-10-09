@@ -361,6 +361,223 @@ public final class TreeService {
         return o;
     }
 
+    /**
+     * The whole driver set as one tree, the way Designer's outline reads in the Developer
+     * perspective (#32 A2, docs/architecture-view.md §3): the set's configuration and library,
+     * then each driver's configuration, channels with their policy sets in engine order and
+     * policies in linkage order (the fishbone's model), resources, entitlements, forms, PRDs.
+     * Every node says what the page opens when clicked.
+     */
+    public synchronized Map<String, Object> developer() throws IOException {
+        DriverSet ds = model();
+        Map<String, String> files = AsCodeWriter.files(ds);
+        Map<String, Object> root = node("set", ds.name, "driverset", sel("driverset"));
+        List<Object> rootKids = kids(root);
+        // the set's own configuration
+        Map<String, Object> setConf = node("set-config", "Configuration", "folder", sel("config", "driver", null));
+        List<Object> sc = kids(setConf);
+        for (String f : existing(List.of("config-values.xml"))) {
+            sc.add(leaf("set-file:" + f, "Global configuration values", "gcv", sel("config", "driver", null)));
+        }
+        sc.add(leaf("set-schema", "Vault schema", "schema", Map.of("type", "driverset", "tab", "schema")));
+        sc.add(leaf("set-overrides", "Environment overrides", "overrides", sel("overrides")));
+        rootKids.add(setConf);
+        // the library
+        Map<String, Object> lib = node("library", "Library", "folder", null);
+        List<Object> lk = kids(lib);
+        for (Object n : nodes(ds.library.policies, files)) {
+            lk.add(artifactLeaf("lib", n));
+        }
+        for (Object n : nodes(ds.library.resources, files)) {
+            lk.add(artifactLeaf("lib", n));
+        }
+        rootKids.add(lib);
+        // the drivers
+        Map<String, Object> drivers = node("drivers", "Drivers", "folder", null);
+        List<Object> dk = kids(drivers);
+        for (Driver d : ds.drivers) {
+            String dir = "drivers/" + AsCodeWriter.fileSafe(d.name);
+            String type = com.pointblue.dirxml.dev.source.ApplicationType.of(d);
+            Map<String, Object> dn = node("driver:" + d.name, d.name, "driver", sel("flow", "driver", d.name));
+            dn.put("driver", d.name);
+            dn.put("typeName", com.pointblue.dirxml.dev.source.ApplicationType.displayName(type));
+            dn.put("shimClass", d.shimClass);
+            dn.put("icon", d.icon != null && d.icon.length > 0);
+            List<Object> dkids = kids(dn);
+            Map<String, Object> fb = Fishbone.model(ds, tree, d);
+            // configuration
+            Map<String, Object> conf = node("driver-config:" + d.name, "Configuration", "folder", sel("config", "driver", d.name));
+            List<Object> ck = kids(conf);
+            ck.add(leaf("driver-xml:" + d.name, "driver.xml", "file", Map.of("type", "file", "file", dir + "/driver.xml")));
+            @SuppressWarnings("unchecked") Map<String, Object> filter = (Map<String, Object>) fb.get("filter");
+            if (filter != null) {
+                ck.add(leaf("filter:" + d.name, "Filter", "filter", sel("config", "driver", d.name)));
+            }
+            for (String kind : d.config.keySet()) {
+                ck.add(leaf("cfg:" + d.name + ":" + kind, configLabel(kind), "config", sel("config", "driver", d.name)));
+            }
+            dkids.add(conf);
+            // channels
+            dkids.add(channel("subscriber", "Subscriber", d.name, fb, List.of("subscriber"), List.of("output")));
+            dkids.add(channel("publisher", "Publisher", d.name, fb, List.of("publisher"), List.of("input")));
+            Map<String, Object> mapping = bonesOf(fb, "spine", b -> "schema-mapping".equals(b.get("key")));
+            if (mapping != null) {
+                dkids.add(boneNode(d.name, mapping));
+            }
+            // resources: the fishbone's driver-level sets and the resource artifacts
+            Map<String, Object> res = node("resources:" + d.name, "Resources", "folder", null);
+            List<Object> rk = kids(res);
+            for (Object o : (List<?>) fb.getOrDefault("resources", List.of())) {
+                @SuppressWarnings("unchecked") Map<String, Object> b = (Map<String, Object>) o;
+                if (!((List<?>) b.get("policies")).isEmpty()) {
+                    rk.add(boneNode(d.name, b));
+                }
+            }
+            for (Object n : nodes(d.resources, files)) {
+                rk.add(artifactLeaf("res:" + d.name, n));
+            }
+            dkids.add(res);
+            // entitlements, forms, PRDs
+            if (!d.entitlements.isEmpty()) {
+                Map<String, Object> ents = node("ents:" + d.name, "Entitlements", "folder", null);
+                List<Object> ek = kids(ents);
+                for (Entitlement e : d.entitlements) {
+                    String f = dir + "/entitlements/" + AsCodeWriter.fileSafe(e.name) + ".xml";
+                    ek.add(leaf("ent:" + d.name + ":" + e.name, e.name, "entitlement", Map.of("type", "entitlement", "driver", d.name, "name", e.name, "file", f)));
+                }
+                dkids.add(ents);
+            }
+            if (d.provisioning != null && !d.provisioning.forms.isEmpty()) {
+                Map<String, Object> forms = node("forms:" + d.name, "Forms", "folder", null);
+                List<Object> fk = kids(forms);
+                for (Form f : d.provisioning.forms) {
+                    fk.add(leaf("form:" + d.name + ":" + f.name, f.name, "form", Map.of("type", "form", "driver", d.name, "name", f.name)));
+                }
+                dkids.add(forms);
+            }
+            if (d.provisioning != null && !d.provisioning.prds.isEmpty()) {
+                Map<String, Object> prds = node("prds:" + d.name, "Provisioning request definitions", "folder", null);
+                List<Object> pk = kids(prds);
+                for (Prd p : d.provisioning.prds) {
+                    pk.add(leaf("prd:" + d.name + ":" + p.name, p.name, "prd", Map.of("type", "prd", "driver", d.name, "name", p.name)));
+                }
+                dkids.add(prds);
+            }
+            dk.add(dn);
+        }
+        rootKids.add(drivers);
+        count(root);
+        Map<String, Object> o = new LinkedHashMap<>();
+        o.put("revision", cachedRevision);
+        o.put("root", root);
+        return o;
+    }
+
+    private static Map<String, Object> channel(String key, String label, String driver, Map<String, Object> fb, List<String> boneLists, List<String> spineKeys) {
+        Map<String, Object> ch = node(key + ":" + driver, label, "channel", null);
+        List<Object> ck = kids(ch);
+        for (String list : boneLists) {
+            for (Object o : (List<?>) fb.getOrDefault(list, List.of())) {
+                @SuppressWarnings("unchecked") Map<String, Object> b = (Map<String, Object>) o;
+                ck.add(boneNode(driver, b));
+            }
+        }
+        for (String sk : spineKeys) {
+            Map<String, Object> b = bonesOf(fb, "spine", x -> sk.equals(x.get("key")));
+            if (b != null) {
+                ck.add(boneNode(driver, b));
+            }
+        }
+        return ch;
+    }
+
+    private static Map<String, Object> bonesOf(Map<String, Object> fb, String list, java.util.function.Predicate<Map<String, Object>> which) {
+        for (Object o : (List<?>) fb.getOrDefault(list, List.of())) {
+            @SuppressWarnings("unchecked") Map<String, Object> b = (Map<String, Object>) o;
+            if (which.test(b)) {
+                return b;
+            }
+        }
+        return null;
+    }
+
+    /** A policy set as a node with its policies in linkage order. */
+    private static Map<String, Object> boneNode(String driver, Map<String, Object> bone) {
+        Map<String, Object> n = node("bone:" + driver + ":" + bone.get("key"), String.valueOf(bone.get("label")), "policyset", null);
+        List<Object> k = kids(n);
+        for (Object o : (List<?>) bone.getOrDefault("policies", List.of())) {
+            @SuppressWarnings("unchecked") Map<String, Object> p = (Map<String, Object>) o;
+            Map<String, Object> leaf = leaf("policy:" + driver + ":" + bone.get("key") + ":" + p.get("id"), String.valueOf(p.get("name")), String.valueOf(p.getOrDefault("kind", "policy")), p.get("ref") == null ? null : Map.of("type", "artifact", "path", String.valueOf(p.get("ref"))));
+            leaf.put("unresolved", Boolean.TRUE.equals(p.get("unresolved")));
+            k.add(leaf);
+        }
+        return n;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> artifactLeaf(String prefix, Object nodeMap) {
+        Map<String, Object> n = (Map<String, Object>) nodeMap;
+        return leaf(prefix + ":" + n.get("path"), String.valueOf(n.get("name")), String.valueOf(n.get("kind")), Map.of("type", "artifact", "path", String.valueOf(n.get("path"))));
+    }
+
+    private static String configLabel(String kind) {
+        switch (kind) {
+            case "driver-filter": return "Filter";
+            case "shim-config-info": return "Shim settings";
+            case "engine-control-values": return "Engine control values";
+            case "config-values": return "Global configuration values";
+            case "app-schema": return "Application schema";
+            default: return kind;
+        }
+    }
+
+    private static Map<String, Object> sel(String type, Object... kv) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("type", type);
+        for (int i = 0; i + 1 < kv.length; i += 2) {
+            m.put(String.valueOf(kv[i]), kv[i + 1]);
+        }
+        return m;
+    }
+
+    private static Map<String, Object> node(String id, String label, String kind, Map<String, Object> select) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("id", id);
+        m.put("label", label);
+        m.put("kind", kind);
+        if (select != null) {
+            m.put("select", select);
+        }
+        m.put("children", new ArrayList<>());
+        return m;
+    }
+
+    private static Map<String, Object> leaf(String id, String label, String kind, Map<String, Object> select) {
+        Map<String, Object> m = node(id, label, kind, select);
+        m.remove("children");
+        return m;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<Object> kids(Map<String, Object> node) {
+        return (List<Object>) node.get("children");
+    }
+
+    /** Each folder's count: the leaves beneath it. */
+    @SuppressWarnings("unchecked")
+    private static int count(Map<String, Object> n) {
+        List<Object> c = (List<Object>) n.get("children");
+        if (c == null) {
+            return 1;
+        }
+        int total = 0;
+        for (Object o : c) {
+            total += count((Map<String, Object>) o);
+        }
+        n.put("count", total);
+        return total;
+    }
+
     /** A driver's icon bytes and format, or null when it has none. */
     public synchronized Map.Entry<String, byte[]> driverIcon(String driver) throws IOException {
         DriverSet ds = model();

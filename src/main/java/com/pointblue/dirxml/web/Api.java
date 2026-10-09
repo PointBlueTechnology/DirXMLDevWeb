@@ -383,6 +383,8 @@ public final class Api implements HttpHandler {
             switch (path) {
                 case "/api/architecture":
                     return service.architecture();
+                case "/api/developer":
+                    return service.developer();
                 case "/api/outline":
                     return service.outline();
                 case "/api/artifact":

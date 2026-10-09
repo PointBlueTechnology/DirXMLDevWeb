@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "patternfly-mcp": {
+      "command": "npx",
+      "args": ["-y", "@patternfly/patternfly-mcp@2.5.0"],
+      "description": "PatternFly 6 rules, documentation and component schemas, for the planned move of the web page to PatternFly (shared theme: @pointblue/console-theme in directory-console). Pinned: raise the version deliberately. Needs Node 22+."
+    }
+  }
+}

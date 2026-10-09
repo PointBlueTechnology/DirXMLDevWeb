@@ -302,6 +302,79 @@ public final class TreeService {
             : f.endsWith(".properties") ? "ini" : f.endsWith(".md") ? "markdown" : "plaintext";
     }
 
+    /**
+     * The driver set as Designer's Modeler draws it (#32, docs/architecture-view.md): the set with
+     * its servers and counts, and one application per driver — its Designer application type and
+     * display name, whether it serves the vault itself, whether it carries an icon, its counts.
+     */
+    public synchronized Map<String, Object> architecture() throws IOException {
+        DriverSet ds = model();
+        Map<String, Object> o = new LinkedHashMap<>();
+        o.put("revision", cachedRevision);
+        Map<String, Object> set = new LinkedHashMap<>();
+        set.put("name", ds.name);
+        set.put("dn", ds.dn);
+        List<Object> servers = new ArrayList<>();
+        String primary = ds.meta.get("servers.primary");
+        for (String s : ds.servers) {
+            Map<String, Object> sv = new LinkedHashMap<>();
+            sv.put("dn", s);
+            sv.put("name", s.replaceFirst("^[^=]+=", "").replaceFirst(",.*$", ""));
+            sv.put("primary", s.equalsIgnoreCase(primary));
+            servers.add(sv);
+        }
+        set.put("servers", servers);
+        set.put("drivers", ds.drivers.size());
+        set.put("libraryItems", ds.library.policies.size() + ds.library.resources.size());
+        int packages = 0;
+        for (String k : ds.meta.keySet()) {
+            if (k.startsWith("package.installed.")) {
+                packages++;
+            }
+        }
+        set.put("packages", packages);
+        o.put("driverSet", set);
+        List<Object> apps = new ArrayList<>();
+        for (Driver d : ds.drivers) {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("driver", d.name);
+            m.put("dn", d.dn);
+            m.put("shimClass", d.shimClass);
+            String type = com.pointblue.dirxml.dev.source.ApplicationType.of(d);
+            m.put("type", type);
+            m.put("typeName", com.pointblue.dirxml.dev.source.ApplicationType.displayName(type));
+            m.put("vaultOnly", com.pointblue.dirxml.dev.source.ApplicationType.vaultOnly(type));
+            m.put("icon", d.icon != null && d.icon.length > 0);
+            Map<String, Object> c = new LinkedHashMap<>();
+            c.put("policies", d.policies.size() + d.subscriber.policies.size() + d.publisher.policies.size());
+            c.put("subscriber", d.subscriber.policies.size());
+            c.put("publisher", d.publisher.policies.size());
+            c.put("driver", d.policies.size());
+            c.put("entitlements", d.entitlements.size());
+            c.put("resources", d.resources.size());
+            c.put("forms", d.provisioning == null ? 0 : d.provisioning.forms.size());
+            c.put("prds", d.provisioning == null ? 0 : d.provisioning.prds.size());
+            m.put("counts", c);
+            apps.add(m);
+        }
+        o.put("applications", apps);
+        return o;
+    }
+
+    /** A driver's icon bytes and format, or null when it has none. */
+    public synchronized Map.Entry<String, byte[]> driverIcon(String driver) throws IOException {
+        DriverSet ds = model();
+        Driver d = ds.driver(driver);
+        if (d == null) {
+            throw new NotFound("no driver '" + driver + "' in the tree");
+        }
+        if (d.icon == null || d.icon.length == 0) {
+            return null;
+        }
+        String ext = d.iconExtension != null ? d.iconExtension : Driver.iconExtensionOf(d.icon);
+        return Map.entry(ext, d.icon);
+    }
+
     public synchronized Map<String, Object> fishbone(String driver) throws IOException {
         DriverSet ds = model();
         Driver d = ds.driver(driver);

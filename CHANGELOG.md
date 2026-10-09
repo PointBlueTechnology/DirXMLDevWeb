@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.31.0] - 2026-10-09
+
 ### Changed
 
 - **Architecture view**: the driver set is drawn as its own panel inside the Identity Vault and

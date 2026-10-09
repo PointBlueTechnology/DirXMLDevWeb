@@ -122,6 +122,9 @@ Every view of the page, by area, in every install; the items marked *local and s
     that policy's trace, queries and commands.
   - Edit the input and *run without saving*; record the output a case should keep producing.
   - Run with a stage's override values, and compare the result with another stage's.
+- **Projects** (hosted, deployers): every project the server holds; *Archive…* writes its
+  repository as a git bundle, moves its workspaces and recordings aside under `data.dir/archive/`
+  and forgets it, with the bundle to download; *Remove…* only forgets it (docs/hosted-mode.md).
 - **Connections** (the driver set is looked up from the vault and chosen from a list): the environments the `idm` CLI reads, set up from the page — vault URL, bind
   DN, driver set, tier, trust, SSH host, prerequisite, event store — with a connection test before saving; on a hosted server the project's *definitions* (deployers) and each person's *own connection* (bind DN, passwords) are two files (docs/multi-user.md); the password
   and each driver secret a deploy needs (shim, Remote Loader, named passwords, read off the

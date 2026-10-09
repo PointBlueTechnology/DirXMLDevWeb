@@ -10,6 +10,7 @@ import { FileView } from "./components/FileView";
 import { FlowView } from "./components/FlowView";
 import { OperationsView } from "./components/OperationsView";
 import { AuditView } from "./components/AuditView";
+import { ProjectsView } from "./components/ProjectsView";
 import { SEVERITIES, ValidationPanel, ValidationSummary } from "./components/ValidationPanel";
 import type { Severity } from "./components/ValidationPanel";
 import { TraceFilesView } from "./components/TraceFilesView";
@@ -382,9 +383,14 @@ export function App() {
           )}
           {outline ? <OutlineTree outline={outline} selection={selection} onSelect={setSelection} /> : <p className="muted pad">Loading the tree…</p>}
           {session?.mode === "hosted" && session.user.deployer && (
-            <button className={selection.type === "audit" ? "navbtn active advanced" : "navbtn advanced"} onClick={() => setSelection({ type: "audit" })} title="Who did what on this server">
-              Audit log
-            </button>
+            <>
+              <button className={selection.type === "projects" ? "navbtn active advanced" : "navbtn advanced"} onClick={() => setSelection({ type: "projects" })} title="The projects this server holds: archive or remove one">
+                Projects
+              </button>
+              <button className={selection.type === "audit" ? "navbtn active advanced" : "navbtn advanced"} onClick={() => setSelection({ type: "audit" })} title="Who did what on this server">
+                Audit log
+              </button>
+            </>
           )}
           <button className={selection.type === "operations" ? "navbtn active advanced" : "navbtn advanced"} onClick={() => setSelection({ type: "operations" })} title="Every operation the core registers, as a form: what an agent runs, and what the editors above run for you">
             Operations (advanced)
@@ -414,6 +420,7 @@ export function App() {
           {selection.type === "form" && <FormView key={selection.driver + "/" + selection.name} driver={selection.driver} name={selection.name} revision={revision} onSelect={setSelection} onSaved={reload} />}
           {selection.type === "roles" && <RolesView revision={revision} onSaved={reload} />}
           {selection.type === "audit" && <AuditView />}
+          {selection.type === "projects" && <ProjectsView />}
           {selection.type === "traces" && <TraceFilesView onSelect={setSelection} />}
           {selection.type === "trace" && !selection.popout && <TraceViewer key={selection.file ?? selection.env ?? ""} env={selection.env} file={selection.file} drivers={outline?.drivers.map((d) => d.name) ?? []} outline={outline} onSelect={setSelection} onOpen={open} />}
           {selection.type === "changes" && <ChangesView key={selection.against ?? "head"} initial={selection.against ?? "head"} revision={revision} onSelect={setSelection} />}

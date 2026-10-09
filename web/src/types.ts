@@ -255,6 +255,7 @@ export type Selection =
   | { type: "new"; what: NewWhat; driver: string | null }
   | { type: "changes"; against?: "head" | "base" | "upstream" }
   | { type: "audit" }
+  | { type: "projects" }
   | { type: "operations" };
 
 /** One audit line: who did what, where, with what (names and flags only), and how it went. */
@@ -678,6 +679,28 @@ export interface EnvSecrets {
   exists: boolean;
   needs: SecretNeed[];
   others: { key: string; configured: string | null }[];
+}
+
+/** A project put away (#76): its bundle and what moved aside. */
+export interface ProjectArchive {
+  name: string;
+  dir: string;
+  project: string;
+  archivedAt: string | null;
+  by: string | null;
+  repository: string | null;
+  bundle: string | null;
+  bytes: number | null;
+  moved: string[];
+}
+
+export interface ProjectArchiveResult {
+  archived: string;
+  name: string;
+  dir: string;
+  bundle: string;
+  bytes: number;
+  moved: string[];
 }
 
 export interface SetupResult {

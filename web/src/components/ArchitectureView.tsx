@@ -24,16 +24,22 @@ const L = {
   top: 40,
   side: 40,
   belowGap: 44,
-  smallW: 150,
+  smallW: 184,
   smallH: 52,
   smallGap: 14,
   badgeR: 11,
+  /** the driver set panel's inset inside the vault: the vault's title above it, nothing beside it */
+  setTop: 56,
+  setInset: 12,
+  setBottom: 14,
 };
 
 export interface ArchLayout {
   width: number;
   height: number;
   vault: { x: number; y: number; w: number; h: number };
+  /** The driver set: the panel inside the vault the connectors run to. */
+  set: { x: number; y: number; w: number; h: number };
   left: { app: ArchApplication; x: number; y: number }[];
   right: { app: ArchApplication; x: number; y: number }[];
   below: { app: ArchApplication; x: number; y: number }[];
@@ -48,19 +54,20 @@ export function archLayout(apps: ArchApplication[]): ArchLayout {
   external.forEach((a, i) => (i % 2 === 0 ? left : right).push(a));
   const rows = Math.max(left.length, right.length, 1);
   const colH = rows * L.cardH + (rows - 1) * L.rowGap;
-  const vaultH = Math.max(L.vaultMinH, colH);
+  const vaultH = Math.max(L.vaultMinH, colH + L.setTop + L.setBottom);
   const vaultX = L.side + L.cardW + L.colGap;
   const vault = { x: vaultX, y: L.top, w: L.vaultW, h: vaultH };
+  const set = { x: vaultX + L.setInset, y: L.top + L.setTop, w: L.vaultW - 2 * L.setInset, h: vaultH - L.setTop - L.setBottom };
   const rightX = vaultX + L.vaultW + L.colGap;
   const place = (col: ArchApplication[], x: number) =>
-    col.map((app, i) => ({ app, x, y: L.top + (vaultH - colH) / 2 + i * (L.cardH + L.rowGap) }));
+    col.map((app, i) => ({ app, x, y: set.y + (set.h - colH) / 2 + i * (L.cardH + L.rowGap) }));
   const belowY = L.top + vaultH + L.belowGap;
   const belowTotal = below.length * L.smallW + Math.max(0, below.length - 1) * L.smallGap;
   const belowStart = vaultX + L.vaultW / 2 - belowTotal / 2;
   const belowPlaced = below.map((app, i) => ({ app, x: belowStart + i * (L.smallW + L.smallGap), y: belowY }));
   const width = rightX + L.cardW + L.side;
-  const height = (below.length > 0 ? belowY + L.smallH : L.top + vaultH) + 50;
-  return { width: Math.max(width, belowStart + belowTotal + L.side), height, vault, left: place(left, L.side), right: place(right, rightX), below: belowPlaced };
+  const height = (below.length > 0 ? belowY + L.smallH : L.top + vaultH) + 64;
+  return { width: Math.max(width, belowStart + belowTotal + L.side), height, vault, set, left: place(left, L.side), right: place(right, rightX), below: belowPlaced };
 }
 
 export function label(a: ArchApplication): string {
@@ -79,6 +86,7 @@ const CSS = `
 .arch-svg .vault { fill: color-mix(in srgb, var(--accent, #2f6fd0) 10%, var(--surface, #fff)); stroke: var(--accent, #2f6fd0); stroke-width: 1.6; }
 .arch-svg .vault-title { font-size: 15px; font-weight: 700; fill: var(--accent, #2f6fd0); }
 .arch-svg .vault-sub { font-size: 11px; fill: var(--muted, #6b7280); }
+.arch-svg .set { fill: var(--surface, #fff); stroke: var(--accent, #2f6fd0); stroke-width: 1.2; opacity: 0.96; }
 .arch-svg .band { fill: var(--accent, #2f6fd0); }
 .arch-svg .band-text { font-size: 12px; font-weight: 600; fill: var(--accent-text, #fff); }
 .arch-svg .conn { stroke: var(--muted, #9aa3ad); stroke-width: 1.4; fill: none; opacity: 0.8; }
@@ -258,7 +266,8 @@ export function ArchitectureView({ revision, onSelect }: { revision: string; onS
   }
   const ds = data.driverSet;
   const v = layout.vault;
-  const edge = (side: "left" | "right") => (side === "left" ? v.x : v.x + v.w);
+  const st0 = layout.set;
+  const edge = (side: "left" | "right") => (side === "left" ? st0.x : st0.x + st0.w);
 
   const card = (p: { app: ArchApplication; x: number; y: number }, side: "left" | "right") => {
     const a = p.app;
@@ -267,7 +276,7 @@ export function ArchitectureView({ revision, onSelect }: { revision: string; onS
     const fromX = side === "left" ? p.x + L.cardW : p.x;
     const toX = edge(side);
     const midX = (fromX + toX) / 2;
-    const vaultY = Math.min(Math.max(cy, v.y + 40), v.y + v.h - 40);
+    const vaultY = Math.min(Math.max(cy, st0.y + 24), st0.y + st0.h - 24);
     const st = states?.[a.driver];
     const tip = `${a.driver}\n${a.shimClass ?? "no shim class"}\n${a.counts.policies} policies · ${a.counts.entitlements} entitlements · ${a.counts.resources} resources${a.counts.forms + a.counts.prds > 0 ? ` · ${a.counts.forms} forms · ${a.counts.prds} PRDs` : ""}${st ? `\n${st.state}${st.cacheSize ? ` · cache ${st.cacheSize}` : ""}` : ""}`;
     return (
@@ -277,13 +286,14 @@ export function ArchitectureView({ revision, onSelect }: { revision: string; onS
           <title>{tip}</title>
           <rect className="app" x={p.x} y={p.y} width={L.cardW} height={L.cardH} rx={8} />
           {icon(a, p.x + 10, p.y + 12, 32, data.revision)}
-          <text className="app-name" x={p.x + 52} y={p.y + 24}>
-            {label(a)}
-          </text>
-          <text className="drv-name" x={p.x + 52} y={p.y + 42}>
-            {a.typeName && a.typeName !== a.driver ? `${a.driver} · ` : ""}
-            {shortShim(a.shimClass)}
-          </text>
+          <svg x={p.x + 52} y={p.y} width={L.cardW - 60} height={L.cardH}>
+            <text className="app-name" x={0} y={24}>
+              {label(a)}
+            </text>
+            <text className="drv-name" x={0} y={42}>
+              {a.typeName && a.typeName !== a.driver ? a.driver : shortShim(a.shimClass)}
+            </text>
+          </svg>
         </g>
         <g className={"badge-g" + (dim ? " dim" : "")} onClick={() => onSelect({ type: "config", driver: a.driver })} data-testid={"arch-badge-" + a.driver}>
           <title>{`${a.driver}: configuration${st ? ` · ${st.state}` : ""}`}</title>
@@ -301,22 +311,24 @@ export function ArchitectureView({ revision, onSelect }: { revision: string; onS
     const st = states?.[a.driver];
     return (
       <g key={a.driver}>
-        <path className="conn" d={`M${cx},${v.y + v.h} L${cx},${p.y}`} />
+        <path className="conn" d={`M${cx},${st0.y + st0.h} L${cx},${p.y}`} />
         <g className={"badge-g" + (dim ? " dim" : "")} onClick={() => onSelect({ type: "config", driver: a.driver })}>
           <title>{`${a.driver}: configuration${st ? ` · ${st.state}` : ""}`}</title>
-          <circle className="badge" cx={cx} cy={(v.y + v.h + p.y) / 2} r={9} />
-          {st && <circle className={"dot " + stateClass(st.state)} cx={cx + 6} cy={(v.y + v.h + p.y) / 2 - 6} r={3.5} />}
+          <circle className="badge" cx={cx} cy={(st0.y + st0.h + p.y) / 2} r={9} />
+          {st && <circle className={"dot " + stateClass(st.state)} cx={cx + 6} cy={(st0.y + st0.h + p.y) / 2 - 6} r={3.5} />}
         </g>
         <g className={"app-g" + (dim ? " dim" : "") + (selected === a.driver ? " selected" : "")} onClick={() => (setSelected(a.driver), onSelect({ type: "flow", driver: a.driver }))} data-testid={"arch-app-" + a.driver}>
           <title>{`${a.driver}\n${a.shimClass ?? ""}\n${a.counts.policies} policies${a.counts.forms + a.counts.prds > 0 ? ` · ${a.counts.forms} forms · ${a.counts.prds} PRDs` : ""}`}</title>
           <rect className="app" x={p.x} y={p.y} width={L.smallW} height={L.smallH} rx={8} />
           {icon(a, p.x + 8, p.y + 11, 28, data.revision)}
-          <text className="app-name" x={p.x + 44} y={p.y + 22} style={{ fontSize: 12 }}>
-            {fit(label(a), 15)}
-          </text>
-          <text className="drv-name" x={p.x + 44} y={p.y + 39}>
-            {fit(a.driver, 17)}
-          </text>
+          <svg x={p.x + 44} y={p.y} width={L.smallW - 50} height={L.smallH}>
+            <text className="app-name" x={0} y={22} style={{ fontSize: 12 }}>
+              {label(a)}
+            </text>
+            <text className="drv-name" x={0} y={39}>
+              {label(a) === a.driver ? shortShim(a.shimClass) : a.driver}
+            </text>
+          </svg>
         </g>
       </g>
     );
@@ -359,34 +371,42 @@ export function ArchitectureView({ revision, onSelect }: { revision: string; onS
         <svg ref={svgRef} className="arch-svg" width={layout.width * zoom} height={layout.height * zoom} viewBox={`0 0 ${layout.width} ${layout.height}`} role="img" aria-label="Architecture: the Identity Vault and the applications its drivers connect">
           <style>{CSS}</style>
           <rect className="vault" x={v.x} y={v.y} width={v.w} height={v.h} rx={14} />
-          <g transform={`translate(${v.x + 18},${v.y + 20})`}>
+          <g transform={`translate(${v.x + 16},${v.y + 16})`}>
             <path d="M3 10 L12 3 L21 10 Z M4 10 H20 V12 H4 Z M6 12 V20 M10 12 V20 M14 12 V20 M18 12 V20 M3 21 H21" fill="none" stroke="var(--accent, #2f6fd0)" strokeWidth={1.6} strokeLinejoin="round" />
           </g>
-          <text className="vault-title" x={v.x + 48} y={v.y + 38}>
+          <text className="vault-title" x={v.x + 46} y={v.y + 34}>
             Identity Vault
           </text>
-          <text className="vault-sub" x={v.x + 18} y={v.y + 58}>
-            {ds.dn ?? "no DN recorded"}
+          {/* the driver set: the object the drivers belong to, so the connectors run to it */}
+          <rect className="set" x={st0.x} y={st0.y} width={st0.w} height={st0.h} rx={10} />
+          <rect className="band" x={st0.x} y={st0.y} width={st0.w} height={30} rx={10} />
+          <rect className="band" x={st0.x} y={st0.y + 16} width={st0.w} height={14} />
+          <text className="band-text" x={st0.x + 12} y={st0.y + 20}>
+            {fit(ds.name, 24)}
           </text>
-          <rect className="band" x={v.x + 16} y={v.y + 74} width={v.w - 32} height={30} rx={6} />
-          <text className="band-text" x={v.x + 28} y={v.y + 94}>
-            {fit(ds.name, 26)}
-          </text>
-          <text className="vault-sub" x={v.x + 18} y={v.y + 126}>
-            {ds.drivers} drivers · {ds.libraryItems} library items · {ds.packages} packages
-          </text>
+          <svg x={st0.x + 10} y={st0.y + 36} width={st0.w - 20} height={56}>
+            <text className="vault-sub" x={0} y={14}>
+              {ds.dn ?? "no DN recorded"}
+            </text>
+            <text className="vault-sub" x={0} y={32}>
+              {ds.drivers} drivers · {ds.libraryItems} library items
+            </text>
+            <text className="vault-sub" x={0} y={50}>
+              {ds.packages} packages
+            </text>
+          </svg>
           {ds.servers.length > 0 && (
-            <>
-              <text className="vault-sub" x={v.x + 18} y={v.y + v.h - 20 - ds.servers.length * 16}>
+            <svg x={st0.x + 10} y={st0.y + st0.h - 12 - (ds.servers.length + 1) * 16} width={st0.w - 20} height={(ds.servers.length + 1) * 16 + 4}>
+              <text className="vault-sub" x={0} y={12}>
                 server{ds.servers.length === 1 ? "" : "s"}
               </text>
               {ds.servers.map((s, i) => (
-                <text key={s.dn} className="vault-sub" x={v.x + 18} y={v.y + v.h - 20 - (ds.servers.length - 1 - i) * 16}>
-                  {fit(s.name, 28)}
+                <text key={s.dn} className="vault-sub" x={0} y={28 + i * 16}>
+                  {s.name}
                   {s.primary ? " (primary)" : ""}
                 </text>
               ))}
-            </>
+            </svg>
           )}
           {layout.left.map((p) => card(p, "left"))}
           {layout.right.map((p) => card(p, "right"))}
@@ -409,7 +429,7 @@ export function ArchitectureView({ revision, onSelect }: { revision: string; onS
               </>
             )}
             <text className="legend" x={states ? 210 : 0} y={0}>
-              click an application: its policy flow · click a driver badge: its configuration · hover: shim, policies, entitlements{states ? ", state" : ""}
+              the drivers belong to the driver set inside the vault · click an application: its policy flow · click a driver badge: its configuration · hover: shim, policies, entitlements{states ? ", state" : ""}
             </text>
           </g>
         </svg>

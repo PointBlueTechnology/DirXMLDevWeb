@@ -4,9 +4,9 @@ import { EnvPicker, useEnvironment } from "../env";
 import { CachePanel } from "./CachePanel";
 import { EventsView } from "./EventsView";
 import { TraceViewer } from "./TraceViewer";
-import type { DeployResult, Outline, Selection, VaultDiffResult, VaultStatus, VaultSnapshot, DriverAssociations, ObjectInspection, PasswordSync } from "../types";
+import type { DeployResult, Outline, Selection, VaultDiffResult, VaultStatus, VaultSnapshot, DriverAssociations, ObjectInspection, PasswordSync, VaultJobs } from "../types";
 
-type Tab = "compare" | "drivers" | "objects" | "trace" | "events";
+type Tab = "compare" | "drivers" | "jobs" | "objects" | "trace" | "events";
 
 /**
  * The tree against a vault: what differs, a deploy planned and run, the drivers' state and
@@ -54,9 +54,9 @@ export function VaultView({ drivers, revision, outline, onOpen, onSelect, onSave
         </button>
         <span className="spacer" />
         <div className="tabs">
-          {(["compare", "drivers", "objects", "trace", "events"] as Tab[]).map((t) => (
+          {(["compare", "drivers", "jobs", "objects", "trace", "events"] as Tab[]).map((t) => (
             <button key={t} className={tab === t ? "tab active" : "tab"} onClick={() => setTab(t)} data-testid={"vault-tab-" + t}>
-              {t === "compare" ? "Compare & deploy" : t === "drivers" ? "Drivers" : t === "objects" ? "Objects" : t === "trace" ? "Trace" : "Events"}
+              {t === "compare" ? "Compare & deploy" : t === "drivers" ? "Drivers" : t === "jobs" ? "Jobs" : t === "objects" ? "Objects" : t === "trace" ? "Trace" : "Events"}
             </button>
           ))}
         </div>
@@ -69,6 +69,8 @@ export function VaultView({ drivers, revision, outline, onOpen, onSelect, onSave
         <Drivers key={chosen.name} env={chosen.name} onFix={() => onSelect({ type: "connections", env: chosen.name })} onSelect={onSelect} onSaved={onSaved} />
       ) : tab === "objects" ? (
         <Objects key={chosen.name} env={chosen.name} />
+      ) : tab === "jobs" ? (
+        <Jobs key={chosen.name} env={chosen.name} onFix={() => onSelect({ type: "connections", env: chosen.name })} />
       ) : (
         tab === "trace" ? (
         <TraceViewer key={chosen.name} env={chosen.name} drivers={drivers} outline={outline} onSelect={onSelect} onOpen={onOpen} />
@@ -671,6 +673,90 @@ function AssociationsPanel({ env, driver, onClose }: { env: string; driver: stri
         </div>
       )}
     </section>
+  );
+}
+
+/** The jobs of the driver set as the engine runs them (job.list): start or abort one behind the typed environment name. */
+function Jobs({ env, onFix }: { env: string; onFix: () => void }) {
+  const [data, setData] = useState<VaultJobs | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [confirm, setConfirm] = useState("");
+  const [last, setLast] = useState<{ ok: boolean; text: string } | null>(null);
+  const load = () => {
+    setBusy("Reading…");
+    api.vault
+      .jobs(env)
+      .then((j) => (setData(j), setError(null)))
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setBusy(null));
+  };
+  useEffect(load, [env]);
+  const act = (job: string, driver: string | null, action: "start" | "abort") => {
+    setBusy(`${action} ${job}…`);
+    api.vault
+      .job(env, job, driver, action, confirm)
+      .then((r) => (setLast({ ok: r.ok, text: r.text }), load()))
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setBusy(null));
+  };
+  const armed = confirm === env;
+  return (
+    <div className="pad">
+      <div className="addrow">
+        <button onClick={load} disabled={busy !== null} data-testid="jobs-refresh">
+          Refresh
+        </button>
+        <Confirm env={env} value={confirm} onChange={setConfirm} />
+        {busy && <span className="muted">{busy}</span>}
+        <span className="muted small">The engine's jobs: a driver's triggers and health checks, the set's statistics job. Start runs one now; abort stops a running one.</span>
+      </div>
+      {error && <VaultError message={error} onFix={onFix} />}
+      {last && <div className={last.ok ? "banner" : "banner error"} data-testid="jobs-last">{last.text}</div>}
+      {data && data.jobs.length === 0 && <p className="muted">No jobs in {env}.</p>}
+      {data && data.jobs.length > 0 && (
+        <table className="grid" data-testid="jobs-table">
+          <thead>
+            <tr>
+              <th>Job</th>
+              <th>Owner</th>
+              <th>Class</th>
+              <th>Running</th>
+              <th>Configuration</th>
+              <th>Scheduled</th>
+              <th>Next run</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {data.jobs.map((j) => (
+              <tr key={j.dn}>
+                <td>
+                  <code>{j.name}</code>
+                  {j.disabled && <span className="pill warn">disabled</span>}
+                </td>
+                <td className="small">{j.owner}</td>
+                <td className="small muted">{j.javaClass.replace(/^.*\./, "")}</td>
+                <td>
+                  <span className={"pill " + (j.running === "running" ? "ok" : "")}>{j.running}</span>
+                </td>
+                <td className="small">{j.config}</td>
+                <td className="small">{j.scheduled}</td>
+                <td className="small">{j.nextRun ? j.nextRun.replace("T", " ").slice(0, 16) : "—"}</td>
+                <td className="right">
+                  <button disabled={!armed || busy !== null || j.running === "running"} onClick={() => act(j.name, j.driver, "start")} data-testid={"job-start-" + j.name}>
+                    Start
+                  </button>{" "}
+                  <button disabled={!armed || busy !== null || j.running !== "running"} onClick={() => act(j.name, j.driver, "abort")}>
+                    Abort
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
   );
 }
 

@@ -539,6 +539,41 @@ public final class VaultService {
         }
     }
 
+    /** Every job of the environment's driver set with the engine's state (`job.list`); read-only. */
+    public Map<String, Object> jobs(String envName) throws IOException {
+        Environments.Environment e = env(envName);
+        try (Vault vault = Vault.connect(e.vaultConfig())) {
+            return operateResult(Operate.jobList(Operate.vaultEngine(vault), e, null), e);
+        }
+    }
+
+    /** `job.start` / `job.abort`: the environment's name typed again. */
+    public Map<String, Object> jobAction(String envName, String job, String driver, String action, String confirm) throws IOException {
+        if (job == null || job.isBlank()) {
+            throw new TreeService.BadRequest("no job named");
+        }
+        if (!List.of("start", "abort").contains(action == null ? "" : action)) {
+            throw new TreeService.BadRequest("action is start or abort");
+        }
+        Environments.Environment e = env(envName);
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("environment", e.name);
+        m.put("job", job);
+        m.put("action", action);
+        String refusal = gate(e.name, confirm);
+        if (refusal != null) {
+            m.put("ok", false);
+            m.put("text", refusal);
+            return m;
+        }
+        try (Vault vault = Vault.connect(e.vaultConfig())) {
+            Operate.Result r = Operate.jobAction(Operate.vaultEngine(vault), e, job, driver, action, true, confirm, tree);
+            m.put("ok", r.ok);
+            m.put("text", r.text());
+            return m;
+        }
+    }
+
     /** The objects associated with a driver, by state (`driver.associations`); read-only. */
     public Map<String, Object> associations(String envName, String driver, String state, int limit) throws IOException {
         if (driver == null || driver.isBlank()) {

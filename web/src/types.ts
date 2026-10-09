@@ -375,6 +375,37 @@ export interface VaultStatus {
   text: string;
 }
 
+/** The objects associated with a driver, by state (`driver.associations`). */
+export interface DriverAssociations {
+  ok: boolean;
+  driver: string;
+  counts: Record<string, number>;
+  total: number;
+  listed: number;
+  objects: { dn: string; state: string; value: string }[];
+  text: string;
+}
+
+/** One object as the vault has it (`object.inspect`). */
+export interface ObjectInspection {
+  ok: boolean;
+  dn: string;
+  error?: string;
+  objectClass?: string[];
+  associations?: { driver?: string; driverDn?: string; state?: string; value?: string; raw?: string }[];
+  passwordSync?: { driver: string; driverDn: string; time: string; status: string }[];
+  text: string;
+}
+
+/** The driver set's sync timeout and a driver's password settings (`driver.password-sync`). */
+export interface PasswordSync {
+  ok: boolean;
+  driver: string;
+  driverSetTimeout: string;
+  settings: { name: string; value: string }[];
+  text: string;
+}
+
 export interface LifecycleResult {
   ok: boolean;
   text: string;

@@ -1,6 +1,6 @@
 import type { CacheView, CaseFiles, CasePlan, EventDetail, EventRow, EventsDescribe, TraceFileEntry } from "./types";
 import type { TraceRec } from "./trace/model";
-import type { AppSchema, Architecture, DevNode, DeployChoices, VaultSnapshot, SchemaDiffResult, ProjectArchive, ProjectArchiveResult, Artifact, AuditEntry, BuildResult, ConfigView, Connections, DeployResult, EnvSecrets, FetchResult, FormData as FormDoc, GitDiff, GitStatus, ImportResult, LifecycleResult, OpCall, OpResult, OpSpec, Outline, OverridesData, PackagePrompts, PackagesData, PrdData, RoleCatalog, SchemaActionResult, SchemaClass, SchemaData, Session, SetupResult, SimCaseFiles, SimCases, SimDetail, SimRun, SiteListing, TreeFile, UpdateSites, Validation, VaultDiffResult, VaultEnvironments, VaultStatus, WorkspacesInfo } from "./types";
+import type { AppSchema, Architecture, DevNode, DeployChoices, DriverAssociations, ObjectInspection, PasswordSync, VaultSnapshot, SchemaDiffResult, ProjectArchive, ProjectArchiveResult, Artifact, AuditEntry, BuildResult, ConfigView, Connections, DeployResult, EnvSecrets, FetchResult, FormData as FormDoc, GitDiff, GitStatus, ImportResult, LifecycleResult, OpCall, OpResult, OpSpec, Outline, OverridesData, PackagePrompts, PackagesData, PrdData, RoleCatalog, SchemaActionResult, SchemaClass, SchemaData, Session, SetupResult, SimCaseFiles, SimCases, SimDetail, SimRun, SiteListing, TreeFile, UpdateSites, Validation, VaultDiffResult, VaultEnvironments, VaultStatus, WorkspacesInfo } from "./types";
 import type { FishboneModel } from "./fishbone/types";
 
 /**
@@ -225,6 +225,11 @@ export const api = {
     status: (env: string) => call<VaultStatus>("GET", `/api/vault/status?env=${q(env)}`),
     servers: (env: string) => call<{ environment: string; primary: string | null; servers: { dn: string; name: string; url: string | null; primary: boolean }[] }>("GET", `/api/vault/servers?env=${q(env)}`),
     driver: (env: string, driver: string, action: string, confirm: string) => call<LifecycleResult>("POST", "/api/vault/driver", { env, driver, action, confirm }),
+    /** A driver's start option, live (deployers; the environment's name typed again). */
+    startOption: (env: string, driver: string, option: "auto" | "manual" | "disabled", confirm: string) => call<LifecycleResult>("POST", "/api/vault/start-option", { env, driver, option, confirm }),
+    associations: (env: string, driver: string, state?: string, limit = 200) => call<DriverAssociations>("GET", `/api/vault/associations?env=${q(env)}&driver=${q(driver)}${state ? `&state=${q(state)}` : ""}&limit=${limit}`),
+    inspect: (env: string, dn: string) => call<ObjectInspection>("GET", `/api/vault/inspect?env=${q(env)}&dn=${q(dn)}`),
+    passwordSync: (env: string, driver: string) => call<PasswordSync>("GET", `/api/vault/password-sync?env=${q(env)}&driver=${q(driver)}`),
     cache: (env: string, driver: string, from = 0, count = 200, fresh = false) => call<CacheView>("GET", `/api/vault/cache?env=${q(env)}&driver=${q(driver)}&from=${from}&count=${count}${fresh ? "&fresh=true" : ""}`),
     cacheFileUrl: (env: string, driver: string, kind: "cache" | "input") => `/api/vault/cache-file?env=${q(env)}&driver=${q(driver)}&kind=${kind}${token() ? `&token=${q(token())}` : ""}`,
     cacheEventCase: (env: string, req: { driver: string; index: number; name?: string; channel?: string; replace?: boolean; dryRun?: boolean }) => call<CaseFiles>("POST", "/api/vault/cache-event-case", { env, ...req }),

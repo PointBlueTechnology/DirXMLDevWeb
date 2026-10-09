@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.32.0] - 2026-10-09
+
 ### Added
 
 - **Identity Console gaps in the Vault view** (needs DirXMLDev 0.19.0): on the Drivers tab, each

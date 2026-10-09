@@ -128,6 +128,10 @@ Every view of the page, by area, in every install; the items marked *local and s
   itself beneath; hover for facts, click for the flow or the configuration, filter, zoom; *show
   state* colours each driver by its state in the chosen environment; *Download SVG / PNG* for a
   slide or a document (docs/architecture-view.md).
+- **Developer**: the whole driver set as one tree, as Designer's outline reads in the Developer
+  perspective — each driver's configuration, its Subscriber and Publisher policy sets in engine
+  order with the policies in linkage order, schema mapping, resources, entitlements, forms and
+  PRDs — with a filter, expand and collapse all, and each node opening its editor.
 - **Projects** (hosted, deployers): every project the server holds; *Archive…* writes its
   repository as a git bundle, moves its workspaces and recordings aside under `data.dir/archive/`
   and forgets it, with the bundle to download; *Remove…* only forgets it (docs/hosted-mode.md).

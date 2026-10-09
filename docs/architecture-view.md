@@ -1,6 +1,6 @@
 # Architecture and Developer views: design note
 
-Status: **proposed 2026-10-09** for issue #32, for Jerry to confirm. Jerry: "the visuals are
+Status: **decided 2026-10-09** (section 6) for issue #32; A1 in progress. Jerry: "the visuals are
 important for marketing the solution; ideally we want parity with the views in Designer."
 
 ## 1. What Designer shows, and what the page shows today
@@ -112,16 +112,13 @@ for orientation and the round-trip check the issue names.
 - Editing from the canvas (Designer lets you drag applications about): the layout is computed.
 - Printing to PDF beyond the SVG/PNG export.
 
-## 6. Decisions for Jerry
+## 6. Decisions (taken 2026-10-09)
 
-1. **Two columns around the vault** (recommended; Designer's own arrangement, reads at a glance
-   and exports to a slide), or a ring around it?
-2. **Vault-only drivers beneath the vault** (recommended), or drawn as applications like the rest?
-3. **Developer view as a full-page tree** (recommended now, per the issue), with the canvas
-   Developer mode as a possible follow-up — or the canvas mode first?
-4. **Live state overlay in the first release** (recommended: it is one status call and it is
-   what makes the picture say something a static diagram cannot), or later?
-5. **Export both SVG and PNG** (recommended), or SVG only?
+1. **Two columns around the vault**, Designer's own arrangement.
+2. **Vault-only drivers beneath the vault.**
+3. **Developer view as a full-page tree** now; the canvas Developer mode is a possible follow-up.
+4. **Live state overlay in the first release.**
+5. **Export both SVG and PNG.**
 
 ## 7. Phases
 

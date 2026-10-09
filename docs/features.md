@@ -136,7 +136,7 @@ Every view of the page, by area, in every install; the items marked *local and s
 - **Architecture**: the driver set as Designer's Modeler draws it — the Identity Vault with its
   driver set in the centre, one application per driver in two columns with the driver's icon and
   its application type, the driver as a badge on the connector, the drivers that serve the vault
-  itself beneath; hover for facts, click for the flow or the configuration, filter, zoom; *show
+  itself at the foot of each column; hover for facts, click for the flow or the configuration, filter, zoom; *show
   state* colours each driver by its state in the chosen environment; *Download SVG / PNG* for a
   slide or a document (docs/architecture-view.md).
 - **Developer**: the whole driver set as one tree, as Designer's outline reads in the Developer

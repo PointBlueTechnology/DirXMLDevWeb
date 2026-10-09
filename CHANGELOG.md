@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.34.0] - 2026-10-09
+
 ### Changed
 
 - **Architecture view**: the drivers that serve the vault itself (User Application, Loopback,

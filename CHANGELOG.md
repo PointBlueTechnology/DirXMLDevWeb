@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.28.0] - 2026-10-09
+
 ### Added
 
 - **Architecture view** (#32, docs/architecture-view.md; needs DirXMLDev 0.18.0): the driver set

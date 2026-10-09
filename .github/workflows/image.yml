@@ -43,6 +43,7 @@ jobs:
       - name: DirXMLDev and simulator jars
         env:
           GH_TOKEN: ${{ github.token }}
+          DIRECTORY_CONSOLE_TOKEN: ${{ secrets.DIRECTORY_CONSOLE_TOKEN }}
         run: |
           mkdir -p DirXMLDev/target
           gh release download "v${{ steps.v.outputs.core }}" --repo PointBlueTechnology/DirXMLDev -p "dirxml-dev-${{ steps.v.outputs.core }}.jar" -D DirXMLDev/target
@@ -56,7 +57,9 @@ jobs:
           gh release download "v${{ steps.v.outputs.core }}" --repo PointBlueTechnology/DirXMLDev -p "postgresql-$PG.jar" -D "$P"
           AUTH=$(sed -n 's#.*<console.version>\([^<]*\)</console.version>.*#\1#p' pom.xml | head -1)
           A=~/.m2/repository/com/pointblue/console/console-auth/$AUTH; mkdir -p "$A"
-          gh release download "v$AUTH" --repo PointBlueTechnology/directory-console -p "console-auth-$AUTH.jar" -D "$A"
+          # directory-console is private: this download uses a token that can read it
+          if [ -z "${DIRECTORY_CONSOLE_TOKEN:-}" ]; then echo "::error::DIRECTORY_CONSOLE_TOKEN is not set: a token that can read PointBlueTechnology/directory-console releases (that repository is private)"; exit 1; fi
+          GH_TOKEN="$DIRECTORY_CONSOLE_TOKEN" gh release download "v$AUTH" --repo PointBlueTechnology/directory-console -p "console-auth-$AUTH.jar" -D "$A"
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3

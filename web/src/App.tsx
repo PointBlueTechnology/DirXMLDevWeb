@@ -11,6 +11,7 @@ import { FlowView } from "./components/FlowView";
 import { OperationsView } from "./components/OperationsView";
 import { AuditView } from "./components/AuditView";
 import { ProjectsView } from "./components/ProjectsView";
+import { ArchitectureView } from "./components/ArchitectureView";
 import { SEVERITIES, ValidationPanel, ValidationSummary } from "./components/ValidationPanel";
 import type { Severity } from "./components/ValidationPanel";
 import { TraceFilesView } from "./components/TraceFilesView";
@@ -361,6 +362,9 @@ export function App() {
       )}
       <div className={problemsHidden ? "body problems-hidden" : "body"} style={noWorkspace || addingProject ? { display: "none" } : undefined}>
         <nav className="sidebar">
+          <button className={selection.type === "architecture" ? "navbtn active" : "navbtn"} onClick={() => setSelection({ type: "architecture" })} title="The driver set as Designer's Modeler draws it: the Identity Vault and one application per driver">
+            Architecture
+          </button>
           <button className={selection.type === "vault" ? "navbtn active" : "navbtn"} onClick={() => setSelection({ type: "vault" })}>
             Vault
           </button>
@@ -421,6 +425,7 @@ export function App() {
           {selection.type === "roles" && <RolesView revision={revision} onSaved={reload} />}
           {selection.type === "audit" && <AuditView />}
           {selection.type === "projects" && <ProjectsView />}
+          {selection.type === "architecture" && <ArchitectureView revision={revision} onSelect={setSelection} />}
           {selection.type === "traces" && <TraceFilesView onSelect={setSelection} />}
           {selection.type === "trace" && !selection.popout && <TraceViewer key={selection.file ?? selection.env ?? ""} env={selection.env} file={selection.file} drivers={outline?.drivers.map((d) => d.name) ?? []} outline={outline} onSelect={setSelection} onOpen={open} />}
           {selection.type === "changes" && <ChangesView key={selection.against ?? "head"} initial={selection.against ?? "head"} revision={revision} onSelect={setSelection} />}

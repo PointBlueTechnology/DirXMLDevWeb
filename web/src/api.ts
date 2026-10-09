@@ -1,6 +1,6 @@
 import type { CacheView, CaseFiles, CasePlan, EventDetail, EventRow, EventsDescribe, TraceFileEntry } from "./types";
 import type { TraceRec } from "./trace/model";
-import type { AppSchema, SchemaDiffResult, ProjectArchive, ProjectArchiveResult, Artifact, AuditEntry, BuildResult, ConfigView, Connections, DeployResult, EnvSecrets, FetchResult, FormData as FormDoc, GitDiff, GitStatus, ImportResult, LifecycleResult, OpCall, OpResult, OpSpec, Outline, OverridesData, PackagePrompts, PackagesData, PrdData, RoleCatalog, SchemaActionResult, SchemaClass, SchemaData, Session, SetupResult, SimCaseFiles, SimCases, SimDetail, SimRun, SiteListing, TreeFile, UpdateSites, Validation, VaultDiffResult, VaultEnvironments, VaultStatus, WorkspacesInfo } from "./types";
+import type { AppSchema, Architecture, SchemaDiffResult, ProjectArchive, ProjectArchiveResult, Artifact, AuditEntry, BuildResult, ConfigView, Connections, DeployResult, EnvSecrets, FetchResult, FormData as FormDoc, GitDiff, GitStatus, ImportResult, LifecycleResult, OpCall, OpResult, OpSpec, Outline, OverridesData, PackagePrompts, PackagesData, PrdData, RoleCatalog, SchemaActionResult, SchemaClass, SchemaData, Session, SetupResult, SimCaseFiles, SimCases, SimDetail, SimRun, SiteListing, TreeFile, UpdateSites, Validation, VaultDiffResult, VaultEnvironments, VaultStatus, WorkspacesInfo } from "./types";
 import type { FishboneModel } from "./fishbone/types";
 
 /**
@@ -26,6 +26,11 @@ function token(): string {
 }
 
 /** The token to append to a link that opens a new window (sessionStorage is per window); empty in hosted mode, where the cookie carries the session. */
+/** The session header for a fetch of a binary the page makes itself (an icon for an export). */
+export function authHeaders(): Record<string, string> {
+  return { "X-IDMWeb-Token": token() };
+}
+
 export function tokenForLink(): string {
   return token();
 }
@@ -80,7 +85,11 @@ const q = encodeURIComponent;
 
 export const api = {
   session: () => call<Session>("GET", "/api/session"),
+  authHeaders,
   outline: () => call<Outline>("GET", "/api/outline"),
+  /** The driver set as applications around the vault (#32). */
+  architecture: () => call<Architecture>("GET", "/api/architecture"),
+  driverIconUrl: (driver: string, revision: string) => `/api/driver-icon?driver=${q(driver)}&rev=${q(revision)}${tokenForLink() ? `&token=${encodeURIComponent(tokenForLink())}` : ""}`,
   artifact: (path: string) => call<Artifact>("GET", `/api/artifact?path=${q(path)}`),
   file: (file: string) => call<TreeFile>("GET", `/api/file?file=${q(file)}`),
   fishbone: (driver: string) => call<FishboneModel & { revision: string }>("GET", `/api/fishbone?driver=${q(driver)}`),

@@ -250,6 +250,21 @@ public final class Api implements HttpHandler {
                 send(ex, 200, Map.of("ok", true, "name", stored));
                 return;
             }
+            if (path.equals("/api/driver-icon") && method.equals("GET")) {
+                Map.Entry<String, byte[]> icon = w.service.driverIcon(required(query, "driver"));
+                if (icon == null) {
+                    throw new TreeService.NotFound("the driver has no icon");
+                }
+                String ext = icon.getKey();
+                String type = ext.equals("png") ? "image/png" : ext.equals("jpg") ? "image/jpeg" : ext.equals("bmp") ? "image/bmp" : ext.equals("gif") ? "image/gif" : "application/octet-stream";
+                ex.getResponseHeaders().set("Content-Type", type);
+                ex.getResponseHeaders().set("Cache-Control", "private, max-age=3600");
+                ex.sendResponseHeaders(200, icon.getValue().length);
+                try (OutputStream out = ex.getResponseBody()) {
+                    out.write(icon.getValue());
+                }
+                return;
+            }
             if (path.equals("/api/traces/file") && method.equals("GET")) {
                 java.nio.file.Path f = w.traces.path(required(query, "name"));
                 if (!java.nio.file.Files.isRegularFile(f)) {
@@ -366,6 +381,8 @@ public final class Api implements HttpHandler {
         }
         if (method.equals("GET")) {
             switch (path) {
+                case "/api/architecture":
+                    return service.architecture();
                 case "/api/outline":
                     return service.outline();
                 case "/api/artifact":

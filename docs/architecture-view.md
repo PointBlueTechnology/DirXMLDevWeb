@@ -1,6 +1,6 @@
 # Architecture and Developer views: design note
 
-Status: **decided 2026-10-09** (section 6) for issue #32; A1 in progress. Jerry: "the visuals are
+Status: **decided 2026-10-09** (section 6) for issue #32; A1 built (the Architecture view with the live overlay and export; DirXMLDev 0.18.0), A2 next. Jerry: "the visuals are
 important for marketing the solution; ideally we want parity with the views in Designer."
 
 ## 1. What Designer shows, and what the page shows today
@@ -127,3 +127,20 @@ for orientation and the round-trip check the issue names.
 | A1 | `/api/architecture`, `/api/driver-icon`; the Architecture view with hover, click, filter, fit, export |
 | A2 | the Developer view |
 | A3 | the live state overlay on both |
+
+## 8. As built (A1)
+
+- `GET /api/architecture`: the set (name, DN, servers, drivers, library items, installed
+  packages) and one application per driver (`type`, `typeName`, `vaultOnly`, `icon`, counts).
+  `GET /api/driver-icon?driver=…`: the icon bytes with their image type, 404 when none.
+- `ArchitectureView`: `archLayout` places external applications in two columns alternated by
+  name order and vault-only drivers beneath; cards carry the driver's icon (an initials glyph
+  when it has none), the application type's name and the driver name with its shim class; the
+  driver badge sits on the connector. Hover: shim, counts, state. Click a card: the Flow view;
+  click a badge: Configuration. Filter dims. Zoom and Fit. *show state* (remembered) reads
+  `/api/vault/status` for the chosen environment and colours the badges. *Download SVG* embeds
+  the page's colour tokens and the icons as data URLs; *Download PNG* renders that at 2×.
+- A driver whose type the tree does not record (a Remote Loader shim with no
+  `designer.driver-type`) is labelled by its driver name with the generic glyph, as Designer's
+  importer would without the base package; carrying the type from the base package stamp is a
+  follow-up.

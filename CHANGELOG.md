@@ -7,6 +7,18 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- **Architecture view** (#32, docs/architecture-view.md; needs DirXMLDev 0.18.0): the driver set
+  as Designer's Modeler draws it — the Identity Vault and its driver set in the centre, one
+  application per driver in two columns with the driver's own icon and its Designer application
+  type's name, the driver as a badge on the connector, the drivers that serve the vault itself
+  (User Application, Loopback, Entitlements Service…) beneath. Hover for the shim and counts,
+  click a card for its policy flow or a badge for its configuration, filter, zoom; *show state*
+  colours each driver by its state in the chosen environment; *Download SVG* (self-contained:
+  tokens and icons embedded) and *Download PNG* (2×). (`GET /api/architecture`,
+  `GET /api/driver-icon?driver=`.)
+
 ## [0.27.0] - 2026-10-09
 
 ### Added

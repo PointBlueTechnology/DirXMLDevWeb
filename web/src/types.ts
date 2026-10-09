@@ -256,6 +256,7 @@ export type Selection =
   | { type: "changes"; against?: "head" | "base" | "upstream" }
   | { type: "audit" }
   | { type: "projects" }
+  | { type: "architecture" }
   | { type: "operations" };
 
 /** One audit line: who did what, where, with what (names and flags only), and how it went. */
@@ -679,6 +680,28 @@ export interface EnvSecrets {
   exists: boolean;
   needs: SecretNeed[];
   others: { key: string; configured: string | null }[];
+}
+
+/** The Architecture view's model (#32): the driver set and one application per driver. */
+export interface Architecture {
+  revision: string;
+  driverSet: { name: string; dn: string | null; servers: { dn: string; name: string; primary: boolean }[]; drivers: number; libraryItems: number; packages: number };
+  applications: ArchApplication[];
+}
+
+export interface ArchApplication {
+  driver: string;
+  dn: string | null;
+  shimClass: string | null;
+  /** Designer's application type (ActiveDirectory, GenericDatabase, NProv, GenericApp…). */
+  type: string;
+  /** What a diagram labels it; null for the generic type (the driver's name is used then). */
+  typeName: string | null;
+  /** No external system: User Application, Loopback, Entitlements Service… drawn beneath the vault. */
+  vaultOnly: boolean;
+  /** The driver carries an icon (`/api/driver-icon?driver=`). */
+  icon: boolean;
+  counts: { policies: number; subscriber: number; publisher: number; driver: number; entitlements: number; resources: number; forms: number; prds: number };
 }
 
 /** A project put away (#76): its bundle and what moved aside. */

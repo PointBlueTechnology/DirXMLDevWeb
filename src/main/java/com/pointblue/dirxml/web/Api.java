@@ -26,7 +26,7 @@ public final class Api implements HttpHandler {
     public static final String COOKIE = "idmweb_session";
     public static final String CSRF_HEADER = "X-IDMWeb-CSRF";
     /** POST routes only a deployer may call: they reach a vault or hold its credentials. */
-    private static final java.util.List<String> DEPLOYER_ONLY = java.util.List.of("/api/vault/deploy", "/api/vault/driver", "/api/vault/trace-level", "/api/vault/cache-clear", "/api/vault/cache-delete", "/api/vault/deploy-schema", "/api/vault/rollback", "/api/vault/start-option", "/api/credentials/environment", "/api/credentials/environment/remove", "/api/credentials/secret");
+    private static final java.util.List<String> DEPLOYER_ONLY = java.util.List.of("/api/vault/deploy", "/api/vault/driver", "/api/vault/trace-level", "/api/vault/cache-clear", "/api/vault/cache-delete", "/api/vault/deploy-schema", "/api/vault/rollback", "/api/vault/start-option", "/api/vault/job", "/api/credentials/environment", "/api/credentials/environment/remove", "/api/credentials/secret");
 
     private final Workspaces workspaces;
     private final Session.Store sessions;
@@ -423,6 +423,8 @@ public final class Api implements HttpHandler {
                     return vault.diff(required(query, "env"), list(query.get("driver")));
                 case "/api/vault/snapshots":
                     return vault.snapshots(required(query, "env"));
+                case "/api/vault/jobs":
+                    return vault.jobs(required(query, "env"));
                 case "/api/vault/associations":
                     return vault.associations(required(query, "env"), required(query, "driver"), query.get("state"), query.get("limit") == null ? 50 : Integer.parseInt(query.get("limit")));
                 case "/api/vault/inspect":
@@ -532,6 +534,8 @@ public final class Api implements HttpHandler {
                     return vault.plan(env, drivers, deployChoices(req, restart));
                 case "/api/vault/deploy":
                     return vault.deploy(env, drivers, deployChoices(req, restart), Json.asString(req.get("confirm")));
+                case "/api/vault/job":
+                    return vault.jobAction(env, Json.asString(req.get("job")), Json.asString(req.get("driver")), Json.asString(req.get("action")), Json.asString(req.get("confirm")));
                 case "/api/vault/start-option":
                     return vault.startOption(env, Json.asString(req.get("driver")), Json.asString(req.get("option")), Json.asString(req.get("confirm")));
                 case "/api/vault/rollback":

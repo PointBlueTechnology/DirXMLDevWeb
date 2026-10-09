@@ -1,6 +1,6 @@
 # Architecture and Developer views: design note
 
-Status: **decided 2026-10-09** (section 6) for issue #32; A1 built (the Architecture view with the live overlay and export; DirXMLDev 0.18.0), A2 next. Jerry: "the visuals are
+Status: **decided 2026-10-09** (section 6) for issue #32; A1 built (the Architecture view with the live overlay and export; DirXMLDev 0.18.0), A2 built (the Developer view); #32 complete. Jerry: "the visuals are
 important for marketing the solution; ideally we want parity with the views in Designer."
 
 ## 1. What Designer shows, and what the page shows today
@@ -144,3 +144,18 @@ for orientation and the round-trip check the issue names.
   `designer.driver-type`) is labelled by its driver name with the generic glyph, as Designer's
   importer would without the base package; carrying the type from the base package stamp is a
   follow-up.
+
+## 9. As built (A2)
+
+- `GET /api/developer`: one tree — the set (its configuration: GCVs, vault schema, overrides;
+  the library's policies and resources), then every driver: Configuration (driver.xml, filter,
+  shim settings, engine control values, GCVs, application schema), Subscriber (Event, Matching,
+  Creation, Placement, Command, Output), Publisher (Input, Event, Matching, Creation, Placement,
+  Command), Schema Mapping, Resources (the driver-level sets with policies, and the resource
+  artifacts), Entitlements, Forms, Provisioning request definitions. Policy sets come from the
+  same model the fishbone draws, so the policies are in linkage order; every node carries what
+  the page opens when clicked and every folder its leaf count.
+- `DeveloperView`: the tree with the set and the drivers open by default, *Expand all* and
+  *Collapse all*, a filter that keeps matching nodes and their ancestors (name, type or shim),
+  the driver's icon and type name on its row, *unresolved* on a policy link the tree cannot
+  resolve, and *show state* for the chosen environment on the driver rows.

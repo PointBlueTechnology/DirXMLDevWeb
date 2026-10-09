@@ -7,6 +7,15 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- **Developer view** (#32 A2, docs/architecture-view.md §3): the whole driver set as one tree —
+  the set's configuration and library, then each driver's configuration, Subscriber and
+  Publisher policy sets in engine order with the policies in linkage order, schema mapping,
+  resources, entitlements, forms and PRDs; a filter that keeps matching nodes and their
+  ancestors, expand and collapse all, the driver's icon and type on its row, *show state* for the
+  chosen environment, every node opening its editor. (`GET /api/developer`.)
+
 ## [0.28.0] - 2026-10-09
 
 ### Added

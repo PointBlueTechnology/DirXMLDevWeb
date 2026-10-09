@@ -7,6 +7,19 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- **Vault: rollback, driver delete and deploy-time secrets from the page** (#34). *Compare &
+  deploy* gains the secrets mode (`none` / `missing` / `all`), *allow missing secrets* for a
+  first deploy, and a *delete from the vault* tick for each driver the comparison reports as
+  only in the vault (the core refuses unless it is stopped; the snapshot captures the subtree).
+  A **Snapshots** panel lists the environment's snapshots (when, label, who, objects, drivers,
+  server) with *Roll back…* behind the typed environment name — the current state is
+  snapshotted first and the result verified; a deploy's result offers *Roll back to it…* too.
+  (`GET /api/vault/snapshots?env=`, `POST /api/vault/rollback` (deployers); `plan` and `deploy`
+  take `secrets`, `allowMissingSecrets`, `deleteDrivers`.) The interactive step-by-step deploy
+  stays with the CLI; the page deploys in parts by scope.
+
 ## [0.29.0] - 2026-10-09
 
 ### Added

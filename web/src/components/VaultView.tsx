@@ -4,7 +4,7 @@ import { EnvPicker, useEnvironment } from "../env";
 import { CachePanel } from "./CachePanel";
 import { EventsView } from "./EventsView";
 import { TraceViewer } from "./TraceViewer";
-import type { DeployResult, Outline, Selection, VaultDiffResult, VaultStatus } from "../types";
+import type { DeployResult, Outline, Selection, VaultDiffResult, VaultStatus, VaultSnapshot } from "../types";
 
 type Tab = "compare" | "drivers" | "trace" | "events";
 
@@ -110,6 +110,36 @@ function VaultError({ message, onFix }: { message: string; onFix: () => void }) 
 function Compare({ env, drivers, revision, onOpen, onFix }: { env: string; drivers: string[]; revision: string; onOpen: (path: string) => void; onFix: () => void }) {
   const [only, setOnly] = useState<string>("");
   const [restart, setRestart] = useState(true);
+  const [secrets, setSecrets] = useState<"none" | "missing" | "all">("none");
+  const [allowMissing, setAllowMissing] = useState(false);
+  const [deleteDrivers, setDeleteDrivers] = useState<string[]>([]);
+  const [snapshots, setSnapshots] = useState<VaultSnapshot[] | null>(null);
+  const [showSnapshots, setShowSnapshots] = useState(false);
+  const [rollbackOf, setRollbackOf] = useState<VaultSnapshot | null>(null);
+  const [rollbackConfirm, setRollbackConfirm] = useState("");
+  const [rollbackResult, setRollbackResult] = useState<DeployResult | null>(null);
+  const choices = { restart, secrets, allowMissingSecrets: allowMissing, deleteDrivers };
+  const loadSnapshots = () =>
+    api.vault
+      .snapshots(env)
+      .then((r) => setSnapshots(r.snapshots))
+      .catch((e: Error) => setError(e.message));
+  const rollback = () =>
+    act("Rolling back…", async () => {
+      if (!rollbackOf) {
+        return;
+      }
+      const r = await api.vault.rollback(env, rollbackOf.file, rollbackConfirm, rollbackOf.server);
+      setRollbackResult(r);
+      setRollbackConfirm("");
+      if (r.ok) {
+        setRollbackOf(null);
+        setDiff(null);
+        setPlan(null);
+        setResult(null);
+        void loadSnapshots();
+      }
+    });
   const [diff, setDiff] = useState<VaultDiffResult | null>(null);
   const [comparedAt, setComparedAt] = useState("");
   const [plan, setPlan] = useState<DeployResult | null>(null);
@@ -143,11 +173,11 @@ function Compare({ env, drivers, revision, onOpen, onFix }: { env: string; drive
   const makePlan = () =>
     act("Planning…", async () => {
       setResult(null);
-      setPlan(await api.vault.plan(env, scope, restart));
+      setPlan(await api.vault.plan(env, scope, choices));
     });
   const deploy = () =>
     act("Deploying…", async () => {
-      const r = await api.vault.deploy(env, scope, restart, confirm);
+      const r = await api.vault.deploy(env, scope, choices, confirm);
       setResult(r);
       setConfirm("");
       if (r.ok) {
@@ -233,9 +263,33 @@ function Compare({ env, drivers, revision, onOpen, onFix }: { env: string; drive
                   ))}
                 </tbody>
               </table>
+              {diff.changes.some((c) => c.kind.toUpperCase() === "DRIVER_REMOVED" && c.driver) && (
+                <div className="block" data-testid="vault-delete-drivers">
+                  <h4>Drivers only in the vault</h4>
+                  <p className="muted small">A deploy leaves them alone unless asked. Tick one to delete its whole subtree from {env}; it must be stopped, the plan refuses otherwise; the snapshot captures it first, so a rollback brings it back.</p>
+                  {diff.changes
+                    .filter((c) => c.kind.toUpperCase() === "DRIVER_REMOVED" && c.driver)
+                    .map((c) => (
+                      <label key={c.driver} className="checkchip">
+                        <input type="checkbox" checked={deleteDrivers.includes(c.driver!)} onChange={(e) => (setDeleteDrivers(e.target.checked ? [...deleteDrivers, c.driver!] : deleteDrivers.filter((d) => d !== c.driver)), setPlan(null))} data-testid={"vault-delete-" + c.driver} /> delete {c.driver} from the vault
+                      </label>
+                    ))}
+                </div>
+              )}
               <div className="addrow">
                 <label className="checkchip">
-                  <input type="checkbox" checked={restart} onChange={(e) => setRestart(e.target.checked)} /> restart the drivers a change needs restarted
+                  <input type="checkbox" checked={restart} onChange={(e) => (setRestart(e.target.checked), setPlan(null))} /> restart the drivers a change needs restarted
+                </label>
+                <label className="field">
+                  <em>Secrets</em>
+                  <select value={secrets} onChange={(e) => (setSecrets(e.target.value as "none" | "missing" | "all"), setPlan(null))} title="A driver's shim, Remote Loader and named passwords, from the environment's secrets file: left alone on an update unless asked" data-testid="vault-secrets">
+                    <option value="none">leave alone (set on a first deploy only)</option>
+                    <option value="missing">set named passwords the vault lacks</option>
+                    <option value="all">re-set every provided secret (a rotated password)</option>
+                  </select>
+                </label>
+                <label className="checkchip" title="A first deploy of a driver refuses when a secret it needs is not provided; allow it to create the driver stopped and list what to set">
+                  <input type="checkbox" checked={allowMissing} onChange={(e) => (setAllowMissing(e.target.checked), setPlan(null))} data-testid="vault-allow-missing" /> allow missing secrets on a first deploy
                 </label>
                 <button onClick={makePlan} disabled={busy !== null || stale} data-testid="vault-plan">
                   Plan the deploy
@@ -271,11 +325,88 @@ function Compare({ env, drivers, revision, onOpen, onFix }: { env: string; drive
           </pre>
           {result.snapshot && (
             <p className="muted small">
-              Snapshot: <code>{result.snapshot}</code> (roll back with <code>idm vault.rollback</code>)
+              Snapshot: <code>{result.snapshot}</code>{" "}
+              <button className="link" onClick={() => (setRollbackOf({ file: result.snapshot!, name: result.snapshot!.replace(/^.*\//, ""), server: null, bytes: 0, ok: true }), setRollbackResult(null))} data-testid="vault-rollback-last">
+                Roll back to it…
+              </button>
             </p>
           )}
         </div>
       )}
+      <div className="block">
+        <div className="addrow tight">
+          <h4 style={{ margin: 0 }}>Snapshots</h4>
+          <span className="muted small">taken before every deploy and every rollback; a rollback puts one back and snapshots the current state first</span>
+          <span className="spacer" />
+          <button onClick={() => (setShowSnapshots(!showSnapshots), !showSnapshots && void loadSnapshots())} data-testid="vault-snapshots">
+            {showSnapshots ? "Hide" : "Show"}
+          </button>
+        </div>
+        {showSnapshots && snapshots && snapshots.length === 0 && <p className="muted small">No snapshots of {env} yet.</p>}
+        {showSnapshots && snapshots && snapshots.length > 0 && (
+          <table className="grid" data-testid="vault-snapshots-table">
+            <thead>
+              <tr>
+                <th>When</th>
+                <th>Label</th>
+                <th>By</th>
+                <th>Objects</th>
+                <th>Drivers</th>
+                <th>Server</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {snapshots.map((sn) => (
+                <tr key={sn.file} className={rollbackOf?.file === sn.file ? "selected" : ""}>
+                  <td className="small">
+                    <code>{sn.timestamp ?? sn.name}</code>
+                    {sn.treeCommit && <div className="muted small">tree {sn.treeCommit.slice(0, 8)}</div>}
+                  </td>
+                  <td className="small">{sn.ok ? (sn.label ?? "—") : <span className="err-text">{sn.message}</span>}</td>
+                  <td className="small">{sn.user ?? "—"}</td>
+                  <td>{sn.objects ?? "—"}</td>
+                  <td>{sn.drivers ?? "—"}</td>
+                  <td className="small">{sn.server ?? "—"}</td>
+                  <td className="right">
+                    <button disabled={!sn.ok || busy !== null} onClick={() => (setRollbackOf(sn), setRollbackResult(null))} data-testid={"vault-rollback-" + sn.name}>
+                      Roll back…
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        {rollbackOf && (
+          <div className="block" data-testid="vault-rollback">
+            <h4>Roll {env} back to {rollbackOf.name}</h4>
+            <p className="small">Every object in the snapshot is put back as it was — attributes a deploy added are removed, objects it deleted are re-added, objects it added are deleted — and the drivers that were running then are restarted. The current state is snapshotted first, so this is reversible; the result is verified against the snapshot.</p>
+            <div className="addrow">
+              <Confirm env={env} value={rollbackConfirm} onChange={setRollbackConfirm} />
+              <button className="danger" onClick={rollback} disabled={busy !== null || rollbackConfirm !== env} data-testid="vault-rollback-go">
+                Roll back
+              </button>
+              <button onClick={() => setRollbackOf(null)} disabled={busy !== null}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+        {rollbackResult && (
+          <div className="block">
+            <h4 className={rollbackResult.ok ? "ok-text" : "err-text"}>{rollbackResult.ok ? "Rolled back" : rollbackResult.refusal ? "Refused" : "Failed"}</h4>
+            <pre className="outcome" data-testid="vault-rollback-result">
+              {rollbackResult.refusal ?? rollbackResult.text}
+            </pre>
+            {rollbackResult.snapshot && (
+              <p className="muted small">
+                The state before this rollback: <code>{rollbackResult.snapshot}</code>
+              </p>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

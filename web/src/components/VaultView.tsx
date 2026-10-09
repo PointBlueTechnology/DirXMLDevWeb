@@ -4,9 +4,9 @@ import { EnvPicker, useEnvironment } from "../env";
 import { CachePanel } from "./CachePanel";
 import { EventsView } from "./EventsView";
 import { TraceViewer } from "./TraceViewer";
-import type { DeployResult, Outline, Selection, VaultDiffResult, VaultStatus, VaultSnapshot } from "../types";
+import type { DeployResult, Outline, Selection, VaultDiffResult, VaultStatus, VaultSnapshot, DriverAssociations, ObjectInspection, PasswordSync } from "../types";
 
-type Tab = "compare" | "drivers" | "trace" | "events";
+type Tab = "compare" | "drivers" | "objects" | "trace" | "events";
 
 /**
  * The tree against a vault: what differs, a deploy planned and run, the drivers' state and
@@ -54,9 +54,9 @@ export function VaultView({ drivers, revision, outline, onOpen, onSelect, onSave
         </button>
         <span className="spacer" />
         <div className="tabs">
-          {(["compare", "drivers", "trace", "events"] as Tab[]).map((t) => (
+          {(["compare", "drivers", "objects", "trace", "events"] as Tab[]).map((t) => (
             <button key={t} className={tab === t ? "tab active" : "tab"} onClick={() => setTab(t)} data-testid={"vault-tab-" + t}>
-              {t === "compare" ? "Compare & deploy" : t === "drivers" ? "Drivers" : t === "trace" ? "Trace" : "Events"}
+              {t === "compare" ? "Compare & deploy" : t === "drivers" ? "Drivers" : t === "objects" ? "Objects" : t === "trace" ? "Trace" : "Events"}
             </button>
           ))}
         </div>
@@ -67,6 +67,8 @@ export function VaultView({ drivers, revision, outline, onOpen, onSelect, onSave
         <Compare key={chosen.name} env={chosen.name} drivers={drivers} revision={revision} onOpen={onOpen} onFix={() => onSelect({ type: "connections", env: chosen.name })} />
       ) : tab === "drivers" ? (
         <Drivers key={chosen.name} env={chosen.name} onFix={() => onSelect({ type: "connections", env: chosen.name })} onSelect={onSelect} onSaved={onSaved} />
+      ) : tab === "objects" ? (
+        <Objects key={chosen.name} env={chosen.name} />
       ) : (
         tab === "trace" ? (
         <TraceViewer key={chosen.name} env={chosen.name} drivers={drivers} outline={outline} onSelect={onSelect} onOpen={onOpen} />
@@ -426,6 +428,8 @@ function subject(kind: string): string {
 
 function Drivers({ env, onFix, onSelect, onSaved }: { env: string; onFix: () => void; onSelect: (s: Selection) => void; onSaved: () => void }) {
   const [cacheOf, setCacheOf] = useState<string | null>(null);
+  const [assocOf, setAssocOf] = useState<string | null>(null);
+  const [startOpts, setStartOpts] = useState<Record<string, string>>({});
   const [status, setStatus] = useState<VaultStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -455,6 +459,14 @@ function Drivers({ env, onFix, onSelect, onSaved }: { env: string; onFix: () => 
         return api.vault.status(env).then(setStatus);
       })
       .catch((e: Error) => setLast({ ok: false, text: e.message }))
+      .finally(() => setBusy(null));
+  };
+  const setStartOption = (driver: string, option: "auto" | "manual" | "disabled") => {
+    setBusy("Setting the start option…");
+    api.vault
+      .startOption(env, driver, option, confirm)
+      .then((r) => (setLast({ ok: r.ok, text: r.text }), load()))
+      .catch((e: Error) => setError(e.message))
       .finally(() => setBusy(null));
   };
   const armed = confirm === env;
@@ -502,7 +514,22 @@ function Drivers({ env, onFix, onSelect, onSaved }: { env: string; onFix: () => 
                 <td>
                   <span className={d.state === "running" ? "pill ok" : d.state === "stopped" ? "pill" : "pill warn"}>{d.state}</span>
                 </td>
-                <td>{d.startOption}</td>
+                <td className="nowrap">
+                  <select value={startOpts[d.name] ?? d.startOption} onChange={(e) => setStartOpts({ ...startOpts, [d.name]: e.target.value })} disabled={!armed || busy !== null} title="DirXML-DriverStartOption, set live (driver.start-option); the tree's own value wins at the next deploy" data-testid={"start-option-" + d.name}>
+                    {["auto", "manual", "disabled"].map((o) => (
+                      <option key={o} value={o}>
+                        {o}
+                      </option>
+                    ))}
+                    {!["auto", "manual", "disabled"].includes(startOpts[d.name] ?? d.startOption) && <option value={d.startOption}>{d.startOption}</option>}
+                  </select>{" "}
+                  <button className="mini" disabled={!armed || busy !== null || (startOpts[d.name] ?? d.startOption) === d.startOption} onClick={() => setStartOption(d.name, startOpts[d.name] as "auto" | "manual" | "disabled")} title="Write the start option on the driver (driver.start-option)">
+                    Set
+                  </button>{" "}
+                  <button className="mini" onClick={() => setAssocOf(assocOf === d.name ? null : d.name)} title="The objects associated with the driver, by state, and its password-sync settings" data-testid={"assoc-view-" + d.name}>
+                    {assocOf === d.name ? "hide" : "objects"}
+                  </button>
+                </td>
                 <td className="nowrap">
                   {d.cacheSize ?? ""}{" "}
                   <button className="mini" onClick={() => setCacheOf(cacheOf === d.name ? null : d.name)} title="The queued events: view them, save them as a simulator case, clear the cache" data-testid={"cache-view-" + d.name}>
@@ -537,7 +564,198 @@ function Drivers({ env, onFix, onSelect, onSaved }: { env: string; onFix: () => 
           </tbody>
         </table>
       )}
+      {assocOf && <AssociationsPanel key={assocOf} env={env} driver={assocOf} onClose={() => setAssocOf(null)} />}
       {cacheOf && <CachePanel key={cacheOf} env={env} driver={cacheOf} armed={armed} confirm={confirm} deployer onClose={() => setCacheOf(null)} onSaved={onSaved} onSimulator={() => onSelect({ type: "simulator" })} />}
+    </div>
+  );
+}
+
+/** A driver's associated objects by state (the console's driver inspector) and its password-sync settings. */
+function AssociationsPanel({ env, driver, onClose }: { env: string; driver: string; onClose: () => void }) {
+  const [state, setState] = useState("");
+  const [data, setData] = useState<DriverAssociations | null>(null);
+  const [sync, setSync] = useState<PasswordSync | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    setBusy(true);
+    setError(null);
+    Promise.all([api.vault.associations(env, driver, state || undefined), sync ? Promise.resolve(sync) : api.vault.passwordSync(env, driver)])
+      .then(([a, p]) => (setData(a), setSync(p)))
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setBusy(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [env, driver, state]);
+  return (
+    <section className="block" data-testid="assoc-panel">
+      <div className="addrow tight">
+        <h4 style={{ margin: 0 }}>{driver}: associated objects</h4>
+        <select value={state} onChange={(e) => setState(e.target.value)} data-testid="assoc-state">
+          <option value="">every state</option>
+          {["processed", "pending", "manual", "disabled", "migrate"].map((st) => (
+            <option key={st} value={st}>
+              {st}
+            </option>
+          ))}
+        </select>
+        {busy && <span className="muted small">reading…</span>}
+        <span className="spacer" />
+        <button onClick={onClose}>Close</button>
+      </div>
+      {error && <div className="banner error">{error}</div>}
+      {data && (
+        <>
+          <p className="small">
+            {Object.entries(data.counts).map(([st, n]) => (
+              <span key={st} className={"pill " + (st === "processed" ? "ok" : n > 0 && (st === "pending" || st === "disabled") ? "warn" : "")} style={{ marginRight: 6 }}>
+                {st} {n}
+              </span>
+            ))}
+            <span className="muted">
+              {data.total} object{data.total === 1 ? "" : "s"}
+              {data.listed < data.total ? `, first ${data.listed} listed` : ""}
+            </span>
+          </p>
+          {data.objects.length > 0 && (
+            <table className="grid" data-testid="assoc-table">
+              <thead>
+                <tr>
+                  <th>State</th>
+                  <th>Object</th>
+                  <th>Association value</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.objects.map((o) => (
+                  <tr key={o.dn + o.state}>
+                    <td>{o.state}</td>
+                    <td className="small">
+                      <code>{o.dn}</code>
+                    </td>
+                    <td className="small">
+                      <code>{o.value}</code>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </>
+      )}
+      {sync && (
+        <div style={{ marginTop: 10 }}>
+          <h4>Password sync</h4>
+          <p className="muted small">Driver set timeout: {sync.driverSetTimeout ? `${sync.driverSetTimeout} min` : "not set (the engine's default)"}.</p>
+          {sync.settings.length > 0 ? (
+            <table className="grid">
+              <thead>
+                <tr>
+                  <th>Setting (live)</th>
+                  <th>Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sync.settings.map((st) => (
+                  <tr key={st.name}>
+                    <td>
+                      <code>{st.name}</code>
+                    </td>
+                    <td>{st.value}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p className="muted small">No password-related settings in the driver's live configuration.</p>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+/** One object as the vault has it (the console's object inspector): classes, associations across drivers, password-sync status. */
+function Objects({ env }: { env: string }) {
+  const [dn, setDn] = useState("");
+  const [data, setData] = useState<ObjectInspection | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const look = () => {
+    setBusy(true);
+    setError(null);
+    api.vault
+      .inspect(env, dn)
+      .then(setData)
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setBusy(false));
+  };
+  return (
+    <div className="pad">
+      <div className="addrow">
+        <input className="wide" value={dn} onChange={(e) => setDn(e.target.value)} placeholder="cn=jdoe,ou=users,o=data" spellCheck={false} onKeyDown={(e) => e.key === "Enter" && dn && look()} data-testid="inspect-dn" />
+        <button onClick={look} disabled={!dn || busy} data-testid="inspect-go">
+          {busy ? "Reading…" : "Inspect"}
+        </button>
+        <span className="muted small">What state the object is in on each driver, and its password-sync status; a read of {env}.</span>
+      </div>
+      {error && <div className="banner error">{error}</div>}
+      {data && !data.ok && <div className="banner error">{data.error ?? data.text}</div>}
+      {data && data.ok && (
+        <div className="block" data-testid="inspect-result">
+          <h4>
+            <code>{data.dn}</code>
+          </h4>
+          <p className="small muted">{(data.objectClass ?? []).join(", ")}</p>
+          <h4>Associations</h4>
+          {(data.associations ?? []).length === 0 ? (
+            <p className="muted small">None: no driver has associated this object.</p>
+          ) : (
+            <table className="grid">
+              <thead>
+                <tr>
+                  <th>Driver</th>
+                  <th>State</th>
+                  <th>Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(data.associations ?? []).map((a, i) => (
+                  <tr key={i}>
+                    <td>{a.driver ?? a.raw}</td>
+                    <td>{a.state ? <span className={"pill " + (a.state === "processed" ? "ok" : a.state === "pending" || a.state === "disabled" ? "warn" : "")}>{a.state}</span> : ""}</td>
+                    <td className="small">
+                      <code>{a.value ?? ""}</code>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          <h4>Password sync</h4>
+          {(data.passwordSync ?? []).length === 0 ? (
+            <p className="muted small">No status recorded on the object.</p>
+          ) : (
+            <table className="grid">
+              <thead>
+                <tr>
+                  <th>Driver</th>
+                  <th>When</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(data.passwordSync ?? []).map((p, i) => (
+                  <tr key={i}>
+                    <td>{p.driver}</td>
+                    <td className="small">{p.time}</td>
+                    <td>{p.status}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
     </div>
   );
 }

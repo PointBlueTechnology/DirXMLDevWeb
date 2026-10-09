@@ -1310,3 +1310,9 @@ table.grid tr.detail td { background: var(--bg); padding-top: 4px; padding-botto
 .cachepanel .cacheevent { flex: 0 0 460px; max-width: 50%; border: 1px solid var(--border); border-radius: 6px; padding: 8px; }
 a.button { display: inline-block; padding: 5px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; text-decoration: none; color: inherit; background: var(--surface); }
 .button.off { opacity: 0.5; pointer-events: none; }
+
+/* the Architecture view (#32): the canvas scrolls; the picture's own styles live in the SVG so an export carries them */
+.architecture .viewhead { flex-wrap: wrap; gap: 8px; }
+.archcanvas { background: var(--surface-2); }
+.archcanvas svg { display: block; margin: 0 auto; }
+.arch-svg .app-g .app-name, .arch-svg .app-g .drv-name, .arch-svg .generic-text, .arch-svg .vault-sub, .arch-svg .legend { pointer-events: none; }

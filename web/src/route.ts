@@ -34,6 +34,7 @@ export function fromHash(hash: string): Selection | null {
     case "home":
     case "overrides":
     case "projects":
+    case "architecture":
     case "audit":
     case "operations":
     case "vault":

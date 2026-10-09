@@ -73,6 +73,8 @@ export interface DriverOutline {
   policies: { driver: ArtifactNode[]; subscriber: ArtifactNode[]; publisher: ArtifactNode[] };
   resources: ArtifactNode[];
   entitlements: FileNode[];
+  /** The driver's jobs (DirXML-Job): name, file, disabled, class. */
+  jobs: (FileNode & { disabled?: boolean; javaClass?: string | null })[];
   forms: FileNode[];
   prds: { name: string; files: string[] }[];
 }
@@ -89,6 +91,8 @@ export interface Outline {
     packages: Record<string, string>;
     meta: Record<string, string>;
     libraryItems: number;
+    /** The set's own jobs (a statistics job, …). */
+    jobs: (FileNode & { disabled?: boolean; javaClass?: string | null })[];
     /** The vault schema in the tree, when read: counts, source, read-at. */
     schema: { source?: string; "read-at"?: string; attributes: number; classes: number; customAttributes: number; customClasses: number } | null;
   };
@@ -372,6 +376,13 @@ export interface VaultStatus {
   environment: string;
   ok: boolean;
   drivers: DriverState[];
+  text: string;
+}
+
+/** The jobs of the driver set with the engine's state (`job.list`). */
+export interface VaultJobs {
+  ok: boolean;
+  jobs: { name: string; dn: string; owner: string; driver: string | null; javaClass: string; disabled: boolean; servers: number; running: string; config: string; scheduled: string; nextRun: string }[];
   text: string;
 }
 

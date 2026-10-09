@@ -87,6 +87,8 @@ Every view of the page, by area, in every install; the items marked *local and s
     as only there (stopped first; the snapshot keeps it).
   - *Snapshots*: every snapshot a deploy or a rollback took, with *Roll back…* — the typed name
     again; the current state is snapshotted first and the result verified.
+  - *Jobs*: the engine's jobs (a driver's triggers and health checks, the set's statistics job)
+    with their state, started or aborted behind the typed name.
   - *Objects*: one object by DN — its classes, what state it is in on each driver (its
     associations) and its password-sync status; the Identity Console's object inspector.
   - *Drivers*: state, start option (set live: auto, manual, disabled), cache size and trace level

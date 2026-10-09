@@ -7,6 +7,14 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- **Jobs** (needs DirXMLDev 0.21.0): a **Jobs** tab on the Vault view — every job of the driver
+  set with its owner, class, running and configuration state, whether it is scheduled and when it
+  next runs, with *Start* and *Abort* behind the typed environment name; the outline and the
+  Developer tree list each driver's and the set's jobs; Compare & deploy reports and deploys job
+  changes through the core. (`GET /api/vault/jobs`, `POST /api/vault/job` (deployers).)
+
 ## [0.32.0] - 2026-10-09
 
 ### Added

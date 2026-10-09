@@ -122,6 +122,12 @@ Every view of the page, by area, in every install; the items marked *local and s
     that policy's trace, queries and commands.
   - Edit the input and *run without saving*; record the output a case should keep producing.
   - Run with a stage's override values, and compare the result with another stage's.
+- **Architecture**: the driver set as Designer's Modeler draws it — the Identity Vault with its
+  driver set in the centre, one application per driver in two columns with the driver's icon and
+  its application type, the driver as a badge on the connector, the drivers that serve the vault
+  itself beneath; hover for facts, click for the flow or the configuration, filter, zoom; *show
+  state* colours each driver by its state in the chosen environment; *Download SVG / PNG* for a
+  slide or a document (docs/architecture-view.md).
 - **Projects** (hosted, deployers): every project the server holds; *Archive…* writes its
   repository as a git bundle, moves its workspaces and recordings aside under `data.dir/archive/`
   and forgets it, with the bundle to download; *Remove…* only forgets it (docs/hosted-mode.md).

@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.33.0] - 2026-10-09
+
 ### Added
 
 - **Jobs** (needs DirXMLDev 0.21.0): a **Jobs** tab on the Vault view — every job of the driver

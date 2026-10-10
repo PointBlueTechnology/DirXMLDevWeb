@@ -425,6 +425,10 @@ public final class Api implements HttpHandler {
                     return vault.snapshots(required(query, "env"));
                 case "/api/vault/jobs":
                     return vault.jobs(required(query, "env"));
+                case "/api/vault/rbe":
+                    return vault.rbe(required(query, "env"));
+                case "/api/vault/rbe-members":
+                    return vault.rbeMembers(required(query, "env"), query.get("policy"));
                 case "/api/vault/associations":
                     return vault.associations(required(query, "env"), required(query, "driver"), query.get("state"), query.get("limit") == null ? 50 : Integer.parseInt(query.get("limit")));
                 case "/api/vault/inspect":
@@ -536,6 +540,9 @@ public final class Api implements HttpHandler {
                     return vault.deploy(env, drivers, deployChoices(req, restart), Json.asString(req.get("confirm")));
                 case "/api/vault/job":
                     return vault.jobAction(env, Json.asString(req.get("job")), Json.asString(req.get("driver")), Json.asString(req.get("action")), Json.asString(req.get("confirm")));
+                case "/api/vault/query":
+                    return vault.query(env, Json.asString(req.get("driver")), Json.asString(req.get("className")), Json.asString(req.get("scope")), Json.asString(req.get("dn")),
+                        Json.asString(req.get("association")), stringList(req.get("search")), stringList(req.get("readAttrs")), Json.asString(req.get("confirm")));
                 case "/api/vault/start-option":
                     return vault.startOption(env, Json.asString(req.get("driver")), Json.asString(req.get("option")), Json.asString(req.get("confirm")));
                 case "/api/vault/rollback":
@@ -943,5 +950,20 @@ public final class Api implements HttpHandler {
     private static void write(OutputStream out, String s) throws IOException {
         out.write(s.getBytes(StandardCharsets.UTF_8));
         out.flush();
+    }
+
+    /** A JSON array of strings (or a single string), as a list; empty when absent. */
+    private static java.util.List<String> stringList(Object o) {
+        java.util.List<String> out = new java.util.ArrayList<>();
+        if (o instanceof java.util.List<?> l) {
+            for (Object x : l) {
+                if (x != null) {
+                    out.add(String.valueOf(x));
+                }
+            }
+        } else if (o != null) {
+            out.add(String.valueOf(o));
+        }
+        return out;
     }
 }

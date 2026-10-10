@@ -1,4 +1,4 @@
-import type { CacheView, CaseFiles, CasePlan, EventDetail, EventRow, EventsDescribe, TraceFileEntry, VaultPolicies, PolicyMembers, AppQueryResult} from "./types";
+import type { CacheView, CaseFiles, CasePlan, EventDetail, EventRow, EventsDescribe, TraceFileEntry, VaultPolicies, PolicyMembers, AppQueryResult, DriverHealth, LogLevel, DriverRights, DriverSetAdmin, EngineMetrics, WorkOrders, EmailServer} from "./types";
 import type { TraceRec } from "./trace/model";
 import type { AppSchema, Architecture, DevNode, DeployChoices, DriverAssociations, ObjectInspection, PasswordSync, VaultJobs, VaultSnapshot, SchemaDiffResult, ProjectArchive, ProjectArchiveResult, Artifact, AuditEntry, BuildResult, ConfigView, Connections, DeployResult, EnvSecrets, FetchResult, FormData as FormDoc, GitDiff, GitStatus, ImportResult, LifecycleResult, OpCall, OpResult, OpSpec, Outline, OverridesData, PackagePrompts, PackagesData, PrdData, RoleCatalog, SchemaActionResult, SchemaClass, SchemaData, Session, SetupResult, SimCaseFiles, SimCases, SimDetail, SimRun, SiteListing, TreeFile, UpdateSites, Validation, VaultDiffResult, VaultEnvironments, VaultStatus, WorkspacesInfo } from "./types";
 import type { FishboneModel } from "./fishbone/types";
@@ -227,6 +227,20 @@ export const api = {
     driver: (env: string, driver: string, action: string, confirm: string) => call<LifecycleResult>("POST", "/api/vault/driver", { env, driver, action, confirm }),
     jobs: (env: string) => call<VaultJobs>("GET", `/api/vault/jobs?env=${q(env)}`),
     rbe: (env: string) => call<VaultPolicies>("GET", `/api/vault/rbe?env=${q(env)}`),
+    health: (env: string, driver: string) => call<DriverHealth>("GET", `/api/vault/health?env=${q(env)}&driver=${q(driver)}`),
+    /** Clear a driver's recorded health status (deployers; the environment's name typed again). */
+    healthClear: (env: string, driver: string, confirm: string) => call<LifecycleResult>("POST", "/api/vault/health-clear", { env, driver, confirm }),
+    /** A driver's log level, or the driver set's when `driver` is empty. */
+    logLevel: (env: string, driver?: string) => call<LogLevel>("GET", `/api/vault/log-level?env=${q(env)}${driver ? `&driver=${q(driver)}` : ""}`),
+    /** Set a log level by name, a limit, or put a driver back on the set's settings (deployers). */
+    logLevelSet: (env: string, req: { driver?: string; level?: string; limit?: number; inherit?: boolean; confirm: string }) => call<LifecycleResult>("POST", "/api/vault/log-level", { env, ...req }),
+    rights: (env: string, driver: string, dn: string, attrs: string[]) => call<DriverRights>("GET", `/api/vault/rights?env=${q(env)}&driver=${q(driver)}&dn=${q(dn)}${attrs.length ? `&attr=${q(attrs.join("\n"))}` : ""}`),
+    driverset: (env: string) => call<DriverSetAdmin>("GET", `/api/vault/driverset?env=${q(env)}`),
+    metrics: (env: string, base?: string) => call<EngineMetrics>("GET", `/api/vault/metrics?env=${q(env)}${base ? `&base=${q(base)}` : ""}`),
+    workOrders: (env: string, base?: string) => call<WorkOrders>("GET", `/api/vault/workorders?env=${q(env)}${base ? `&base=${q(base)}` : ""}`),
+    emailServer: (env: string) => call<EmailServer>("GET", `/api/vault/email-server?env=${q(env)}`),
+    /** The SMTP settings that are not secret (deployers); the password is set from the CLI and the secrets file. */
+    emailServerSet: (env: string, values: Record<string, string>, confirm: string) => call<LifecycleResult>("POST", "/api/vault/email-server", { env, values, confirm }),
     rbeMembers: (env: string, policy: string) => call<PolicyMembers>("GET", `/api/vault/rbe-members?env=${q(env)}&policy=${q(policy)}`),
     /** Ask the connected system through the running driver; a production environment wants its name typed again. */
     query: (env: string, req: { driver: string; className?: string; scope?: string; dn?: string; association?: string; search?: string[]; readAttrs?: string[]; confirm?: string }) => call<AppQueryResult>("POST", "/api/vault/query", { env, ...req }),

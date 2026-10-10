@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.35.0] - 2026-10-09
+
 ### Added
 
 - **Policies** tab on the Vault view (needs DirXMLDev 0.24.0): the Entitlements Service driver's

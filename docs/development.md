@@ -18,6 +18,12 @@ mvn -o install -DskipTests
 ```
 
 ```bash
+# once, in the directory-console checkout: console-auth (OIDC sign-in, TLS trust), the version
+# pom.xml names (console.version); its jar is also on every directory-console release
+mvn install
+```
+
+```bash
 # once, in this checkout: the server and the page
 mvn -o package
 ```

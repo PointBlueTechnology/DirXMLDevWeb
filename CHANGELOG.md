@@ -7,6 +7,18 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- **OIDC sign-in now comes from Directory Console's `console-auth` library** (needs
+  `com.pointblue.console:console-auth` 0.1.0, `console.version` in `pom.xml`): discovery,
+  authorization code with PKCE, ID-token verification and the groups claim moved there unchanged,
+  so DirXMLDevWeb and Directory Console share one implementation. `OidcIdentity` keeps the same
+  `oidc.*` settings and behaviour. The launcher, the image and CI put the library's jar on the
+  classpath; CI and the image workflow download it from the directory-console release. That
+  repository is private, so both need a `DIRECTORY_CONSOLE_TOKEN` secret: a token that can read it.
+- The server uses DirXMLDev's `LegacyTls` instead of its own copy (same rule, same
+  `idm.tls.legacy` / `IDM_TLS_LEGACY` opt-out).
+
 ## [0.36.0] - 2026-10-09
 
 ### Added

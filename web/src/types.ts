@@ -386,6 +386,85 @@ export interface VaultJobs {
   text: string;
 }
 
+/** A driver's health as the Driver Health job recorded it, its health configuration, the set's health jobs (`driver.health`). */
+export interface DriverHealth {
+  ok: boolean;
+  error?: string;
+  driver?: string;
+  states?: { server: string; state: string; customState?: string }[];
+  configured?: { state: string; conditionGroups: number; actions: number }[];
+  jobs?: { name: string; dn: string; disabled: boolean; inScope: boolean }[];
+  text: string;
+}
+
+/** The log level of a driver or the driver set (`driver.log-level`). */
+export interface LogLevel {
+  ok: boolean;
+  error?: string;
+  dn?: string;
+  inherits?: boolean;
+  level?: number | null;
+  levelName?: string;
+  events?: number[];
+  limit?: number | null;
+  eventsType?: number | null;
+  text: string;
+}
+
+/** The driver object's effective rights on an object (`driver.rights`). */
+export interface DriverRights {
+  ok: boolean;
+  error?: string;
+  trustee?: string;
+  dn?: string;
+  rights?: { attribute: string; bits: number; names: string; error?: string }[];
+  text: string;
+}
+
+/** The driver set's administration: activation and servers (`driverset.activation`, `driverset.servers`). */
+export interface DriverSetAdmin {
+  ok: boolean;
+  activation: { ok: boolean; error?: string; attributes?: { attribute: string; value: string }[]; activation?: string; viewError?: string; text: string };
+  servers: { ok: boolean; error?: string; servers?: string[]; connectedServerRuns?: string | null; text: string };
+}
+
+/** Users and associations, counted (`engine.metrics`). */
+export interface EngineMetrics {
+  ok: boolean;
+  error?: string;
+  users?: number;
+  associated?: number;
+  enabled?: number;
+  drivers?: { name: string; dn: string; disabled: number; processed: number; pending: number; manual: number; migrate: number }[];
+  text: string;
+}
+
+/** The Work Order driver's objects (`workorder.list`). */
+export interface WorkOrders {
+  ok: boolean;
+  error?: string;
+  total?: number;
+  workOrders?: { name: string; dn: string; status: string; due: string; description: string }[];
+  text: string;
+}
+
+/** The notification collection's SMTP settings (`vault.email-server`); the password only as set or not. */
+export interface EmailServer {
+  ok: boolean;
+  error?: string;
+  dn?: string;
+  host?: string | null;
+  port?: string | null;
+  from?: string | null;
+  user?: string | null;
+  tls?: string | null;
+  timeout?: string | null;
+  protocol?: string | null;
+  auth?: string | null;
+  passwordSet?: boolean;
+  text: string;
+}
+
 /** The driver set's entitlement policies with the directory's member counts and the grants (`rbe.list`). */
 export interface VaultPolicies {
   ok: boolean;

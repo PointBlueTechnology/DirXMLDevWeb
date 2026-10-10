@@ -7,6 +7,17 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- **Driver set** tab on the Vault view (needs DirXMLDev 0.25.0): activation, servers, the set's log
+  level, the notification e-mail server (non-secret settings editable by deployers), users and
+  associations counted, work orders (`GET /api/vault/driverset`, `/email-server`, `/log-level`,
+  `/metrics`, `/workorders`; `POST /api/vault/email-server`).
+- **health** on each driver of the Drivers tab: the Driver Health job's verdict, the health
+  configuration and jobs (*Clear status*), the log level (set, or back on the set's), effective
+  rights on an object (`GET /api/vault/health`, `/log-level`, `/rights`; `POST /api/vault/health-clear`,
+  `/log-level`; the writes are deployers' with the environment's name typed).
+
 ## [0.35.0] - 2026-10-09
 
 ### Added

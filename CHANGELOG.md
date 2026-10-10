@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.36.0] - 2026-10-09
+
 ### Added
 
 - **Driver set** tab on the Vault view (needs DirXMLDev 0.25.0): activation, servers, the set's log

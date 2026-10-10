@@ -7,6 +7,14 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Fixed
+
+- **Architecture view**: every driver card is drawn at the same height again. The cards' class name `app`
+  was also the app shell's (`.app { height: 100% }`), and under SVG 2 a CSS height overrides a
+  rectangle's own, so each card stretched to the full picture and only the bottom card of each column
+  showed it. Every class in the picture now carries an `arch-` prefix, and a test checks that none of
+  them collides with the page's stylesheet.
+
 ### Changed
 
 - **OIDC sign-in now comes from Directory Console's `console-auth` library** (needs

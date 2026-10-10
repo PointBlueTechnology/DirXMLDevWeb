@@ -89,8 +89,13 @@ Every view of the page, by area, in every install; the items marked *local and s
     again; the current state is snapshotted first and the result verified.
   - *Jobs*: the engine's jobs (a driver's triggers and health checks, the set's statistics job)
     with their state, started or aborted behind the typed name.
+  - *Policies*: the Entitlements Service driver's role-based entitlement policies as the vault
+    holds them — priority order, the members the directory computes, what each grants; click a
+    policy for its members. They are edited in the tree (`rbe-policies/`) and deployed.
   - *Objects*: one object by DN — its classes, what state it is in on each driver (its
     associations) and its password-sync status; the Identity Console's object inspector.
+    *Ask the application* below it sends the same question through a running driver (the engine's
+    query verb) and shows the shim's instances.
   - *Drivers*: state, start option (set live: auto, manual, disabled), cache size and trace level
     per driver; *objects* — the driver's associated objects by state with their values, and its
     password-sync settings; start, stop, restart;

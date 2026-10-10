@@ -547,6 +547,57 @@ public final class VaultService {
         }
     }
 
+    /** `rbe.list`: the set's entitlement policies with priority, computed member count and grants (docs/console-gaps.md §9). */
+    public Map<String, Object> rbe(String envName) throws IOException {
+        Environments.Environment e = env(envName);
+        try (Vault vault = Vault.connect(e.vaultConfig())) {
+            return operateResult(Operate.rbeList(Operate.vaultEngine(vault), e), e);
+        }
+    }
+
+    /** `rbe.members`: the members the directory computes for one policy. */
+    public Map<String, Object> rbeMembers(String envName, String policy) throws IOException {
+        if (policy == null || policy.isBlank()) {
+            throw new TreeService.BadRequest("no policy named");
+        }
+        Environments.Environment e = env(envName);
+        try (Vault vault = Vault.connect(e.vaultConfig())) {
+            return operateResult(Operate.rbeMembers(Operate.vaultEngine(vault), e, policy.trim()), e);
+        }
+    }
+
+    /**
+     * `driver.query`: ask the connected system through the running driver (docs/console-gaps.md §10). A read of
+     * the application that takes the driver's channel: the core gates it light, so a production environment
+     * wants its name typed again ({@code confirm}).
+     */
+    public Map<String, Object> query(String envName, String driver, String className, String scope, String dn, String association,
+            List<String> search, List<String> readAttrs, String confirm) throws IOException {
+        if (driver == null || driver.isBlank()) {
+            throw new TreeService.BadRequest("no driver named");
+        }
+        Environments.Environment e = env(envName);
+        Operate.Query q = new Operate.Query();
+        q.className = className == null || className.isBlank() ? null : className.trim();
+        if (scope != null && !scope.isBlank()) {
+            if (!List.of("subtree", "subordinates", "entry").contains(scope)) {
+                throw new TreeService.BadRequest("scope is subtree, subordinates or entry");
+            }
+            q.scope = scope;
+        }
+        q.destDn = dn == null || dn.isBlank() ? null : dn.trim();
+        q.association = association == null || association.isBlank() ? null : association.trim();
+        if (search != null) {
+            q.searchAttrs.addAll(search);
+        }
+        if (readAttrs != null) {
+            q.readAttrs.addAll(readAttrs);
+        }
+        try (Vault vault = Vault.connect(e.vaultConfig())) {
+            return operateResult(Operate.driverQuery(Operate.vaultEngine(vault), e, driver.trim(), q, true, confirm, tree), e);
+        }
+    }
+
     /** `job.start` / `job.abort`: the environment's name typed again. */
     public Map<String, Object> jobAction(String envName, String job, String driver, String action, String confirm) throws IOException {
         if (job == null || job.isBlank()) {

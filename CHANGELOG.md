@@ -7,6 +7,14 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- **Policies** tab on the Vault view (needs DirXMLDev 0.24.0): the Entitlements Service driver's
+  role-based entitlement policies as the vault holds them — priority, the members the directory
+  computes, the grants; a policy opens its member list (`GET /api/vault/rbe`, `/api/vault/rbe-members`).
+- **Ask the application** on the Objects tab: the engine's query verb through a running driver, the
+  shim's instances shown (`POST /api/vault/query`; a production environment wants its name typed).
+
 ## [0.34.0] - 2026-10-09
 
 ### Changed

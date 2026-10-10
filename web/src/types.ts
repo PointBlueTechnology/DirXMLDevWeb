@@ -386,6 +386,35 @@ export interface VaultJobs {
   text: string;
 }
 
+/** The driver set's entitlement policies with the directory's member counts and the grants (`rbe.list`). */
+export interface VaultPolicies {
+  ok: boolean;
+  container: string | null;
+  policies: { name: string; dn: string; priority: number | null; members: number; memberQuery: string; grants: { entitlement: string; ref: string }[] }[];
+  text: string;
+}
+
+/** The members the directory computes for one policy (`rbe.members`). */
+export interface PolicyMembers {
+  ok: boolean;
+  dn?: string;
+  error?: string;
+  members?: string[];
+  text: string;
+}
+
+/** The application's answer to a query through the driver (`driver.query`). */
+export interface AppQueryResult {
+  ok: boolean;
+  driver?: string;
+  count?: number;
+  error?: string;
+  instances?: { className: string; srcDn: string; association: string; attrs: Record<string, string[]> }[];
+  status?: string;
+  xds?: string;
+  text: string;
+}
+
 /** The objects associated with a driver, by state (`driver.associations`). */
 export interface DriverAssociations {
   ok: boolean;

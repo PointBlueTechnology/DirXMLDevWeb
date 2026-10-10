@@ -264,6 +264,8 @@ check("vault: a start-option change without the typed environment name is refuse
 s, jb = call("POST", "/api/vault/job", {"env": "lab", "job": "StatisticsJob", "action": "start", "confirm": "nope"})
 check("vault: a job start without the typed environment name is refused before any connection", s == 200 and jb["ok"] is False and "lab" in jb["text"])
 check("vault: an unknown job action is 400", call("POST", "/api/vault/job", {"env": "lab", "job": "x", "action": "pause", "confirm": "lab"})[0] == 400)
+check("vault: a query without a driver is 400", call("POST", "/api/vault/query", {"env": "lab", "className": "User"})[0] == 400)
+check("vault: policy members without a policy is 400", call("GET", "/api/vault/rbe-members?env=lab")[0] == 400)
 check("outline: the driver and the set carry their jobs", "jobs" in outline["drivers"][0] and "jobs" in outline["driverSet"])
 check("vault: an unknown start option is 400", call("POST", "/api/vault/start-option", {"env": "lab", "driver": "Loop", "option": "sometimes", "confirm": "lab"})[0] == 400)
 s, arch = call("GET", "/api/architecture")

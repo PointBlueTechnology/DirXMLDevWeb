@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.37.0] - 2026-10-10
+
 ### Fixed
 
 - **Architecture view**: every driver card is drawn at the same height again. The cards' class name `app`

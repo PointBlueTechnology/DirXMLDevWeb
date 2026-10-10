@@ -1315,7 +1315,7 @@ a.button { display: inline-block; padding: 5px 10px; border: 1px solid var(--bor
 .architecture .viewhead { flex-wrap: wrap; gap: 8px; }
 .archcanvas { background: var(--surface-2); }
 .archcanvas svg { display: block; margin: 0 auto; }
-.arch-svg .app-g .app-name, .arch-svg .app-g .drv-name, .arch-svg .generic-text, .arch-svg .vault-sub, .arch-svg .legend { pointer-events: none; }
+.arch-svg .arch-app-g .arch-app-name, .arch-svg .arch-app-g .arch-drv-name, .arch-svg .arch-generic-text, .arch-svg .arch-vault-sub, .arch-svg .arch-legend { pointer-events: none; }
 
 /* the Developer view (#32 A2): the whole set as one tree */
 .devtree, .devkids { list-style: none; margin: 0; padding: 0; }

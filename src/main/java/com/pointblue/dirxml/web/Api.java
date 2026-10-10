@@ -26,7 +26,7 @@ public final class Api implements HttpHandler {
     public static final String COOKIE = "idmweb_session";
     public static final String CSRF_HEADER = "X-IDMWeb-CSRF";
     /** POST routes only a deployer may call: they reach a vault or hold its credentials. */
-    private static final java.util.List<String> DEPLOYER_ONLY = java.util.List.of("/api/vault/deploy", "/api/vault/driver", "/api/vault/trace-level", "/api/vault/cache-clear", "/api/vault/cache-delete", "/api/vault/deploy-schema", "/api/vault/rollback", "/api/vault/start-option", "/api/vault/job", "/api/credentials/environment", "/api/credentials/environment/remove", "/api/credentials/secret");
+    private static final java.util.List<String> DEPLOYER_ONLY = java.util.List.of("/api/vault/deploy", "/api/vault/driver", "/api/vault/trace-level", "/api/vault/cache-clear", "/api/vault/cache-delete", "/api/vault/deploy-schema", "/api/vault/rollback", "/api/vault/start-option", "/api/vault/job", "/api/vault/health-clear", "/api/vault/log-level", "/api/vault/email-server", "/api/credentials/environment", "/api/credentials/environment/remove", "/api/credentials/secret");
 
     private final Workspaces workspaces;
     private final Session.Store sessions;
@@ -425,6 +425,24 @@ public final class Api implements HttpHandler {
                     return vault.snapshots(required(query, "env"));
                 case "/api/vault/jobs":
                     return vault.jobs(required(query, "env"));
+                case "/api/vault/rbe":
+                    return vault.rbe(required(query, "env"));
+                case "/api/vault/health":
+                    return vault.health(required(query, "env"), query.get("driver"));
+                case "/api/vault/log-level":
+                    return vault.logLevel(required(query, "env"), query.get("driver"));
+                case "/api/vault/rights":
+                    return vault.rights(required(query, "env"), query.get("driver"), query.get("dn"), list(query.get("attr")));
+                case "/api/vault/driverset":
+                    return vault.driverset(required(query, "env"));
+                case "/api/vault/metrics":
+                    return vault.metrics(required(query, "env"), query.get("base"));
+                case "/api/vault/workorders":
+                    return vault.workOrders(required(query, "env"), query.get("base"));
+                case "/api/vault/email-server":
+                    return vault.emailServer(required(query, "env"));
+                case "/api/vault/rbe-members":
+                    return vault.rbeMembers(required(query, "env"), query.get("policy"));
                 case "/api/vault/associations":
                     return vault.associations(required(query, "env"), required(query, "driver"), query.get("state"), query.get("limit") == null ? 50 : Integer.parseInt(query.get("limit")));
                 case "/api/vault/inspect":
@@ -536,6 +554,26 @@ public final class Api implements HttpHandler {
                     return vault.deploy(env, drivers, deployChoices(req, restart), Json.asString(req.get("confirm")));
                 case "/api/vault/job":
                     return vault.jobAction(env, Json.asString(req.get("job")), Json.asString(req.get("driver")), Json.asString(req.get("action")), Json.asString(req.get("confirm")));
+                case "/api/vault/health-clear":
+                    return vault.healthClear(env, Json.asString(req.get("driver")), Json.asString(req.get("confirm")));
+                case "/api/vault/log-level": {
+                    Object lim = req.get("limit");
+                    Integer limit = lim == null || String.valueOf(lim).isBlank() ? null : Integer.valueOf(String.valueOf(lim).replaceFirst("\\.0$", ""));
+                    return vault.logLevelSet(env, Json.asString(req.get("driver")), Json.asString(req.get("level")), limit, Boolean.TRUE.equals(req.get("inherit")), Json.asString(req.get("confirm")));
+                }
+                case "/api/vault/email-server": {
+                    Map<String, String> values = new java.util.LinkedHashMap<>();
+                    Object vs = req.get("values");
+                    if (vs instanceof Map<?, ?> vm) {
+                        for (Map.Entry<?, ?> en : vm.entrySet()) {
+                            values.put(String.valueOf(en.getKey()), en.getValue() == null ? "" : String.valueOf(en.getValue()));
+                        }
+                    }
+                    return vault.emailServerSet(env, values, Json.asString(req.get("confirm")));
+                }
+                case "/api/vault/query":
+                    return vault.query(env, Json.asString(req.get("driver")), Json.asString(req.get("className")), Json.asString(req.get("scope")), Json.asString(req.get("dn")),
+                        Json.asString(req.get("association")), stringList(req.get("search")), stringList(req.get("readAttrs")), Json.asString(req.get("confirm")));
                 case "/api/vault/start-option":
                     return vault.startOption(env, Json.asString(req.get("driver")), Json.asString(req.get("option")), Json.asString(req.get("confirm")));
                 case "/api/vault/rollback":
@@ -943,5 +981,20 @@ public final class Api implements HttpHandler {
     private static void write(OutputStream out, String s) throws IOException {
         out.write(s.getBytes(StandardCharsets.UTF_8));
         out.flush();
+    }
+
+    /** A JSON array of strings (or a single string), as a list; empty when absent. */
+    private static java.util.List<String> stringList(Object o) {
+        java.util.List<String> out = new java.util.ArrayList<>();
+        if (o instanceof java.util.List<?> l) {
+            for (Object x : l) {
+                if (x != null) {
+                    out.add(String.valueOf(x));
+                }
+            }
+        } else if (o != null) {
+            out.add(String.valueOf(o));
+        }
+        return out;
     }
 }

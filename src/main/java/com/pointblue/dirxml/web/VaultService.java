@@ -547,6 +547,182 @@ public final class VaultService {
         }
     }
 
+    // ---- operate panels (DirXMLDev 0.24.0/0.25.0: docs/console-gaps.md §10–§13) ----
+
+    /** One read-only operate command against the environment's vault. */
+    private Map<String, Object> read(String envName, OperateCall op) throws IOException {
+        Environments.Environment e = env(envName);
+        try (Vault vault = Vault.connect(e.vaultConfig())) {
+            return operateResult(op.run(vault, e), e);
+        }
+    }
+
+    /** An operate command given the open vault (the core's engine view of it is {@code Operate.vaultEngine(vault)}). */
+    @FunctionalInterface
+    private interface OperateCall {
+        Operate.Result run(Vault vault, Environments.Environment env) throws IOException;
+    }
+
+    private static String need(String v, String what) {
+        if (v == null || v.isBlank()) {
+            throw new TreeService.BadRequest("no " + what + " named");
+        }
+        return v.trim();
+    }
+
+    /** `driver.health`: the Driver Health job's last state per server, the health configuration, the set's health jobs. */
+    public Map<String, Object> health(String envName, String driver) throws IOException {
+        String d = need(driver, "driver");
+        return read(envName, (v, e) -> Operate.driverHealth(Operate.vaultEngine(v), e, d));
+    }
+
+    /** `driver.log-level` for a driver, or the driver set when {@code driver} is blank. */
+    public Map<String, Object> logLevel(String envName, String driver) throws IOException {
+        String d = driver == null || driver.isBlank() ? null : driver.trim();
+        return read(envName, (v, e) -> Operate.logLevelShow(Operate.vaultEngine(v), e, d));
+    }
+
+    /** `driver.rights`: the driver object's effective rights on an object, per attribute. */
+    public Map<String, Object> rights(String envName, String driver, String dn, List<String> attrs) throws IOException {
+        String d = need(driver, "driver");
+        String o = need(dn, "object");
+        return read(envName, (v, e) -> Operate.driverRights(Operate.vaultEngine(v), e, d, o, attrs));
+    }
+
+    /** The driver set's administration in one read: `driverset.activation` and `driverset.servers`. */
+    public Map<String, Object> driverset(String envName) throws IOException {
+        Environments.Environment e = env(envName);
+        try (Vault vault = Vault.connect(e.vaultConfig())) {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("environment", e.name);
+            m.put("ok", true);
+            m.put("activation", operateResult(Operate.driversetActivation(Operate.vaultEngine(vault), e), e));
+            m.put("servers", operateResult(Operate.driversetServers(Operate.vaultEngine(vault), e), e));
+            return m;
+        }
+    }
+
+    /** `engine.metrics`: users, associated and enabled users, each driver's associations by state; counts only. */
+    public Map<String, Object> metrics(String envName, String base) throws IOException {
+        String b = base == null || base.isBlank() ? null : base.trim();
+        return read(envName, (v, e) -> Operate.engineMetrics(Operate.vaultEngine(v), e, b));
+    }
+
+    /** `workorder.list`. */
+    public Map<String, Object> workOrders(String envName, String base) throws IOException {
+        String b = base == null || base.isBlank() ? null : base.trim();
+        return read(envName, (v, e) -> Operate.workOrders(Operate.vaultEngine(v), e, b, 200));
+    }
+
+    /** `vault.email-server`: the notification collection's SMTP settings (the password as set or not). */
+    public Map<String, Object> emailServer(String envName) throws IOException {
+        return read(envName, (v, e) -> Operate.emailServerShow(Operate.vaultEngine(v), e));
+    }
+
+    private Map<String, Object> write(String envName, String confirm, String action, OperateCall op) throws IOException {
+        Environments.Environment e = env(envName);
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("environment", e.name);
+        m.put("action", action);
+        String refusal = gate(e.name, confirm);
+        if (refusal != null) {
+            m.put("ok", false);
+            m.put("text", refusal);
+            return m;
+        }
+        try (Vault vault = Vault.connect(e.vaultConfig())) {
+            Operate.Result r = op.run(vault, e);
+            m.put("ok", r.ok);
+            m.put("text", r.text());
+            return m;
+        }
+    }
+
+    /** `driver.health clear`: the environment's name typed again. */
+    public Map<String, Object> healthClear(String envName, String driver, String confirm) throws IOException {
+        String d = need(driver, "driver");
+        return write(envName, confirm, "health-clear", (v, e) -> Operate.driverHealthClear(Operate.vaultEngine(v), e, d, true, confirm, tree));
+    }
+
+    /** `driver.log-level set`: a level by name, a limit, or inherit (a driver back on the set's settings). */
+    public Map<String, Object> logLevelSet(String envName, String driver, String level, Integer limit, boolean inherit, String confirm) throws IOException {
+        String d = driver == null || driver.isBlank() ? null : driver.trim();
+        Integer lv = null;
+        if (level != null && !level.isBlank()) {
+            lv = Operate.logLevelValue(level);
+            if (lv < 0 || lv == 5 || lv == 6) {
+                throw new TreeService.BadRequest("level is errors, errors-and-warnings, last-log-time or off (specific events are set from the CLI)");
+            }
+        }
+        Integer fl = lv;
+        return write(envName, confirm, "log-level", (v, e) -> Operate.logLevelSet(Operate.vaultEngine(v), e, d, fl, null, limit, null, inherit, true, confirm, tree));
+    }
+
+    /** `vault.email-server set` for the non-secret settings; the password stays with the CLI and the secrets file. */
+    public Map<String, Object> emailServerSet(String envName, Map<String, String> values, String confirm) throws IOException {
+        Map<String, String> allowed = new LinkedHashMap<>();
+        for (String[] a : Operate.EMAIL_SERVER_ATTRS) {
+            if (values.containsKey(a[0])) {
+                allowed.put(a[0], values.get(a[0]) == null ? "" : values.get(a[0]).trim());
+            }
+        }
+        if (allowed.isEmpty()) {
+            throw new TreeService.BadRequest("nothing to set");
+        }
+        return write(envName, confirm, "email-server", (v, e) -> Operate.emailServerSet(Operate.vaultEngine(v), e, allowed, null, true, confirm, tree));
+    }
+
+    /** `rbe.list`: the set's entitlement policies with priority, computed member count and grants (docs/console-gaps.md §9). */
+    public Map<String, Object> rbe(String envName) throws IOException {
+        Environments.Environment e = env(envName);
+        try (Vault vault = Vault.connect(e.vaultConfig())) {
+            return operateResult(Operate.rbeList(Operate.vaultEngine(vault), e), e);
+        }
+    }
+
+    /** `rbe.members`: the members the directory computes for one policy. */
+    public Map<String, Object> rbeMembers(String envName, String policy) throws IOException {
+        if (policy == null || policy.isBlank()) {
+            throw new TreeService.BadRequest("no policy named");
+        }
+        Environments.Environment e = env(envName);
+        try (Vault vault = Vault.connect(e.vaultConfig())) {
+            return operateResult(Operate.rbeMembers(Operate.vaultEngine(vault), e, policy.trim()), e);
+        }
+    }
+
+    /**
+     * `driver.query`: ask the connected system through the running driver (docs/console-gaps.md §10). A read of
+     * the application that takes the driver's channel: the core gates it light, so a production environment
+     * wants its name typed again ({@code confirm}).
+     */
+    public Map<String, Object> query(String envName, String driver, String className, String scope, String dn, String association,
+            List<String> search, List<String> readAttrs, String confirm) throws IOException {
+        if (driver == null || driver.isBlank()) {
+            throw new TreeService.BadRequest("no driver named");
+        }
+        Environments.Environment e = env(envName);
+        Operate.Query q = new Operate.Query();
+        q.className = className == null || className.isBlank() ? null : className.trim();
+        if (scope != null && !scope.isBlank()) {
+            if (!List.of("subtree", "subordinates", "entry").contains(scope)) {
+                throw new TreeService.BadRequest("scope is subtree, subordinates or entry");
+            }
+            q.scope = scope;
+        }
+        q.destDn = dn == null || dn.isBlank() ? null : dn.trim();
+        q.association = association == null || association.isBlank() ? null : association.trim();
+        if (search != null) {
+            q.searchAttrs.addAll(search);
+        }
+        if (readAttrs != null) {
+            q.readAttrs.addAll(readAttrs);
+        }
+        try (Vault vault = Vault.connect(e.vaultConfig())) {
+            return operateResult(Operate.driverQuery(Operate.vaultEngine(vault), e, driver.trim(), q, true, confirm, tree), e);
+        }
+    }
+
     /** `job.start` / `job.abort`: the environment's name typed again. */
     public Map<String, Object> jobAction(String envName, String job, String driver, String action, String confirm) throws IOException {
         if (job == null || job.isBlank()) {

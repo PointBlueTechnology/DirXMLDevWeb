@@ -31,6 +31,8 @@ TRACE_VER=$(sed -n 's#.*<tracecore.version>\([^<]*\)</tracecore.version>.*#\1#p'
 cp "$HOME/.m2/repository/com/pointbluetech/dirxml-trace-core/$TRACE_VER/dirxml-trace-core-$TRACE_VER.jar" "$CTX/artifacts/dirxml-trace-core.jar"
 PG_VER=$(sed -n 's#.*<postgresql.version>\([^<]*\)</postgresql.version>.*#\1#p' "$HERE/pom.xml" | head -1)
 cp "$HOME/.m2/repository/org/postgresql/postgresql/$PG_VER/postgresql-$PG_VER.jar" "$CTX/artifacts/postgresql.jar"
+AUTH_VER=$(sed -n 's#.*<console.version>\([^<]*\)</console.version>.*#\1#p' "$HERE/pom.xml" | head -1)
+cp "$HOME/.m2/repository/com/pointblue/console/console-auth/$AUTH_VER/console-auth-$AUTH_VER.jar" "$CTX/artifacts/console-auth.jar"
 cp -R "$HERE/web/dist" "$CTX/artifacts/dist"
 cp -R "$IDM_HOME/bin/secrets" "$CTX/artifacts/secrets"
 cp -R "$IDM_HOME/terraform" "$CTX/artifacts/terraform"
@@ -39,7 +41,7 @@ find "$CTX/artifacts/terraform" \( -name '*.tfstate*' -o -name '.terraform.lock.
 # the engine's jars are NetIQ's: refuse to build if any reached the context (a class from one would be
 # com/novell/nds/dirxml/… or com/netiq/…; DirXMLDev's own jar is com/pointblue/…)
 for j in "$CTX"/artifacts/*.jar; do
-  case "$(basename "$j")" in dirxml-dev.jar|dirxml-dev-web.jar|dirxml-simulator.jar|dirxml-trace-core.jar|postgresql.jar) ;; *) echo "ERROR: unexpected jar in the image context: $j" >&2; exit 1;; esac
+  case "$(basename "$j")" in dirxml-dev.jar|dirxml-dev-web.jar|dirxml-simulator.jar|dirxml-trace-core.jar|postgresql.jar|console-auth.jar) ;; *) echo "ERROR: unexpected jar in the image context: $j" >&2; exit 1;; esac
   if unzip -l "$j" | grep -qE ' com/novell/nds/dirxml/engine/| com/netiq/nds/| com/novell/nds/dirxml/driver/[a-z]+/[A-Z]'; then
     echo "ERROR: $j carries engine or driver classes — not publishable" >&2; exit 1
   fi

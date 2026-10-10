@@ -20,7 +20,7 @@ public final class Serve {
     }
 
     public static void main(String[] args) throws Exception {
-        LegacyTls.enable();   // first: the JDK reads its TLS settings once, and the IdP connection comes before any vault
+        com.pointblue.dirxml.dev.LegacyTls.enable();   // first: the JDK reads its TLS settings once, and the IdP connection comes before any vault
         if (args.length >= 1 && args[0].equals("version")) {
             System.out.println("DirXMLDevWeb " + VERSION);
             return;

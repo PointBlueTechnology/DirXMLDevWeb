@@ -72,31 +72,31 @@ export function label(a: ArchApplication): string {
 }
 
 /** The styles the picture needs, embedded in the SVG so an export looks the same on its own. */
-const CSS = `
+export const ARCH_CSS = `
 .arch-svg { font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
-.arch-svg .app { fill: var(--surface, #fff); stroke: var(--border, #d9dde3); stroke-width: 1.2; }
-.arch-svg .app-g { cursor: pointer; }
-.arch-svg .app-g:hover .app, .arch-svg .app-g.selected .app { stroke: var(--accent, #2f6fd0); stroke-width: 2; }
-.arch-svg .app-g.dim { opacity: 0.22; }
-.arch-svg .app-name { font-size: 13px; font-weight: 600; fill: var(--text, #1f2328); }
-.arch-svg .drv-name { font-size: 11px; fill: var(--muted, #6b7280); }
-.arch-svg .vault { fill: color-mix(in srgb, var(--accent, #2f6fd0) 10%, var(--surface, #fff)); stroke: var(--accent, #2f6fd0); stroke-width: 1.6; }
-.arch-svg .vault-title { font-size: 15px; font-weight: 700; fill: var(--accent, #2f6fd0); }
-.arch-svg .vault-sub { font-size: 11px; fill: var(--muted, #6b7280); }
-.arch-svg .set { fill: var(--surface, #fff); stroke: var(--accent, #2f6fd0); stroke-width: 1.2; opacity: 0.96; }
-.arch-svg .band { fill: var(--accent, #2f6fd0); }
-.arch-svg .band-text { font-size: 12px; font-weight: 600; fill: var(--accent-text, #fff); }
-.arch-svg .conn { stroke: var(--muted, #9aa3ad); stroke-width: 1.4; fill: none; opacity: 0.8; }
-.arch-svg .badge { fill: var(--surface, #fff); stroke: var(--muted, #9aa3ad); stroke-width: 1.2; cursor: pointer; }
-.arch-svg .badge-g:hover .badge { stroke: var(--accent, #2f6fd0); stroke-width: 2; }
-.arch-svg .dot { stroke: var(--surface, #fff); stroke-width: 1.2; }
-.arch-svg .dot.running { fill: var(--ok, #1f8a4c); }
-.arch-svg .dot.stopped { fill: var(--muted, #9aa3ad); }
-.arch-svg .dot.disabled { fill: var(--err, #c0392b); }
-.arch-svg .dot.other { fill: var(--warn, #b7791f); }
-.arch-svg .generic { fill: var(--surface-2, #f0f2f5); stroke: var(--border, #d9dde3); }
-.arch-svg .generic-text { font-size: 11px; font-weight: 700; fill: var(--muted, #6b7280); }
-.arch-svg .legend { font-size: 12px; fill: var(--muted, #6b7280); }
+.arch-svg .arch-app { fill: var(--surface, #fff); stroke: var(--border, #d9dde3); stroke-width: 1.2; }
+.arch-svg .arch-app-g { cursor: pointer; }
+.arch-svg .arch-app-g:hover .arch-app, .arch-svg .arch-app-g.selected .arch-app { stroke: var(--accent, #2f6fd0); stroke-width: 2; }
+.arch-svg .arch-app-g.dim { opacity: 0.22; }
+.arch-svg .arch-app-name { font-size: 13px; font-weight: 600; fill: var(--text, #1f2328); }
+.arch-svg .arch-drv-name { font-size: 11px; fill: var(--muted, #6b7280); }
+.arch-svg .arch-vault { fill: color-mix(in srgb, var(--accent, #2f6fd0) 10%, var(--surface, #fff)); stroke: var(--accent, #2f6fd0); stroke-width: 1.6; }
+.arch-svg .arch-vault-title { font-size: 15px; font-weight: 700; fill: var(--accent, #2f6fd0); }
+.arch-svg .arch-vault-sub { font-size: 11px; fill: var(--muted, #6b7280); }
+.arch-svg .arch-set { fill: var(--surface, #fff); stroke: var(--accent, #2f6fd0); stroke-width: 1.2; opacity: 0.96; }
+.arch-svg .arch-band { fill: var(--accent, #2f6fd0); }
+.arch-svg .arch-band-text { font-size: 12px; font-weight: 600; fill: var(--accent-text, #fff); }
+.arch-svg .arch-conn { stroke: var(--muted, #9aa3ad); stroke-width: 1.4; fill: none; opacity: 0.8; }
+.arch-svg .arch-badge { fill: var(--surface, #fff); stroke: var(--muted, #9aa3ad); stroke-width: 1.2; cursor: pointer; }
+.arch-svg .arch-badge-g:hover .arch-badge { stroke: var(--accent, #2f6fd0); stroke-width: 2; }
+.arch-svg .arch-dot { stroke: var(--surface, #fff); stroke-width: 1.2; }
+.arch-svg .arch-dot.running { fill: var(--ok, #1f8a4c); }
+.arch-svg .arch-dot.stopped { fill: var(--muted, #9aa3ad); }
+.arch-svg .arch-dot.disabled { fill: var(--err, #c0392b); }
+.arch-svg .arch-dot.other { fill: var(--warn, #b7791f); }
+.arch-svg .arch-generic { fill: var(--surface-2, #f0f2f5); stroke: var(--border, #d9dde3); }
+.arch-svg .arch-generic-text { font-size: 11px; font-weight: 700; fill: var(--muted, #6b7280); }
+.arch-svg .arch-legend { font-size: 12px; fill: var(--muted, #6b7280); }
 `;
 
 function stateClass(s: string | undefined): string {
@@ -184,7 +184,7 @@ export function ArchitectureView({ revision, onSelect }: { revision: string; onS
       const cs = getComputedStyle(document.documentElement);
       const tokens = ["--surface", "--surface-2", "--border", "--text", "--muted", "--accent", "--accent-text", "--ok", "--warn", "--err"].map((t) => `${t}: ${cs.getPropertyValue(t).trim() || "initial"};`).join(" ");
       const style = document.createElementNS("http://www.w3.org/2000/svg", "style");
-      style.textContent = `.arch-svg { ${tokens} } ${CSS}`;
+      style.textContent = `.arch-svg { ${tokens} } ${ARCH_CSS}`;
       clone.insertBefore(style, clone.firstChild);
       clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
       clone.setAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
@@ -278,24 +278,24 @@ export function ArchitectureView({ revision, onSelect }: { revision: string; onS
     const tip = `${a.driver}${a.vaultOnly ? " (serves the vault, no external system)" : ""}\n${a.shimClass ?? "no shim class"}\n${a.counts.policies} policies · ${a.counts.entitlements} entitlements · ${a.counts.resources} resources${a.counts.forms + a.counts.prds > 0 ? ` · ${a.counts.forms} forms · ${a.counts.prds} PRDs` : ""}${st ? `\n${st.state}${st.cacheSize ? ` · cache ${st.cacheSize}` : ""}` : ""}`;
     return (
       <g key={a.driver}>
-        <path className="conn" d={`M${fromX},${cy} C${midX},${cy} ${midX},${vaultY} ${toX},${vaultY}`} />
-        <g className={"app-g" + (dim ? " dim" : "") + (selected === a.driver ? " selected" : "")} onClick={() => (setSelected(a.driver), onSelect({ type: "flow", driver: a.driver }))} data-testid={"arch-app-" + a.driver}>
+        <path className="arch-conn" d={`M${fromX},${cy} C${midX},${cy} ${midX},${vaultY} ${toX},${vaultY}`} />
+        <g className={"arch-app-g" + (dim ? " dim" : "") + (selected === a.driver ? " selected" : "")} onClick={() => (setSelected(a.driver), onSelect({ type: "flow", driver: a.driver }))} data-testid={"arch-app-" + a.driver}>
           <title>{tip}</title>
-          <rect className="app" x={p.x} y={p.y} width={L.cardW} height={L.cardH} rx={8} />
+          <rect className="arch-app" x={p.x} y={p.y} width={L.cardW} height={L.cardH} rx={8} />
           {icon(a, p.x + 10, p.y + 12, 32, data.revision)}
           <svg x={p.x + 52} y={p.y} width={L.cardW - 60} height={L.cardH}>
-            <text className="app-name" x={0} y={24}>
+            <text className="arch-app-name" x={0} y={24}>
               {label(a)}
             </text>
-            <text className="drv-name" x={0} y={42}>
+            <text className="arch-drv-name" x={0} y={42}>
               {a.typeName && a.typeName !== a.driver ? a.driver : shortShim(a.shimClass)}
             </text>
           </svg>
         </g>
-        <g className={"badge-g" + (dim ? " dim" : "")} onClick={() => onSelect({ type: "config", driver: a.driver })} data-testid={"arch-badge-" + a.driver}>
+        <g className={"arch-badge-g" + (dim ? " dim" : "")} onClick={() => onSelect({ type: "config", driver: a.driver })} data-testid={"arch-badge-" + a.driver}>
           <title>{`${a.driver}: configuration${st ? ` · ${st.state}` : ""}`}</title>
-          <circle className="badge" cx={midX} cy={(cy + vaultY) / 2} r={L.badgeR} />
-          {st && <circle className={"dot " + stateClass(st.state)} cx={midX + 8} cy={(cy + vaultY) / 2 - 8} r={4} />}
+          <circle className="arch-badge" cx={midX} cy={(cy + vaultY) / 2} r={L.badgeR} />
+          {st && <circle className={"arch-dot " + stateClass(st.state)} cx={midX + 8} cy={(cy + vaultY) / 2 - 8} r={4} />}
         </g>
       </g>
     );
@@ -336,39 +336,39 @@ export function ArchitectureView({ revision, onSelect }: { revision: string; onS
       {stateNote && <div className="muted small pad-x">{stateNote}</div>}
       <div className="pad scroll archcanvas">
         <svg ref={svgRef} className="arch-svg" width={layout.width * zoom} height={layout.height * zoom} viewBox={`0 0 ${layout.width} ${layout.height}`} role="img" aria-label="Architecture: the Identity Vault and the applications its drivers connect">
-          <style>{CSS}</style>
-          <rect className="vault" x={v.x} y={v.y} width={v.w} height={v.h} rx={14} />
+          <style>{ARCH_CSS}</style>
+          <rect className="arch-vault" x={v.x} y={v.y} width={v.w} height={v.h} rx={14} />
           <g transform={`translate(${v.x + 16},${v.y + 16})`}>
             <path d="M3 10 L12 3 L21 10 Z M4 10 H20 V12 H4 Z M6 12 V20 M10 12 V20 M14 12 V20 M18 12 V20 M3 21 H21" fill="none" stroke="var(--accent, #2f6fd0)" strokeWidth={1.6} strokeLinejoin="round" />
           </g>
-          <text className="vault-title" x={v.x + 46} y={v.y + 34}>
+          <text className="arch-vault-title" x={v.x + 46} y={v.y + 34}>
             Identity Vault
           </text>
           {/* the driver set: the object the drivers belong to, so the connectors run to it */}
-          <rect className="set" x={st0.x} y={st0.y} width={st0.w} height={st0.h} rx={10} />
-          <rect className="band" x={st0.x} y={st0.y} width={st0.w} height={30} rx={10} />
-          <rect className="band" x={st0.x} y={st0.y + 16} width={st0.w} height={14} />
-          <text className="band-text" x={st0.x + 12} y={st0.y + 20}>
+          <rect className="arch-set" x={st0.x} y={st0.y} width={st0.w} height={st0.h} rx={10} />
+          <rect className="arch-band" x={st0.x} y={st0.y} width={st0.w} height={30} rx={10} />
+          <rect className="arch-band" x={st0.x} y={st0.y + 16} width={st0.w} height={14} />
+          <text className="arch-band-text" x={st0.x + 12} y={st0.y + 20}>
             {fit(ds.name, 24)}
           </text>
           <svg x={st0.x + 10} y={st0.y + 36} width={st0.w - 20} height={56}>
-            <text className="vault-sub" x={0} y={14}>
+            <text className="arch-vault-sub" x={0} y={14}>
               {ds.dn ?? "no DN recorded"}
             </text>
-            <text className="vault-sub" x={0} y={32}>
+            <text className="arch-vault-sub" x={0} y={32}>
               {ds.drivers} drivers · {ds.libraryItems} library items
             </text>
-            <text className="vault-sub" x={0} y={50}>
+            <text className="arch-vault-sub" x={0} y={50}>
               {ds.packages} packages
             </text>
           </svg>
           {ds.servers.length > 0 && (
             <svg x={st0.x + 10} y={st0.y + st0.h - 12 - (ds.servers.length + 1) * 16} width={st0.w - 20} height={(ds.servers.length + 1) * 16 + 4}>
-              <text className="vault-sub" x={0} y={12}>
+              <text className="arch-vault-sub" x={0} y={12}>
                 server{ds.servers.length === 1 ? "" : "s"}
               </text>
               {ds.servers.map((s, i) => (
-                <text key={s.dn} className="vault-sub" x={0} y={28 + i * 16}>
+                <text key={s.dn} className="arch-vault-sub" x={0} y={28 + i * 16}>
                   {s.name}
                   {s.primary ? " (primary)" : ""}
                 </text>
@@ -379,16 +379,16 @@ export function ArchitectureView({ revision, onSelect }: { revision: string; onS
           {layout.right.map((p) => card(p, "right"))}
           {states && (
             <g transform={`translate(${L.side},${layout.height - 12})`}>
-              <circle className="dot running" cx={4} cy={-4} r={4} />
-              <text className="legend" x={12} y={0}>
+              <circle className="arch-dot running" cx={4} cy={-4} r={4} />
+              <text className="arch-legend" x={12} y={0}>
                 running
               </text>
-              <circle className="dot stopped" cx={70} cy={-4} r={4} />
-              <text className="legend" x={78} y={0}>
+              <circle className="arch-dot stopped" cx={70} cy={-4} r={4} />
+              <text className="arch-legend" x={78} y={0}>
                 stopped
               </text>
-              <circle className="dot disabled" cx={136} cy={-4} r={4} />
-              <text className="legend" x={144} y={0}>
+              <circle className="arch-dot disabled" cx={136} cy={-4} r={4} />
+              <text className="arch-legend" x={144} y={0}>
                 disabled
               </text>
             </g>
@@ -414,8 +414,8 @@ function icon(a: ArchApplication, x: number, y: number, size: number, revision: 
     .toUpperCase();
   return (
     <g>
-      <rect className="generic" x={x} y={y} width={size} height={size} rx={6} />
-      <text className="generic-text" x={x + size / 2} y={y + size / 2 + 4} textAnchor="middle">
+      <rect className="arch-generic" x={x} y={y} width={size} height={size} rx={6} />
+      <text className="arch-generic-text" x={x + size / 2} y={y + size / 2 + 4} textAnchor="middle">
         {initials}
       </text>
     </g>

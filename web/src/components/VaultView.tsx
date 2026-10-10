@@ -4,9 +4,9 @@ import { EnvPicker, useEnvironment } from "../env";
 import { CachePanel } from "./CachePanel";
 import { EventsView } from "./EventsView";
 import { TraceViewer } from "./TraceViewer";
-import type { DeployResult, Outline, Selection, VaultDiffResult, VaultStatus, VaultSnapshot, DriverAssociations, ObjectInspection, PasswordSync, VaultJobs } from "../types";
+import type { DeployResult, Outline, Selection, VaultDiffResult, VaultStatus, VaultSnapshot, DriverAssociations, ObjectInspection, PasswordSync, VaultJobs, VaultPolicies, PolicyMembers, AppQueryResult, DriverHealth, LogLevel, DriverRights, DriverSetAdmin, EngineMetrics, WorkOrders, EmailServer } from "../types";
 
-type Tab = "compare" | "drivers" | "jobs" | "objects" | "trace" | "events";
+type Tab = "compare" | "drivers" | "set" | "jobs" | "policies" | "objects" | "trace" | "events";
 
 /**
  * The tree against a vault: what differs, a deploy planned and run, the drivers' state and
@@ -54,9 +54,9 @@ export function VaultView({ drivers, revision, outline, onOpen, onSelect, onSave
         </button>
         <span className="spacer" />
         <div className="tabs">
-          {(["compare", "drivers", "jobs", "objects", "trace", "events"] as Tab[]).map((t) => (
+          {(["compare", "drivers", "set", "jobs", "policies", "objects", "trace", "events"] as Tab[]).map((t) => (
             <button key={t} className={tab === t ? "tab active" : "tab"} onClick={() => setTab(t)} data-testid={"vault-tab-" + t}>
-              {t === "compare" ? "Compare & deploy" : t === "drivers" ? "Drivers" : t === "jobs" ? "Jobs" : t === "objects" ? "Objects" : t === "trace" ? "Trace" : "Events"}
+              {t === "compare" ? "Compare & deploy" : t === "drivers" ? "Drivers" : t === "set" ? "Driver set" : t === "jobs" ? "Jobs" : t === "policies" ? "Policies" : t === "objects" ? "Objects" : t === "trace" ? "Trace" : "Events"}
             </button>
           ))}
         </div>
@@ -69,6 +69,10 @@ export function VaultView({ drivers, revision, outline, onOpen, onSelect, onSave
         <Drivers key={chosen.name} env={chosen.name} onFix={() => onSelect({ type: "connections", env: chosen.name })} onSelect={onSelect} onSaved={onSaved} />
       ) : tab === "objects" ? (
         <Objects key={chosen.name} env={chosen.name} />
+      ) : tab === "set" ? (
+        <DriverSetTab key={chosen.name} env={chosen.name} />
+      ) : tab === "policies" ? (
+        <Policies key={chosen.name} env={chosen.name} />
       ) : tab === "jobs" ? (
         <Jobs key={chosen.name} env={chosen.name} onFix={() => onSelect({ type: "connections", env: chosen.name })} />
       ) : (
@@ -431,6 +435,7 @@ function subject(kind: string): string {
 function Drivers({ env, onFix, onSelect, onSaved }: { env: string; onFix: () => void; onSelect: (s: Selection) => void; onSaved: () => void }) {
   const [cacheOf, setCacheOf] = useState<string | null>(null);
   const [assocOf, setAssocOf] = useState<string | null>(null);
+  const [opsOf, setOpsOf] = useState<string | null>(null);
   const [startOpts, setStartOpts] = useState<Record<string, string>>({});
   const [status, setStatus] = useState<VaultStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -530,6 +535,9 @@ function Drivers({ env, onFix, onSelect, onSaved }: { env: string; onFix: () => 
                   </button>{" "}
                   <button className="mini" onClick={() => setAssocOf(assocOf === d.name ? null : d.name)} title="The objects associated with the driver, by state, and its password-sync settings" data-testid={"assoc-view-" + d.name}>
                     {assocOf === d.name ? "hide" : "objects"}
+                  </button>{" "}
+                  <button className="mini" onClick={() => setOpsOf(opsOf === d.name ? null : d.name)} title="Health, log level and effective rights of the driver" data-testid={"ops-view-" + d.name}>
+                    {opsOf === d.name ? "hide" : "health"}
                   </button>
                 </td>
                 <td className="nowrap">
@@ -567,7 +575,364 @@ function Drivers({ env, onFix, onSelect, onSaved }: { env: string; onFix: () => 
         </table>
       )}
       {assocOf && <AssociationsPanel key={assocOf} env={env} driver={assocOf} onClose={() => setAssocOf(null)} />}
+      {opsOf && <DriverOpsPanel key={opsOf} env={env} driver={opsOf} armed={armed} confirm={confirm} onClose={() => setOpsOf(null)} />}
       {cacheOf && <CachePanel key={cacheOf} env={env} driver={cacheOf} armed={armed} confirm={confirm} deployer onClose={() => setCacheOf(null)} onSaved={onSaved} onSimulator={() => onSelect({ type: "simulator" })} />}
+    </div>
+  );
+}
+
+const LOG_LEVELS: [string, string][] = [
+  ["errors", "Log errors"],
+  ["errors-and-warnings", "Log errors and warnings"],
+  ["last-log-time", "Only update the last log time"],
+  ["off", "Logging off"],
+];
+
+/** A driver's health (the Driver Health job's verdict), its log level and its effective rights (`driver.health`, `driver.log-level`, `driver.rights`). */
+function DriverOpsPanel({ env, driver, armed, confirm, onClose }: { env: string; driver: string; armed: boolean; confirm: string; onClose: () => void }) {
+  const [health, setHealth] = useState<DriverHealth | null>(null);
+  const [log, setLog] = useState<LogLevel | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [last, setLast] = useState<{ ok: boolean; text: string } | null>(null);
+  const [level, setLevel] = useState("");
+  const [limit, setLimit] = useState("");
+  const [dn, setDn] = useState("");
+  const [attrs, setAttrs] = useState("");
+  const [rights, setRights] = useState<DriverRights | null>(null);
+  const load = () => {
+    setBusy("Reading…");
+    Promise.all([api.vault.health(env, driver), api.vault.logLevel(env, driver)])
+      .then(([h, l]) => (setHealth(h), setLog(l), setError(null)))
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setBusy(null));
+  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(load, [env, driver]);
+  const clearHealth = () => {
+    setBusy("Clearing…");
+    api.vault
+      .healthClear(env, driver, confirm)
+      .then((r) => (setLast({ ok: r.ok, text: r.text }), load()))
+      .catch((e: Error) => setLast({ ok: false, text: e.message }))
+      .finally(() => setBusy(null));
+  };
+  const setLog2 = (req: { level?: string; limit?: number; inherit?: boolean }) => {
+    setBusy("Setting the log level…");
+    api.vault
+      .logLevelSet(env, { driver, ...req, confirm })
+      .then((r) => (setLast({ ok: r.ok, text: r.text }), load()))
+      .catch((e: Error) => setLast({ ok: false, text: e.message }))
+      .finally(() => setBusy(null));
+  };
+  const checkRights = () => {
+    setBusy("Reading rights…");
+    api.vault
+      .rights(env, driver, dn, attrs.split(/[,\s]+/).map((a) => a.trim()).filter(Boolean))
+      .then(setRights)
+      .catch((e: Error) => setRights({ ok: false, error: e.message, text: "" }))
+      .finally(() => setBusy(null));
+  };
+  const stateClass = (s: string) => (s === "green" || s === "true" ? "pill ok" : s === "yellow" ? "pill warn" : s === "red" ? "pill err" : "pill");
+  return (
+    <section className="block" data-testid="ops-panel">
+      <div className="addrow tight">
+        <h4 style={{ margin: 0 }}>{driver}: health, log level, rights</h4>
+        {busy && <span className="muted small">{busy}</span>}
+        <span className="spacer" />
+        <button className="mini" onClick={onClose}>
+          close
+        </button>
+      </div>
+      {error && <div className="banner error">{error}</div>}
+      {last && <div className={last.ok ? "banner ok" : "banner error"}>{last.text}</div>}
+
+      <h4>Health</h4>
+      {health && !health.ok && <p className="muted small">{health.error ?? health.text}</p>}
+      {health && health.ok && (
+        <>
+          {(health.states ?? []).length === 0 ? (
+            <p className="muted small">No health status recorded: the Driver Health job has not evaluated this driver.</p>
+          ) : (
+            <p className="small">
+              {(health.states ?? []).map((s, i) => (
+                <span key={i} style={{ marginRight: 12 }}>
+                  {s.customState ? <>custom state <code>{s.customState}</code> </> : null}
+                  <span className={stateClass(s.state)}>{s.state}</span> <span className="muted">on {s.server}</span>
+                </span>
+              ))}
+            </p>
+          )}
+          <p className="small muted">
+            {(health.configured ?? []).length === 0
+              ? "No health configuration on the driver (its manifest has no <health-config>)."
+              : "Configured: " + (health.configured ?? []).map((c) => `${c.state} (${c.conditionGroups} condition group(s), ${c.actions} action(s))`).join(", ") + "."}{" "}
+            {(health.jobs ?? []).length === 0
+              ? "No Driver Health job in the driver set, so nothing evaluates it."
+              : "Health jobs: " + (health.jobs ?? []).map((j) => `${j.name}${j.disabled ? " (disabled)" : ""}${j.inScope ? "" : " — not scoped to this driver"}`).join(", ") + "."}
+          </p>
+          <button className="mini" disabled={!armed || busy !== null || (health.states ?? []).length === 0} onClick={clearHealth} title="Remove the recorded health status (the console's Clear Health Status)" data-testid="health-clear">
+            Clear status
+          </button>
+        </>
+      )}
+
+      <h4>Log level</h4>
+      {log && !log.ok && <p className="muted small">{log.error ?? log.text}</p>}
+      {log && log.ok && (
+        <>
+          <p className="small">
+            {log.inherits ? (
+              <span className="muted">Uses the driver set's settings.</span>
+            ) : (
+              <>
+                {log.levelName ? <b>{log.levelName}</b> : <span className="muted">No log level of its own</span>}
+                {log.events && log.events.length > 0 ? <span className="muted"> · events {log.events.join(" ")}</span> : null}
+                {log.limit != null ? <span className="muted"> · keeps {log.limit} entries</span> : null}
+              </>
+            )}
+          </p>
+          <div className="addrow tight">
+            <select value={level} onChange={(e) => setLevel(e.target.value)} disabled={!armed || busy !== null} data-testid="log-level">
+              <option value="">level…</option>
+              {LOG_LEVELS.map(([v, l]) => (
+                <option key={v} value={v}>
+                  {l}
+                </option>
+              ))}
+            </select>
+            <input value={limit} onChange={(e) => setLimit(e.target.value.replace(/[^0-9]/g, ""))} placeholder="max entries" style={{ width: 100 }} disabled={!armed || busy !== null} />
+            <button className="mini" disabled={!armed || busy !== null || (!level && !limit)} onClick={() => setLog2({ level: level || undefined, limit: limit ? Number(limit) : undefined })} data-testid="log-level-set">
+              Set
+            </button>
+            <button className="mini" disabled={!armed || busy !== null || log.inherits} onClick={() => setLog2({ inherit: true })} title="Drop the driver's own log settings: it uses the driver set's">
+              Use the driver set's
+            </button>
+            <span className="muted small">Specific events are chosen from the CLI (driver.log-level set --events).</span>
+          </div>
+        </>
+      )}
+
+      <h4>Effective rights</h4>
+      <p className="muted small">What eDirectory lets the driver object (the identity its policies act as) do on an object: entry rights, all attributes, and the attributes you name (LDAP names).</p>
+      <div className="addrow tight">
+        <input className="wide" value={dn} onChange={(e) => setDn(e.target.value)} placeholder="ou=users,o=data" spellCheck={false} data-testid="rights-dn" />
+        <input value={attrs} onChange={(e) => setAttrs(e.target.value)} placeholder="sn, loginDisabled" spellCheck={false} style={{ width: 200 }} />
+        <button className="mini" disabled={!dn || busy !== null} onClick={checkRights} data-testid="rights-go">
+          Check
+        </button>
+      </div>
+      {rights && !rights.ok && <p className="muted small">{rights.error ?? rights.text}</p>}
+      {rights && rights.ok && (
+        <table className="grid" data-testid="rights-table">
+          <tbody>
+            {(rights.rights ?? []).map((r) => (
+              <tr key={r.attribute}>
+                <td>{r.attribute}</td>
+                <td className="small">{r.names}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </section>
+  );
+}
+
+/** The driver set as an object: activation, servers, the notification e-mail server, user and association counts, work orders. */
+function DriverSetTab({ env }: { env: string }) {
+  const [admin, setAdmin] = useState<DriverSetAdmin | null>(null);
+  const [mail, setMail] = useState<EmailServer | null>(null);
+  const [setLog, setSetLog] = useState<LogLevel | null>(null);
+  const [metrics, setMetrics] = useState<EngineMetrics | null>(null);
+  const [orders, setOrders] = useState<WorkOrders | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [confirm, setConfirm] = useState("");
+  const [last, setLast] = useState<{ ok: boolean; text: string } | null>(null);
+  const [edit, setEdit] = useState<Record<string, string>>({});
+  const [base, setBase] = useState("");
+  const armed = confirm === env;
+  const load = () => {
+    setBusy("Reading…");
+    Promise.all([api.vault.driverset(env), api.vault.emailServer(env), api.vault.logLevel(env), api.vault.workOrders(env)])
+      .then(([a, m, l, w]) => (setAdmin(a), setMail(m), setSetLog(l), setOrders(w), setError(null)))
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setBusy(null));
+  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(load, [env]);
+  const count = () => {
+    setBusy("Counting…");
+    api.vault
+      .metrics(env, base || undefined)
+      .then(setMetrics)
+      .catch((e: Error) => setMetrics({ ok: false, error: e.message, text: "" }))
+      .finally(() => setBusy(null));
+  };
+  const saveMail = () => {
+    setBusy("Writing the e-mail server…");
+    api.vault
+      .emailServerSet(env, edit, confirm)
+      .then((r) => (setLast({ ok: r.ok, text: r.text }), setEdit({}), load()))
+      .catch((e: Error) => setLast({ ok: false, text: e.message }))
+      .finally(() => setBusy(null));
+  };
+  const mailFields: [keyof EmailServer & string, string][] = [
+    ["host", "Host"],
+    ["port", "Port"],
+    ["from", "From"],
+    ["user", "User"],
+    ["tls", "TLS"],
+    ["timeout", "Timeout"],
+    ["protocol", "Protocol"],
+    ["auth", "Auth mechanisms"],
+  ];
+  return (
+    <div className="pad" data-testid="driverset-tab">
+      <div className="addrow">
+        <Confirm env={env} value={confirm} onChange={setConfirm} />
+        {busy && <span className="muted small">{busy}</span>}
+      </div>
+      {error && <div className="banner error">{error}</div>}
+      {last && <div className={last.ok ? "banner ok" : "banner error"}>{last.text}</div>}
+
+      <h4>Activation</h4>
+      {admin && !admin.activation.ok && <p className="muted small">{admin.activation.error ?? admin.activation.text}</p>}
+      {admin && admin.activation.ok && (
+        <>
+          {(admin.activation.attributes ?? []).length === 0 ? (
+            <p className="muted small">No activation attributes on the driver set.</p>
+          ) : (
+            <table className="grid">
+              <tbody>
+                {(admin.activation.attributes ?? []).map((a) => (
+                  <tr key={a.attribute}>
+                    <td>
+                      <code>{a.attribute}</code>
+                    </td>
+                    <td className="small">{a.value}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          <p className="muted small">
+            {admin.activation.viewError ? `The engine did not answer ViewActivation (${admin.activation.viewError.replace(/^ViewActivation [^:]*: /, "")}).` : admin.activation.activation ? "The engine reports an activation document (see the CLI's driverset.activation for it)." : "The engine reports no activation document."} A vendor credential is applied from the CLI (driverset.activation apply).
+          </p>
+        </>
+      )}
+
+      <h4>Servers</h4>
+      {admin && admin.servers.ok && (
+        <p className="small">
+          {(admin.servers.servers ?? []).length === 0 ? <span className="muted">None listed: no engine runs this set.</span> : (admin.servers.servers ?? []).map((s) => <code key={s} style={{ marginRight: 12 }}>{s}</code>)}
+          <br />
+          <span className="muted">
+            The server this connection reaches {admin.servers.connectedServerRuns ? `runs ${admin.servers.connectedServerRuns}` : "runs no driver set"}. Servers are associated from the CLI (driverset.servers add|remove).
+          </span>
+        </p>
+      )}
+
+      <h4>Log level of the driver set</h4>
+      {setLog && setLog.ok && (
+        <p className="small">
+          {setLog.levelName ? <b>{setLog.levelName}</b> : <span className="muted">No log level set</span>}
+          {setLog.events && setLog.events.length > 0 ? <span className="muted"> · events {setLog.events.join(" ")}</span> : null}
+          {setLog.limit != null ? <span className="muted"> · keeps {setLog.limit} entries{setLog.limit === 0 ? " (logging off for the set)" : ""}</span> : null}
+        </p>
+      )}
+
+      <h4>Notification e-mail server</h4>
+      {mail && !mail.ok && <p className="muted small">{mail.error ?? mail.text}</p>}
+      {mail && mail.ok && (
+        <>
+          <p className="muted small">
+            <code>{mail.dn}</code> · password {mail.passwordSet ? "set" : "not set"} (set from the CLI and the secrets file: vault.email-server set --password-key)
+          </p>
+          <table className="grid" data-testid="email-table">
+            <tbody>
+              {mailFields.map(([k, label]) => (
+                <tr key={k}>
+                  <td>{label}</td>
+                  <td>
+                    <input value={edit[k] ?? String(mail[k] ?? "")} onChange={(e) => setEdit({ ...edit, [k]: e.target.value })} disabled={!armed || busy !== null} spellCheck={false} style={{ width: 320 }} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <button className="mini" disabled={!armed || busy !== null || Object.keys(edit).length === 0} onClick={saveMail} data-testid="email-save">
+            Save
+          </button>
+        </>
+      )}
+
+      <h4>Users and associations</h4>
+      <div className="addrow tight">
+        <input className="wide" value={base} onChange={(e) => setBase(e.target.value)} placeholder="search base (empty: the whole tree)" spellCheck={false} />
+        <button className="mini" disabled={busy !== null} onClick={count} data-testid="metrics-go">
+          Count
+        </button>
+        <span className="muted small">Counts only; nothing is read beyond the DNs. The enabled figure is the console's licensing count.</span>
+      </div>
+      {metrics && !metrics.ok && <p className="muted small">{metrics.error ?? metrics.text}</p>}
+      {metrics && metrics.ok && (
+        <>
+          <p className="small">
+            {metrics.users} users · {metrics.associated} with an association · {metrics.enabled} of those enabled
+          </p>
+          <table className="grid" data-testid="metrics-table">
+            <thead>
+              <tr>
+                <th>Driver</th>
+                <th>Processed</th>
+                <th>Pending</th>
+                <th>Manual</th>
+                <th>Migrate</th>
+                <th>Disabled</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(metrics.drivers ?? []).map((d) => (
+                <tr key={d.dn}>
+                  <td>{d.name}</td>
+                  <td>{d.processed}</td>
+                  <td>{d.pending}</td>
+                  <td>{d.manual}</td>
+                  <td>{d.migrate}</td>
+                  <td>{d.disabled}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
+
+      <h4>Work orders</h4>
+      {orders && orders.ok && (orders.workOrders ?? []).length === 0 && <p className="muted small">None under the driver set.</p>}
+      {orders && orders.ok && (orders.workOrders ?? []).length > 0 && (
+        <table className="grid">
+          <thead>
+            <tr>
+              <th>Work order</th>
+              <th>Status</th>
+              <th>Due</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(orders.workOrders ?? []).map((w) => (
+              <tr key={w.dn}>
+                <td>{w.name}</td>
+                <td>{w.status}</td>
+                <td className="small">{w.due}</td>
+                <td className="small">{w.description}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 }
@@ -761,6 +1126,198 @@ function Jobs({ env, onFix }: { env: string; onFix: () => void }) {
 }
 
 /** One object as the vault has it (the console's object inspector): classes, associations across drivers, password-sync status. */
+/** The driver set's entitlement policies as the vault holds them: priority, the directory's member count, the grants (`rbe.list`, `rbe.members`). */
+function Policies({ env }: { env: string }) {
+  const [data, setData] = useState<VaultPolicies | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [open, setOpen] = useState<string | null>(null);
+  const [members, setMembers] = useState<PolicyMembers | null>(null);
+  useEffect(() => {
+    setBusy(true);
+    api.vault
+      .rbe(env)
+      .then((p) => (setData(p), setError(null)))
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setBusy(false));
+  }, [env]);
+  const show = (name: string) => {
+    if (open === name) {
+      setOpen(null);
+      return;
+    }
+    setOpen(name);
+    setMembers(null);
+    api.vault
+      .rbeMembers(env, name)
+      .then(setMembers)
+      .catch((e: Error) => setMembers({ ok: false, error: e.message, text: "" }));
+  };
+  return (
+    <div className="pad">
+      <p className="muted small">
+        The role-based entitlement policies of the Entitlements Service driver, as {env} holds them: the container's priority order, the members the directory computes for each dynamic group, and what each grants. Edit them in the tree (<code>rbe-policies/</code>) and deploy; the driver re-reads them when it restarts.
+      </p>
+      {busy && <p className="muted small">Reading…</p>}
+      {error && <div className="banner error">{error}</div>}
+      {data && !data.container && <p className="muted small">No entitlement policy container in the driver set.</p>}
+      {data && data.container && (
+        <>
+          <p className="small">
+            <code>{data.container}</code>
+          </p>
+          {data.policies.length === 0 ? (
+            <p className="muted small">The container holds no policies.</p>
+          ) : (
+            <table className="grid" data-testid="rbe-table">
+              <thead>
+                <tr>
+                  <th>Priority</th>
+                  <th>Policy</th>
+                  <th>Members</th>
+                  <th>Grants</th>
+                  <th>Membership</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.policies.map((p) => (
+                  <>
+                    <tr key={p.dn}>
+                      <td>{p.priority ?? "-"}</td>
+                      <td>
+                        <button className="link" onClick={() => show(p.name)} title="The members the directory computes">
+                          {p.name}
+                        </button>
+                      </td>
+                      <td>{p.members}</td>
+                      <td className="small">
+                        {p.grants.length === 0 ? <span className="muted">none</span> : p.grants.map((g, i) => (
+                          <div key={i}>
+                            <code>{g.entitlement}</code>
+                            {g.ref && g.ref !== "<ref/>" ? <span className="muted"> {g.ref}</span> : null}
+                          </div>
+                        ))}
+                      </td>
+                      <td className="small">
+                        <code>{p.memberQuery || "static only"}</code>
+                      </td>
+                    </tr>
+                    {open === p.name && (
+                      <tr key={p.dn + "-members"}>
+                        <td colSpan={5} className="small">
+                          {!members ? (
+                            <span className="muted">Reading…</span>
+                          ) : !members.ok ? (
+                            <span className="muted">{members.error ?? members.text}</span>
+                          ) : (members.members ?? []).length === 0 ? (
+                            <span className="muted">No members right now.</span>
+                          ) : (
+                            <ul className="plain">
+                              {(members.members ?? []).map((m) => (
+                                <li key={m}>
+                                  <code>{m}</code>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </td>
+                      </tr>
+                    )}
+                  </>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+/** Ask the connected system a question through a running driver (`driver.query`): the engine's query verb, the shim's instances. */
+function AskApplication({ env }: { env: string }) {
+  const [driver, setDriver] = useState("");
+  const [className, setClassName] = useState("User");
+  const [scope, setScope] = useState("subtree");
+  const [dn, setDn] = useState("");
+  const [search, setSearch] = useState("");
+  const [readAttrs, setReadAttrs] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [data, setData] = useState<AppQueryResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const ask = () => {
+    setBusy(true);
+    setError(null);
+    api.vault
+      .query(env, {
+        driver,
+        className: className || undefined,
+        scope,
+        dn: dn || undefined,
+        search: search.split(/[,\n]+/).map((s) => s.trim()).filter(Boolean),
+        readAttrs: readAttrs.split(/[,\n]+/).map((s) => s.trim()).filter(Boolean),
+        confirm: confirm || undefined,
+      })
+      .then(setData)
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setBusy(false));
+  };
+  return (
+    <div className="block" data-testid="ask-application">
+      <h4>Ask the application</h4>
+      <p className="muted small">The same question to the connected system, through a running driver: the engine's query verb goes down the subscriber channel and the shim answers. It takes the driver's channel while it runs; a production environment wants its name typed.</p>
+      <div className="addrow">
+        <input value={driver} onChange={(e) => setDriver(e.target.value)} placeholder="driver" spellCheck={false} style={{ width: 180 }} data-testid="ask-driver" />
+        <input value={className} onChange={(e) => setClassName(e.target.value)} placeholder="class (User)" spellCheck={false} style={{ width: 120 }} />
+        <select value={scope} onChange={(e) => setScope(e.target.value)}>
+          <option value="subtree">subtree</option>
+          <option value="subordinates">subordinates</option>
+          <option value="entry">entry</option>
+        </select>
+        <input className="wide" value={dn} onChange={(e) => setDn(e.target.value)} placeholder="from DN (optional; LDAP form is fine)" spellCheck={false} />
+      </div>
+      <div className="addrow">
+        <input className="wide" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="search: name=value, name=value" spellCheck={false} />
+        <input className="wide" value={readAttrs} onChange={(e) => setReadAttrs(e.target.value)} placeholder="read: attr, attr (empty: every attribute; none: just the match)" spellCheck={false} />
+        <input value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder={env} spellCheck={false} style={{ width: 120 }} title="The environment's name, when it is not a dev one" />
+        <button onClick={ask} disabled={!driver || busy} data-testid="ask-go">
+          {busy ? "Asking…" : "Ask"}
+        </button>
+      </div>
+      {error && <div className="banner error">{error}</div>}
+      {data && !data.ok && <div className="banner error">{data.error ?? data.text}</div>}
+      {data && data.ok && (
+        <div data-testid="ask-result">
+          <p className="small muted">
+            {data.count} instance(s){data.status ? ` · ${data.status}` : ""}
+          </p>
+          {(data.instances ?? []).map((inst, i) => (
+            <div key={i} className="block">
+              <p className="small">
+                <b>{inst.className || "instance"}</b> <code>{inst.srcDn}</code>
+                {inst.association ? <span className="muted"> [{inst.association}]</span> : null}
+              </p>
+              {Object.keys(inst.attrs).length > 0 && (
+                <table className="grid">
+                  <tbody>
+                    {Object.entries(inst.attrs).map(([k, vs]) => (
+                      <tr key={k}>
+                        <td>{k}</td>
+                        <td className="small">{vs.join(" | ")}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Objects({ env }: { env: string }) {
   const [dn, setDn] = useState("");
   const [data, setData] = useState<ObjectInspection | null>(null);
@@ -842,6 +1399,7 @@ function Objects({ env }: { env: string }) {
           )}
         </div>
       )}
+      <AskApplication env={env} />
     </div>
   );
 }

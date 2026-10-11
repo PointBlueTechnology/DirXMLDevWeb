@@ -7,6 +7,12 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- **Needs DirXMLDev 0.26.0**: the core's Designer project readers now read entitlement policies and
+  notification templates as real projects hold them, and entitlement refs derived from Designer's display
+  documents carry LDAP DNs. Nothing in the web itself changes.
+
 ## [0.37.0] - 2026-10-10
 
 ### Fixed

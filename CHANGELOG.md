@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.38.0] - 2026-10-11
+
 ### Changed
 
 - **Needs DirXMLDev 0.26.0**: the core's Designer project readers now read entitlement policies and

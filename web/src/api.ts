@@ -1,4 +1,4 @@
-import type { CacheView, CaseFiles, CasePlan, EventDetail, EventRow, EventsDescribe, TraceFileEntry, VaultPolicies, PolicyMembers, AppQueryResult, DriverHealth, LogLevel, DriverRights, DriverSetAdmin, EngineMetrics, WorkOrders, EmailServer} from "./types";
+import type { CacheView, CaseFiles, CasePlan, EventDetail, EventRow, EventsDescribe, TraceFileEntry, VaultPolicies, PolicyMembers, AppQueryResult, DriverHealth, LogLevel, DriverRights, DriverSetAdmin, EngineMetrics, WorkOrders, EmailServer, EngineInfo, DriverDetail, TraceShow, TraceTailResult, NamedPasswords, OperateOutcome} from "./types";
 import type { TraceRec } from "./trace/model";
 import type { AppSchema, Architecture, DevNode, DeployChoices, DriverAssociations, ObjectInspection, PasswordSync, VaultJobs, VaultSnapshot, SchemaDiffResult, ProjectArchive, ProjectArchiveResult, Artifact, AuditEntry, BuildResult, ConfigView, Connections, DeployResult, EnvSecrets, FetchResult, FormData as FormDoc, GitDiff, GitStatus, ImportResult, LifecycleResult, OpCall, OpResult, OpSpec, Outline, OverridesData, PackagePrompts, PackagesData, PrdData, RoleCatalog, SchemaActionResult, SchemaClass, SchemaData, Session, SetupResult, SimCaseFiles, SimCases, SimDetail, SimRun, SiteListing, TreeFile, UpdateSites, Validation, VaultDiffResult, VaultEnvironments, VaultStatus, WorkspacesInfo } from "./types";
 import type { FishboneModel } from "./fishbone/types";
@@ -228,6 +228,20 @@ export const api = {
     jobs: (env: string) => call<VaultJobs>("GET", `/api/vault/jobs?env=${q(env)}`),
     rbe: (env: string) => call<VaultPolicies>("GET", `/api/vault/rbe?env=${q(env)}`),
     health: (env: string, driver: string) => call<DriverHealth>("GET", `/api/vault/health?env=${q(env)}&driver=${q(driver)}`),
+    engine: (env: string) => call<EngineInfo>("GET", `/api/vault/engine?env=${q(env)}`),
+    driverStatus: (env: string, driver: string) => call<DriverDetail>("GET", `/api/vault/driver-status?env=${q(env)}&driver=${q(driver)}`),
+    traceShow: (env: string, driver: string) => call<TraceShow>("GET", `/api/vault/trace-show?env=${q(env)}&driver=${q(driver)}`),
+    /** The trace file (an empty string clears it); deployers, the environment's name typed again. */
+    traceFile: (env: string, driver: string, file: string, confirm: string) => call<OperateOutcome>("POST", "/api/vault/trace-level", { env, driver, file, confirm }),
+    traceReset: (env: string, driver: string, confirm: string) => call<OperateOutcome>("POST", "/api/vault/trace-reset", { env, driver, confirm }),
+    /** The driver's trace file over SSH (the environment's own host and user); kept as one of your trace files. */
+    traceTail: (env: string, driver: string, req: { lines?: number; grep?: string; since?: number; confirm: string }) => call<TraceTailResult>("POST", "/api/vault/trace-tail", { env, driver, ...req }),
+    resync: (env: string, driver: string, since: string | undefined, confirm: string) => call<OperateOutcome>("POST", "/api/vault/resync", { env, driver, since, confirm }),
+    migrate: (env: string, driver: string, xds: string, confirm: string) => call<OperateOutcome>("POST", "/api/vault/migrate", { env, driver, xds, confirm }),
+    submit: (env: string, driver: string, xds: string, canary: boolean, confirm: string) => call<OperateOutcome>("POST", "/api/vault/submit", { env, driver, xds, canary, confirm }),
+    namedPasswords: (env: string, driver: string) => call<NamedPasswords>("GET", `/api/vault/named-passwords?env=${q(env)}&driver=${q(driver)}`),
+    /** Set (the value is write-only, never returned) or remove a named password in the vault. */
+    namedPassword: (env: string, driver: string, action: "set" | "remove", name: string, value: string | undefined, confirm: string) => call<OperateOutcome>("POST", "/api/vault/named-password", { env, driver, action, name, value, confirm }),
     /** Clear a driver's recorded health status (deployers; the environment's name typed again). */
     healthClear: (env: string, driver: string, confirm: string) => call<LifecycleResult>("POST", "/api/vault/health-clear", { env, driver, confirm }),
     /** A driver's log level, or the driver set's when `driver` is empty. */

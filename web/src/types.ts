@@ -386,6 +386,70 @@ export interface VaultJobs {
   text: string;
 }
 
+/** The engine's version and its statistics (`engine.version`, `engine.stats`). */
+export interface EngineInfo {
+  ok: boolean;
+  version: { ok: boolean; error?: string; version?: string; text: string };
+  stats: {
+    ok: boolean;
+    error?: string;
+    jvm?: { heapUsed: string; heapCommitted: string; heapTotal: string; threadsCurrent: string; threadsDaemon: string; threadsPeak: string };
+    drivers?: { name: string; cacheSize: string | number; unprocessedSize: string | number; reportedEvents: string | number; commands: string | number }[];
+    text: string;
+  };
+}
+
+/** One driver as `driver.status --json` reports it. */
+export interface DriverDetail {
+  ok: boolean;
+  error?: string;
+  name?: string;
+  dn?: string;
+  state?: string;
+  startOption?: string;
+  cacheSize?: string | number;
+  unprocessedSize?: string | number;
+  traceLevel?: string | number | null;
+  traceFile?: string | null;
+  namedPasswords?: string[];
+  audit?: { timestamp: string; outcome: string; detail: string }[];
+  text: string;
+}
+
+/** `driver.trace show`, and whether the environment can read the trace file over SSH. */
+export interface TraceShow {
+  ok: boolean;
+  error?: string;
+  level?: string | number | null;
+  file?: string | null;
+  sshTail?: boolean;
+  text: string;
+}
+
+/** The trace file's lines over SSH, kept as one of the person's trace files (`stored`). */
+export interface TraceTailResult {
+  ok: boolean;
+  text: string;
+  file?: string;
+  lines?: string[];
+  stored?: string;
+}
+
+/** A driver's named passwords in the vault, names only (`driver.secrets list`). */
+export interface NamedPasswords {
+  ok: boolean;
+  error?: string;
+  names?: string[];
+  text: string;
+}
+
+/** A driver operation's outcome (resync, migrate, submit, named password, trace file/reset). */
+export interface OperateOutcome {
+  ok: boolean;
+  text: string;
+  canary?: "MATCH" | "MISMATCH" | null;
+}
+
 /** A driver's health as the Driver Health job recorded it, its health configuration, the set's health jobs (`driver.health`). */
 export interface DriverHealth {
   ok: boolean;

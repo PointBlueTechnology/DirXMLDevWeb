@@ -570,6 +570,223 @@ public final class VaultService {
         return v.trim();
     }
 
+    // ---- #69: engine, driver status, trace show/file/reset/tail ----
+
+    /** `engine.version` and `engine.stats` together: the engine's version, the JVM, each driver's counters. */
+    public Map<String, Object> engine(String envName) throws IOException {
+        Environments.Environment e = env(envName);
+        try (Vault vault = Vault.connect(e.vaultConfig())) {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("environment", e.name);
+            m.put("ok", true);
+            m.put("version", operateResult(Operate.engineVersion(Operate.vaultEngine(vault)), e));
+            m.put("stats", operateResult(Operate.engineStats(Operate.vaultEngine(vault), e, List.of()), e));
+            return m;
+        }
+    }
+
+    /** `driver.status`: one driver's state, start option, counters, trace, named-password names and recent audit lines. */
+    public Map<String, Object> driverStatus(String envName, String driver) throws IOException {
+        String d = need(driver, "driver");
+        return read(envName, (v, e) -> Operate.driverStatus(Operate.vaultEngine(v), e, d, tree));
+    }
+
+    /** `driver.trace show`, plus whether the environment can tail the trace file over SSH. */
+    public Map<String, Object> traceShow(String envName, String driver) throws IOException {
+        String d = need(driver, "driver");
+        Map<String, Object> m = read(envName, (v, e) -> Operate.traceShow(Operate.vaultEngine(v), e, d));
+        m.put("sshTail", env(envName).sshHost != null);
+        return m;
+    }
+
+    /** `driver.trace set --file`: the environment's name typed again. An empty file clears it. */
+    public Map<String, Object> traceFile(String envName, String driver, String file, String confirm) throws IOException {
+        String d = need(driver, "driver");
+        return write(envName, confirm, "trace-file", (v, e) -> Operate.traceSet(Operate.vaultEngine(v), e, d, null, file == null ? "" : file.trim(), true, confirm, tree));
+    }
+
+    /** `driver.trace reset`: the level and file from before the last recorded `driver.trace set` (the deploy log). */
+    public Map<String, Object> traceReset(String envName, String driver, String confirm) throws IOException {
+        String d = need(driver, "driver");
+        return write(envName, confirm, "trace-reset", (v, e) -> Operate.traceReset(Operate.vaultEngine(v), e, d, true, confirm, tree));
+    }
+
+    /**
+     * `driver.trace tail` over SSH: the driver's trace file ({@code DirXML-TraceFile}) on the engine host, read with
+     * the environment's own {@code sshHost} and {@code sshUser} (never a host from the request), the last
+     * {@code lines} lines or the last {@code sinceMinutes} minutes, optionally filtered by {@code grep}.
+     */
+    public Map<String, Object> traceTail(String envName, String driver, int lines, String grep, Integer sinceMinutes, String confirm) throws IOException {
+        String d = need(driver, "driver");
+        Environments.Environment e = env(envName);
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("environment", e.name);
+        m.put("driver", d);
+        m.put("action", "trace-tail");
+        if (e.sshHost == null || e.sshHost.isBlank()) {
+            m.put("ok", false);
+            m.put("text", "the environment names no sshHost: its trace file cannot be read over SSH (the Trace tab's live stream works without it)");
+            return m;
+        }
+        String refusal = gate(e.name, confirm);
+        if (refusal != null) {
+            m.put("ok", false);
+            m.put("text", refusal);
+            return m;
+        }
+        String file;
+        try (Vault vault = Vault.connect(e.vaultConfig())) {
+            Vault.Entry entry = vault.read(com.pointblue.dirxml.dev.deploy.VaultMapping.driverDn(e.driverSetDn, d), Vault.TRACE_FILE);
+            file = entry == null ? null : entry.string(Vault.TRACE_FILE);
+        }
+        if (file == null || file.isBlank()) {
+            m.put("ok", false);
+            m.put("text", "driver '" + d + "' has no trace file (DirXML-TraceFile); set one first");
+            return m;
+        }
+        String g = grep == null || grep.isBlank() ? null : grep;
+        com.pointblue.dirxml.dev.operate.TraceTail tail = new com.pointblue.dirxml.dev.operate.TraceTail(e.sshUser, e.sshHost);
+        List<String> out = sinceMinutes != null ? tail.since(file, sinceMinutes, g) : tail.tail(file, Math.max(1, Math.min(lines, 20000)), g);
+        if (out.isEmpty() && tail.size(file) < 0) {
+            // ssh's own errors go to stderr, which the tail does not read: an absent file looks like an empty one
+            m.put("ok", false);
+            m.put("file", file);
+            m.put("text", "the trace file " + file + " is not on " + e.sshHost + " (or ssh could not reach it as " + e.sshUser
+                + "): when the engine runs in a container, the file lives inside the container, not on the host");
+            return m;
+        }
+        m.put("ok", true);
+        m.put("file", file);
+        m.put("lines", out);
+        m.put("text", out.size() + " line(s) of " + file);
+        return m;
+    }
+
+    // ---- #68: resync, migrate, submit, named passwords ----
+
+    /** `driver.resync`: a full resync, or one since an instant (ISO-8601). The driver must be running. */
+    public Map<String, Object> resync(String envName, String driver, String since, String confirm) throws IOException {
+        String d = need(driver, "driver");
+        Long millis = null;
+        if (since != null && !since.isBlank()) {
+            try {
+                millis = java.time.Instant.parse(since.trim()).toEpochMilli();
+            } catch (java.time.format.DateTimeParseException ex) {
+                throw new TreeService.BadRequest("since is an ISO-8601 instant, e.g. 2026-10-12T08:00:00Z");
+            }
+        }
+        Long ms = millis;
+        return write(envName, confirm, "resync", (v, e) -> Operate.resync(Operate.vaultEngine(v), e, d, ms, true, confirm, tree));
+    }
+
+    /** `driver.migrate --direction app`: `MigrateApp` with an XDS query document. */
+    public Map<String, Object> migrateFromApp(String envName, String driver, String xds, String confirm) throws IOException {
+        String d = need(driver, "driver");
+        if (xds == null || xds.isBlank()) {
+            throw new TreeService.BadRequest("no XDS document");
+        }
+        return write(envName, confirm, "migrate", (v, e) -> Operate.migrate(Operate.vaultEngine(v), e, d, xds.getBytes(java.nio.charset.StandardCharsets.UTF_8), true, confirm, tree));
+    }
+
+    /**
+     * `driver.submit`: an XDS command into the running driver's subscriber channel; with {@code canary}, the
+     * simulator runs the same command on the workspace's tree first and the shim's received document is
+     * compared with it (MATCH / MISMATCH), as the CLI does.
+     */
+    public Map<String, Object> submit(String envName, String driver, String xds, boolean canary, String confirm) throws IOException {
+        String d = need(driver, "driver");
+        if (xds == null || xds.isBlank()) {
+            throw new TreeService.BadRequest("no XDS document");
+        }
+        Environments.Environment e = env(envName);
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("environment", e.name);
+        m.put("driver", d);
+        m.put("action", "submit");
+        String refusal = gate(e.name, confirm);
+        if (refusal != null) {
+            m.put("ok", false);
+            m.put("text", refusal);
+            return m;
+        }
+        try (Vault vault = Vault.connect(e.vaultConfig())) {
+            com.pointblue.dirxml.dev.operate.Submit.Outcome o;
+            try {
+                o = com.pointblue.dirxml.dev.operate.Submit.run(vault, e, d, com.pointblue.dirxml.dev.deploy.VaultMapping.driverDn(e.driverSetDn, d), xds, canary ? tree : null);
+            } catch (IOException ex) {
+                m.put("ok", false);
+                m.put("text", ex.getMessage());
+                return m;
+            }
+            com.pointblue.dirxml.dev.deploy.DeployLog.Record rec = com.pointblue.dirxml.dev.deploy.DeployLog.record(e.name, "operate");
+            rec.outcome = o.matches != null && !o.matches ? "failed" : "ok";
+            rec.detail = "driver.submit '" + d + "': SubmitCommand from the web" + (o.matches == null ? "" : o.matches ? " — canary MATCH" : " — canary MISMATCH");
+            com.pointblue.dirxml.dev.deploy.DeployLog.append(tree, rec);
+            m.put("ok", o.matches == null || o.matches);
+            m.put("canary", o.matches == null ? null : o.matches ? "MATCH" : "MISMATCH");
+            m.put("text", o.text());
+            return m;
+        }
+    }
+
+    /** `driver.secrets list`: the driver's named passwords in the vault, names only. */
+    public Map<String, Object> namedPasswords(String envName, String driver) throws IOException {
+        String d = need(driver, "driver");
+        return read(envName, (v, e) -> Operate.secretsList(Operate.vaultEngine(v), e, d));
+    }
+
+    /**
+     * `driver.secrets set|remove` for a named password in the vault. The value is write-only: it goes to the engine's
+     * {@code SetNamedPassword} and is zeroed; it never appears in the response, the deploy log or the audit summary.
+     */
+    public Map<String, Object> namedPassword(String envName, String driver, String action, String name, char[] value, String confirm) throws IOException {
+        String d = need(driver, "driver");
+        String n = need(name, "named password");
+        if (!List.of("set", "remove").contains(action == null ? "" : action)) {
+            if (value != null) {
+                java.util.Arrays.fill(value, '\0');
+            }
+            throw new TreeService.BadRequest("action is set or remove");
+        }
+        if ("remove".equals(action)) {
+            return write(envName, confirm, "named-password-remove", (v, e) -> Operate.secretsRemove(Operate.vaultEngine(v), e, d, "named", n, true, confirm, tree));
+        }
+        if (value == null || value.length == 0) {
+            throw new TreeService.BadRequest("no value for the named password");
+        }
+        Environments.Environment e = env(envName);
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("environment", e.name);
+        m.put("driver", d);
+        m.put("action", "named-password-set");
+        m.put("name", n);
+        String refusal = gate(e.name, confirm);
+        if (refusal != null) {
+            java.util.Arrays.fill(value, '\0');
+            m.put("ok", false);
+            m.put("text", refusal);
+            return m;
+        }
+        String error = null;
+        try (Vault vault = Vault.connect(e.vaultConfig())) {
+            vault.setNamedPassword(com.pointblue.dirxml.dev.deploy.VaultMapping.driverDn(e.driverSetDn, d), n, n, value);   // zeroes the value
+        } catch (RuntimeException ex) {
+            error = ex.getMessage();
+        } finally {
+            java.util.Arrays.fill(value, '\0');
+        }
+        com.pointblue.dirxml.dev.deploy.DeployLog.Record rec = com.pointblue.dirxml.dev.deploy.DeployLog.record(e.name, "operate");
+        rec.outcome = error == null ? "ok" : "failed";
+        if (error == null) {
+            rec.secretsSet.add(d + ".named." + n);
+        }
+        rec.detail = "driver.secrets set '" + d + "': named password '" + n + "' from the web" + (error != null ? " — " + error : "");
+        com.pointblue.dirxml.dev.deploy.DeployLog.append(tree, rec);
+        m.put("ok", error == null);
+        m.put("text", error == null ? "set named password '" + n + "' on '" + d + "'" : "FAILED   " + error);
+        return m;
+    }
+
     /** `driver.health`: the Driver Health job's last state per server, the health configuration, the set's health jobs. */
     public Map<String, Object> health(String envName, String driver) throws IOException {
         String d = need(driver, "driver");
@@ -791,6 +1008,7 @@ public final class VaultService {
         } catch (RuntimeException ex) {
             m.put("ok", r.ok);
         }
+        m.putIfAbsent("ok", r.ok);   // some core results (driver.status) carry no ok of their own
         m.put("environment", e.name);
         m.put("text", r.text());
         return m;

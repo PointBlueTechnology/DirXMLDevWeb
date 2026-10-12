@@ -4,7 +4,7 @@ import { EnvPicker, useEnvironment } from "../env";
 import { CachePanel } from "./CachePanel";
 import { EventsView } from "./EventsView";
 import { TraceViewer } from "./TraceViewer";
-import type { DeployResult, Outline, Selection, VaultDiffResult, VaultStatus, VaultSnapshot, DriverAssociations, ObjectInspection, PasswordSync, VaultJobs, VaultPolicies, PolicyMembers, AppQueryResult, DriverHealth, LogLevel, DriverRights, DriverSetAdmin, EngineMetrics, WorkOrders, EmailServer } from "../types";
+import type { DeployResult, Outline, Selection, VaultDiffResult, VaultStatus, VaultSnapshot, DriverAssociations, ObjectInspection, PasswordSync, VaultJobs, VaultPolicies, PolicyMembers, AppQueryResult, DriverHealth, LogLevel, DriverRights, DriverSetAdmin, EngineMetrics, WorkOrders, EmailServer, EngineInfo, DriverDetail, TraceShow, NamedPasswords, SimCase } from "../types";
 
 type Tab = "compare" | "drivers" | "set" | "jobs" | "policies" | "objects" | "trace" | "events";
 
@@ -436,6 +436,7 @@ function Drivers({ env, onFix, onSelect, onSaved }: { env: string; onFix: () => 
   const [cacheOf, setCacheOf] = useState<string | null>(null);
   const [assocOf, setAssocOf] = useState<string | null>(null);
   const [opsOf, setOpsOf] = useState<string | null>(null);
+  const [manageOf, setManageOf] = useState<string | null>(null);
   const [startOpts, setStartOpts] = useState<Record<string, string>>({});
   const [status, setStatus] = useState<VaultStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -502,6 +503,7 @@ function Drivers({ env, onFix, onSelect, onSaved }: { env: string; onFix: () => 
       </div>
       {error && <VaultError message={error} onFix={onFix} />}
       {last && <pre className={last.ok ? "outcome" : "outcome err-text"}>{last.text}</pre>}
+      <EngineStrip env={env} />
       {status && (
         <table className="grid" data-testid="vault-drivers">
           <thead>
@@ -538,6 +540,9 @@ function Drivers({ env, onFix, onSelect, onSaved }: { env: string; onFix: () => 
                   </button>{" "}
                   <button className="mini" onClick={() => setOpsOf(opsOf === d.name ? null : d.name)} title="Health, log level and effective rights of the driver" data-testid={"ops-view-" + d.name}>
                     {opsOf === d.name ? "hide" : "health"}
+                  </button>{" "}
+                  <button className="mini" onClick={() => setManageOf(manageOf === d.name ? null : d.name)} title="Status, trace file and reset, resync, migrate, submit, named passwords" data-testid={"manage-view-" + d.name}>
+                    {manageOf === d.name ? "hide" : "manage"}
                   </button>
                 </td>
                 <td className="nowrap">
@@ -576,8 +581,267 @@ function Drivers({ env, onFix, onSelect, onSaved }: { env: string; onFix: () => 
       )}
       {assocOf && <AssociationsPanel key={assocOf} env={env} driver={assocOf} onClose={() => setAssocOf(null)} />}
       {opsOf && <DriverOpsPanel key={opsOf} env={env} driver={opsOf} armed={armed} confirm={confirm} onClose={() => setOpsOf(null)} />}
+      {manageOf && <DriverManagePanel key={manageOf} env={env} driver={manageOf} armed={armed} confirm={confirm} onSelect={onSelect} onClose={() => setManageOf(null)} />}
       {cacheOf && <CachePanel key={cacheOf} env={env} driver={cacheOf} armed={armed} confirm={confirm} deployer onClose={() => setCacheOf(null)} onSaved={onSaved} onSimulator={() => onSelect({ type: "simulator" })} />}
     </div>
+  );
+}
+
+/** The engine's version and statistics: JVM heap and threads, and each driver's counters (`engine.version`, `engine.stats`). */
+function EngineStrip({ env }: { env: string }) {
+  const [data, setData] = useState<EngineInfo | null>(null);
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const load = () => {
+    setBusy(true);
+    api.vault
+      .engine(env)
+      .then((d) => (setData(d), setError(null)))
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setBusy(false));
+  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(load, [env]);
+  const jvm = data?.stats.jvm;
+  return (
+    <div className="addrow tight small" data-testid="engine-strip">
+      <b>Engine</b>
+      {error ? <span className="muted">{error}</span> : !data ? <span className="muted">reading…</span> : (
+        <>
+          <span>{data.version.ok ? data.version.version ?? data.version.text.trim() : data.version.error ?? "version unknown"}</span>
+          {jvm && (
+            <span className="muted">
+              · heap {jvm.heapUsed} used of {jvm.heapCommitted} (max {jvm.heapTotal}) · threads {jvm.threadsCurrent} ({jvm.threadsDaemon} daemon, peak {jvm.threadsPeak})
+            </span>
+          )}
+        </>
+      )}
+      <button className="mini" onClick={load} disabled={busy}>
+        {busy ? "…" : "refresh"}
+      </button>
+      {data?.stats.drivers && data.stats.drivers.length > 0 && (
+        <button className="mini" onClick={() => setOpen(!open)}>
+          {open ? "hide counters" : "driver counters"}
+        </button>
+      )}
+      {open && data?.stats.drivers && (
+        <table className="grid" style={{ width: "100%" }} data-testid="engine-counters">
+          <thead>
+            <tr>
+              <th>Driver</th>
+              <th>Cache</th>
+              <th>Unprocessed</th>
+              <th>Reported events</th>
+              <th>Commands</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.stats.drivers.map((d) => (
+              <tr key={d.name}>
+                <td>{d.name}</td>
+                <td>{d.cacheSize}</td>
+                <td>{d.unprocessedSize}</td>
+                <td>{d.reportedEvents}</td>
+                <td>{d.commands}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+
+/**
+ * One driver managed from the page (#68, #69): its status as `driver.status` reports it with recent audit lines, the
+ * trace file and reset, the trace file read over SSH into the Trace Viewer, resync, migrate from the application,
+ * submit an XDS command (with the simulator canary), and the driver's named passwords in the vault.
+ */
+function DriverManagePanel({ env, driver, armed, confirm, onSelect, onClose }: { env: string; driver: string; armed: boolean; confirm: string; onSelect: (s: Selection) => void; onClose: () => void }) {
+  const [status, setStatus] = useState<DriverDetail | null>(null);
+  const [trace, setTrace] = useState<TraceShow | null>(null);
+  const [names, setNames] = useState<NamedPasswords | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [last, setLast] = useState<{ ok: boolean; text: string; open?: string } | null>(null);
+  const [file, setFile] = useState("");
+  const [tailLines, setTailLines] = useState("500");
+  const [tailGrep, setTailGrep] = useState("");
+  const [tailSince, setTailSince] = useState("");
+  const [since, setSince] = useState("");
+  const [xds, setXds] = useState("");
+  const [canary, setCanary] = useState(true);
+  const [cases, setCases] = useState<SimCase[] | null>(null);
+  const [pwName, setPwName] = useState("");
+  const [pwValue, setPwValue] = useState("");
+  const load = () => {
+    setBusy("Reading…");
+    Promise.all([api.vault.driverStatus(env, driver), api.vault.traceShow(env, driver), api.vault.namedPasswords(env, driver)])
+      .then(([s, t, n]) => (setStatus(s), setTrace(t), setNames(n), setFile(String(t.file ?? "")), setError(null)))
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setBusy(null));
+  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(load, [env, driver]);
+  const run = (label: string, p: Promise<{ ok: boolean; text: string; canary?: string | null; stored?: string }>, after?: () => void) => {
+    setBusy(label);
+    setLast(null);
+    p.then((r) => (setLast({ ok: r.ok, text: r.text + (r.canary ? `\ncanary: ${r.canary}` : ""), open: r.stored }), after ? after() : load()))
+      .catch((e: Error) => setLast({ ok: false, text: e.message }))
+      .finally(() => setBusy(null));
+  };
+  const pickCase = (name: string) => {
+    if (!name) return;
+    api.sim
+      .files(name)
+      .then((f) => setXds(f.input ?? ""))
+      .catch((e: Error) => setLast({ ok: false, text: e.message }));
+  };
+  const showCases = () => {
+    if (cases) return;
+    api.sim
+      .cases()
+      .then((c) => setCases(c.cases))
+      .catch(() => setCases([]));
+  };
+  return (
+    <section className="block" data-testid="manage-panel">
+      <div className="addrow tight">
+        <h4 style={{ margin: 0 }}>{driver}: status, trace, operations, named passwords</h4>
+        {busy && <span className="muted small">{busy}</span>}
+        <span className="spacer" />
+        <button className="mini" onClick={load} disabled={busy !== null}>
+          refresh
+        </button>
+        <button className="mini" onClick={onClose}>
+          close
+        </button>
+      </div>
+      {error && <div className="banner error">{error}</div>}
+      {last && (
+        <div>
+          <pre className={last.ok ? "outcome" : "outcome err-text"}>{last.text}</pre>
+          {last.open && (
+            <button className="mini" onClick={() => onSelect({ type: "trace", file: last.open as string })} data-testid="tail-open">
+              Open in the Trace Viewer
+            </button>
+          )}
+        </div>
+      )}
+
+      <h4>Status</h4>
+      {status && !status.ok && <p className="muted small">{status.error ?? status.text}</p>}
+      {status && status.ok && (
+        <>
+          <table className="grid" data-testid="driver-status">
+            <tbody>
+              <tr><td>DN</td><td className="small"><code>{status.dn}</code></td></tr>
+              <tr><td>State</td><td>{status.state} · start option {status.startOption}</td></tr>
+              <tr><td>Cache</td><td>{status.cacheSize} · unprocessed {status.unprocessedSize}</td></tr>
+              <tr><td>Trace</td><td>level {status.traceLevel ?? "-"} · file {status.traceFile || "-"}</td></tr>
+              <tr><td>Named passwords</td><td className="small">{(status.namedPasswords ?? []).length === 0 ? <span className="muted">none</span> : (status.namedPasswords ?? []).join(", ")}</td></tr>
+            </tbody>
+          </table>
+          {(status.audit ?? []).length > 0 && (
+            <details>
+              <summary className="small">Recent audit lines ({(status.audit ?? []).length})</summary>
+              <ul className="plain small">
+                {(status.audit ?? []).map((a, i) => (
+                  <li key={i}>
+                    <span className="muted">{a.timestamp}</span> <span className={a.outcome === "ok" ? "pill ok" : "pill err"}>{a.outcome}</span> {a.detail}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+        </>
+      )}
+
+      <h4>Trace</h4>
+      {trace && trace.ok && (
+        <p className="small">
+          Level {trace.level ?? "-"} · file <code>{trace.file || "-"}</code>
+        </p>
+      )}
+      <div className="addrow tight">
+        <input className="wide" value={file} onChange={(e) => setFile(e.target.value)} placeholder="/var/opt/novell/eDirectory/log/driver.trace (empty: no file)" spellCheck={false} disabled={!armed || busy !== null} data-testid="trace-file" />
+        <button className="mini" disabled={!armed || busy !== null || file === String(trace?.file ?? "")} onClick={() => run("Setting the trace file…", api.vault.traceFile(env, driver, file, confirm))} data-testid="trace-file-set">
+          Set file
+        </button>
+        <button className="mini" disabled={!armed || busy !== null} onClick={() => run("Resetting the trace…", api.vault.traceReset(env, driver, confirm))} title="Back to the level and file from before the last recorded trace change" data-testid="trace-reset">
+          Reset to previous
+        </button>
+      </div>
+      {trace?.sshTail ? (
+        <div className="addrow tight">
+          <span className="small">Read the trace file over SSH:</span>
+          <input value={tailLines} onChange={(e) => setTailLines(e.target.value.replace(/[^0-9]/g, ""))} placeholder="lines" style={{ width: 70 }} disabled={!armed || busy !== null} />
+          <input value={tailSince} onChange={(e) => setTailSince(e.target.value.replace(/[^0-9]/g, ""))} placeholder="or the last N minutes" style={{ width: 150 }} disabled={!armed || busy !== null} />
+          <input value={tailGrep} onChange={(e) => setTailGrep(e.target.value)} placeholder="grep" spellCheck={false} style={{ width: 160 }} disabled={!armed || busy !== null} />
+          <button className="mini" disabled={!armed || busy !== null} onClick={() => run("Reading the trace file…", api.vault.traceTail(env, driver, { lines: Number(tailLines || 500), grep: tailGrep || undefined, since: tailSince ? Number(tailSince) : undefined, confirm }), () => undefined)} data-testid="trace-tail">
+            Read
+          </button>
+        </div>
+      ) : (
+        <p className="muted small">The environment names no SSH host, so its trace file can't be read from here; the Trace tab's live stream works without one.</p>
+      )}
+
+      <h4>Resync</h4>
+      <div className="addrow tight">
+        <input value={since} onChange={(e) => setSince(e.target.value)} placeholder="since (ISO-8601; empty: a full resync)" spellCheck={false} style={{ width: 280 }} disabled={!armed || busy !== null} />
+        <button className="mini" disabled={!armed || busy !== null} onClick={() => run("Resyncing…", api.vault.resync(env, driver, since.trim() || undefined, confirm))} data-testid="resync">
+          Resync
+        </button>
+        <span className="muted small">The driver must be running.</span>
+      </div>
+
+      <h4>Migrate from the application, or submit a command</h4>
+      <div className="addrow tight">
+        <select onFocus={showCases} onChange={(e) => pickCase(e.target.value)} defaultValue="" title="Fill the editor with a simulator case's input">
+          <option value="">from a simulator case…</option>
+          {(cases ?? []).filter((c) => !c.driver || c.driver === driver).map((c) => (
+            <option key={c.name} value={c.name}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+        <label className="checkchip small" title="Run the same command through the simulator on the workspace's tree first, and compare what the shim received with it">
+          <input type="checkbox" checked={canary} onChange={(e) => setCanary(e.target.checked)} /> canary on submit
+        </label>
+      </div>
+      <textarea className="mono" rows={8} style={{ width: "100%" }} value={xds} onChange={(e) => setXds(e.target.value)} placeholder="<nds dtdversion=&quot;4.0&quot;><input><query class-name=&quot;User&quot; scope=&quot;subtree&quot;>…</query></input></nds>" spellCheck={false} data-testid="xds" />
+      <div className="addrow tight">
+        <button className="mini" disabled={!armed || busy !== null || !xds.trim()} onClick={() => run("Migrating…", api.vault.migrate(env, driver, xds, confirm))} title="MigrateApp: the engine queries the application with this document and synchronizes what it finds" data-testid="migrate">
+          Migrate from the application
+        </button>
+        <button className="mini" disabled={!armed || busy !== null || !xds.trim()} onClick={() => run("Submitting…", api.vault.submit(env, driver, xds, canary, confirm))} title="SubmitCommand: the document goes down the running driver's subscriber channel" data-testid="submit">
+          Submit command
+        </button>
+      </div>
+
+      <h4>Named passwords in the vault</h4>
+      {names && names.ok && (
+        <p className="small">
+          {(names.names ?? []).length === 0 ? <span className="muted">None set on the driver.</span> : (names.names ?? []).map((n) => (
+            <span key={n} style={{ marginRight: 12 }}>
+              <code>{n}</code>{" "}
+              <button className="mini" disabled={!armed || busy !== null} onClick={() => run("Removing…", api.vault.namedPassword(env, driver, "remove", n, undefined, confirm))} data-testid={"pw-remove-" + n}>
+                remove
+              </button>
+            </span>
+          ))}
+        </p>
+      )}
+      <div className="addrow tight">
+        <input value={pwName} onChange={(e) => setPwName(e.target.value)} placeholder="name" spellCheck={false} style={{ width: 180 }} disabled={!armed || busy !== null} />
+        <input type="password" value={pwValue} onChange={(e) => setPwValue(e.target.value)} placeholder="value (never shown again)" autoComplete="new-password" style={{ width: 220 }} disabled={!armed || busy !== null} />
+        <button className="mini" disabled={!armed || busy !== null || !pwName.trim() || !pwValue} onClick={() => (run("Setting the named password…", api.vault.namedPassword(env, driver, "set", pwName.trim(), pwValue, confirm)), setPwValue(""))} data-testid="pw-set">
+          Set
+        </button>
+        <span className="muted small">Written to the driver in the vault; the local secrets file a deploy reads is under Connections.</span>
+      </div>
+    </section>
   );
 }
 

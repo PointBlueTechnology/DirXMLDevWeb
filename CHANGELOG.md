@@ -7,6 +7,19 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- **Engine strip** on the Drivers tab (#69): the engine's version, JVM heap and threads, each driver's
+  counters (`GET /api/vault/engine`).
+- **manage** on each driver (#68, #69): `driver.status` with recent audit lines; the trace file set or
+  reset to its previous level and file; the trace file read over SSH with lines, minutes and grep, kept
+  as one of your trace files and opened in the Trace Viewer; resync (full or since an instant); migrate
+  from the application and submit an XDS command (with the simulator canary, MATCH or MISMATCH, and a
+  simulator case's input to start from); the driver's named passwords in the vault listed, set and
+  removed, values write-only. (`GET /api/vault/driver-status`, `/trace-show`, `/named-passwords`;
+  `POST /api/vault/trace-level` now also takes `file`, `/trace-reset`, `/trace-tail`, `/resync`,
+  `/migrate`, `/submit`, `/named-password`; every write a deployer's, with the environment's name typed.)
+
 ## [0.38.0] - 2026-10-11
 
 ### Changed

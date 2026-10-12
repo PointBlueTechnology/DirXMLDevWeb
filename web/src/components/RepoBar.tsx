@@ -12,6 +12,17 @@ export function RepoBar({ session, revision, onWorkspaceChanged, onBusy, onAddPr
   const [status, setStatus] = useState<GitStatus | null>(null);
   const [info, setInfo] = useState<WorkspacesInfo | null>(null);
   const [message, setMessage] = useState("");
+  // a suggested message from a change made elsewhere on the page (#67: "Capture drift from <env>"); never over one being typed
+  useEffect(() => {
+    const on = (e: Event) => {
+      const m = (e as CustomEvent<string>).detail;
+      if (typeof m === "string") {
+        setMessage((cur) => (cur.trim() ? cur : m));
+      }
+    };
+    window.addEventListener("idmweb:suggest-commit", on);
+    return () => window.removeEventListener("idmweb:suggest-commit", on);
+  }, []);
   const [busy, setBusy] = useState<string | null>(null);
   const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
   const [branch, setBranch] = useState("");

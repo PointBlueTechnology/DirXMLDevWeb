@@ -129,6 +129,8 @@ public final class VaultService {
         public String secretsMode = "none";
         public boolean allowMissingSecrets;
         public List<String> deleteDrivers = List.of();
+        /** {@code --capture-drift}: a production environment whose current state is unknown has it captured first (#67). */
+        public boolean captureDrift;
     }
 
     public Map<String, Object> plan(String envName, List<String> drivers, boolean restart, String secretsMode) throws IOException {
@@ -254,6 +256,7 @@ public final class VaultService {
         }
         o.allowMissingSecrets = c.allowMissingSecrets;
         o.deleteDrivers = c.deleteDrivers == null ? List.of() : c.deleteDrivers;
+        o.captureDrift = c.captureDrift;
         return o;
     }
 
@@ -274,6 +277,15 @@ public final class VaultService {
         m.put("verified", r.verified);
         m.put("verify", r.verifyText);
         m.put("text", r.text());
+        // the production gate: an unknown or drifted current state is refused until it is captured (#67)
+        String why = r.refusal == null ? "" : r.refusal;
+        if (why.contains("--capture-drift")) {
+            m.put("driftRefused", true);
+        }
+        java.util.regex.Matcher cap = java.util.regex.Pattern.compile("as branch (as-found/[^\\s]+)").matcher(why);
+        if (cap.find()) {
+            m.put("capturedBranch", cap.group(1));
+        }
         return m;
     }
 
@@ -568,6 +580,28 @@ public final class VaultService {
             throw new TreeService.BadRequest("no " + what + " named");
         }
         return v.trim();
+    }
+
+    // ---- #67: the vault's state, for the tree ----
+
+    /**
+     * The live driver set as {@code idm import-live --env} reads it: every attribute, the other servers' own driver
+     * settings, and a shim auth id the environment's secrets file supplies removed (it never lands in the tree).
+     */
+    public DriverSet liveForPull(String envName, List<String> notes) throws IOException {
+        Environments.Environment e = env(envName);
+        DriverSet live = com.pointblue.dirxml.dev.deploy.VaultDiff.readLive(e, notes::add);
+        if (e.secretsFile != null) {
+            for (String d : com.pointblue.dirxml.dev.deploy.Overrides.stripSecretShimAuthIds(live, com.pointblue.dirxml.dev.deploy.Secrets.load(e.secretsFile))) {
+                notes.add("secret: '" + d + "'.shim-auth-id kept out of the tree (the secrets file supplies it)");
+            }
+        }
+        return live;
+    }
+
+    /** The environment's name as the environments file has it (for the overrides file's name). */
+    public String environmentName(String envName) throws IOException {
+        return env(envName).name;
     }
 
     // ---- #69: engine, driver status, trace show/file/reset/tail ----

@@ -1,10 +1,12 @@
+import { DiffEditor } from "@monaco-editor/react";
+import { monacoTheme } from "../monaco";
 import { Fragment, useEffect, useState } from "react";
-import { api } from "../api";
+import { ApiError, api } from "../api";
 import { EnvPicker, useEnvironment } from "../env";
 import { CachePanel } from "./CachePanel";
 import { EventsView } from "./EventsView";
 import { TraceViewer } from "./TraceViewer";
-import type { DeployResult, Outline, Selection, VaultDiffResult, VaultStatus, VaultSnapshot, DriverAssociations, ObjectInspection, PasswordSync, VaultJobs, VaultPolicies, PolicyMembers, AppQueryResult, DriverHealth, LogLevel, DriverRights, DriverSetAdmin, EngineMetrics, WorkOrders, EmailServer, EngineInfo, DriverDetail, TraceShow, NamedPasswords, SimCase } from "../types";
+import type { FileDiff, PullResult, DeployResult, Outline, Selection, VaultDiffResult, VaultStatus, VaultSnapshot, DriverAssociations, ObjectInspection, PasswordSync, VaultJobs, VaultPolicies, PolicyMembers, AppQueryResult, DriverHealth, LogLevel, DriverRights, DriverSetAdmin, EngineMetrics, WorkOrders, EmailServer, EngineInfo, DriverDetail, TraceShow, NamedPasswords, SimCase } from "../types";
 
 type Tab = "compare" | "drivers" | "set" | "jobs" | "policies" | "objects" | "trace" | "events";
 
@@ -115,18 +117,122 @@ function VaultError({ message, onFix }: { message: string; onFix: () => void }) 
   );
 }
 
+/**
+ * The vault's state into this branch (#67, `idm import-live --env`): read live, written into a copy of the tree, the
+ * files that would change shown before and after; Apply writes exactly those, then the commit bar takes it from there.
+ */
+function PullDialog({ env, drivers, onClose, onApplied }: { env: string; drivers: string[]; onClose: () => void; onApplied: (r: PullResult) => void }) {
+  const [result, setResult] = useState<PullResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(true);
+  const [selected, setSelected] = useState(0);
+  const run = async (dryRun: boolean) => {
+    setBusy(true);
+    setError(null);
+    try {
+      // the dry run plans against the tree as it is now; the apply must match the revision it reviewed
+      const r = await api.vault.pull(env, drivers, dryRun, dryRun ? "" : result?.revision ?? "");
+      if (!dryRun) {
+        onApplied(r);
+        return;
+      }
+      setResult(r);
+    } catch (e) {
+      setError(e instanceof ApiError && e.status === 409 ? "The tree changed on disk while this was open. Close, let the page reload, and review again." : e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  useEffect(() => {
+    void run(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const diffs: FileDiff[] = result?.diffs ?? [];
+  const diff = diffs[selected];
+  const nothing = !!result && result.changedFiles.length === 0 && result.deletedFiles.length === 0;
+  return (
+    <div className="modal-back" role="dialog" aria-modal="true">
+      <div className="modal" data-testid="pull-dialog">
+        <div className="modal-head">
+          <h3>Take {env}'s state into this branch{drivers.length ? `: ${drivers.join(", ")}` : ""}</h3>
+          <span className="muted small">Nothing is written until you apply.</span>
+        </div>
+        <div className="modal-body">
+          <div className="modal-side">
+            <h4>Files</h4>
+            {diffs.length === 0 ? (
+              <p className="muted small">{busy ? "…" : "none"}</p>
+            ) : (
+              <ul className="filelist">
+                {diffs.map((d, i) => (
+                  <li key={d.file}>
+                    <button className={i === selected ? "leaf active" : "leaf"} onClick={() => setSelected(i)} title={d.file}>
+                      <span className={"badge st-" + d.status}>{d.status === "changed" ? "M" : d.status === "added" ? "A" : "D"}</span>
+                      {d.file.split("/").slice(-2).join("/")}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <div className="modal-diff">
+            {diff && diff.before !== undefined && diff.after !== undefined ? (
+              <DiffEditor key={diff.file} language={diff.language} original={diff.before} modified={diff.after} theme={monacoTheme()} options={{ readOnly: true, renderSideBySide: true, minimap: { enabled: false }, scrollBeyondLastLine: false }} />
+            ) : (
+              <p className="muted pad">{busy ? "Reading the vault and writing it into a copy of the tree…" : diff ? "This file is not shown as text." : "No file would change: the branch already holds the vault's state."}</p>
+            )}
+          </div>
+        </div>
+        <div className="modal-result">
+          {error && <p className="err-text">{error}</p>}
+          {result && (
+            <p className="small">
+              {result.changedFiles.length} file(s) would be written, {result.deletedFiles.length} removed.
+              {result.unresolvedLinks > 0 ? ` ${result.unresolvedLinks} link(s) resolve to nothing in the result.` : ""}
+            </p>
+          )}
+          {result && result.notes.length > 0 && (
+            <ul className="plain small">
+              {result.notes.map((n, i) => (
+                <li key={i}>{n}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <div className="modal-foot">
+          <span className="muted small">Applying writes the files into this branch's tree; commit them from the bar at the top.</span>
+          <button onClick={onClose} disabled={busy}>
+            Cancel
+          </button>
+          <button className="primary" disabled={busy || !result || nothing} onClick={() => void run(false)} data-testid="pull-apply">
+            Apply
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Compare({ env, drivers, revision, onOpen, onFix }: { env: string; drivers: string[]; revision: string; onOpen: (path: string) => void; onFix: () => void }) {
   const [only, setOnly] = useState<string>("");
   const [restart, setRestart] = useState(true);
   const [secrets, setSecrets] = useState<"none" | "missing" | "all">("none");
   const [allowMissing, setAllowMissing] = useState(false);
+  const [captureDrift, setCaptureDrift] = useState(false);
+  const [pulling, setPulling] = useState(false);
+  const [merged, setMerged] = useState<{ ok: boolean; text: string } | null>(null);
   const [deleteDrivers, setDeleteDrivers] = useState<string[]>([]);
   const [snapshots, setSnapshots] = useState<VaultSnapshot[] | null>(null);
   const [showSnapshots, setShowSnapshots] = useState(false);
   const [rollbackOf, setRollbackOf] = useState<VaultSnapshot | null>(null);
   const [rollbackConfirm, setRollbackConfirm] = useState("");
   const [rollbackResult, setRollbackResult] = useState<DeployResult | null>(null);
-  const choices = { restart, secrets, allowMissingSecrets: allowMissing, deleteDrivers };
+  const choices = { restart, secrets, allowMissingSecrets: allowMissing, deleteDrivers, captureDrift };
+  const mergeCaptured = (branch: string) =>
+    api.git
+      .mergeCaptured(branch)
+      .then((r) => setMerged({ ok: r.merged, text: r.message + (r.conflicts && r.conflicts.length ? "\n" + r.conflicts.join("\n") : "") }))
+      .catch((e: Error) => setMerged({ ok: false, text: e.message }));
   const loadSnapshots = () =>
     api.vault
       .snapshots(env)
@@ -197,6 +303,20 @@ function Compare({ env, drivers, revision, onOpen, onFix }: { env: string; drive
 
   return (
     <div className="pad">
+      {pulling && (
+        <PullDialog
+          env={env}
+          drivers={scope}
+          onClose={() => setPulling(false)}
+          onApplied={(r) => {
+            setPulling(false);
+            setDiff(null);
+            setPlan(null);
+            setResult(null);
+            window.dispatchEvent(new CustomEvent("idmweb:suggest-commit", { detail: `Capture drift from ${env}${r.drivers.length ? ` (${r.drivers.join(", ")})` : ""}` }));
+          }}
+        />
+      )}
       <div className="addrow">
         <label className="field">
           <em>Scope</em>
@@ -211,6 +331,9 @@ function Compare({ env, drivers, revision, onOpen, onFix }: { env: string; drive
         </label>
         <button onClick={compare} disabled={busy !== null} data-testid="vault-compare">
           Compare
+        </button>
+        <button onClick={() => setPulling(true)} disabled={busy !== null} title="Read the vault and write its state into this branch's tree (import-live), reviewed first; with overrides/, the environment's values go to its overrides file" data-testid="vault-pull">
+          Take the vault's state into this branch…
         </button>
         {busy && <span className="muted">{busy}</span>}
       </div>
@@ -299,6 +422,9 @@ function Compare({ env, drivers, revision, onOpen, onFix }: { env: string; drive
                 <label className="checkchip" title="A first deploy of a driver refuses when a secret it needs is not provided; allow it to create the driver stopped and list what to set">
                   <input type="checkbox" checked={allowMissing} onChange={(e) => (setAllowMissing(e.target.checked), setPlan(null))} data-testid="vault-allow-missing" /> allow missing secrets on a first deploy
                 </label>
+                <label className="checkchip" title="A production deploy needs the vault's current state known. When it is unknown or has drifted, capture it first as an as-found branch (vault.deploy --capture-drift); the deploy then stops so your change can go on top of it">
+                  <input type="checkbox" checked={captureDrift} onChange={(e) => (setCaptureDrift(e.target.checked), setPlan(null))} data-testid="vault-capture-drift" /> capture drift first
+                </label>
                 <button onClick={makePlan} disabled={busy !== null || stale} data-testid="vault-plan">
                   Plan the deploy
                 </button>
@@ -331,6 +457,25 @@ function Compare({ env, drivers, revision, onOpen, onFix }: { env: string; drive
           <pre className="outcome" data-testid="vault-result">
             {result.refusal ?? result.text}
           </pre>
+          {result.driftRefused && !result.capturedBranch && !captureDrift && (
+            <p className="small">
+              The vault's current state is unknown or has drifted.{" "}
+              <button className="link" onClick={() => setCaptureDrift(true)} data-testid="vault-offer-capture">
+                Capture it first
+              </button>{" "}
+              and deploy again.
+            </p>
+          )}
+          {result.capturedBranch && (
+            <p className="small">
+              Captured as <code>{result.capturedBranch}</code>.{" "}
+              <button className="link" onClick={() => mergeCaptured(result.capturedBranch!)} data-testid="vault-merge-captured">
+                Merge it into this branch
+              </button>{" "}
+              so your change sits on top of what the vault holds, then commit, compare and deploy again.
+            </p>
+          )}
+          {merged && <pre className={merged.ok ? "outcome" : "outcome err-text"}>{merged.text}</pre>}
           {result.snapshot && (
             <p className="muted small">
               Snapshot: <code>{result.snapshot}</code>{" "}

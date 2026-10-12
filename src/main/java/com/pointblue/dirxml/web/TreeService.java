@@ -804,6 +804,160 @@ public final class TreeService {
         return Files.isRegularFile(p) ? Files.size(p) : 0;
     }
 
+    // ---- #67: take the vault's state into this branch ----
+
+    /**
+     * The paths a read of the vault owns in a tree — the ones cleared before the live state is written, so an object
+     * the vault no longer holds leaves no file behind. DirXMLDev 0.27.0 publishes the same list as
+     * {@code AsCodeWriter.MANAGED_PATHS}; this copy keeps the web on 0.26.0 until it moves.
+     */
+    static final List<String> VAULT_OWNED = List.of(AsCodeWriter.DRIVERSET_MANIFEST, AsCodeWriter.CONFIG_VALUES_FILE, "library", "drivers", "jobs", "rbe-policies", "templates");
+
+    /** The tree's current revision, or {@link Stale} when it moved since {@code revision} (checked before slow work too). */
+    public synchronized String requireRevision(String revision) {
+        String current = watcher.refreshNow();
+        if (revision == null || !revision.equals(current)) {
+            throw new Stale("the tree changed since this was planned (planned against " + revision + ", now " + current + "); reload and try again");
+        }
+        return current;
+    }
+
+    /**
+     * Write the vault's state into this workspace's tree, as {@code idm import-live --env} does: the whole driver set,
+     * or only the {@code drivers} named (the rest of the tree as it is); with an {@code overrides/} directory the
+     * environment's differing values go to {@code overrides/<env>.properties} and the base files keep their base
+     * values ({@code Overrides.foldBack}). {@code live} comes with any secret shim auth id already removed.
+     *
+     * <p>Planned against a throwaway copy: a dry run returns each file that would change, before and after; an apply
+     * copies exactly those files into the tree (and deletes the ones the vault no longer has), refused when the tree
+     * moved since {@code revision} (the one the dry run returned).
+     */
+    public synchronized Map<String, Object> pull(DriverSet live, String envName, List<String> drivers, boolean dryRun, String revision, List<String> notes) throws IOException {
+        // a dry run plans against the tree as it is now and returns that revision; the apply must name it
+        String current = dryRun ? watcher.refreshNow() : requireRevision(revision);
+        Path copy = Files.createTempDirectory("idmweb-pull-");
+        try {
+            copyTree(tree, copy);
+            boolean hasTree = Files.isRegularFile(copy.resolve(AsCodeWriter.DRIVERSET_MANIFEST));
+            DriverSet base = hasTree ? AsCodeReader.read(copy) : null;
+            DriverSet result = live;
+            if (drivers != null && !drivers.isEmpty()) {
+                if (base == null) {
+                    throw new BadRequest("the workspace has no tree yet: take the whole driver set");
+                }
+                result = AsCodeReader.read(copy);
+                for (String name : drivers) {
+                    com.pointblue.dirxml.dev.model.Driver mine = result.driver(name);
+                    com.pointblue.dirxml.dev.model.Driver theirs = live.driver(name);
+                    int at = mine == null ? result.drivers.size() : result.drivers.indexOf(mine);
+                    if (mine != null) {
+                        result.drivers.remove(mine);
+                    }
+                    if (theirs != null) {
+                        result.drivers.add(Math.min(at, result.drivers.size()), theirs);
+                    } else if (mine != null) {
+                        notes.add("'" + name + "' is not in the vault: removed from the tree");
+                    } else {
+                        notes.add("'" + name + "' is in neither the tree nor the vault");
+                    }
+                }
+                result.overrides.clear();
+            }
+            if (Files.isDirectory(copy.resolve(com.pointblue.dirxml.dev.deploy.Overrides.DIR))) {
+                result.overrides.putAll(com.pointblue.dirxml.dev.deploy.Overrides.read(copy));
+                for (String n : com.pointblue.dirxml.dev.deploy.Overrides.foldBack(result, envName, base)) {
+                    notes.add("override: " + n);
+                }
+            }
+            for (String p : VAULT_OWNED) {
+                deleteTree(copy.resolve(p));
+            }
+            AsCodeWriter.write(result, copy);
+            Path attrs = copy.resolve(".gitattributes");
+            if (!Files.exists(attrs)) {
+                Files.writeString(attrs, "# IDM-as-code: content is byte-exact vault data; never normalize line endings\n* -text\n");
+            }
+            // what would change: every file under the paths a read writes, the overrides, and .gitattributes; a
+            // partial pull only the named drivers' folders and the set's manifest, so a driver nobody asked for is
+            // never rewritten (a file of its that does not round-trip byte for byte stays as it is)
+            java.util.TreeSet<String> names = new java.util.TreeSet<>();
+            List<String> roots = new ArrayList<>();
+            if (drivers != null && !drivers.isEmpty()) {
+                roots.add(AsCodeWriter.DRIVERSET_MANIFEST);
+                for (String name : drivers) {
+                    roots.add("drivers/" + AsCodeWriter.fileSafe(name));
+                }
+            } else {
+                roots.addAll(VAULT_OWNED);
+            }
+            roots.add(com.pointblue.dirxml.dev.deploy.Overrides.DIR);
+            roots.add(".gitattributes");
+            for (Path side : List.of(tree, copy)) {
+                for (String r : roots) {
+                    Path p = side.resolve(r);
+                    if (Files.isRegularFile(p)) {
+                        names.add(r);
+                    } else if (Files.isDirectory(p)) {
+                        try (java.util.stream.Stream<Path> s = Files.walk(p)) {
+                            s.filter(Files::isRegularFile).forEach(f -> names.add(side.relativize(f).toString().replace('\\', '/')));
+                        }
+                    }
+                }
+            }
+            List<String> changed = new ArrayList<>();
+            List<String> deleted = new ArrayList<>();
+            List<Object> diffs = new ArrayList<>();
+            for (String f : names) {
+                Path before = tree.resolve(f);
+                Path after = copy.resolve(f);
+                boolean inBefore = Files.isRegularFile(before);
+                boolean inAfter = Files.isRegularFile(after);
+                if (inBefore && inAfter && java.util.Arrays.equals(Files.readAllBytes(before), Files.readAllBytes(after))) {
+                    continue;
+                }
+                (inAfter ? changed : deleted).add(f);
+                Map<String, Object> d = new LinkedHashMap<>();
+                d.put("file", f);
+                d.put("status", !inBefore ? "added" : !inAfter ? "deleted" : "changed");
+                d.put("language", language(f));
+                if (textual(f) && sizeOf(before) <= MAX_DIFF && sizeOf(after) <= MAX_DIFF) {
+                    d.put("before", inBefore ? Files.readString(before, StandardCharsets.UTF_8) : "");
+                    d.put("after", inAfter ? Files.readString(after, StandardCharsets.UTF_8) : "");
+                }
+                diffs.add(d);
+            }
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("ok", true);
+            m.put("dryRun", dryRun);
+            m.put("environment", envName);
+            m.put("drivers", drivers == null ? List.of() : drivers);
+            m.put("changedFiles", changed);
+            m.put("deletedFiles", deleted);
+            m.put("notes", notes);
+            m.put("unresolvedLinks", result.unresolvedLinks().size());
+            if (dryRun) {
+                m.put("written", false);
+                m.put("diffs", diffs);
+                m.put("revision", current);
+                return m;
+            }
+            for (String f : changed) {
+                Path to = tree.resolve(f);
+                Files.createDirectories(to.getParent());
+                Files.copy(copy.resolve(f), to, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            }
+            for (String f : deleted) {
+                Files.deleteIfExists(tree.resolve(f));
+            }
+            cached = null;
+            m.put("written", true);
+            m.put("revision", watcher.refreshNow());
+            return m;
+        } finally {
+            deleteTree(copy);
+        }
+    }
+
     static void copyTree(Path from, Path to) throws IOException {
         Files.walkFileTree(from, new java.nio.file.SimpleFileVisitor<>() {
             @Override

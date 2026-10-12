@@ -300,5 +300,11 @@ s, lc = call("POST", "/api/vault/driver", {"env": "lab", "driver": "Loop", "acti
 check("vault: driver control without it is refused", s == 200 and not lc["ok"] and "confirm" in lc["text"])
 check("vault: an unknown driver action is 400", call("POST", "/api/vault/driver", {"env": "lab", "driver": "Loop", "action": "explode", "confirm": "lab"})[0] == 400)
 check("vault: the trace stream needs the token", call("GET", "/api/vault/trace?env=lab&driver=Loop", headers={"X-IDMWeb-Token": ""})[0] == 403)
+s, ses = call("GET", "/api/session")
+check("pull: an apply with a stale revision is refused before the vault is read", call("POST", "/api/vault/pull", {"env": "lab", "drivers": [], "dryRun": False, "revision": "stale"})[0] == 409)
+check("pull: an unknown environment is 400", call("POST", "/api/vault/pull", {"env": "nope", "revision": ses["revision"]})[0] == 400)
+s, pl = call("POST", "/api/vault/pull", {"env": "lab", "revision": ses["revision"], "dryRun": False})
+check("pull: an unreachable vault is an error and the tree is untouched", s >= 400 and call("GET", "/api/session")[1]["revision"] == ses["revision"])
+check("merge-captured: only a captured as-found branch", call("POST", "/api/git/merge-captured", {"branch": "main"})[0] == 400)
 print("smoke: all passed")
 PY

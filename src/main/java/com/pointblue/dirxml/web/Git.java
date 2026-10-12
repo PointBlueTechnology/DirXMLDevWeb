@@ -302,6 +302,29 @@ public final class Git {
         return m;
     }
 
+    /** Merge a local branch (a captured as-found state) into the current one; on conflicts the merge is abandoned and they are listed. */
+    public Map<String, Object> mergeLocal(Path dir, String branch) throws IOException {
+        must(run(dir, "rev-parse", "--verify", "--quiet", "refs/heads/" + branch), "find branch " + branch);
+        Result merge = run(dir, "merge", "--no-edit", "-m", "Take the vault's captured state (" + branch + ")", branch);
+        Map<String, Object> m = new LinkedHashMap<>();
+        if (merge.ok()) {
+            m.put("merged", true);
+            m.put("message", merge.out.trim().isEmpty() ? "up to date" : merge.out.trim().split("\n")[0]);
+            return m;
+        }
+        List<String> conflicts = new ArrayList<>();
+        for (String line : run(dir, "diff", "--name-only", "--diff-filter=U").out.split("\n")) {
+            if (!line.isBlank()) {
+                conflicts.add(line.trim());
+            }
+        }
+        run(dir, "merge", "--abort");
+        m.put("merged", false);
+        m.put("conflicts", conflicts);
+        m.put("message", "merging " + branch + " conflicts in " + conflicts.size() + " file(s); the merge was abandoned, resolve it in a checkout");
+        return m;
+    }
+
     public List<String> remoteBranches(String url) throws IOException {
         List<String> out = new ArrayList<>();
         Result r = must(run(null, "ls-remote", "--heads", url), "list branches");

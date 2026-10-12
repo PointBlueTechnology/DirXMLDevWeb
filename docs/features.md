@@ -80,11 +80,21 @@ Every view of the page, by area, in every install; the items marked *local and s
 - **Vault**, against any environment the `idm` CLI knows:
   - *Compare*: the tree against the vault, for the driver set or one driver, with the stage's
     overrides applied; each difference opens its detail.
+  - *Take the vault's state into this branch…* (editors): what `idm import-live` writes, for the
+    driver set or the one driver in scope, reviewed file by file before and after with nothing
+    written, then applied into the workspace's files. The stage's overrides are folded back (a
+    value the vault holds for that stage stays in `overrides/<stage>.properties`, not in the base
+    tree) and a secret shim authentication id stays out. Files the vault no longer has are
+    removed. The commit message is suggested; committing stays yours.
   - *Deploy*: the plan step by step with nothing written, then the deploy itself (snapshot,
     write, restart, verify) once you type the environment's name; the secrets mode (leave alone,
     set the named passwords the vault lacks, re-set every provided secret), *allow missing
     secrets* for a first deploy, and *delete from the vault* for a driver the comparison reports
-    as only there (stopped first; the snapshot keeps it).
+    as only there (stopped first; the snapshot keeps it). A deploy refused because someone changed
+    the vault since the last deploy offers *Capture it first* (or tick *capture drift first*): the
+    vault's state is written to a local `as-found/<stage>/<time>` branch and nothing is deployed;
+    *Merge it into this branch* takes it under your change (a conflict is listed and the merge
+    undone), then deploy again.
   - *Snapshots*: every snapshot a deploy or a rollback took, with *Roll back…* — the typed name
     again; the current state is snapshotted first and the result verified.
   - *Jobs*: the engine's jobs (a driver's triggers and health checks, the set's statistics job)

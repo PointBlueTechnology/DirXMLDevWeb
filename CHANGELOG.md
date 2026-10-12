@@ -7,6 +7,25 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- **Take the vault's state into this branch** (#67): on *Compare*, an editor pulls the live vault
+  into the workspace's files, for the driver set or the one driver in scope, with the same result
+  as `idm import-live --env` (checked byte for byte on edir3): the stage's overrides folded back, a
+  secret shim authentication id kept out, files the vault no longer has removed. A dry run shows
+  each file before and after; the apply must name the revision the dry run planned against. The
+  commit message is suggested in the repository bar. (`POST /api/vault/pull` with `env`, `drivers`,
+  `dryRun`, `revision`.)
+- **Capture drift first** on deploy (#67): `Deployer.Options.captureDrift`, offered when a deploy is
+  refused because the vault changed since the last deploy. The vault's state goes to a local
+  `as-found/<stage>/<time>` branch and nothing is deployed; *Merge it into this branch* merges it
+  (`POST /api/git/merge-captured`, only an `as-found/` branch; a conflict is listed and the merge
+  aborted).
+
+### Changed
+
+- Drift capture is no longer CLI-only (docs/limits.md).
+
 ## [0.39.0] - 2026-10-12
 
 ### Added

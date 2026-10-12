@@ -1,4 +1,4 @@
-import type { CacheView, CaseFiles, CasePlan, EventDetail, EventRow, EventsDescribe, TraceFileEntry, VaultPolicies, PolicyMembers, AppQueryResult, DriverHealth, LogLevel, DriverRights, DriverSetAdmin, EngineMetrics, WorkOrders, EmailServer, EngineInfo, DriverDetail, TraceShow, TraceTailResult, NamedPasswords, OperateOutcome} from "./types";
+import type { CacheView, CaseFiles, CasePlan, EventDetail, EventRow, EventsDescribe, TraceFileEntry, VaultPolicies, PolicyMembers, AppQueryResult, DriverHealth, LogLevel, DriverRights, DriverSetAdmin, EngineMetrics, WorkOrders, EmailServer, EngineInfo, DriverDetail, TraceShow, TraceTailResult, NamedPasswords, OperateOutcome, PullResult} from "./types";
 import type { TraceRec } from "./trace/model";
 import type { AppSchema, Architecture, DevNode, DeployChoices, DriverAssociations, ObjectInspection, PasswordSync, VaultJobs, VaultSnapshot, SchemaDiffResult, ProjectArchive, ProjectArchiveResult, Artifact, AuditEntry, BuildResult, ConfigView, Connections, DeployResult, EnvSecrets, FetchResult, FormData as FormDoc, GitDiff, GitStatus, ImportResult, LifecycleResult, OpCall, OpResult, OpSpec, Outline, OverridesData, PackagePrompts, PackagesData, PrdData, RoleCatalog, SchemaActionResult, SchemaClass, SchemaData, Session, SetupResult, SimCaseFiles, SimCases, SimDetail, SimRun, SiteListing, TreeFile, UpdateSites, Validation, VaultDiffResult, VaultEnvironments, VaultStatus, WorkspacesInfo } from "./types";
 import type { FishboneModel } from "./fishbone/types";
@@ -137,6 +137,8 @@ export const api = {
     diff: (against: "head" | "base" | "upstream") => call<GitDiff>("GET", `/api/git/diff?against=${against}`),
     commit: (message: string, push: boolean) => call<{ committed: boolean; hash?: string; pushed?: boolean; message?: string }>("POST", "/api/git/commit", { message, push }),
     update: (base?: string) => call<{ merged: boolean; message: string; conflicts?: string[] }>("POST", "/api/git/update", base ? { base } : {}),
+    /** Merge a captured as-found/<env>/<time> branch (vault.deploy --capture-drift) into this branch. */
+    mergeCaptured: (branch: string) => call<{ merged: boolean; message: string; conflicts?: string[] }>("POST", "/api/git/merge-captured", { branch }),
   },
   connections: {
     list: () => call<Connections>("GET", "/api/credentials"),
@@ -236,6 +238,8 @@ export const api = {
     traceReset: (env: string, driver: string, confirm: string) => call<OperateOutcome>("POST", "/api/vault/trace-reset", { env, driver, confirm }),
     /** The driver's trace file over SSH (the environment's own host and user); kept as one of your trace files. */
     traceTail: (env: string, driver: string, req: { lines?: number; grep?: string; since?: number; confirm: string }) => call<TraceTailResult>("POST", "/api/vault/trace-tail", { env, driver, ...req }),
+    /** The vault's state into this branch's tree (#67): a dry run returns the files that would change; `revision` guards the apply. */
+    pull: (env: string, drivers: string[], dryRun: boolean, revision: string) => call<PullResult>("POST", "/api/vault/pull", { env, drivers, dryRun, revision }),
     resync: (env: string, driver: string, since: string | undefined, confirm: string) => call<OperateOutcome>("POST", "/api/vault/resync", { env, driver, since, confirm }),
     migrate: (env: string, driver: string, xds: string, confirm: string) => call<OperateOutcome>("POST", "/api/vault/migrate", { env, driver, xds, confirm }),
     submit: (env: string, driver: string, xds: string, canary: boolean, confirm: string) => call<OperateOutcome>("POST", "/api/vault/submit", { env, driver, xds, canary, confirm }),

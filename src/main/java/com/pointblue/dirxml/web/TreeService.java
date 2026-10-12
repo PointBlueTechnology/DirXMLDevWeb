@@ -808,10 +808,9 @@ public final class TreeService {
 
     /**
      * The paths a read of the vault owns in a tree — the ones cleared before the live state is written, so an object
-     * the vault no longer holds leaves no file behind. DirXMLDev 0.27.0 publishes the same list as
-     * {@code AsCodeWriter.MANAGED_PATHS}; this copy keeps the web on 0.26.0 until it moves.
+     * the vault no longer holds leaves no file behind: the core's own list, the one drift capture clears too.
      */
-    static final List<String> VAULT_OWNED = List.of(AsCodeWriter.DRIVERSET_MANIFEST, AsCodeWriter.CONFIG_VALUES_FILE, "library", "drivers", "jobs", "rbe-policies", "templates");
+    static final List<String> VAULT_OWNED = AsCodeWriter.MANAGED_PATHS;
 
     /** The tree's current revision, or {@link Stale} when it moved since {@code revision} (checked before slow work too). */
     public synchronized String requireRevision(String revision) {

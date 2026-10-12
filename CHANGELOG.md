@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.41.0] - 2026-10-12
+
 ### Added
 
 - **Designer export** (#66), a *Designer* tab on the driver set, with the CLI's output byte for byte:

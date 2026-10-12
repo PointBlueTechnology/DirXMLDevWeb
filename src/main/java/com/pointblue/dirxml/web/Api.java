@@ -26,7 +26,7 @@ public final class Api implements HttpHandler {
     public static final String COOKIE = "idmweb_session";
     public static final String CSRF_HEADER = "X-IDMWeb-CSRF";
     /** POST routes only a deployer may call: they reach a vault or hold its credentials. */
-    private static final java.util.List<String> DEPLOYER_ONLY = java.util.List.of("/api/vault/deploy", "/api/vault/driver", "/api/vault/trace-level", "/api/vault/cache-clear", "/api/vault/cache-delete", "/api/vault/deploy-schema", "/api/vault/rollback", "/api/vault/start-option", "/api/vault/job", "/api/vault/health-clear", "/api/vault/log-level", "/api/vault/email-server", "/api/credentials/environment", "/api/credentials/environment/remove", "/api/credentials/secret");
+    private static final java.util.List<String> DEPLOYER_ONLY = java.util.List.of("/api/vault/deploy", "/api/vault/driver", "/api/vault/trace-level", "/api/vault/cache-clear", "/api/vault/cache-delete", "/api/vault/deploy-schema", "/api/vault/rollback", "/api/vault/start-option", "/api/vault/job", "/api/vault/health-clear", "/api/vault/log-level", "/api/vault/email-server", "/api/vault/trace-reset", "/api/vault/trace-tail", "/api/vault/resync", "/api/vault/migrate", "/api/vault/submit", "/api/vault/named-password", "/api/credentials/environment", "/api/credentials/environment/remove", "/api/credentials/secret");
 
     private final Workspaces workspaces;
     private final Session.Store sessions;
@@ -429,6 +429,14 @@ public final class Api implements HttpHandler {
                     return vault.rbe(required(query, "env"));
                 case "/api/vault/health":
                     return vault.health(required(query, "env"), query.get("driver"));
+                case "/api/vault/engine":
+                    return vault.engine(required(query, "env"));
+                case "/api/vault/driver-status":
+                    return vault.driverStatus(required(query, "env"), query.get("driver"));
+                case "/api/vault/trace-show":
+                    return vault.traceShow(required(query, "env"), query.get("driver"));
+                case "/api/vault/named-passwords":
+                    return vault.namedPasswords(required(query, "env"), query.get("driver"));
                 case "/api/vault/log-level":
                     return vault.logLevel(required(query, "env"), query.get("driver"));
                 case "/api/vault/rights":
@@ -588,8 +596,56 @@ public final class Api implements HttpHandler {
                     return vault.cacheDeleteEvent(env, Json.asString(req.get("driver")), (int) Double.parseDouble(String.valueOf(req.get("index"))) - 1, Json.asString(req.get("confirm")));
                 case "/api/vault/cache-clear":
                     return vault.cacheClear(env, Json.asString(req.get("driver")), Json.asString(req.get("confirm")));
-                case "/api/vault/trace-level":
-                    return vault.traceLevel(env, Json.asString(req.get("driver")), (int) Double.parseDouble(String.valueOf(req.get("level"))), Json.asString(req.get("server")), Json.asString(req.get("confirm")));
+                case "/api/vault/trace-level": {
+                    // the level (per server), the trace file, or both
+                    Object lv = req.get("level");
+                    boolean hasFile = req.containsKey("file");
+                    if (lv == null && !hasFile) {
+                        throw new TreeService.BadRequest("give a level, a file, or both");
+                    }
+                    Map<String, Object> r = null;
+                    if (lv != null) {
+                        r = vault.traceLevel(env, Json.asString(req.get("driver")), (int) Double.parseDouble(String.valueOf(lv)), Json.asString(req.get("server")), Json.asString(req.get("confirm")));
+                        if (!Boolean.TRUE.equals(r.get("ok")) || !hasFile) {
+                            return r;
+                        }
+                    }
+                    Map<String, Object> f = vault.traceFile(env, Json.asString(req.get("driver")), Json.asString(req.get("file")), Json.asString(req.get("confirm")));
+                    if (r != null) {
+                        f.put("text", r.get("text") + "\n" + f.get("text"));
+                    }
+                    return f;
+                }
+                case "/api/vault/trace-reset":
+                    return vault.traceReset(env, Json.asString(req.get("driver")), Json.asString(req.get("confirm")));
+                case "/api/vault/trace-tail": {
+                    Object lines = req.get("lines");
+                    Object since = req.get("since");
+                    Map<String, Object> t = vault.traceTail(env, Json.asString(req.get("driver")), lines == null ? 500 : (int) Double.parseDouble(String.valueOf(lines)),
+                        Json.asString(req.get("grep")), since == null || String.valueOf(since).isBlank() ? null : (int) Double.parseDouble(String.valueOf(since)), Json.asString(req.get("confirm")));
+                    if (Boolean.TRUE.equals(t.get("ok")) && t.get("lines") instanceof java.util.List<?> ls && !ls.isEmpty() && w != null) {
+                        // kept as a trace file of the person's own, so the Trace Viewer can open it
+                        StringBuilder sb = new StringBuilder();
+                        for (Object l : ls) {
+                            sb.append(l).append('\n');
+                        }
+                        byte[] bytes = sb.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                        String stamp = java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss").withZone(java.time.ZoneOffset.UTC).format(java.time.Instant.now());
+                        String stored = w.traces.upload("ssh-" + env + "-" + Json.asString(req.get("driver")) + "-" + stamp + ".trace", new java.io.ByteArrayInputStream(bytes), bytes.length);
+                        t.put("stored", stored);
+                    }
+                    return t;
+                }
+                case "/api/vault/resync":
+                    return vault.resync(env, Json.asString(req.get("driver")), Json.asString(req.get("since")), Json.asString(req.get("confirm")));
+                case "/api/vault/migrate":
+                    return vault.migrateFromApp(env, Json.asString(req.get("driver")), Json.asString(req.get("xds")), Json.asString(req.get("confirm")));
+                case "/api/vault/submit":
+                    return vault.submit(env, Json.asString(req.get("driver")), Json.asString(req.get("xds")), Boolean.TRUE.equals(req.get("canary")), Json.asString(req.get("confirm")));
+                case "/api/vault/named-password": {
+                    String value = Json.asString(req.get("value"));
+                    return vault.namedPassword(env, Json.asString(req.get("driver")), Json.asString(req.get("action")), Json.asString(req.get("name")), value == null ? null : value.toCharArray(), Json.asString(req.get("confirm")));
+                }
                 default:
                     break;
             }

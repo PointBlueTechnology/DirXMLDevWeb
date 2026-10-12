@@ -94,6 +94,13 @@ Every view of the page, by area, in every install; the items marked *local and s
     notification e-mail server (the non-secret settings editable by deployers; the password stays
     with the CLI and the secrets file), users and associations counted (the console's licensing
     figure and each driver's associations by state), work orders.
+  - The *Drivers* tab opens with the engine's version, JVM heap and threads, and each driver's
+    counters on demand. *manage* on a driver shows `driver.status` (with its recent audit lines),
+    sets or resets the trace file, reads the trace file over SSH into the Trace Viewer (when the
+    environment names an SSH host), runs a resync (full or since an instant), migrates from the
+    application or submits an XDS command (with the simulator canary, and a simulator case's input
+    to start from), and lists, sets and removes the driver's named passwords in the vault (values
+    write-only). Every write is a deployer's, with the environment's name typed.
   - On the *Drivers* tab, *health* opens a driver's health (the Driver Health job's verdict per
     server, its configuration, whether a health job covers it; *Clear status*), its log level
     (set by level and entry limit, or back on the set's), and its effective rights on an object.

@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.40.0] - 2026-10-12
+
 ### Added
 
 - **Take the vault's state into this branch** (#67): on *Compare*, an editor pulls the live vault
@@ -24,6 +26,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Changed
 
+- **Needs DirXMLDev 0.28.0**: drift capture clears jobs, entitlement policies and notification
+  templates too, and the pull writes the same paths (`AsCodeWriter.MANAGED_PATHS`).
 - Drift capture is no longer CLI-only (docs/limits.md).
 
 ## [0.39.0] - 2026-10-12

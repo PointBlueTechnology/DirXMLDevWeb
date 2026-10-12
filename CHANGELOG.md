@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.39.0] - 2026-10-12
+
 ### Added
 
 - **Engine strip** on the Drivers tab (#69): the engine's version, JVM heap and threads, each driver's

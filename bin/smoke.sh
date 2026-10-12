@@ -306,5 +306,34 @@ check("pull: an unknown environment is 400", call("POST", "/api/vault/pull", {"e
 s, pl = call("POST", "/api/vault/pull", {"env": "lab", "revision": ses["revision"], "dryRun": False})
 check("pull: an unreachable vault is an error and the tree is untouched", s >= 400 and call("GET", "/api/session")[1]["revision"] == ses["revision"])
 check("merge-captured: only a captured as-found branch", call("POST", "/api/git/merge-captured", {"branch": "main"})[0] == 400)
+# the round trip back to Designer (#66)
+import io, tempfile, zipfile
+def raw(method, path, data=None, ctype="application/zip"):
+    req = urllib.request.Request(base + path, method=method, headers={"X-IDMWeb-Token": token, "Content-Type": ctype}, data=data)
+    try:
+        with urllib.request.urlopen(req) as r:
+            return r.status, r.headers, r.read()
+    except urllib.error.HTTPError as e:
+        return e.code, e.headers, e.read()
+s, h, xml = raw("GET", "/api/export/designer")
+check("designer: the export XML downloads as an attachment", s == 200 and "attachment" in h.get("Content-Disposition", "") and xml.startswith(b"<?xml") and b"Loop" in xml)
+check("designer: one driver's export, and an unknown driver is 404", raw("GET", "/api/export/designer?driver=Loop")[0] == 200 and raw("GET", "/api/export/designer?driver=nope")[0] == 404)
+check("designer: a project path must be absolute", call("POST", "/api/export/project", {"mode": "update", "path": "rel/proj", "dryRun": True})[0] == 400)
+scratch = tempfile.mkdtemp()
+check("designer: a folder without .project is not a project to update", call("POST", "/api/export/project", {"mode": "update", "path": scratch, "dryRun": True})[0] == 400)
+s, np = call("POST", "/api/export/project", {"mode": "new", "path": os.path.join(scratch, "NewP"), "dryRun": True, "vaultName": "T"})
+check("designer: a new project's dry run lists its files and writes nothing", s == 200 and np["ok"] and np["createdFiles"] and not np["written"] and not os.path.exists(os.path.join(scratch, "NewP")))
+check("designer: a new project's name is checked", raw("POST", "/api/export/project-zip?mode=new&name=..%2Fx&dryRun=true")[0] == 400)
+s, h, z = raw("POST", "/api/export/project-zip?mode=new&name=NewP&dryRun=false&vaultName=T")
+names = zipfile.ZipFile(io.BytesIO(z)).namelist() if s == 200 else []
+check("designer: a new project comes back as a zip with its folder at the root", s == 200 and h.get("Content-Type") == "application/zip" and "NewP/.project" in names and all(n.startswith("NewP/") for n in names))
+s, up = call("POST", "/api/export/project-zip?mode=update&dryRun=true")
+check("designer: an update needs the project zip", s == 400)
+s, h, b = raw("POST", "/api/export/project-zip?mode=update&dryRun=true", b"not a zip")
+check("designer: something that is not a zip is 400", s == 400)
+check("designer: the vault fields are for a new project only", raw("POST", "/api/export/project-zip?mode=update&dryRun=true&vaultName=T", z)[0] == 400)
+s, h, b = raw("POST", "/api/export/project-zip?mode=update&dryRun=true", z)
+upd = json.loads(b) if s == 200 else {}
+check("designer: the new project uploaded again is planned as an update (dry run, no refusal)", s == 200 and upd["ok"] and upd["refusal"] is None and upd["operation"] == "export-project" and not upd["written"])
 print("smoke: all passed")
 PY

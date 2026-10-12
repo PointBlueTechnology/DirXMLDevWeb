@@ -18,6 +18,7 @@ describe("the selection in the address", () => {
       { type: "new", what: "policy", driver: null },
       { type: "driverset" },
       { type: "driverset", tab: "schema" },
+      { type: "driverset", tab: "designer" },
       { type: "trace", env: "edir3" },
       { type: "trace", file: "edir3/all-20261008-101500.trace" },
       { type: "trace", env: "edir3", popout: "1" },

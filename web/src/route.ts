@@ -44,7 +44,7 @@ export function fromHash(hash: string): Selection | null {
     case "packages":
       return { type: m.type };
     case "driverset":
-      return m.tab === "schema" || m.tab === "gcvs" ? { type: "driverset", tab: m.tab } : { type: "driverset" };
+      return m.tab === "schema" || m.tab === "gcvs" || m.tab === "designer" ? { type: "driverset", tab: m.tab } : { type: "driverset" };
     case "trace": {
       const base = m.file ? { type: "trace" as const, file: m.file } : m.env ? { type: "trace" as const, env: m.env } : null;
       return base ? (m.popout === "1" ? { ...base, popout: "1" } : base) : null;

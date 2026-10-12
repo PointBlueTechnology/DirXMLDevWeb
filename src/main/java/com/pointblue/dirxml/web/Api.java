@@ -636,6 +636,16 @@ public final class Api implements HttpHandler {
                     }
                     return t;
                 }
+                case "/api/vault/pull": {
+                    // reading the vault is an editor's (with access to the environment); the tree write goes through review
+                    java.util.List<String> notes = new java.util.ArrayList<>();
+                    boolean dryRun = !Boolean.FALSE.equals(req.get("dryRun"));
+                    if (!dryRun) {
+                        service.requireRevision(Json.asString(req.get("revision"))); // before minutes of reading the vault
+                    }
+                    com.pointblue.dirxml.dev.model.DriverSet live = vault.liveForPull(env, notes);
+                    return service.pull(live, vault.environmentName(env), stringList(req.get("drivers")), dryRun, Json.asString(req.get("revision")), notes);
+                }
                 case "/api/vault/resync":
                     return vault.resync(env, Json.asString(req.get("driver")), Json.asString(req.get("since")), Json.asString(req.get("confirm")));
                 case "/api/vault/migrate":
@@ -783,6 +793,7 @@ public final class Api implements HttpHandler {
             }
         }
         c.deleteDrivers = del;
+        c.captureDrift = Boolean.TRUE.equals(req.get("captureDrift"));
         return c;
     }
 
@@ -953,6 +964,17 @@ public final class Api implements HttpHandler {
                     boolean push = Boolean.TRUE.equals(req.get("push"));
                     Map<String, Object> r = git.commit(w.root, Json.asString(req.get("message")), session.principal.name, session.principal.email, push);
                     audit.log(session, w, push ? "commit+push" : "commit", Map.of("message", String.valueOf(req.get("message")), "hash", String.valueOf(r.get("hash"))), "ok");
+                    return r;
+                }
+                case "/api/git/merge-captured": {
+                    // the vault's state a deploy captured (vault.deploy --capture-drift): an as-found/<env>/<time> branch
+                    // of this workspace, merged under the person's change so it can be deployed on top of it (#67)
+                    String b = Json.asString(req.get("branch"));
+                    if (b == null || !b.matches("as-found/[A-Za-z0-9._-]+/[A-Za-z0-9._:-]+")) {
+                        throw new TreeService.BadRequest("only a captured as-found/<env>/<time> branch can be merged here");
+                    }
+                    Map<String, Object> r = git.mergeLocal(w.root, b);
+                    audit.log(session, w, "merge-captured", Map.of("branch", b), Boolean.TRUE.equals(r.get("merged")) ? "ok" : "conflict");
                     return r;
                 }
                 case "/api/git/update": {

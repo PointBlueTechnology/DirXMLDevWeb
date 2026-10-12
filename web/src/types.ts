@@ -327,6 +327,23 @@ export interface DeployChoices {
   allowMissingSecrets: boolean;
   /** Drivers the diff reports as only in the vault, to delete (stopped ones only; the core refuses otherwise). */
   deleteDrivers: string[];
+  /** A production environment's unknown or drifted state captured first as an as-found branch (vault.deploy --capture-drift). */
+  captureDrift?: boolean;
+}
+
+/** The vault's state taken into the workspace's tree (#67): a dry run's per-file diff, or what an apply wrote. */
+export interface PullResult {
+  ok: boolean;
+  dryRun: boolean;
+  written: boolean;
+  environment: string;
+  drivers: string[];
+  changedFiles: string[];
+  deletedFiles: string[];
+  diffs?: FileDiff[];
+  notes: string[];
+  unresolvedLinks: number;
+  revision: string;
 }
 
 /** A snapshot a deploy (or a rollback) took before writing. */
@@ -360,6 +377,10 @@ export interface DeployResult {
   verified?: boolean;
   verify?: string | null;
   text?: string;
+  /** The production gate refused for an unknown or drifted current state: capture-drift is the way on. */
+  driftRefused?: boolean;
+  /** The as-found branch a capture made, to merge under this branch's change. */
+  capturedBranch?: string;
 }
 
 export interface DriverState {

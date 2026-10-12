@@ -24,3 +24,7 @@
   tree's revision: the page reloads them after its own writes.
 - Pull requests are a link to the
   provider's compare page; creating them through an API is a follow-up.
+- Exporting a project uploads and downloads it whole (up to 512 MB zipped). A project written new
+  mints fresh Designer ids, so two exports of the same tree differ in their ids, as with the CLI.
+  Updating a project the core has just written still reports files as changed: a core round-trip
+  gap, the same from `idm export-project`.

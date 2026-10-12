@@ -26,7 +26,7 @@ public final class Api implements HttpHandler {
     public static final String COOKIE = "idmweb_session";
     public static final String CSRF_HEADER = "X-IDMWeb-CSRF";
     /** POST routes only a deployer may call: they reach a vault or hold its credentials. */
-    private static final java.util.List<String> DEPLOYER_ONLY = java.util.List.of("/api/vault/deploy", "/api/vault/driver", "/api/vault/trace-level", "/api/vault/cache-clear", "/api/vault/cache-delete", "/api/vault/deploy-schema", "/api/vault/rollback", "/api/vault/start-option", "/api/vault/job", "/api/vault/health-clear", "/api/vault/log-level", "/api/vault/email-server", "/api/vault/trace-reset", "/api/vault/trace-tail", "/api/vault/resync", "/api/vault/migrate", "/api/vault/submit", "/api/vault/named-password", "/api/credentials/environment", "/api/credentials/environment/remove", "/api/credentials/secret");
+    private static final java.util.List<String> DEPLOYER_ONLY = java.util.List.of("/api/vault/deploy", "/api/vault/driver", "/api/vault/trace-level", "/api/vault/cache-clear", "/api/vault/cache-delete", "/api/vault/deploy-schema", "/api/vault/rollback", "/api/vault/start-option", "/api/vault/job", "/api/vault/health-clear", "/api/vault/log-level", "/api/vault/email-server", "/api/vault/trace-reset", "/api/vault/trace-tail", "/api/vault/resync", "/api/vault/migrate", "/api/vault/submit", "/api/vault/named-password", "/api/export/project", "/api/credentials/environment", "/api/credentials/environment/remove", "/api/credentials/secret");
 
     private final Workspaces workspaces;
     private final Session.Store sessions;
@@ -278,6 +278,44 @@ public final class Api implements HttpHandler {
                 }
                 return;
             }
+            if (path.equals("/api/export/designer") && method.equals("GET")) {
+                // idm export: the tree as a Designer driver-set export (or one driver's), byte for byte the CLI's (#66)
+                DesignerExport d = new DesignerExport(w.tree, w.packages.catalogArg());
+                byte[] bytes = d.xml(query.get("driver"));
+                ex.getResponseHeaders().set("Content-Type", "application/xml; charset=utf-8");
+                ex.getResponseHeaders().set("Content-Disposition", "attachment; filename=\"" + d.xmlName(query.get("driver")) + "\"");
+                ex.sendResponseHeaders(200, bytes.length);
+                try (OutputStream out = ex.getResponseBody()) {
+                    out.write(bytes);
+                }
+                return;
+            }
+            if (path.equals("/api/export/project-zip") && method.equals("POST")) {
+                // a Designer project as a zip (#66): mode=new names one; mode=update takes the uploaded project as the
+                // raw body. A dry run answers with the result; an apply streams the project back. Editors may.
+                String lenHeader = ex.getRequestHeaders().getFirst("Content-Length");
+                long len = lenHeader == null ? -1 : Long.parseLong(lenHeader);
+                String mode = query.getOrDefault("mode", "update");
+                boolean dryRun = !"false".equals(query.get("dryRun"));
+                Object r = new DesignerExport(w.tree, w.packages.catalogArg()).zip(mode, query.get("name"), dryRun, newProject(query::get), ex.getRequestBody(), len);
+                Map<String, Object> result = r instanceof DesignerExport.Zip z ? z.result() : Json.asMap(r);
+                audit.log(session, w, "export/project-zip", summary(result), outcome(result));
+                if (r instanceof DesignerExport.Zip z) {
+                    try {
+                        ex.getResponseHeaders().set("Content-Type", "application/zip");
+                        ex.getResponseHeaders().set("Content-Disposition", "attachment; filename=\"" + z.fileName() + "\"");
+                        ex.sendResponseHeaders(200, java.nio.file.Files.size(z.file()));
+                        try (OutputStream out = ex.getResponseBody()) {
+                            java.nio.file.Files.copy(z.file(), out);
+                        }
+                    } finally {
+                        java.nio.file.Files.deleteIfExists(z.file());
+                    }
+                    return;
+                }
+                send(ex, 200, result);
+                return;
+            }
             Object body = route(session, w, method, path, query, ex);
             if (!method.equals("GET") && !path.startsWith("/api/git/") && !path.startsWith("/api/sim/detail")) {
                 audit.log(session, w, path.substring("/api/".length()), summary(body), outcome(body));
@@ -489,6 +527,12 @@ public final class Api implements HttpHandler {
                 default:
                     throw new TreeService.NotFound("no such endpoint: GET " + path);
             }
+        }
+        if (method.equals("POST") && path.equals("/api/export/project")) {
+            // idm export-project against a directory on the server's host: a deployer's (#66, like attaching host paths)
+            Map<String, Object> req = Json.asMap(Json.parse(new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8)));
+            return new DesignerExport(w.tree, w.packages.catalogArg()).toPath(Json.asString(req.get("mode")), Json.asString(req.get("path")),
+                !Boolean.FALSE.equals(req.get("dryRun")), newProject(req::get), workspaces.hosted() ? workspaces.config().setupRoots : null);
         }
         if (method.equals("POST") && (path.startsWith("/api/op/") || path.equals("/api/batch"))) {
             Map<String, Object> req = Json.asMap(Json.parse(new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8)));
@@ -991,6 +1035,12 @@ public final class Api implements HttpHandler {
             }
         }
         throw new TreeService.NotFound("no such endpoint: " + method + " " + path);
+    }
+
+    /** The vault and server fields {@code export-project --new} takes (never a password: there is no field for one). */
+    private static com.pointblue.dirxml.dev.source.NewProject newProject(java.util.function.Function<String, Object> get) {
+        java.util.function.Function<String, String> s = k -> get.apply(k) == null ? null : String.valueOf(get.apply(k));
+        return new com.pointblue.dirxml.dev.source.NewProject(s.apply("vaultName"), s.apply("vaultHost"), s.apply("vaultUser"), s.apply("server"), s.apply("serverContext"));
     }
 
     private static String required(Map<String, String> query, String key) {

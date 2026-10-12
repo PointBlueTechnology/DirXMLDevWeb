@@ -7,6 +7,20 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- **Designer export** (#66), a *Designer* tab on the driver set, with the CLI's output byte for byte:
+  - *Download export XML*: the driver set, or one driver, as a Designer export (`idm export`;
+    `GET /api/export/designer[?driver=D]`, anyone signed in).
+  - A Designer project updated to match the tree or written new (`idm export-project [--new]`),
+    previewed file by file first. As a zip, for editors: an existing project uploaded and given
+    back updated, or a new one given back (`POST /api/export/project-zip?mode=update|new&dryRun=…`
+    with `name`, `vaultName`, `vaultHost`, `vaultUser`, `server`, `serverContext` for a new one;
+    the raw zip as the body for an update). To a folder on the server's host, for deployers
+    (`POST /api/export/project` with `mode`, `path`, `dryRun` and the same fields; hosted mode
+    keeps it under `setup.roots`). No vault password is ever written. The server's package
+    catalog fills a new project's own.
+
 ## [0.40.0] - 2026-10-12
 
 ### Added

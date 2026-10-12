@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { ArtifactNode, Outline, Selection } from "../types";
 import { ConfigEditor } from "./ConfigEditor";
 import { SchemaView } from "./SchemaView";
+import { DesignerExportPanel } from "./DesignerExportPanel";
 import { isUserApplication } from "../drivers";
 
 /**
@@ -9,8 +10,8 @@ import { isUserApplication } from "../drivers";
  * level (package GCV objects, shared resources), the packages recorded on it, its drivers; and
  * its GCVs, editable, with the env-override columns.
  */
-export function DriverSetView({ outline, revision, canOverride, linkable, initialTab, onOpen, onSelect, onSaved }: { outline: Outline; revision: string; canOverride: boolean; linkable: ArtifactNode[]; initialTab?: "overview" | "gcvs" | "schema"; onOpen: (path: string) => void; onSelect: (s: Selection) => void; onSaved: () => void }) {
-  const [tab, setTab] = useState<"overview" | "gcvs" | "schema">(initialTab ?? "overview");
+export function DriverSetView({ outline, revision, canOverride, linkable, initialTab, onOpen, onSelect, onSaved }: { outline: Outline; revision: string; canOverride: boolean; linkable: ArtifactNode[]; initialTab?: "overview" | "gcvs" | "schema" | "designer"; onOpen: (path: string) => void; onSelect: (s: Selection) => void; onSaved: () => void }) {
+  const [tab, setTab] = useState<"overview" | "gcvs" | "schema" | "designer">(initialTab ?? "overview");
   const ds = outline.driverSet;
   const pkgs = Object.entries(ds.packages);
   const meta = Object.entries(ds.meta).filter(([k]) => !k.startsWith("source."));
@@ -32,8 +33,12 @@ export function DriverSetView({ outline, revision, canOverride, linkable, initia
           <button className={tab === "schema" ? "tab active" : "tab"} onClick={() => setTab("schema")} data-testid="ds-tab-schema">
             Schema{ds.schema ? ` ${ds.schema.classes}` : ""}
           </button>
+          <button className={tab === "designer" ? "tab active" : "tab"} onClick={() => setTab("designer")} title="Export for Designer: the export XML, or a Designer project updated or written new" data-testid="ds-tab-designer">
+            Designer
+          </button>
         </div>
       </div>
+      {tab === "designer" && <DesignerExportPanel drivers={outline.drivers.map((d) => d.name)} />}
       {tab === "schema" && <SchemaView revision={revision} onSaved={onSaved} />}
       {tab === "gcvs" && <ConfigEditor driver={null} setName={ds.name} revision={revision} canOverride={canOverride} linkable={linkable} onOpen={onOpen} onSaved={onSaved} />}
       {tab === "overview" && (

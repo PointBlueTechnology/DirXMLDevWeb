@@ -244,7 +244,7 @@ export type Selection =
   | { type: "artifact"; path: string }
   | { type: "file"; file: string }
   | { type: "config"; driver: string | null }
-  | { type: "driverset"; tab?: "overview" | "gcvs" | "schema" }
+  | { type: "driverset"; tab?: "overview" | "gcvs" | "schema" | "designer" }
   | { type: "overrides" }
   | { type: "vault" }
   | { type: "trace"; env?: string; file?: string; popout?: "1" }
@@ -1121,4 +1121,29 @@ export interface TraceFileEntry {
   bytes: number;
   modified: string;
   parsed: boolean;
+}
+
+/** The vault and server details a new Designer project carries (`export-project --new`); never a password. */
+export interface NewProjectFields {
+  vaultName?: string;
+  vaultHost?: string;
+  vaultUser?: string;
+  server?: string;
+  serverContext?: string;
+}
+
+/** `idm export-project --json`, plus what the page asked for (#66). */
+export interface ProjectExportResult {
+  ok: boolean;
+  operation: string;
+  dryRun: boolean;
+  written: boolean;
+  refusal: string | null;
+  createdFiles: string[];
+  changedFiles: string[];
+  deletedFiles: string[];
+  mintedIds: Record<string, string>;
+  notes: string[];
+  path?: string;
+  name?: string;
 }

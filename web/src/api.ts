@@ -1,4 +1,4 @@
-import type { CacheView, CaseFiles, CasePlan, EventDetail, EventRow, EventsDescribe, TraceFileEntry, VaultPolicies, PolicyMembers, AppQueryResult, DriverHealth, LogLevel, DriverRights, DriverSetAdmin, EngineMetrics, WorkOrders, EmailServer, EngineInfo, DriverDetail, TraceShow, TraceTailResult, NamedPasswords, OperateOutcome, PullResult} from "./types";
+import type { CacheView, CaseFiles, CasePlan, EventDetail, EventRow, EventsDescribe, TraceFileEntry, VaultPolicies, PolicyMembers, AppQueryResult, DriverHealth, LogLevel, DriverRights, DriverSetAdmin, EngineMetrics, WorkOrders, EmailServer, EngineInfo, DriverDetail, TraceShow, TraceTailResult, NamedPasswords, OperateOutcome, PullResult, NewProjectFields, ProjectExportResult } from "./types";
 import type { TraceRec } from "./trace/model";
 import type { AppSchema, Architecture, DevNode, DeployChoices, DriverAssociations, ObjectInspection, PasswordSync, VaultJobs, VaultSnapshot, SchemaDiffResult, ProjectArchive, ProjectArchiveResult, Artifact, AuditEntry, BuildResult, ConfigView, Connections, DeployResult, EnvSecrets, FetchResult, FormData as FormDoc, GitDiff, GitStatus, ImportResult, LifecycleResult, OpCall, OpResult, OpSpec, Outline, OverridesData, PackagePrompts, PackagesData, PrdData, RoleCatalog, SchemaActionResult, SchemaClass, SchemaData, Session, SetupResult, SimCaseFiles, SimCases, SimDetail, SimRun, SiteListing, TreeFile, UpdateSites, Validation, VaultDiffResult, VaultEnvironments, VaultStatus, WorkspacesInfo } from "./types";
 import type { FishboneModel } from "./fishbone/types";
@@ -177,6 +177,40 @@ export const api = {
   packagePrompts: (packages: string, driver?: string) => call<PackagePrompts>("GET", `/api/packages/prompts?packages=${q(packages)}${driver ? `&driver=${q(driver)}` : ""}`),
   packageSite: (site: string) => call<SiteListing>("GET", `/api/packages/site?site=${q(site)}`),
   fetchPackages: (req: { site: string; packages: string[]; allVersions?: boolean; dryRun?: boolean }) => call<FetchResult>("POST", "/api/packages/fetch", req),
+  /** The round trip back to Designer (#66): the export XML, a project on the host (deployers), a project as a zip. */
+  designer: {
+    exportUrl: (driver?: string) => `/api/export/designer${driver ? `?driver=${q(driver)}` : ""}${token() ? `${driver ? "&" : "?"}token=${q(token())}` : ""}`,
+    project: (body: { mode: "update" | "new"; path: string; dryRun: boolean } & NewProjectFields) => call<ProjectExportResult>("POST", "/api/export/project", body),
+    /** mode=update uploads the project zip; mode=new names the project. A dry run is the result; an apply is the zip. */
+    projectZip: async (mode: "update" | "new", dryRun: boolean, name: string, fields: NewProjectFields, file: File | null): Promise<ProjectExportResult | { blob: Blob; fileName: string }> => {
+      const params = new URLSearchParams({ mode, dryRun: String(dryRun), ...(name ? { name } : {}) });
+      for (const [k, v] of Object.entries(fields)) {
+        if (v) {
+          params.set(k, v);
+        }
+      }
+      const res = await fetch(`/api/export/project-zip?${params.toString()}`, {
+        method: "POST",
+        headers: { "X-IDMWeb-Token": token(), ...(csrf ? { "X-IDMWeb-CSRF": csrf } : {}), "Content-Type": "application/zip" },
+        body: file ?? undefined,
+      });
+      if (res.ok && (res.headers.get("Content-Type") ?? "").startsWith("application/zip")) {
+        const disposition = res.headers.get("Content-Disposition") ?? "";
+        const m = /filename="([^"]+)"/.exec(disposition);
+        return { blob: await res.blob(), fileName: m ? m[1]! : "project.zip" };
+      }
+      let data: unknown = null;
+      try {
+        data = await res.json();
+      } catch {
+        // not JSON
+      }
+      if (!res.ok) {
+        throw new ApiError(data && typeof data === "object" && "error" in data ? String((data as { error: unknown }).error) : `HTTP ${res.status}`, res.status);
+      }
+      return data as ProjectExportResult;
+    },
+  },
   traces: {
     list: () => call<{ dir: string; files: TraceFileEntry[] }>("GET", "/api/traces"),
     records: (name: string, from: number, count: number, filters: { channels?: string; driver?: string; text?: string }) =>

@@ -19,6 +19,14 @@ Every view of the page, by area, in every install; the items marked *local and s
 - **Driver set**: its DN, the servers it runs on (the primary marked), its drivers, the Library,
   what is linked at the driver-set level, the packages recorded on it, and its GCVs with the
   env-override columns.
+- **Designer** (a tab on the driver set): the round trip back to Designer, as `idm export` and
+  `idm export-project` do it, byte for byte. *Download export XML* gives the driver set (or one
+  driver) as a Designer export. A Designer project is updated to match the tree, or written new
+  with the vault and server details `--new` takes (never a password): uploaded as a zip and
+  downloaded back, or, for a deployer, written to a folder on the server's host (hosted: under
+  `setup.roots`). Every project write is previewed first, file by file, with the core's notes.
+  A driver removed from the tree is removed from a project in Designer, not here. The routes, their
+  fields and examples: docs/designer-export.md.
 - **Schema** (a tab on the driver set, a leaf in the outline): the vault's classes and
   attributes as the tree keeps them (`schema/vault.xml`), a class's attributes on demand, a
   filter by name. *Refresh from vault* reads `cn=schema` of an environment into the tree, only

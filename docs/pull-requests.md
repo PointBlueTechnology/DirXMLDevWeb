@@ -1,6 +1,6 @@
 # Pull requests through the provider's API: design note (#35)
 
-Status: **decided 2026-10-13** (section 6): the recommendations, all four. P1 next.
+Status: **decided 2026-10-13** (section 6): the recommendations, all four. **P1 built** (section 8).
 
 ## 1. Today
 
@@ -116,3 +116,23 @@ Decided 2026-10-13 (Jerry: "Go with the recommendations"):
 Each phase is tested against a stub provider in the unit tests and the smoke run. P1 is also
 checked against this repository on GitHub with a scratch branch, whose request is closed
 afterwards.
+
+## 8. As built (P1)
+
+- `PullRequests` (web): GitHub and GitLab clients and the provider detection. `repo.provider`,
+  `repo.apiUrl` and `repo.caFile` (else `oidc.caFile`) are the project's settings.
+- `GET /api/git/pull-request` answers `available` (or the `reason` it is not), the `provider`, whose
+  account it would be created `as`, whether the branch is `pushed`, the branch's open `request`, and
+  a `title` and `body` to start from. `POST /api/git/pull-request` takes `title` (required), `body`
+  and `draft`, needs an editor and a pushed branch, and answers `ok` with the `request`, or the
+  provider's `error`. Each creation is audited (`pull-request`), without the token.
+- The bar asks only when the branch, its upstream or its unpushed count changes. It shows the open
+  request as `#12 open ↗` (`!12` on GitLab), else *Create pull request…* (disabled until pushed),
+  else the compare link.
+- Found on the way: a workspace is a single-branch clone, so a push of its own branch never
+  recorded `origin/<branch>` (no "to push" count, no upstream). A workspace now tracks its own
+  branch when it is opened and before each push.
+- Tested: `PullRequestsTest` against a stub of each provider, the hosted smoke against a stub
+  GitHub (fallback, create, the open one shown, audit, the description's "Opened by" line), the
+  page against the same stub, and the client against this repository on GitHub (a scratch draft
+  request, closed and its branch deleted).

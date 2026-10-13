@@ -960,10 +960,141 @@ public final class Api implements HttpHandler {
         return "ok";
     }
 
+    private PullRequests pullRequests;
+
+    /**
+     * #35, docs/pull-requests.md: the branch's request on GitHub or GitLab (GET), or a new one (POST, editors).
+     * The credential is the person's own provider token when they have one (P2), else the project's repository
+     * token, and then the body says who opened it. Anything the API cannot do falls back to the compare page.
+     */
+    private Object pullRequest(Session session, Workspace w, Project project, Git git, String base, String method, HttpExchange ex) throws IOException {
+        Map<String, Object> st = git.status(w.root, base);
+        String branch = (String) st.get("branch");
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("branch", branch);
+        m.put("base", base);
+        m.put("compareUrl", st.get("compareUrl"));
+        String reason = null;
+        PullRequests.Target target = null;
+        String token = null;
+        String as = null;
+        if (project == null || !workspaces.hosted()) {
+            reason = "a local install opens the provider's compare page";
+        } else {
+            try {
+                target = PullRequests.target((String) st.get("remote"), project.provider, project.apiUrl);
+            } catch (IllegalArgumentException e) {
+                reason = e.getMessage();
+            }
+            if (target == null && reason == null) {
+                reason = "the remote is not on GitHub or GitLab (a self-hosted one: set repo.provider and repo.apiUrl)";
+            }
+            token = personalProviderToken(session);
+            as = token == null ? null : session.principal.name;
+            if (token == null) {
+                token = workspaces.config().tokenFor(project);
+                as = "the project's repository token";
+            }
+            if (token == null && reason == null) {
+                reason = "the project has no repository token to call " + target.provider().label + " with";
+            }
+        }
+        if (reason == null && (branch == null || branch.equals(base))) {
+            reason = "this is the base branch: a pull request needs a branch of its own";
+        }
+        // pushed: the remote's copy of this branch holds HEAD (a workspace's push need not set an upstream)
+        boolean pushed = branch != null && git.run(w.root, "rev-parse", "--verify", "--quiet", "refs/remotes/origin/" + branch).ok()
+            && git.run(w.root, "merge-base", "--is-ancestor", "HEAD", "refs/remotes/origin/" + branch).ok();
+        m.put("available", reason == null);
+        m.put("reason", reason);
+        m.put("provider", target == null ? null : target.provider().label);
+        m.put("as", reason == null ? as : null);
+        m.put("pushed", pushed);
+        if (reason != null) {
+            if (!method.equals("GET")) {
+                throw new TreeService.BadRequest(reason);
+            }
+            return m;
+        }
+        if (pullRequests == null) {
+            pullRequests = new PullRequests(workspaces.config().gitTls());
+        }
+        if (method.equals("GET")) {
+            try {
+                m.put("request", pullRequests.findOpen(target, token, branch));
+            } catch (PullRequests.ProviderError e) {
+                m.put("error", e.getMessage());
+            }
+            // what the dialog starts from: the last commit's subject, and the branch's commits as a list
+            String ref = git.run(w.root, "rev-parse", "--verify", "--quiet", "refs/remotes/origin/" + base).ok() ? "origin/" + base : base;
+            Git.Result log = git.run(w.root, "log", "--format=%s", ref + "..HEAD");
+            java.util.List<String> subjects = new java.util.ArrayList<>();
+            if (log.ok()) {
+                for (String l : log.out.split("\n")) {
+                    if (!l.isBlank()) {
+                        subjects.add(l.strip());
+                    }
+                }
+            }
+            m.put("title", subjects.isEmpty() ? branch : subjects.get(0));
+            StringBuilder body = new StringBuilder();
+            for (int i = subjects.size() - 1; i >= 0; i--) {
+                body.append("- ").append(subjects.get(i)).append('\n');
+            }
+            m.put("body", body.toString());
+            return m;
+        }
+        if (!method.equals("POST")) {
+            throw new TreeService.BadRequest("GET or POST");
+        }
+        if (!pushed) {
+            throw new TreeService.BadRequest("push the branch first: the request shows what the remote branch holds");
+        }
+        Map<String, Object> req = Json.asMap(Json.parse(new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8)));
+        String title = Json.asString(req.get("title"));
+        if (title == null || title.isBlank()) {
+            throw new TreeService.BadRequest("a pull request needs a title");
+        }
+        String body = Json.asString(req.get("body"));
+        body = body == null ? "" : body.strip();
+        if (!session.principal.name.equals(as)) {
+            // the project's token is someone else's account: say who asked
+            body = (body.isEmpty() ? "" : body + "\n\n") + "Opened by " + session.principal.name
+                + (session.principal.email == null ? "" : " (" + session.principal.email + ")") + " from DirXMLDevWeb.";
+        }
+        Map<String, Object> out = new LinkedHashMap<>(m);
+        Map<String, Object> auditInfo = new LinkedHashMap<>();
+        auditInfo.put("provider", target.provider().label);
+        auditInfo.put("base", base);
+        auditInfo.put("branch", branch);
+        auditInfo.put("as", as);
+        try {
+            Map<String, Object> created = pullRequests.create(target, token, base, branch, title.strip(), body, Boolean.TRUE.equals(req.get("draft")));
+            out.put("ok", true);
+            out.put("request", created);
+            auditInfo.put("number", String.valueOf(created.get("number")));
+            auditInfo.put("url", String.valueOf(created.get("url")));
+            audit.log(session, w, "pull-request", auditInfo, "ok");
+        } catch (PullRequests.ProviderError e) {
+            out.put("ok", false);
+            out.put("error", e.getMessage());
+            audit.log(session, w, "pull-request", auditInfo, "refused");
+        }
+        return out;
+    }
+
+    /** The signed-in person's own provider token (P2 of docs/pull-requests.md); none yet. */
+    private String personalProviderToken(Session session) {
+        return null;
+    }
+
     private Object gitRoute(Session session, Workspace w, String method, String path, Map<String, String> query, HttpExchange ex) throws IOException {
         Project project = workspaces.projectOf(w);
         Git git = project == null ? workspaces.git() : workspaces.gitFor(project);
         String base = project == null ? null : project.base;
+        if (path.equals("/api/git/pull-request")) {
+            return pullRequest(session, w, project, git, base, method, ex);
+        }
         if (method.equals("GET") && path.equals("/api/git/diff")) {
             String against = query.getOrDefault("against", "head");
             String ref;

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
-import type { GitStatus, Selection, Session, WorkspacesInfo } from "../types";
+import type { GitStatus, PullRequestInfo, Selection, Session, WorkspacesInfo } from "../types";
+import { PullRequestDialog } from "./PullRequestDialog";
 
 /**
  * The repository side of the workspace: which branch is open, what has changed since the last
@@ -30,6 +31,25 @@ export function RepoBar({ session, revision, onWorkspaceChanged, onBusy, onAddPr
   const NEW = "__new__";
   const [pick, setPick] = useState("");
   const hosted = session.mode === "hosted";
+  // #35: the branch's request through the provider's API. Asked when the branch, its upstream or what is
+  // unpushed changes, not on every tree change: each ask is a call to the provider.
+  const [pr, setPr] = useState<PullRequestInfo | null>(null);
+  const [prOpen, setPrOpen] = useState(false);
+  const prKey = hosted && status?.repository && status.base && status.branch !== status.base ? `${status.branch}|${status.upstream ?? ""}|${status.ahead ?? 0}` : "";
+  useEffect(() => {
+    if (!prKey) {
+      setPr(null);
+      return;
+    }
+    let live = true;
+    api.git
+      .pullRequest()
+      .then((r) => live && setPr(r))
+      .catch(() => live && setPr(null));
+    return () => {
+      live = false;
+    };
+  }, [prKey]);
 
   const load = () => {
     if (session.workspace) {
@@ -183,12 +203,34 @@ export function RepoBar({ session, revision, onWorkspaceChanged, onBusy, onAddPr
               Update from {status.base}
             </button>
           )}
-          {status.compareUrl && (
-            <a href={status.compareUrl} target="_blank" rel="noreferrer" className="link">
-              Pull request ↗
+          {pr?.request ? (
+            <a href={pr.request.url} target="_blank" rel="noreferrer" className="link" title={pr.request.title} data-testid="repo-pr-link">
+              {pr.provider === "GitLab" ? "!" : "#"}
+              {pr.request.number} {pr.request.draft ? "draft" : pr.request.state} ↗
             </a>
+          ) : pr?.available ? (
+            <button onClick={() => setPrOpen(true)} disabled={!pr.pushed || busy !== null} title={pr.pushed ? `Create a ${pr.provider === "GitLab" ? "merge" : "pull"} request on ${pr.provider}${pr.error ? ` (could not check for an open one: ${pr.error})` : ""}` : "Push first: the request shows what the remote branch holds"} data-testid="repo-pr-create">
+              Create {pr.provider === "GitLab" ? "merge" : "pull"} request…
+            </button>
+          ) : (
+            status.compareUrl && (
+              <a href={status.compareUrl} target="_blank" rel="noreferrer" className="link" title={pr?.reason ?? undefined} data-testid="repo-pr-compare">
+                Pull request ↗
+              </a>
+            )
           )}
         </>
+      )}
+      {prOpen && pr && (
+        <PullRequestDialog
+          info={pr}
+          onClose={() => setPrOpen(false)}
+          onCreated={(r) => {
+            setPrOpen(false);
+            setPr({ ...pr, request: r });
+            setNote({ ok: true, text: `created ${pr.provider === "GitLab" ? "!" : "#"}${r.number}` });
+          }}
+        />
       )}
       {busy && <span className="muted small">{busy}</span>}
       {note && <span className={note.ok ? "ok-text small" : "err-text small"}>{note.text}</span>}

@@ -104,11 +104,33 @@ public final class Git {
         Files.createDirectories(dir.getParent());
         Result r = run(null, "clone", "--branch", branch, "--single-branch", url, dir.toString());
         if (r.ok()) {
+            trackOwnBranch(dir, branch);
             return false;
         }
         must(run(null, "clone", "--branch", base, "--single-branch", url, dir.toString()), "clone " + base);
         must(run(dir, "checkout", "-b", branch), "create branch " + branch);
+        trackOwnBranch(dir, branch);
         return true;
+    }
+
+    /**
+     * A single-branch clone's origin tracks only the branch it was cloned from, so a push of the workspace's own
+     * branch would leave no {@code origin/<branch>}: no "to push" count, and no telling whether a pull request
+     * would show the latest commit (#35). Track it.
+     */
+    void trackOwnBranch(Path dir, String branch) throws IOException {
+        if (branch == null || branch.isBlank() || branch.equals("HEAD")) {
+            return;
+        }
+        String spec = "+refs/heads/" + branch + ":refs/remotes/origin/" + branch;
+        Result have = run(dir, "config", "--get-all", "remote.origin.fetch");
+        if (have.ok() && java.util.Arrays.asList(have.out.split("\n")).contains(spec)) {
+            return;
+        }
+        if (!have.ok() || have.out.isBlank() || have.out.contains("refs/heads/*:")) {
+            return; // no origin, or it already tracks every branch
+        }
+        run(dir, "config", "--add", "remote.origin.fetch", spec);
     }
 
     public Map<String, Object> status(Path dir, String base) throws IOException {
@@ -197,6 +219,7 @@ public final class Git {
         }
         if (push) {
             String branch = run(dir, "rev-parse", "--abbrev-ref", "HEAD").out.trim();
+            trackOwnBranch(dir, branch);
             Result p = run(dir, "push", "-u", "origin", branch);
             m.put("pushed", p.ok());
             if (!p.ok()) {

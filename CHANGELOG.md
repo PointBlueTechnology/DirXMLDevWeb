@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.44.0] - 2026-10-13
+
 ### Added
 
 - **Your own Git provider token** (#35, P2 of docs/pull-requests.md): *My Git provider tokens* under

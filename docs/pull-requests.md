@@ -1,6 +1,6 @@
 # Pull requests through the provider's API: design note (#35)
 
-Status: **proposed 2026-10-13**, for decision (section 6).
+Status: **decided 2026-10-13** (section 6): the recommendations, all four. P1 next.
 
 ## 1. Today
 
@@ -97,7 +97,15 @@ Without either, the compare link stays.
    only? (Recommended: the CLI.)
 4. **Draft by default?** (Recommended: no; the tick is there.)
 
-## 7. Phases (once decided)
+Decided 2026-10-13 (Jerry: "Go with the recommendations"):
+
+1. **C**: the person's own provider token when they have one, otherwise the project's repository
+   token, with "Opened by …" in the body.
+2. **GitHub and GitLab together**, self-hosted included.
+3. **Local installs through the provider's CLI** (`gh` / `glab`) when it is installed and signed in.
+4. **Not a draft by default**; the tick is there.
+
+## 7. Phases
 
 | Phase | What | Needs |
 |---|---|---|

@@ -31,11 +31,12 @@ export function RepoBar({ session, revision, onWorkspaceChanged, onBusy, onAddPr
   const NEW = "__new__";
   const [pick, setPick] = useState("");
   const hosted = session.mode === "hosted";
-  // #35: the branch's request through the provider's API. Asked when the branch, its upstream or what is
-  // unpushed changes, not on every tree change: each ask is a call to the provider.
+  // #35: the branch's request on the provider. Asked when the branch, its upstream or what is unpushed
+  // changes, not on every tree change: each ask is a call to the provider (or its CLI).
   const [pr, setPr] = useState<PullRequestInfo | null>(null);
   const [prOpen, setPrOpen] = useState(false);
-  const prKey = hosted && status?.repository && status.base && status.branch !== status.base ? `${status.branch}|${status.upstream ?? ""}|${status.ahead ?? 0}` : "";
+  // hosted: the provider's API; a local install: gh or glab (P3)
+  const prKey = status?.repository && status.base && status.branch !== status.base ? `${status.branch}|${status.upstream ?? ""}|${status.ahead ?? 0}` : "";
   useEffect(() => {
     if (!prKey) {
       setPr(null);

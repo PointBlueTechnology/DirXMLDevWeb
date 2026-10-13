@@ -1147,3 +1147,36 @@ export interface ProjectExportResult {
   path?: string;
   name?: string;
 }
+
+/** A branch's pull request (GitHub) or merge request (GitLab), #35. */
+export interface PullRequestRef {
+  provider: string;
+  number: number;
+  url: string;
+  state: string;
+  title: string;
+  draft: boolean;
+}
+
+/** What the bar needs to offer a pull request: whether the API can be used, and the branch's open one. */
+export interface PullRequestInfo {
+  available: boolean;
+  /** Why not, when not: the compare page is the fallback. */
+  reason: string | null;
+  provider: string | null;
+  /** Whose account creates it: the person, or "the project's repository token". */
+  as: string | null;
+  pushed: boolean;
+  branch: string | null;
+  base: string | null;
+  compareUrl: string | null;
+  request?: PullRequestRef | null;
+  /** The provider's answer when it could not be asked. */
+  error?: string;
+  title?: string;
+  body?: string;
+}
+
+export interface PullRequestCreated extends PullRequestInfo {
+  ok: boolean;
+}

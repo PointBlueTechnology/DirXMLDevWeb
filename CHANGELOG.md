@@ -7,6 +7,21 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- **Create pull request** from the repository bar (#35, P1 of docs/pull-requests.md), through GitHub's
+  or GitLab's API (github.com, GitHub Enterprise, gitlab.com, self-managed GitLab). A short dialog
+  takes the title, description and a draft tick, and says whose account creates it. The bar then
+  shows the branch's open request (`#12 open ↗`). It is created with the project's repository token,
+  and the description says who opened it. A local install, an unknown provider or a project without
+  a token keeps the compare-page link. Settings: `repo.provider`, `repo.apiUrl`, `repo.caFile`
+  (docs/hosted-mode.md). (`GET`/`POST /api/git/pull-request`.)
+
+### Fixed
+
+- A hosted workspace now tracks its own branch, so a push records `origin/<branch>`: the bar shows
+  what is left to push, and the branch has its upstream.
+
 ## [0.42.0] - 2026-10-13
 
 ### Changed

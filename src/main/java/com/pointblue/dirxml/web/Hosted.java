@@ -28,6 +28,8 @@ import java.util.Properties;
  *   repo.user=x-access-token                  # the user name the token goes with (GitHub: anything)
  *   repo.sshKey=/etc/idmweb/deploy_key        # or a deploy key, for a git@github.com: remote
  *   repo.base=main
+ *   repo.provider=github|gitlab  repo.apiUrl=https://host/api/v3   # pull requests (#35), when the remote does not say
+ *   repo.caFile=/etc/idmweb/git-ca.crt                              # a self-hosted provider's private CA
  *   repo.tree=tree                            # the tree's directory inside the repository ('.' for the root)
  *   repo.cases=cases                          # the simulator corpus inside the repository
  *   catalog.dir=/srv/idm/catalog
@@ -150,7 +152,31 @@ public final class Hosted {
             null, key == null || key.isBlank() ? null : Path.of(key.trim()));
         // project.<name>.environments=a,b (repo.environments for the single-project form): the tree's own environments
         pr.environments = list(p.getProperty(prefix.equals("repo.") ? "repo.environments" : prefix + "environments", ""));
+        // pull requests through the provider's API (#35): which provider and where its API is, when the remote does not say
+        String prov = p.getProperty(pre + "provider");
+        String api = p.getProperty(pre + "apiUrl");
+        pr.provider = prov == null || prov.isBlank() ? null : prov.trim();
+        pr.apiUrl = api == null || api.isBlank() ? null : api.trim();
         return pr;
+    }
+
+    /**
+     * The TLS trust for calls to the git provider's API (#35): the JDK's roots plus {@code repo.caFile} (a
+     * self-hosted provider's private CA), else {@code oidc.caFile}; null for the JDK's alone.
+     */
+    public javax.net.ssl.SSLContext gitTls() throws IOException {
+        String ca = props.getProperty("repo.caFile");
+        if (ca == null || ca.isBlank()) {
+            ca = props.getProperty("oidc.caFile");
+        }
+        if (ca == null || ca.isBlank()) {
+            return null;
+        }
+        try {
+            return com.pointblue.console.auth.TrustManagers.sslContext(com.pointblue.console.auth.TrustManagers.jdkPlus(Path.of(ca.trim())));
+        } catch (java.security.GeneralSecurityException e) {
+            throw new IOException("repo.caFile " + ca.trim() + ": " + e.getMessage(), e);
+        }
     }
 
     /** A project's token from the configuration: its own, else the server's. */
@@ -192,6 +218,8 @@ public final class Hosted {
             pf.set(pre + "tree", each.tree);
             pf.set(pre + "cases", each.cases);
             pf.set(pre + "base", each.base);
+            pf.set(pre + "provider", each.provider);   // #35: kept when the single repo.* keys become a list
+            pf.set(pre + "apiUrl", each.apiUrl);
             if (each.token != null && !each.token.isBlank()) {
                 // never a literal in the configuration: an owner-only file beside the data, read through the
                 // Command form every other credential uses (#40)
@@ -215,7 +243,7 @@ public final class Hosted {
             }
         }
         // the older single-repository keys are superseded by the list
-        for (String k : new String[] {"repo.url", "repo.inPlace", "repo.tree", "repo.cases", "repo.base", "repo.name"}) {
+        for (String k : new String[] {"repo.url", "repo.inPlace", "repo.tree", "repo.cases", "repo.base", "repo.name", "repo.provider", "repo.apiUrl"}) {
             pf.remove(k);
         }
         pf.save();

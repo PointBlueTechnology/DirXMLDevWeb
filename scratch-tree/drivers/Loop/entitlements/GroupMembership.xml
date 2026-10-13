@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<entitlement conflict-resolution="union" description="Membership of a synthetic group" display-name="Group Membership">
+  <values multi-valued="true">
+    <value>cn=synth-users,ou=groups,o=synth</value>
+  </values>
+</entitlement>

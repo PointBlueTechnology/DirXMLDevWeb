@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<policy>
+  <rule>
+    <description>Veto a surname change when the GCV says so</description>
+    <conditions>
+      <and>
+        <if-global-variable name="drv.veto.surname" op="equal">true</if-global-variable>
+        <if-op-attr name="Surname" op="changing"/>
+      </and>
+    </conditions>
+    <actions>
+      <do-veto/>
+    </actions>
+  </rule>
+</policy>

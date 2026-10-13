@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration-values>
+  <definitions>
+    <definition display-name="Subscriber channel retry interval in seconds" name="dirxml.engine.retry-interval" type="integer">
+      <value>30</value>
+    </definition>
+  </definitions>
+</configuration-values>

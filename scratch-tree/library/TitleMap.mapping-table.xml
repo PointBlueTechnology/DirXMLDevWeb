@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mapping-table>
+  <col-def name="code" type="nocase"/>
+  <col-def name="title" type="nocase"/>
+  <row>
+    <col>eng</col>
+    <col>Engineer</col>
+  </row>
+  <row>
+    <col>mgr</col>
+    <col>Manager</col>
+  </row>
+</mapping-table>

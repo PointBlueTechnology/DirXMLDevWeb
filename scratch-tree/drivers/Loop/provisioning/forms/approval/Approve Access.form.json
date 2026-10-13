@@ -1,0 +1,24 @@
+{
+  "components": [
+    {
+      "key": "comment",
+      "type": "textfield",
+      "label": "Comment"
+    },
+    {
+      "key": "submit",
+      "type": "button",
+      "label": "Submit"
+    }
+  ],
+  "title": "Approve Access",
+  "display": "form",
+  "inlinescripts": "",
+  "localization": {
+    "en": {
+      "Comment": "Comment",
+      "Submit": "Submit"
+    }
+  },
+  "externalScripts": []
+}

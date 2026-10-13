@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<provisioning dn="cn=AppConfig,cn=Loop,cn=SynthSet,o=synth">
+  <meta key="objectClass">srvprvAppConfig</meta>
+  <form kind="approval" name="Approve Access" file="forms/approval/Approve Access.form.json">
+    <meta key="dn">cn=Approve Access,cn=WorkflowApprovalForms,cn=WorkflowForms,cn=AppConfig,cn=Loop,cn=SynthSet,o=synth</meta>
+    <meta key="objectClass">srvprvJSONForm</meta>
+  </form>
+  <form kind="request" name="Request Access" file="forms/request/Request Access.form.json">
+    <meta key="dn">cn=Request Access,cn=WorkflowRequestForms,cn=WorkflowForms,cn=AppConfig,cn=Loop,cn=SynthSet,o=synth</meta>
+    <meta key="objectClass">srvprvJSONForm</meta>
+  </form>
+  <prd name="Request Access" dir="prds/Request Access">
+    <property key="status">Active</property>
+    <property key="flow-strategy">SingleFlow</property>
+    <property key="grant">TRUE</property>
+    <property key="revoke">FALSE</property>
+    <property key="category-key">accounts</property>
+    <property key="localized-names">en~Request Access</property>
+    <property key="localized-descrs">en~Request access to a synthetic group</property>
+    <property key="process-type">Normal</property>
+    <meta key="dn">cn=Request Access,cn=RequestDefs,cn=AppConfig,cn=Loop,cn=SynthSet,o=synth</meta>
+    <meta key="objectClass">srvprvRequest</meta>
+  </prd>
+</provisioning>

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<library>
+  <artifact kind="policy" scope="library" name="lib-NormalizeTitle" file="lib-NormalizeTitle.policy.xml">
+    <meta key="dn">cn=lib-NormalizeTitle,cn=Library,cn=SynthSet,o=synth</meta>
+    <meta key="objectClass">DirXML-Rule</meta>
+  </artifact>
+  <artifact kind="resource" scope="library" name="TitleMap" file="TitleMap.mapping-table.xml" content-type="application/vnd.novell.dirxml.mapping-table+xml">
+    <meta key="dirxml-contenttype">application/vnd.novell.dirxml.mapping-table+xml</meta>
+    <meta key="dn">cn=TitleMap,cn=Library,cn=SynthSet,o=synth</meta>
+    <meta key="objectClass">DirXML-Resource</meta>
+  </artifact>
+</library>

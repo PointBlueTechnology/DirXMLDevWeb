@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<driver-config name="Loop">
+  <driver-options>
+    <configuration-values>
+      <definitions>
+        <definition display-name="Heartbeat interval (minutes)" name="pub-heartbeat-interval" type="integer">
+          <value>1</value>
+        </definition>
+      </definitions>
+    </configuration-values>
+  </driver-options>
+  <subscriber-options/>
+  <publisher-options/>
+</driver-config>

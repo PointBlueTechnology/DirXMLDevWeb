@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<provision-request formSrc="1" version="3.6.1">
+  <form-binding form-id="Request Access">
+    <content>
+      <field data-type="string" name="reason">
+        <control control-type="textfield"/>
+      </field>
+      <field data-type="button" name="submit">
+        <control control-type="button"/>
+      </field>
+    </content>
+  </form-binding>
+  <request-data-items>
+    <data-item data-type="string" name="reason" target="flowdata.Start/Request Access/reason" target-type="single-value"/>
+  </request-data-items>
+</provision-request>

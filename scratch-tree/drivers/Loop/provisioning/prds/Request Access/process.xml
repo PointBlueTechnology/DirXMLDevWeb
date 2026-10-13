@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<process formSrc="1" id="cn=Request Access" version="4.5.0">
+  <form-binding activity-id="Approval" form-id="Approve Access"/>
+  <data-items activity-id="Approval">
+    <data-item data-type="string" name="comment" source="flowdata.get('Start/Request Access/reason')" target-type="single-value"/>
+  </data-items>
+  <start-activity activity-id="Start">
+    <display-name>Start</display-name>
+  </start-activity>
+  <user-activity activity-id="Approval">
+    <display-name>Approval</display-name>
+    <addressee>'cn=synth-approvers,ou=groups,o=synth'</addressee>
+  </user-activity>
+  <finish-activity activity-id="Finish">
+    <display-name>Finish</display-name>
+  </finish-activity>
+  <link source="Start" target="Approval" type="forward"/>
+  <link source="Approval" target="Finish" type="approved"/>
+  <link source="Approval" target="Finish" type="denied"/>
+</process>

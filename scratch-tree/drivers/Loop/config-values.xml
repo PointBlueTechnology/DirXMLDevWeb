@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration-values>
+  <definitions>
+    <definition display-name="Users container" name="drv.users" type="dn">
+      <value>ou=users,o=synth</value>
+    </definition>
+    <definition display-name="Veto surname changes" name="drv.veto.surname" type="boolean">
+      <value>true</value>
+    </definition>
+  </definitions>
+</configuration-values>

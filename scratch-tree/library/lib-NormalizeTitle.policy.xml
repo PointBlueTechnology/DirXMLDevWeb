@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<policy>
+  <rule>
+    <description>Normalize the title from its code</description>
+    <conditions>
+      <and>
+        <if-op-attr name="Title" op="changing"/>
+      </and>
+    </conditions>
+    <actions>
+      <do-reformat-op-attr name="Title">
+        <arg-value type="string">
+          <token-map dest="title" src="code" table="..\\Library\\TitleMap">
+            <token-local-variable name="current-value"/>
+          </token-map>
+        </arg-value>
+      </do-reformat-op-attr>
+    </actions>
+  </rule>
+</policy>

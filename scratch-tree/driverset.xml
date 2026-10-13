@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<driverset name="SynthSet" dn="cn=SynthSet,o=synth">
+  <meta key="objectClass">DirXML-DriverSet</meta>
+  <meta key="source.file">driverset.ldif</meta>
+  <config kind="config-values" file="config-values.xml"/>
+  <driver name="Loop" dir="drivers/Loop"/>
+</driverset>

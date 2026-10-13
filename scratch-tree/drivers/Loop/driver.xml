@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<driver name="Loop" dn="cn=Loop,cn=SynthSet,o=synth" shim-class="com.novell.nds.dirxml.driver.loopback.LoopbackDriverShim">
+  <meta key="objectClass">DirXML-Driver</meta>
+  <config kind="config-values" file="config-values.xml"/>
+  <config kind="driver-filter" file="driver-filter.xml"/>
+  <config kind="engine-control-values" file="engine-control-values.xml"/>
+  <config kind="shim-config-info" file="shim-config-info.xml"/>
+  <artifact kind="policy" scope="driver" name="smp" file="smp.policy.xml">
+    <meta key="dn">cn=smp,cn=Loop,cn=SynthSet,o=synth</meta>
+    <meta key="objectClass">DirXML-Rule</meta>
+  </artifact>
+  <artifact kind="policy" scope="subscriber" name="sub-ctp-VetoSurname" file="subscriber/sub-ctp-VetoSurname.policy.xml">
+    <meta key="dn">cn=sub-ctp-VetoSurname,cn=Subscriber,cn=Loop,cn=SynthSet,o=synth</meta>
+    <meta key="objectClass">DirXML-Rule</meta>
+  </artifact>
+  <artifact kind="policy" scope="publisher" name="pub-etp-Trace" file="publisher/pub-etp-Trace.policy.xml">
+    <meta key="dn">cn=pub-etp-Trace,cn=Publisher,cn=Loop,cn=SynthSet,o=synth</meta>
+    <meta key="objectClass">DirXML-Rule</meta>
+  </artifact>
+  <linkage>
+    <set key="schema-mapping">
+      <link ref="drivers/Loop/smp" order="0"/>
+    </set>
+    <set key="publisher-event">
+      <link ref="drivers/Loop/publisher/pub-etp-Trace" order="0"/>
+    </set>
+    <set key="subscriber-command">
+      <link ref="drivers/Loop/subscriber/sub-ctp-VetoSurname" order="0"/>
+      <link ref="library/lib-NormalizeTitle" order="1"/>
+    </set>
+  </linkage>
+  <entitlement name="GroupMembership" file="entitlements/GroupMembership.xml">
+    <meta key="dn">cn=GroupMembership,cn=Loop,cn=SynthSet,o=synth</meta>
+    <meta key="objectClass">DirXML-Entitlement</meta>
+  </entitlement>
+</driver>

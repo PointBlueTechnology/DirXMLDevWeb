@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<policy>
+  <rule>
+    <description>Trace every publisher event</description>
+    <conditions/>
+    <actions>
+      <do-trace-message level="3">
+        <arg-string>
+          <token-text>event for </token-text>
+          <token-src-dn/>
+        </arg-string>
+      </do-trace-message>
+    </actions>
+  </rule>
+</policy>

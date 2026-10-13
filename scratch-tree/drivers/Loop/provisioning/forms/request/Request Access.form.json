@@ -1,0 +1,24 @@
+{
+  "components": [
+    {
+      "key": "reason",
+      "type": "textfield",
+      "label": "Reason"
+    },
+    {
+      "key": "submit",
+      "type": "button",
+      "label": "Submit"
+    }
+  ],
+  "title": "Request Access",
+  "display": "form",
+  "inlinescripts": "",
+  "localization": {
+    "en": {
+      "Reason": "Reason",
+      "Submit": "Submit"
+    }
+  },
+  "externalScripts": []
+}

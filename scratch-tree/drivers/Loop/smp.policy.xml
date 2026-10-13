@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<attr-name-map>
+  <class-name>
+    <app-name>user</app-name>
+    <nds-name>User</nds-name>
+    <attr-name>
+      <app-name>sn</app-name>
+      <nds-name>Surname</nds-name>
+    </attr-name>
+    <attr-name>
+      <app-name>title</app-name>
+      <nds-name>Title</nds-name>
+    </attr-name>
+  </class-name>
+</attr-name-map>

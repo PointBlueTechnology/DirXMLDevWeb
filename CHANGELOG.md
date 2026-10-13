@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.43.0] - 2026-10-13
+
 ### Added
 
 - **Create pull request** from the repository bar (#35, P1 of docs/pull-requests.md), through GitHub's

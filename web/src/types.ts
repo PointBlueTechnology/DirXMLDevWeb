@@ -1173,10 +1173,22 @@ export interface PullRequestInfo {
   request?: PullRequestRef | null;
   /** The provider's answer when it could not be asked. */
   error?: string;
+  /** The person's own token is configured but could not be read; the project's stood in. */
+  personalTokenError?: string;
   title?: string;
   body?: string;
 }
 
 export interface PullRequestCreated extends PullRequestInfo {
   ok: boolean;
+}
+
+/** A provider host the server's projects use, and whether the person has a token for it (#35 P2). Never the value. */
+export interface GitTokenHost {
+  host: string;
+  provider: string;
+  projects: string[];
+  set: boolean;
+  /** file, env:VAR, command, or null. */
+  store: string | null;
 }

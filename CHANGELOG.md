@@ -7,6 +7,12 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- **Needs DirXMLDev 0.29.0**: updating a Designer project the core has just written changes nothing
+  (the package linkage records are written, and only files whose bytes change are listed), so the
+  Designer tab's preview shows only real changes.
+
 ## [0.41.0] - 2026-10-12
 
 ### Added

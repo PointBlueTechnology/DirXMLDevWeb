@@ -7,6 +7,13 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- **Pull requests from a local install** (#35, P3 of docs/pull-requests.md): the repository bar's
+  *Create pull request…* works on a workstation too, through the provider's CLI (`gh` for GitHub,
+  `glab` for GitLab), signed in as you already; nothing is stored. Without the CLI, or not signed in,
+  the bar keeps the compare link and says what to run. With this, #35 is complete.
+
 ## [0.44.0] - 2026-10-13
 
 ### Added

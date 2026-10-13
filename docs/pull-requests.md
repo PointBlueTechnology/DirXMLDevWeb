@@ -1,6 +1,6 @@
 # Pull requests through the provider's API: design note (#35)
 
-Status: **decided 2026-10-13** (section 6): the recommendations, all four. **P1 built** (section 8).
+Status: **decided 2026-10-13** (section 6): the recommendations, all four. **P1 and P2 built** (sections 8 and 9).
 
 ## 1. Today
 
@@ -136,3 +136,22 @@ afterwards.
   GitHub (fallback, create, the open one shown, audit, the description's "Opened by" line), the
   page against the same stub, and the client against this repository on GitHub (a scratch draft
   request, closed and its branch deleted).
+
+## 9. As built (P2)
+
+- `GitTokens`: a person's provider tokens in `data.dir/users/<subject>/git.properties` (owner-only),
+  by host: `<host>.token` (kept in that file), `<host>.tokenEnv`, `<host>.tokenCommand` (a secret
+  manager's CLI, through the same picker as a vault password). Write-only: nothing gives a value back.
+- `GET /api/credentials/git` lists the provider hosts of the server's projects, with each host's
+  projects and how the person's token is kept (`file`, `env:VAR`, `command`) or none.
+  `POST /api/credentials/git` takes `host`, `store` (`file` with `token`, `env:VAR`, `command:…`);
+  `POST /api/credentials/git/remove` takes `host`. Both are audited with the host and the form,
+  never the value. Any signed-in editor manages their own.
+- A pull request uses the person's token for the remote's host when there is one: the request is
+  theirs on the provider and the description carries no "Opened by" line. A token that cannot be
+  read (an unset variable, a failing command) falls back to the project's, and the dialog says why.
+- The page: *My Git provider tokens* under *My connections* (Add, Replace, Forget), and the dialog
+  points there when the project's token would be used.
+- Tested: `GitTokensTest` (forms, the owner-only file, refusals, the host list, no value given back),
+  the hosted smoke (her token used and sent, no "Opened by", the fallback with its reason, forget,
+  the audit without values), and the page against a project on a GitHub-style remote.

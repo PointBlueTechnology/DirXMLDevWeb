@@ -63,6 +63,7 @@ public class PullRequestsTest {
         assertEquals(PullRequests.Provider.GITLAB, gl.provider());
         assertEquals("https://gitlab.example.com/api/v4", gl.apiUrl());
         assertEquals("ops/idm/config", gl.repoPath());
+        assertEquals("the host without its port: a person's token is kept by it", "gitlab.example.com", gl.host());
         PullRequests.Target ghe = PullRequests.target("https://git.example.com/team/config", "github", null);
         assertEquals("https://git.example.com/api/v3", ghe.apiUrl());
         assertEquals("https://api.example/v3", PullRequests.target("https://git.example.com/team/config", "GitHub", "https://api.example/v3/").apiUrl());
@@ -79,7 +80,7 @@ public class PullRequestsTest {
     @Test
     public void gitHubFindsTheBranchsOpenRequestAndCreatesOne() throws Exception {
         PullRequests p = new PullRequests(null);
-        PullRequests.Target t = new PullRequests.Target(PullRequests.Provider.GITHUB, base, "PointBlue/idm-config");
+        PullRequests.Target t = new PullRequests.Target(PullRequests.Provider.GITHUB, base, "PointBlue/idm-config", "github.com");
         answer = "[{\"number\":12,\"html_url\":\"https://github.com/PointBlue/idm-config/pull/12\",\"state\":\"open\",\"title\":\"T\",\"draft\":false}]";
         Map<String, Object> found = p.findOpen(t, "tok", "feature/x");
         assertEquals("GET /repos/PointBlue/idm-config/pulls?state=open&head=PointBlue%3Afeature%2Fx auth=Bearer tok body=", seen.get(0));
@@ -100,7 +101,7 @@ public class PullRequestsTest {
     @Test
     public void gitLabUsesTheProjectPathAndADraftPrefix() throws Exception {
         PullRequests p = new PullRequests(null);
-        PullRequests.Target t = new PullRequests.Target(PullRequests.Provider.GITLAB, base, "ops/idm/config");
+        PullRequests.Target t = new PullRequests.Target(PullRequests.Provider.GITLAB, base, "ops/idm/config", "gitlab.example.com");
         answer = "[]";
         assertNull(p.findOpen(t, "tok", "feature/x"));
         assertEquals("GET /projects/ops%2Fidm%2Fconfig/merge_requests?state=opened&source_branch=feature%2Fx auth=PRIVATE-TOKEN tok body=", seen.get(0));
@@ -120,7 +121,7 @@ public class PullRequestsTest {
         status = 422;
         answer = "{\"message\":\"Validation Failed\",\"errors\":[{\"message\":\"A pull request already exists for PointBlue:feature/x.\"}]}";
         try {
-            p.create(new PullRequests.Target(PullRequests.Provider.GITHUB, base, "PointBlue/idm-config"), "tok", "main", "feature/x", "T", "", false);
+            p.create(new PullRequests.Target(PullRequests.Provider.GITHUB, base, "PointBlue/idm-config", "github.com"), "tok", "main", "feature/x", "T", "", false);
             fail("no error");
         } catch (PullRequests.ProviderError e) {
             assertEquals("GitHub (422): Validation Failed; A pull request already exists for PointBlue:feature/x.", e.getMessage());
@@ -129,7 +130,7 @@ public class PullRequestsTest {
         status = 409;
         answer = "{\"message\":[\"Another open merge request already exists for this source branch: !7\"]}";
         try {
-            p.create(new PullRequests.Target(PullRequests.Provider.GITLAB, base, "ops/config"), "tok", "main", "feature/x", "T", "", false);
+            p.create(new PullRequests.Target(PullRequests.Provider.GITLAB, base, "ops/config", "gitlab.example.com"), "tok", "main", "feature/x", "T", "", false);
             fail("no error");
         } catch (PullRequests.ProviderError e) {
             assertEquals("GitLab (409): Another open merge request already exists for this source branch: !7", e.getMessage());

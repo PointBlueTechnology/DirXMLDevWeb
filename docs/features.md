@@ -194,6 +194,9 @@ Every view of the page, by area, in every install; the items marked *local and s
   (`bws`), a Terraform output, or any command. The page builds the command, tests that it yields
   a value, and saves only the command (the core's `…Command=` form); the value is read when
   needed, on the host that runs the server, and never shown. See "Secret managers" below.
+- **Repository bar**: the branch, what changed since the last commit, commit and push, update from
+  the base branch, and on a hosted server *Create pull request…* through GitHub's or GitLab's API,
+  then the branch's open request as a link (docs/pull-requests.md).
 - **Navigation**: every view is an address (`#type=…`), so the browser's Back and Forward move
   between views, a reload keeps the place, and a link to a policy, a PRD or a file can be shared.
 - **Live follow**: any change to the tree, by anything, reloads the page within a second.

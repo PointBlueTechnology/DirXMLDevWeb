@@ -18,6 +18,7 @@ git -C "$WORK/seed" -c user.name=seed -c user.email=seed@example.com commit -q -
 git init -q --bare -b main "$WORK/repo.git"
 git -C "$WORK/seed" push -q "$WORK/repo.git" main
 PORT=$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1",0)); print(s.getsockname()[1]); s.close()')
+STUB=$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1",0)); print(s.getsockname()[1]); s.close()')
 mkdir -p "$WORK/data"
 cat > "$WORK/hosted.properties" <<ENV
 public.url=http://127.0.0.1:$PORT
@@ -28,6 +29,9 @@ repo.url=$WORK/repo.git
 repo.base=main
 repo.tree=tree
 repo.cases=cases
+repo.provider=github
+repo.apiUrl=http://127.0.0.1:$STUB
+repo.token=smoke-repo-token
 environments.file=$WORK/data/environments.properties
 identity=none
 none.users=alice:Alice Example:alice@example.com:idm-editors;bob:Bob Deployer:bob@example.com:idm-deployers;carol:Carol Reader:carol@example.com:
@@ -46,9 +50,33 @@ while ! grep -q 'hosted:' "$WORK/log" 2>/dev/null; do
   [ $i -gt 60 ] && { echo "server did not start:"; cat "$WORK/log"; exit 1; }
   sleep 0.25
 done
-HERE="$HERE" python3 - "http://127.0.0.1:$PORT" "$WORK" <<'PY'
+HERE="$HERE" python3 - "http://127.0.0.1:$PORT" "$WORK" "$STUB" <<'PY'
 import json, os, subprocess, sys, urllib.request, urllib.error, urllib.parse
 base, work = sys.argv[1], sys.argv[2]
+# #35: a stub of GitHub's pulls API, recording what it is asked
+import threading, http.server
+stub_seen, stub_pulls = [], []
+class StubGitHub(http.server.BaseHTTPRequestHandler):
+    def log_message(self, *a):
+        pass
+    def answer(self, code, body):
+        out = json.dumps(body).encode()
+        self.send_response(code)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(out)))
+        self.end_headers()
+        self.wfile.write(out)
+    def do_GET(self):
+        stub_seen.append(("GET", self.path, self.headers.get("Authorization"), None))
+        self.answer(200, [p for p in stub_pulls if p["state"] == "open"])
+    def do_POST(self):
+        body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", "0"))) or b"{}")
+        stub_seen.append(("POST", self.path, self.headers.get("Authorization"), body))
+        p = {"number": len(stub_pulls) + 1, "html_url": "https://github.com/smoke/config/pull/%d" % (len(stub_pulls) + 1), "state": "open", "title": body.get("title"), "draft": body.get("draft", False)}
+        stub_pulls.append(p)
+        self.answer(201, p)
+stub_server = http.server.HTTPServer(("127.0.0.1", int(sys.argv[3])), StubGitHub)
+threading.Thread(target=stub_server.serve_forever, daemon=True).start()
 
 def check(what, ok):
     print(("ok   " if ok else "FAIL ") + what)
@@ -123,6 +151,8 @@ s, st, _ = alice.call("GET", "/api/git/status")
 check("git status sees the change", s == 200 and any(c["file"].endswith("config-values.xml") for c in st["changed"]))
 s, c, _ = alice.call("POST", "/api/git/commit", {"message": "Rename the company", "push": True})
 check("commit and push as the signed-in user", s == 200 and c["committed"] and c["pushed"])
+s, st, _ = alice.call("GET", "/api/git/status")
+check("after the push the branch tracks its remote copy, nothing left to push (#35)", s == 200 and st["upstream"] == "origin/feature/x" and st["ahead"] == 0)
 log = subprocess.run(["git", "--git-dir", os.path.join(work, "repo.git"), "log", "feature/x", "-1", "--format=%an <%ae> %s"], capture_output=True, text=True).stdout.strip()
 check("the repository has the commit on the branch, authored by her", log == "Alice Example <alice@example.com> Rename the company")
 s, d, _ = alice.call("GET", "/api/git/diff?against=head")
@@ -134,6 +164,23 @@ check("update from main merges (nothing new)", s == 200 and up["merged"])
 check("a deploy needs the deployer role", alice.call("POST", "/api/vault/deploy", {"env": "x", "confirm": "x"})[0] == 403)
 check("so does changing a connection", alice.call("POST", "/api/credentials/environment", {"name": "x"})[0] == 403)
 check("so does writing a Designer project to a host path", alice.call("POST", "/api/export/project", {"mode": "new", "path": "/tmp/x", "dryRun": True})[0] == 403)
+# #35: pull requests through the provider's API (a stub of GitHub's)
+s, pr, _ = alice.call("GET", "/api/git/pull-request")
+check("pull request: a local remote is not a provider, so the compare page stays", s == 200 and not pr["available"] and "GitHub or GitLab" in pr["reason"])
+check("pull request: and nothing is created for it", alice.call("POST", "/api/git/pull-request", {"title": "x"})[0] == 400)
+ws = os.path.join(work, "data", "workspaces", "repo", "alice", "feature_x")
+subprocess.run(["git", "-C", ws, "remote", "set-url", "origin", "https://github.com/smoke/config.git"], check=True)
+subprocess.run(["git", "-C", ws, "remote", "set-url", "--push", "origin", os.path.join(work, "repo.git")], check=True)
+s, pr, _ = alice.call("GET", "/api/git/pull-request")
+check("pull request: on GitHub, as the project's token, pushed, none open yet, a title from the branch", s == 200 and pr["available"] and pr["provider"] == "GitHub" and pr["as"] == "the project's repository token" and pr["pushed"] and pr["request"] is None and pr["title"] == "Rename the company" and "- Rename the company" in pr["body"])
+check("pull request: the provider was asked for the branch's open one with the project's token", stub_seen and stub_seen[-1][0] == "GET" and stub_seen[-1][1] == "/repos/smoke/config/pulls?state=open&head=smoke%3Afeature%2Fx" and stub_seen[-1][2] == "Bearer smoke-repo-token")
+check("pull request: a title is needed", alice.call("POST", "/api/git/pull-request", {"title": " "})[0] == 400)
+s, made, _ = alice.call("POST", "/api/git/pull-request", {"title": "Rename the company", "body": "- Rename the company", "draft": False})
+sent = stub_seen[-1][3]
+check("pull request: created on GitHub, head and base and title as given", s == 200 and made["ok"] and made["request"]["number"] == 1 and sent["head"] == "feature/x" and sent["base"] == "main" and sent["title"] == "Rename the company" and sent["draft"] is False)
+check("pull request: the description says who opened it with the project's token", sent["body"].endswith("Opened by Alice Example (alice@example.com) from DirXMLDevWeb."))
+s, pr, _ = alice.call("GET", "/api/git/pull-request")
+check("pull request: the branch's open one is shown from then on", s == 200 and pr["request"]["number"] == 1 and pr["request"]["url"] == "https://github.com/smoke/config/pull/1")
 
 bob = Client()
 bob.sign_in("bob")
@@ -236,6 +283,8 @@ try:
     check("a deployer reads the audit log (newest first, sign-ins among them)", s == 200 and len(a["entries"]) > 0 and any(e["event"] == "sign-in" for e in a["entries"]) and a["entries"][0]["time"] >= a["entries"][-1]["time"])
     s, a, _ = bob.call("GET", "/api/audit?event=sign-in&user=alice")
     check("filtered by event and user", s == 200 and a["entries"] and all(e["event"] == "sign-in" and e["user"] == "alice" for e in a["entries"]))
+    s, a, _ = bob.call("GET", "/api/audit?event=pull-request")
+    check("a pull request is audited with its number and the account used, no token", s == 200 and a["entries"] and a["entries"][0]["details"].get("number") == "1" and a["entries"][0]["details"].get("as") == "the project's repository token" and "smoke-repo-token" not in json.dumps(a["entries"]))
     check("no line carries a file's contents", all("content" not in json.dumps(e.get("details", {})) for e in bob.call("GET", "/api/audit?limit=500")[1]["entries"]))
     check("a duplicate project name is refused", "exists already" in call2("POST", "/api/setup/directory", {"project": "plain", "path": plain})[1]["error"])
     s, rm = call2("POST", "/api/setup/remove", {"project": "second"})[:2]

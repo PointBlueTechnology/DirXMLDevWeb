@@ -10,8 +10,8 @@ reference for both; [quickstart.md](quickstart.md) sets it up for one person on 
 `bin/idmweb serve --hosted hosted.properties` runs the same server for a team: people sign in,
 each opens a **branch** of the team's git repository as a workspace of their own (a checkout
 under the server's data directory, cloned on first use), edits it with every view above, and
-commits and pushes from the bar at the top; a pull request is one click away on GitHub or
-GitLab. The server holds the vault credentials (its environments file and secrets files, the
+commits and pushes from the bar at the top, and creates the pull request (GitHub) or merge
+request (GitLab) from there too (docs/pull-requests.md). The server holds the vault credentials (its environments file and secrets files, the
 same ones the CLI reads) and writes an audit line per sign-in, write, deploy, driver action,
 trace, commit and push. Roles come from groups: *editors* read, edit and commit; *deployers*
 also deploy, control drivers, trace and change connections.
@@ -28,6 +28,11 @@ project.idm-lab.repo.cases=cases
 project.idm-lab.repo.base=main
 project.customer-a.repo.inPlace=/srv/customer-a   # a checkout used in place instead
 repo.tokenKeychain=idm-repo/token       # a token for https remotes (project.<name>.repo.token for one project's own)
+# pull requests (#35): the provider and its API when the remote does not say (github.com and hosts named
+# "gitlab" are recognised); the token above creates them, so give it pull-request write (GitHub) or api (GitLab)
+#repo.provider=github                   # github | gitlab (project.<name>.repo.provider for one project)
+#repo.apiUrl=https://git.example.com/api/v3
+#repo.caFile=/etc/idmweb/git-ca.crt     # a self-hosted provider's private CA (else oidc.caFile)
 catalog.dir=/srv/idm/catalog
 environments.file=/etc/idmweb/environments.properties   # the project's environment DEFINITIONS: no password keys (the server refuses to start with one); each person's bind DN and password live under data.dir/users/<subject>/ — docs/multi-user.md
 project.<name>.environments=edir3,edir3-prd   # optional: the environments (names from that file) this project's tree is deployed to; without it, every environment is offered

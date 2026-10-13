@@ -58,6 +58,7 @@ data.dir/
   users/<subject>/                 0700, the person's own data
     profile.properties             name, email, last sign-in (for the admin's listing; subjects are opaque ids)
     environments.properties        their credentials by environment name, and any environments of their own
+    git.properties                 their own Git provider tokens by host (#35 P2; docs/pull-requests.md)
     traces/<project>/              their recordings and uploads
   workspaces/<project>/<subject>/<branch>/   as today (snapshots stay inside the checkout)
   environments/

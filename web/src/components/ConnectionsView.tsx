@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../api";
 import type { ConnectionEnv, Connections, EnvSecrets } from "../types";
 import { ManagerPicker } from "./ManagerPicker";
+import { GitTokensPanel } from "./GitTokensPanel";
 
 const TIERS = ["dev", "stg", "prd"];
 
@@ -106,6 +107,7 @@ export function ConnectionsView({ initialEnv, deployer }: { initialEnv: string |
             </tbody>
           </table>
           {data.environments.length === 0 && <p className="muted">No environments yet. {deployer ? "Add the project's first: the vault's LDAPS URL and the driver set's DN; everyone then adds their own bind DN and password." : "A deployer adds the project's environments; you then add your own bind DN and password to each."}</p>}
+          <GitTokensPanel helpers={data.helpers} />
           {editing === "new" && deployer && <EnvForm key="new" env={null} mode="definition" keychain={data.keychain} helpers={data.helpers} onDone={(name) => (void load(), setEditing(name))} onCancel={() => setEditing(null)} />}
           {editing === "new-mine" && <EnvForm key="new-mine" env={null} mode="own" keychain={data.keychain} helpers={data.helpers} onDone={(name) => (void load(), setEditing(name))} onCancel={() => setEditing(null)} />}
           {current && (

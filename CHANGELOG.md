@@ -7,6 +7,16 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- **Your own Git provider token** (#35, P2 of docs/pull-requests.md): *My Git provider tokens* under
+  Connections, one per provider host the server's projects use, kept in your own file (owner-only)
+  or read from an environment variable or a secret manager, and never shown again. With one, a pull
+  request you create from the bar is yours on GitHub or GitLab; without one, the project's token
+  still creates it and the description says you opened it. A token that cannot be read falls back
+  to the project's, and the dialog says why. (`GET`/`POST /api/credentials/git`,
+  `POST /api/credentials/git/remove`.)
+
 ## [0.43.0] - 2026-10-13
 
 ### Added

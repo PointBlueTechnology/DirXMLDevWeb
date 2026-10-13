@@ -205,6 +205,11 @@ public final class Api implements HttpHandler {
                 send(ex, 200, setupRoute(session, method, path, query, ex));
                 return;
             }
+            if (path.startsWith("/api/credentials/git") && workspaces.hosted()) {
+                // #35 P2: the person's own Git provider tokens, by host; reachable before a workspace is open
+                send(ex, 200, gitTokensRoute(session, method, path, ex));
+                return;
+            }
             w = workspaces.get(session.workspace);
             if (w == null && path.startsWith("/api/credentials") && workspaces.hosted()) {
                 // the connections are the person's and the project's, not a workspace's: reachable before one is open
@@ -989,7 +994,13 @@ public final class Api implements HttpHandler {
             if (target == null && reason == null) {
                 reason = "the remote is not on GitHub or GitLab (a self-hosted one: set repo.provider and repo.apiUrl)";
             }
-            token = personalProviderToken(session);
+            try {
+                token = target == null ? null : personalProviderToken(session, target);
+            } catch (IOException e) {
+                // a reference that does not resolve (an unset variable, a failing command): the project's token
+                // stands in, and the person is told why
+                m.put("personalTokenError", "your token for " + target.host() + " could not be read: " + e.getMessage());
+            }
             as = token == null ? null : session.principal.name;
             if (token == null) {
                 token = workspaces.config().tokenFor(project);
@@ -1083,9 +1094,50 @@ public final class Api implements HttpHandler {
         return out;
     }
 
-    /** The signed-in person's own provider token (P2 of docs/pull-requests.md); none yet. */
-    private String personalProviderToken(Session session) {
-        return null;
+    /** The signed-in person's own token for the remote's host (P2 of docs/pull-requests.md), or null. */
+    private String personalProviderToken(Session session, PullRequests.Target target) throws IOException {
+        return GitTokens.of(workspaces.config().users, session.principal).resolve(target.host());
+    }
+
+    /**
+     * {@code GET /api/credentials/git}: the provider hosts of the server's projects and whether the person has a
+     * token for each (how it is kept, never the value). {@code POST /api/credentials/git} with {@code host},
+     * {@code store} ({@code file} with {@code token}, {@code env:VAR}, {@code command:…}) keeps one;
+     * {@code POST /api/credentials/git/remove} with {@code host} forgets it.
+     */
+    private Object gitTokensRoute(Session session, String method, String path, HttpExchange ex) throws IOException {
+        Hosted h = workspaces.config();
+        GitTokens tokens = GitTokens.of(h.users, session.principal);
+        if (method.equals("GET") && path.equals("/api/credentials/git")) {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("hosts", tokens.hosts(h.projects.values()));
+            return m;
+        }
+        if (!method.equals("POST")) {
+            throw new TreeService.NotFound("no such endpoint: " + method + " " + path);
+        }
+        Map<String, Object> req = Json.asMap(Json.parse(new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8)));
+        String host = GitTokens.host(Json.asString(req.get("host")));
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("host", host);
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put("host", host);
+        switch (path) {
+            case "/api/credentials/git": {
+                String store = Json.asString(req.get("store"));
+                m.put("notes", tokens.save(host, store, Json.asString(req.get("token"))));
+                m.put("store", tokens.store(host));
+                details.put("store", store != null && store.startsWith("command:") ? "command" : store);
+                audit.log(session, null, "git-token", details, "ok");
+                return m;
+            }
+            case "/api/credentials/git/remove":
+                m.put("removed", tokens.remove(host));
+                audit.log(session, null, "git-token-remove", details, "ok");
+                return m;
+            default:
+                throw new TreeService.NotFound("no such endpoint: " + method + " " + path);
+        }
     }
 
     private Object gitRoute(Session session, Workspace w, String method, String path, Map<String, String> query, HttpExchange ex) throws IOException {

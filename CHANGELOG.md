@@ -7,11 +7,14 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.42.0] - 2026-10-13
+
 ### Changed
 
-- **Needs DirXMLDev 0.29.0**: updating a Designer project the core has just written changes nothing
+- **Needs DirXMLDev 0.30.0**: updating a Designer project the core has just written changes nothing
   (the package linkage records are written, and only files whose bytes change are listed), so the
-  Designer tab's preview shows only real changes.
+  Designer tab's preview shows only real changes; and a project written from the page now carries the
+  tree's jobs, notification templates and entitlement policies.
 
 ## [0.41.0] - 2026-10-12
 

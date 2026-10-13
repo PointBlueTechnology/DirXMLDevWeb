@@ -33,8 +33,11 @@ final class PullRequests {
         }
     }
 
-    /** Where the requests go: the provider, its API, the repository's path on it ({@code owner/repo}, {@code group/sub/project}). */
-    record Target(Provider provider, String apiUrl, String repoPath) {
+    /**
+     * Where the requests go: the provider, its API, the repository's path on it ({@code owner/repo},
+     * {@code group/sub/project}), and the remote's host (a person's token is kept by it).
+     */
+    record Target(Provider provider, String apiUrl, String repoPath, String host) {
     }
 
     /** The provider said no: its own message, and the HTTP status. */
@@ -102,7 +105,7 @@ final class PullRequests {
         String api = apiUrl != null && !apiUrl.isBlank() ? apiUrl.trim().replaceAll("/+$", "")
             : p == Provider.GITHUB ? (hostOnly.equals("github.com") ? "https://api.github.com" : "https://" + hostOnly + "/api/v3")
             : "https://" + hostOnly + "/api/v4";
-        return new Target(p, api, path);
+        return new Target(p, api, path, hostOnly);
     }
 
     /** The branch's open request, or null. */

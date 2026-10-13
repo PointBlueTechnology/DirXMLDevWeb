@@ -22,9 +22,10 @@
   but are edited in its files; comparing with another tree stays with `idm simulate --against`.
 - Cases are kept in `cases/` beside the tree (or `--cases DIR`). They are not part of the
   tree's revision: the page reloads them after its own writes.
-- Pull requests are created through the API on a hosted server, with the project's repository
-  token for now (a person's own token is P2 of docs/pull-requests.md). A local install, a remote on
+- Pull requests are created through the API on a hosted server, with the person's own provider
+  token when they have one, else the project's repository token. A local install, a remote on
   another provider, or a project without a token gets the compare-page link (the provider's CLI
-  for local installs is P3). Reviewers, labels and merging stay on the provider.
+  for local installs is P3 of docs/pull-requests.md). Reviewers, labels and merging stay on the
+  provider.
 - Exporting a project uploads and downloads it whole (up to 512 MB zipped). A project written new
   mints fresh Designer ids, so two exports of the same tree differ in their ids, as with the CLI.

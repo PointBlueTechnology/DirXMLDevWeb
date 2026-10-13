@@ -39,8 +39,9 @@ export function PullRequestDialog({ info, onClose, onCreated }: { info: PullRequ
           </h3>
           <span className="muted small">
             On {info.provider}, as {info.as}
-            {info.as === "the project's repository token" ? " (the description says you opened it)" : ""}.
+            {info.as === "the project's repository token" ? " (the description says you opened it; add your own token under Connections to open it as yourself)" : ""}.
           </span>
+          {info.personalTokenError && <span className="err-text small">{info.personalTokenError}</span>}
         </div>
         <div className="modal-body pad">
           <label className="field wide">

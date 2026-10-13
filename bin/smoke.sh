@@ -334,6 +334,6 @@ check("designer: something that is not a zip is 400", s == 400)
 check("designer: the vault fields are for a new project only", raw("POST", "/api/export/project-zip?mode=update&dryRun=true&vaultName=T", z)[0] == 400)
 s, h, b = raw("POST", "/api/export/project-zip?mode=update&dryRun=true", z)
 upd = json.loads(b) if s == 200 else {}
-check("designer: the new project uploaded again is planned as an update (dry run, no refusal)", s == 200 and upd["ok"] and upd["refusal"] is None and upd["operation"] == "export-project" and not upd["written"])
+check("designer: the new project uploaded again already matches the tree", s == 200 and upd["ok"] and upd["refusal"] is None and not upd["changedFiles"] and not upd["createdFiles"] and not upd["deletedFiles"])
 print("smoke: all passed")
 PY

@@ -966,6 +966,7 @@ public final class Api implements HttpHandler {
     }
 
     private PullRequests pullRequests;
+    private CliPullRequests cli;       // a local install: gh / glab (#35 P3)
 
     /**
      * #35, docs/pull-requests.md: the branch's request on GitHub or GitLab (GET), or a new one (POST, editors).
@@ -973,6 +974,16 @@ public final class Api implements HttpHandler {
      * token, and then the body says who opened it. Anything the API cannot do falls back to the compare page.
      */
     private Object pullRequest(Session session, Workspace w, Project project, Git git, String base, String method, HttpExchange ex) throws IOException {
+        boolean local = project == null || !workspaces.hosted();
+        if (base == null) {
+            // a local checkout: the base is main or master, whichever the remote has (as /api/git/status says)
+            for (String b : new String[] {"main", "master"}) {
+                if (git.run(w.root, "rev-parse", "--verify", "--quiet", "refs/remotes/origin/" + b).ok()) {
+                    base = b;
+                    break;
+                }
+            }
+        }
         Map<String, Object> st = git.status(w.root, base);
         String branch = (String) st.get("branch");
         Map<String, Object> m = new LinkedHashMap<>();
@@ -983,8 +994,32 @@ public final class Api implements HttpHandler {
         PullRequests.Target target = null;
         String token = null;
         String as = null;
-        if (project == null || !workspaces.hosted()) {
-            reason = "a local install opens the provider's compare page";
+        boolean personal = false;
+        if (!Boolean.TRUE.equals(st.get("repository"))) {
+            reason = "the tree is not in a git checkout";
+        } else if (local) {
+            // P3: the provider's CLI, signed in as the person already; nothing stored here
+            target = PullRequests.target((String) st.get("remote"), null, null);
+            if (target == null) {
+                reason = "the remote is not on GitHub or GitLab";
+            } else {
+                if (cli == null) {
+                    cli = CliPullRequests.find();
+                }
+                String name = CliPullRequests.cliName(target.provider());
+                if (cli.executable(target.provider()) == null) {
+                    reason = "install " + name + " (" + target.provider().label + "'s CLI) and sign in with `" + name + " auth login` to create one from here";
+                } else {
+                    String account = cli.account(target, w.root);
+                    if (account == null) {
+                        reason = name + " is not signed in to " + target.host() + ": run `" + name + " auth login --hostname " + target.host() + "`";
+                    } else {
+                        as = account + " (through " + name + ")";
+                        personal = true;
+                    }
+                }
+            }
+            m.put("via", target == null ? null : CliPullRequests.cliName(target.provider()));
         } else {
             try {
                 target = PullRequests.target((String) st.get("remote"), project.provider, project.apiUrl);
@@ -1002,6 +1037,7 @@ public final class Api implements HttpHandler {
                 m.put("personalTokenError", "your token for " + target.host() + " could not be read: " + e.getMessage());
             }
             as = token == null ? null : session.principal.name;
+            personal = token != null;
             if (token == null) {
                 token = workspaces.config().tokenFor(project);
                 as = "the project's repository token";
@@ -1027,12 +1063,12 @@ public final class Api implements HttpHandler {
             }
             return m;
         }
-        if (pullRequests == null) {
+        if (!local && pullRequests == null) {
             pullRequests = new PullRequests(workspaces.config().gitTls());
         }
         if (method.equals("GET")) {
             try {
-                m.put("request", pullRequests.findOpen(target, token, branch));
+                m.put("request", local ? cli.findOpen(target, w.root, branch) : pullRequests.findOpen(target, token, branch));
             } catch (PullRequests.ProviderError e) {
                 m.put("error", e.getMessage());
             }
@@ -1068,7 +1104,7 @@ public final class Api implements HttpHandler {
         }
         String body = Json.asString(req.get("body"));
         body = body == null ? "" : body.strip();
-        if (!session.principal.name.equals(as)) {
+        if (!personal) {
             // the project's token is someone else's account: say who asked
             body = (body.isEmpty() ? "" : body + "\n\n") + "Opened by " + session.principal.name
                 + (session.principal.email == null ? "" : " (" + session.principal.email + ")") + " from DirXMLDevWeb.";
@@ -1080,7 +1116,9 @@ public final class Api implements HttpHandler {
         auditInfo.put("branch", branch);
         auditInfo.put("as", as);
         try {
-            Map<String, Object> created = pullRequests.create(target, token, base, branch, title.strip(), body, Boolean.TRUE.equals(req.get("draft")));
+            Map<String, Object> created = local
+                ? cli.create(target, w.root, base, branch, title.strip(), body, Boolean.TRUE.equals(req.get("draft")))
+                : pullRequests.create(target, token, base, branch, title.strip(), body, Boolean.TRUE.equals(req.get("draft")));
             out.put("ok", true);
             out.put("request", created);
             auditInfo.put("number", String.valueOf(created.get("number")));

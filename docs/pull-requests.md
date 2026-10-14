@@ -1,6 +1,6 @@
 # Pull requests through the provider's API: design note (#35)
 
-Status: **decided 2026-10-13** (section 6): the recommendations, all four. **P1 and P2 built** (sections 8 and 9).
+Status: **decided 2026-10-13** (section 6): the recommendations, all four. **P1, P2 and P3 built** (sections 8–10): #35 complete.
 
 ## 1. Today
 
@@ -155,3 +155,19 @@ afterwards.
 - Tested: `GitTokensTest` (forms, the owner-only file, refusals, the host list, no value given back),
   the hosted smoke (her token used and sent, no "Opened by", the fallback with its reason, forget,
   the audit without values), and the page against a project on a GitHub-style remote.
+
+## 10. As built (P3)
+
+- `CliPullRequests`: on a local install the remote's provider names the CLI, `gh` for GitHub and
+  `glab` for GitLab, found on `PATH` or in the usual install places (Homebrew included, for a server
+  started from a launcher). `gh auth status --hostname <host>` (or `glab`'s) says whether it is
+  signed in; its account is the author ("jcombs (through gh)"). It runs in the checkout, prompts and
+  pagers off: `gh pr list --head <branch> --state open --json …`, `gh pr create --base --head
+  --title --body [--draft]`; `glab mr list --source-branch <branch> --output json`, `glab mr create
+  --source-branch --target-branch --title --description [--draft] --yes`. Nothing is stored.
+- The same routes as on a hosted server: `GET /api/git/pull-request` answers `via` (the CLI) and, when
+  it cannot be used, the reason with what to run (`gh auth login --hostname <host>`). The base is
+  `main` or `master`, whichever the remote has. No "Opened by" line: the request is the person's.
+- Tested: `CliPullRequestsTest` against stub `gh` and `glab` scripts (the calls made, signed out,
+  missing, the CLI's own error), the local smoke (a tree outside a checkout), and the page against
+  this repository through the real `gh`: a scratch draft request (#104), closed and its branch deleted.

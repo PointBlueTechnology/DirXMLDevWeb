@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { parseMappingTable } from "../configxml";
+import { tableCsv } from "../tablecsv";
 import type { Pending } from "../pending";
 
 /**
@@ -11,6 +12,8 @@ export function TableEditor({ path, content, pending }: { path: string; content:
   const table = parseMappingTable(content);
   const [rows, setRows] = useState<string[][]>([]);
   const [newColumn, setNewColumn] = useState("");
+  const [merge, setMerge] = useState(false);
+  const fileInput = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (pending.ops.length === 0) {
@@ -23,8 +26,69 @@ export function TableEditor({ path, content, pending }: { path: string; content:
     return <div className="banner error">The source is not a &lt;mapping-table&gt;.</div>;
   }
   const cols = table.columns;
+  const name = path.split("/").pop() ?? "table";
+  // export: the table as saved (what is applied), header then rows, as mapping-table.export-csv writes it
+  const exportCsv = () => {
+    const blob = new Blob([tableCsv(cols.map((c) => c.name), table.rows)], { type: "text/csv" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `${name}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+  // import: staged like any other change; the review shows the table's new XML before anything is written
+  const importCsv = (file: File) => {
+    void file.text().then((text) =>
+      pending.put("csv", {
+        name: "mapping-table.import-csv",
+        args: { path, ...(merge ? { merge: "true" } : {}) },
+        files: { "csv-file": text },
+        label: `${merge ? "merge" : "replace the table with"} ${file.name}`,
+      }),
+    );
+  };
+  const csvBar = (
+    <div className="addrow" data-testid="table-csv">
+      <button onClick={exportCsv} title="Download the table as saved, as CSV: a header of column names, then one line per row" data-testid="table-export">
+        Export CSV
+      </button>
+      <button onClick={() => fileInput.current?.click()} title="Choose a CSV file: its first line names the columns, its first column is the key" data-testid="table-import">
+        Import CSV…
+      </button>
+      <label className="checkchip" title="Off: the table becomes the CSV (its columns and rows). On: rows are added and updated by key, the others kept.">
+        <input type="checkbox" checked={merge} onChange={(e) => setMerge(e.target.checked)} data-testid="table-import-merge" /> merge by key
+      </label>
+      <input
+        ref={fileInput}
+        type="file"
+        accept=".csv,text/csv"
+        style={{ display: "none" }}
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) {
+            importCsv(f);
+          }
+          e.target.value = "";
+        }}
+        data-testid="table-import-file"
+      />
+      {pending.has("csv") && (
+        <span className="changed-line">
+          + {pending.ops.find((o) => o.key === "csv")?.label} (review to see the result){" "}
+          <button className="mini" onClick={() => pending.put("csv", null)}>
+            undo
+          </button>
+        </span>
+      )}
+    </div>
+  );
   if (cols.length === 0) {
-    return <p className="muted pad">This table has no columns yet. Add one in the source.</p>;
+    return (
+      <div className="pad">
+        <p className="muted">This table has no columns yet. Import a CSV, or add one in the source.</p>
+        {csvBar}
+      </div>
+    );
   }
 
   const stageRow = (index: number, cells: string[]) => {
@@ -103,6 +167,7 @@ export function TableEditor({ path, content, pending }: { path: string; content:
           ))}
         </tbody>
       </table>
+      {csvBar}
       <div className="addrow">
         <button onClick={() => setRows([...rows, cols.map(() => "")])}>Add row</button>
         <span className="muted small">A new row is staged once its key cell has a value.</span>

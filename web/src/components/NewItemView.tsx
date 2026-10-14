@@ -193,7 +193,7 @@ function NewPolicy({ driver, onStage }: { driver: string | null; onStage: Stage 
 }
 
 const RESOURCE_WORDS: Record<string, { noun: string; set: string | null; note: string }> = {
-  "mapping-table": { noun: "mapping table", set: null, note: "A table with one column is written; add columns and rows in the table editor next. Policies read it with the Map token." },
+  "mapping-table": { noun: "mapping table", set: null, note: "A table with two columns, key and value, is written; add columns and rows in the table editor next, or import a CSV there. Policies read it with the Map token." },
   ecmascript: { noun: "ECMAScript resource", set: "ecmascript", note: "An empty script is written; edit it next. Linked into the driver's ECMAScript set, its functions are callable from policies." },
   gcv: { noun: "GCV resource", set: "gcv", note: "An empty definition list is written; add GCVs in the Configuration view. Linked into the driver's GCV set, the driver reads its values." },
 };

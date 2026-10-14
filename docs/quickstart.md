@@ -15,9 +15,9 @@ and server as a team's, configured for one person on localhost. For a team on a 
   `js.jar`, `ldap.jar` — from its `lib/dirxml/classes` (copy the files, not symlinks: `cp -L`).
   They are OpenText's and never part of the image; without them the page runs, but the compile
   check, the simulator and vault access do not.
-- Access to the image. Today that is Point Blue's registry,
-  `harbor.pointbluetech.com/dirxmldev/dirxml-dev-web`; when the project is public it is
-  `ghcr.io/pointbluetechnology/dirxml-dev-web`, no login needed.
+- Nothing to sign in to for the image: it is public on GitHub's registry,
+  `ghcr.io/pointbluetechnology/dirxml-dev-web`, one tag per release (`0.45.0`, …) and `latest`,
+  for amd64 and arm64.
 - Optionally, a tree: a directory with a `driverset.xml` (from `idm import-live`, `idm import`
   of a Designer export, or a checkout of a repository). Without one the page asks where the tree
   comes from on first run.
@@ -29,7 +29,7 @@ Every [release](https://github.com/PointBlueTechnology/DirXMLDevWeb/releases) ca
 template and the reference README. Unzip it anywhere.
 
 ```bash
-unzip dirxml-dev-web-single-user-0.12.0.zip
+unzip dirxml-dev-web-single-user-*.zip
 ```
 
 (From a checkout it is `hosted/docker/single-user/`.)
@@ -48,14 +48,18 @@ cp -L /path/to/idm/lib/dirxml/classes/{dirxml,dirxml_misc,nxsl,xp,CommonDriverSh
 With a tree:
 
 ```bash
-IDMWEB_IMAGE=harbor.pointbluetech.com/dirxmldev/dirxml-dev-web:0.12.0 single-user/setup.sh /path/to/tree
+IDMWEB_IMAGE=ghcr.io/pointbluetechnology/dirxml-dev-web:latest single-user/setup.sh /path/to/tree
 ```
 
 Without one:
 
 ```bash
-IDMWEB_IMAGE=harbor.pointbluetech.com/dirxmldev/dirxml-dev-web:0.12.0 single-user/setup.sh -
+IDMWEB_IMAGE=ghcr.io/pointbluetechnology/dirxml-dev-web:latest single-user/setup.sh -
 ```
+
+`latest` is the newest release. To stay on one, name its version instead (the bundle's
+own, e.g. `ghcr.io/pointbluetechnology/dirxml-dev-web:0.45.0`); re-running `setup.sh` with a new
+`IDMWEB_IMAGE` moves you to it and keeps your folder.
 
 `setup.sh` pulls the image and makes one folder on your disk, `~/idmweb/`, that holds everything
 (`IDMWEB_PORT` and a second argument change the port and the folder): it seeds a bare git

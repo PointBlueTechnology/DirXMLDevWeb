@@ -46,8 +46,8 @@ registry image.
 the page from the releases (this repo's, DirXMLDev's, the simulator's), checks out DirXMLDev at
 its tag for the helpers and the Terraform module, and runs the same `build.sh` — the engine-jar
 check included. Nothing is built from source there, so the image is reproducible from the tags.
-The package is private while the repository is; making the repository public makes it pullable
-without a login (`docker compose pull` then needs no credentials). To build one by hand:
+The package is public (since 2026-10-14), so `docker compose pull` needs no credentials, while
+the repository itself stays private. To build one by hand:
 `gh workflow run image.yml -f version=0.12.0`.
 
 ## 2. Lay out the host

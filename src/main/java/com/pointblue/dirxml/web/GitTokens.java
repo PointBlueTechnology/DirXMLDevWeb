@@ -22,16 +22,19 @@ import java.util.Properties;
 final class GitTokens {
 
     private final Path file;
-    /** A deployer's command references run; anyone else's are kept but never run (a hosted server runs them as itself). */
-    private final boolean commands;
+    /**
+     * A deployer's references (an environment variable, a command) are resolved; anyone else's are kept but never
+     * resolved, since a hosted server resolves them as itself.
+     */
+    private final boolean references;
 
     GitTokens(Path file) {
         this(file, true);
     }
 
-    GitTokens(Path file, boolean commands) {
+    GitTokens(Path file, boolean references) {
         this.file = file;
-        this.commands = commands;
+        this.references = references;
     }
 
     static GitTokens of(UserData users, Session.Principal who) throws IOException {
@@ -80,9 +83,10 @@ final class GitTokens {
         }
         Properties p = props();
         String k = host(host) + ".token";
-        if (!commands && p.remove(k + "Command") != null && !SecretSource.has(p, k)) {
-            throw new IOException("it is read by a command, which only a deployer may use on this server; "
-                + "keep the token in your file or an environment variable instead");
+        String kind = store(host);
+        if (!references && kind != null && !kind.equals("file")) {
+            throw new IOException("it is " + CredentialService.readBy(kind.replaceAll(":.*", "")) + ", which only a deployer "
+                + "may use on this server; keep the token in your own file instead");
         }
         char[] v = SecretSource.resolve(p, k, "your " + host + " token");
         return v == null || v.length == 0 ? null : new String(v);
@@ -94,9 +98,9 @@ final class GitTokens {
         if (store == null || store.isBlank()) {
             throw new TreeService.BadRequest("store is file, env:VAR or command:…");
         }
-        if (!commands && store.startsWith("command:")) {
-            throw new Api.Forbidden("a command (or secret manager) reference runs on this server as the server: "
-                + "only a deployer may save one; keep the token in your file or an environment variable");
+        if (!references && !store.equals("file")) {
+            throw new Api.Forbidden("an environment variable or command (secret manager) reference is resolved on this "
+                + "server as the server: only a deployer may save one; keep the token in your own file");
         }
         PropertiesFile pf = new PropertiesFile(file);
         clear(pf, k);
@@ -170,11 +174,11 @@ final class GitTokens {
         }
         for (Map<String, Object> h : byHost.values()) {
             String store = store((String) h.get("host"));
-            boolean refused = "command".equals(store) && !commands;
+            boolean refused = store != null && !store.equals("file") && !references;
             h.put("set", store != null && !refused);
             h.put("store", store);
             if (refused) {
-                h.put("refused", true);   // kept in the file, never run here
+                h.put("refused", true);   // kept in the file, never resolved here
             }
         }
         return new ArrayList<>(byHost.values());

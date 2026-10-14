@@ -84,6 +84,31 @@ public final class CredentialService {
         return System.getProperty("os.name", "").toLowerCase().contains("mac");
     }
 
+    /**
+     * Whether this person's own references are left out (a hosted server, someone who is not a deployer): the
+     * server would resolve them as itself, from its own environment, shell or Keychain (docs/security.md).
+     */
+    boolean refusesReferences() {
+        return files.isSplit() && !files.references();
+    }
+
+    /** Whether a key configured as {@code kind} ({@link #sourceKind}) is one this person may not use here. */
+    private boolean refused(String kind) {
+        return refusesReferences() && kind != null && !kind.equals("literal");
+    }
+
+    static String readBy(String kind) {
+        return switch (kind) {
+            case "env" -> "read from an environment variable";
+            case "command" -> "read by a command";
+            case "keychain" -> "read from the Keychain";
+            default -> "a reference";
+        };
+    }
+
+    static final String REFUSED_STORE = "an environment variable, command (secret manager) or Keychain reference is resolved "
+        + "on this server as the server: only a deployer may save one; keep the password in your own file";
+
     /** How a key is configured: literal, env, command, keychain, or null. */
     static String sourceKind(Map<String, String> props, String key) {
         if (props.containsKey(key)) {
@@ -130,12 +155,12 @@ public final class CredentialService {
             }
             e.put("password", sourceKind(mine, n + ".password"));
             e.put("eventsPassword", sourceKind(mine, n + ".eventsPassword"));
-            // a command reference a person who is not a deployer saved: kept in their file, never run here
-            boolean refused = files.isSplit() && !files.commands() && "command".equals(sourceKind(mine, n + ".password"));
+            // a reference a person who is not a deployer saved: kept in their file, never resolved here
+            boolean refused = refused(sourceKind(mine, n + ".password"));
             if (refused) {
                 e.put("passwordRefused", true);
             }
-            if (files.isSplit() && !files.commands() && "command".equals(sourceKind(mine, n + ".eventsPassword"))) {
+            if (refused(sourceKind(mine, n + ".eventsPassword"))) {
                 e.put("eventsPasswordRefused", true);
             }
             e.put("secretsFile", secretsFile(definitionsFile(), props, n).toString());
@@ -339,12 +364,11 @@ public final class CredentialService {
                 pf.set(name + "." + field, s == null || s.isEmpty() || "false".equals(s) && field.equals("trustAll") ? null : s);
             }
         }
-        if (!files.commands()) {
+        if (refusesReferences()) {
             for (String k : new String[] {"passwordStore", "eventsPasswordStore"}) {
                 String st = Json.asString(req.get(k));
-                if (st != null && st.startsWith("command:")) {
-                    throw new Api.Forbidden("a command (or secret manager) reference runs on this server as the server: "
-                        + "only a deployer may save one; keep the password in your file or an environment variable");
+                if (st != null && !st.isBlank() && !st.equals("file")) {
+                    throw new Api.Forbidden(REFUSED_STORE);
                 }
             }
         }
@@ -554,11 +578,12 @@ public final class CredentialService {
                 key = env + ".password";
                 props.putAll(envProps);
                 what = "the password of '" + env + "'";
-                if (!files.commands() && props.remove(key + "Command") != null && !SecretSource.has(props, key)) {
-                    // the person's own command reference: never run here for someone who is not a deployer
+                String kind = refusesReferences() ? sourceKind(entries(files.credentials()), key) : null;
+                if (refused(kind)) {
+                    // the person's own reference: never resolved here for someone who is not a deployer
                     Map<String, Object> m = new LinkedHashMap<>();
                     m.put("ok", false);
-                    m.put("message", what + " is read by a command, which only a deployer may use on this server");
+                    m.put("message", what + " is " + readBy(kind) + ", which only a deployer may use on this server");
                     return m;
                 }
             } else {

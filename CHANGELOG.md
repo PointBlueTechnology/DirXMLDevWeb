@@ -7,6 +7,16 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- **Default behaviour change on a hosted server: command references are a deployer's.** A command or
+  secret-manager reference runs on the server as the server, so only a deployer may keep their own vault
+  password, event-store password or Git provider token that way. An editor's attempt is refused (403),
+  and one an editor saved before is kept in their file but never run: Connections shows it as *command
+  (deployers only)* and the environment as not connected, opening it says why, and a pull request falls
+  back to the project's token. Editors keep theirs in their own file or an environment variable. Local
+  installs and deployers are unaffected. **Needs DirXMLDev 0.31.0** (`Environments.load(…, commands)`).
+
 ## [0.45.0] - 2026-10-14
 
 ### Added

@@ -130,9 +130,17 @@ public final class CredentialService {
             }
             e.put("password", sourceKind(mine, n + ".password"));
             e.put("eventsPassword", sourceKind(mine, n + ".eventsPassword"));
+            // a command reference a person who is not a deployer saved: kept in their file, never run here
+            boolean refused = files.isSplit() && !files.commands() && "command".equals(sourceKind(mine, n + ".password"));
+            if (refused) {
+                e.put("passwordRefused", true);
+            }
+            if (files.isSplit() && !files.commands() && "command".equals(sourceKind(mine, n + ".eventsPassword"))) {
+                e.put("eventsPasswordRefused", true);
+            }
             e.put("secretsFile", secretsFile(definitionsFile(), props, n).toString());
             e.put("secretsFileExists", Files.isRegularFile(secretsFile(definitionsFile(), props, n)));
-            boolean connected = mine.get(n + ".bindDn") != null && sourceKind(mine, n + ".password") != null;
+            boolean connected = mine.get(n + ".bindDn") != null && sourceKind(mine, n + ".password") != null && !refused;
             boolean ready = props.get(n + ".url") != null && props.get(n + ".driverSet") != null && connected;
             e.put("ready", ready);
             if (files.isSplit()) {
@@ -329,6 +337,15 @@ public final class CredentialService {
                 Object v = req.get(field);
                 String s = v == null ? null : String.valueOf(v).trim();
                 pf.set(name + "." + field, s == null || s.isEmpty() || "false".equals(s) && field.equals("trustAll") ? null : s);
+            }
+        }
+        if (!files.commands()) {
+            for (String k : new String[] {"passwordStore", "eventsPasswordStore"}) {
+                String st = Json.asString(req.get(k));
+                if (st != null && st.startsWith("command:")) {
+                    throw new Api.Forbidden("a command (or secret manager) reference runs on this server as the server: "
+                        + "only a deployer may save one; keep the password in your file or an environment variable");
+                }
             }
         }
         List<String> notes = new ArrayList<>();
@@ -537,6 +554,13 @@ public final class CredentialService {
                 key = env + ".password";
                 props.putAll(envProps);
                 what = "the password of '" + env + "'";
+                if (!files.commands() && props.remove(key + "Command") != null && !SecretSource.has(props, key)) {
+                    // the person's own command reference: never run here for someone who is not a deployer
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("ok", false);
+                    m.put("message", what + " is read by a command, which only a deployer may use on this server");
+                    return m;
+                }
             } else {
                 Path sf = secretsFile(definitionsFile(), envProps, env);
                 if (Files.isRegularFile(sf)) {

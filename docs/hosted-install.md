@@ -111,10 +111,11 @@ An agent (CI, an MCP server, a coding agent) does not install anything:
   roles; every endpoint the page uses. Its name is on every audit line.
 - **CLI**: `docker exec idmweb idm validate /var/lib/idmweb/workspaces/<project>/<user>/<branch>/tree`,
   or any other `idm` command, with the same tree files and engine jars the server uses. Workspaces
-  are under `/var/lib/idmweb/workspaces/<project>/<user>/<branch>`. The CLI reads
-  `environments.properties` alone, which holds no passwords, so a vault command (`--env`) cannot
-  bind there; an agent reaches a vault through the API, with the credentials of its own
-  connection.
+  are under `/var/lib/idmweb/workspaces/<project>/<user>/<branch>`. `environments.properties`
+  holds no passwords; for a vault command (`--env`) name a person's own file, whose connections it
+  then uses: `docker exec -e IDM_CREDENTIALS=/var/lib/idmweb/users/<subject>/environments.properties
+  idmweb idm vault.status --env stg` (`ls /var/lib/idmweb/users` lists the subjects; that person's
+  password goes to the vault). An agent reaches a vault through the API, with its own connection.
 
 ## 6. The lab (Point Blue)
 

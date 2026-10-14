@@ -31,9 +31,9 @@ DirXMLDevWeb is at http://localhost:8080
   `~/idmweb/repo.git`, which you can clone, back up, or push on to GitHub later.
 - **CLI**: `~/idmweb/idm …` is `idm` inside the container, in the workspace of the first
   project's `main` (`IDMWEB_PROJECT=customer-a IDMWEB_BRANCH=feature/x ~/idmweb/idm …` for
-  another), with the same engine jars and tree files the page uses. It reads the environments
-  but not your vault password (that is in your own file under `data/users/`), so reach a vault
-  through the page or the API. An agent runs the same, or calls the API with an agent token.
+  another), with the same engine jars and tree files the page uses, and your own connections:
+  it passes `IDM_CREDENTIALS` (your file under `data/users/`), so `--env` binds as the page does.
+  An agent runs the same, or calls the API with an agent token.
 - **More trees**: a server holds any number of projects; "add a project…" in the page's project
   picker takes a vault, a Designer project or export, a repository, a directory, or a remote.
 - **Simulator**: cases live in the repository's `cases/`; the page's Simulator view and

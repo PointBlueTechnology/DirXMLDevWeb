@@ -142,7 +142,8 @@ IDMWEB_UID=$(id -u)
 IDMWEB_GID=$(id -g)
 COMPOSE_FILE=$(printf '%s' "$COMPOSE_FILES" | sed 's/-f //g; s/ /:/g')
 ENV
-printf 'CONTAINER=%s\nCOMPOSE=%s\n' "$CONTAINER" "$COMPOSE" > .engine
+# quoted: COMPOSE is two words for "docker compose" / "podman compose"
+printf "CONTAINER='%s'\nCOMPOSE='%s'\n" "$CONTAINER" "$COMPOSE" > .engine
 # the CLI and the simulator, inside the container, in the workspace of a branch (main by default)
 cat > idm <<'SH'
 #!/bin/sh
@@ -153,8 +154,16 @@ cd "$(dirname "$0")"
 B=${IDMWEB_BRANCH:-main}
 P=${IDMWEB_PROJECT:-$(grep '^projects=' config/hosted.properties | cut -d= -f2 | cut -d, -f1)}
 U=$(grep '^token.user=' config/hosted.properties | cut -d= -f2)
-W="/var/lib/idmweb/workspaces/$(printf '%s' "$P" | sed 's#[^A-Za-z0-9._-]#_#g')/$U/$(printf '%s' "$B" | sed 's#[^A-Za-z0-9._-]#_#g')"
-exec $COMPOSE exec -T -w "$W" idmweb idm "$@"
+S=$(printf '%s' "$U" | sed 's#[^A-Za-z0-9._-]#_#g')
+REL="workspaces/$(printf '%s' "$P" | sed 's#[^A-Za-z0-9._-]#_#g')/$S/$(printf '%s' "$B" | sed 's#[^A-Za-z0-9._-]#_#g')"
+# your bind DN and password are in your own file, merged over the environments as the page does
+CRED="IDM_CREDENTIALS=/var/lib/idmweb/users/$S/environments.properties"
+if [ -n "$P" ] && [ -d "data/$REL" ]; then
+  exec $COMPOSE exec -T -w "/var/lib/idmweb/$REL" -e "$CRED" idmweb idm "$@"
+fi
+# no workspace opened yet (or no project): vault and other commands that need no tree still run
+[ -n "$P" ] && echo "note: no workspace data/$REL yet (open the branch on the page); running outside one" >&2
+exec $COMPOSE exec -T -w /var/lib/idmweb -e "$CRED" idmweb idm "$@"
 SH
 chmod +x idm
 $COMPOSE $COMPOSE_FILES up -d >/dev/null

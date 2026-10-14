@@ -1164,8 +1164,10 @@ export interface PullRequestInfo {
   /** Why not, when not: the compare page is the fallback. */
   reason: string | null;
   provider: string | null;
-  /** Whose account creates it: the person, or "the project's repository token". */
+  /** Whose account creates it: the person, "the project's repository token", or "<login> (through gh)". */
   as: string | null;
+  /** A local install: the CLI that creates it (gh, glab). */
+  via?: string | null;
   pushed: boolean;
   branch: string | null;
   base: string | null;

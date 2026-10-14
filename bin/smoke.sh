@@ -335,5 +335,7 @@ check("designer: the vault fields are for a new project only", raw("POST", "/api
 s, h, b = raw("POST", "/api/export/project-zip?mode=update&dryRun=true", z)
 upd = json.loads(b) if s == 200 else {}
 check("designer: the new project uploaded again already matches the tree", s == 200 and upd["ok"] and upd["refusal"] is None and not upd["changedFiles"] and not upd["createdFiles"] and not upd["deletedFiles"])
+s, pr = call("GET", "/api/git/pull-request")
+check("pull request: a tree outside a git checkout has none to offer (#35)", s == 200 and not pr["available"] and "git checkout" in pr["reason"])
 print("smoke: all passed")
 PY

@@ -52,7 +52,9 @@ DirXMLDevWeb is at http://localhost:8080
   password may be the value itself, `…Env=NAME` with the value in `idmweb.env`, or a `…Command=`
   reference to a secret manager whose CLI you add to the image. Keychain references do not resolve
   inside the container. `config/environments.properties` must hold no password (the server will
-  not start), so copy yours in only without its secrets.
+  not start): with `IDM_ENVIRONMENTS` set, `setup.sh` splits your CLI file into the two, and run
+  again it splits an older install's `config/` file the same way (keeping the original as
+  `environments.properties.before-split`).
 
 **Podman**: `CONTAINER=podman setup.sh …` uses `podman` and `podman compose` (or
 `podman-compose`; set `COMPOSE` to choose) and adds `compose.podman.yml` (`userns_mode: keep-id`)

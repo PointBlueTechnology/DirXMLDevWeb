@@ -1,6 +1,6 @@
 # Trace viewer in the workbench: design note
 
-Status: **decided 2026-10-07** (Jerry took the proposals in section 7). Nothing is built yet; T1 is first, in the viewer repository.
+Status: **decided 2026-10-07** (Jerry took the proposals in section 7). Built: the shared library in DirXMLTraceViewer 1.5.0 (`dirxml-trace-core`), the Trace view in DirXMLDevWeb 0.16.0.
 
 The question: provide a web version of the
 [DirXML Trace Viewer](https://github.com/PointBlueTechnology/DirXMLTraceViewer) (desktop, Swing,
@@ -55,10 +55,10 @@ this source only.
   and the page filters, which is how the desktop works and what a multi-driver investigation
   needs. The core's `LdapTrace` stays for the CLI and the agent (`driver.trace tail`).
 - **Recording.** `record=true` on the stream also writes the formatted text through
-  `TraceFileWriter` to `<data.dir>/users/<subject>/traces/<project>/<env>/<driver or all>-<timestamp>.trace` (the person's own; `~/.idm/traces/<tree>/` locally), unfiltered
+  `TraceFileWriter` to `<data.dir>/users/<subject>/traces/<project>/<env>/<driver or all>-<timestamp>.trace` (the person's own; `~/.idm/traces/local/` on a workstation), unfiltered
   (the desktop records what passes the filter; the page can save the displayed text itself, so
   the server keeps everything). `GET /api/traces` lists them, `GET /api/traces/<name>` serves one,
-  `DELETE` removes one; recordings are per project like audit lines.
+  `DELETE` removes one; recordings are per person and project.
 - **Trace files.** `POST /api/traces/upload` (multipart, streamed to the traces directory, size
   limit configurable, default 1 GB) and `GET /api/traces/<name>/records?from&count&channels&driver&text`
   — the file is parsed once with `TraceFileReader`/`TraceParser.parseText` into an index (record

@@ -1,8 +1,10 @@
 # Hosted mode: configuration
 
 `serve --hosted` is what both the local (one person) and the server (team) installs run: sign-in,
-projects, a branch per person as a workspace, commits and pushes from the page, the vault
-credentials held by the server, an audit line per action. This page is the configuration
+projects, a branch per person as a workspace, commits and pushes from the page, each person's
+vault credentials in their own file on the server, an audit line per action. The workstation
+install (`serve <tree>`, local mode) has none of this; docs/security.md sets the two modes side by
+side. This page is the configuration
 reference for both; [quickstart.md](quickstart.md) sets it up for one person on localhost
 (`identity=token`), [hosted-install.md](hosted-install.md) for a team on a host
 (`identity=oidc`), [hosted.md](hosted.md) is the design.
@@ -11,10 +13,14 @@ reference for both; [quickstart.md](quickstart.md) sets it up for one person on 
 each opens a **branch** of the team's git repository as a workspace of their own (a checkout
 under the server's data directory, cloned on first use), edits it with every view above, and
 commits and pushes from the bar at the top, and creates the pull request (GitHub) or merge
-request (GitLab) from there too (docs/pull-requests.md). The server holds the vault credentials (its environments file and secrets files, the
-same ones the CLI reads) and writes an audit line per sign-in, write, deploy, driver action,
-trace, commit and push. Roles come from groups: *editors* read, edit and commit; *deployers*
-also deploy, control drivers, trace and change connections.
+request (GitLab) from there too (docs/pull-requests.md). The server holds the environment
+definitions (`environments.file`, no secrets) with the driver secrets beside them, and each
+person's bind DN and password in their own file under `data.dir/users/<subject>/`
+(docs/multi-user.md); it writes an audit line per sign-in, write, deploy, driver action, trace
+change, commit and push. Roles come from groups: *readers* look; *editors* read, edit and commit;
+*deployers* also deploy, control drivers, set trace levels and read the engine's trace file, and
+change the shared environments and driver secrets. Watching a live trace is open to anyone
+signed in.
 
 ```properties
 public.url=https://idm.example.com      # what the browser sees; TLS terminates at a reverse proxy
@@ -27,7 +33,7 @@ project.idm-lab.repo.tree=tree          # the tree's directory inside the reposi
 project.idm-lab.repo.cases=cases
 project.idm-lab.repo.base=main
 project.customer-a.repo.inPlace=/srv/customer-a   # a checkout used in place instead
-repo.tokenKeychain=idm-repo/token       # a token for https remotes (project.<name>.repo.token for one project's own)
+repo.tokenEnv=IDMWEB_REPO_TOKEN         # a token for https remotes (project.<name>.repo.token for one project's own); .tokenKeychain on a macOS host only, never in the container
 # pull requests (#35): the provider and its API when the remote does not say (github.com and hosts named
 # "gitlab" are recognised); the token above creates them, so give it pull-request write (GitHub) or api (GitLab)
 #repo.provider=github                   # github | gitlab (project.<name>.repo.provider for one project)
@@ -36,7 +42,7 @@ repo.tokenKeychain=idm-repo/token       # a token for https remotes (project.<na
 catalog.dir=/srv/idm/catalog
 environments.file=/etc/idmweb/environments.properties   # the project's environment DEFINITIONS: no password keys (the server refuses to start with one); each person's bind DN and password live under data.dir/users/<subject>/ — docs/multi-user.md
 project.<name>.environments=edir3,edir3-prd   # optional: the environments (names from that file) this project's tree is deployed to; without it, every environment is offered
-identity=none                           # none (loopback only, for a trusted host) or oidc
+identity=none                           # token (one person: token.valueEnv, token.user), oidc (a team), or none (tests; loopback only)
 none.users=alice:Alice:alice@example.com:idm-editors;bob:Bob:bob@example.com:idm-deployers
 roles.editor=idm-editors,idm-deployers
 roles.deployer=idm-deployers
@@ -68,7 +74,7 @@ audience, expiry, nonce), groups from `oidc.groupsClaim` (a dotted path such as
 identity=oidc
 oidc.issuer=https://login.example.com/realms/idm
 oidc.clientId=idmweb
-oidc.clientSecretKeychain=idmweb/oidc           # or .clientSecret, .clientSecretEnv, .clientSecretCommand
+oidc.clientSecretEnv=IDMWEB_OIDC_SECRET         # or .clientSecret, .clientSecretCommand; .clientSecretKeychain on a macOS host only
 oidc.groupsClaim=groups
 oidc.scopes=openid profile email
 ```

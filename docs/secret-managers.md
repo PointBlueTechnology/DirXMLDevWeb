@@ -15,11 +15,19 @@ that line for you from a preset:
 | Bitwarden Secrets Manager | `bws secret get ID \| jq -r .value` | `bws`, `BWS_ACCESS_TOKEN` |
 | Terraform output | `terraform -chdir=… output -raw NAME` | `terraform`; the value is in Terraform state, so prefer a manager Terraform provisions the secret into |
 
-The command runs on the host that runs the server (your workstation in local mode), with the
-environment of the shell that started it: export `BW_SESSION`, `BT_API_KEY`, cloud profiles and
-the like there. Keys a manager needs (an API key, a session) are themselves credentials: keep
-them in the Keychain and export them from it, e.g. `BT_API_KEY=$(security find-generic-password
--s beyondtrust -w)`. The same lines work for the `idm` CLI, which reads the same files.
+Where the command runs, and who may save one, depends on the install:
+
+| | Workstation (`serve <tree>`) | Local container and team server (hosted) |
+|---|---|---|
+| Runs on | your machine, as you | the server, as its own user, inside the container |
+| Its environment | the shell that started the server: export `BW_SESSION`, `BT_API_KEY`, cloud profiles there | the container's: put them in `idmweb.env` |
+| The manager's CLI | whatever you have installed | not in the image (it carries `git`, `python3`, `curl` and `ssh`, so the CyberArk and BeyondTrust helpers run): add `aws`, `az`, `gcloud`, `bw`, `bws`, `terraform` or `jq` in an image of your own |
+| Who may save one | you | a deployer: for a vault password, an event-store password or a Git token in a person's own file, an editor keeps only the value itself (docs/security.md). Shared driver secrets are a deployer's anyway |
+
+Keys a manager needs (an API key, a session) are themselves credentials. On a macOS workstation,
+keep them in the Keychain and export them from it, e.g. `BT_API_KEY=$(security
+find-generic-password -s beyondtrust -w)`; in a container, in `idmweb.env` (`0600`). On a
+workstation the same lines work for the `idm` CLI, which reads the same files.
 
 **With Terraform**: have Terraform provision the secret into the manager (`aws_secretsmanager_secret_version`,
 `azurerm_key_vault_secret`, `google_secret_manager_secret_version`, …) and reference it from

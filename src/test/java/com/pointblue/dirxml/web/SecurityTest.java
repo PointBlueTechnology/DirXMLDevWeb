@@ -45,4 +45,28 @@ public class SecurityTest {
         assertEquals(48, a.length());
         assertNotEquals(a, Security.newToken());
     }
+
+    /** #109's finding: the one-person container (public.url http://localhost:8080) also answers as 127.0.0.1 and [::1]. */
+    @Test
+    public void aHostedServerOnLoopbackAnswersToEachLoopbackName() {
+        Security h = Security.hosted("http://localhost:8080");
+        assertNull(h.refuse("localhost:8080", null, null));
+        assertNull(h.refuse("127.0.0.1:8080", "http://127.0.0.1:8080", null));
+        assertNull(h.refuse("[::1]:8080", "http://[::1]:8080", null));
+        assertNull(h.refuse("LOCALHOST:8080", "http://LocalHost:8080", null));
+        assertNotNull("another port", h.refuse("127.0.0.1:9999", null, null));
+        assertNotNull("a rebinding name", h.refuse("evil.example:8080", null, null));
+        assertNotNull("another origin", h.refuse("127.0.0.1:8080", "http://evil.example:8080", null));
+        assertNotNull("another scheme", h.refuse("127.0.0.1:8080", "https://127.0.0.1:8080", null));
+    }
+
+    /** A team server answers only to its public name, never to a loopback one. */
+    @Test
+    public void aHostedServerOnAPublicNameAnswersOnlyToIt() {
+        Security h = Security.hosted("https://idm.example.com");
+        assertNull(h.refuse("idm.example.com", "https://idm.example.com", null));
+        assertNotNull(h.refuse("localhost", null, null));
+        assertNotNull(h.refuse("127.0.0.1", null, null));
+        assertNotNull(h.refuse("idm.example.com", "http://idm.example.com", null));
+    }
 }

@@ -13,6 +13,68 @@ export interface TraceRec {
   h: number[] | null;
   x: string;
   r: [number, number, string, number][];
+  /** The jump marker (`TraceMarker` in the trace library) this record is, if any. */
+  k?: string | null;
+  /** The header's time of day in milliseconds, -1 without a header. */
+  tm?: number;
+}
+
+/** The kinds of place to jump to (#2 of the trace viewer), as the library's `TraceMarker` names them. */
+export const MARKERS: { code: string; label: string }[] = [
+  { code: "DRIVER_START", label: "Driver start" },
+  { code: "PUBLISHER_EVENT", label: "Publisher event" },
+  { code: "SUBSCRIBER_EVENT", label: "Subscriber event" },
+  { code: "SUBSCRIBER_EXECUTE", label: "Subscriber shim" },
+  { code: "POLICY", label: "Policy" },
+  { code: "POLICY_SET", label: "Policy set" },
+  { code: "END_TRANSACTION", label: "End transaction" },
+  { code: "LOG_EVENT", label: "Log event" },
+  { code: "PUMP_XDS", label: "Pump to eDirectory" },
+];
+
+/**
+ * The row of the next (`dir` 1) or previous (-1) record of `kind` after or before row `base`, or
+ * the most recent one (0); -1 when there is none.
+ */
+export function markerRow(recs: TraceRec[], kind: string, base: number, dir: 1 | -1 | 0): number {
+  if (dir === 1) {
+    for (let i = Math.max(0, base + 1); i < recs.length; i++) {
+      if (recs[i]!.k === kind) {
+        return i;
+      }
+    }
+    return -1;
+  }
+  for (let i = dir === 0 ? recs.length - 1 : Math.min(recs.length, base) - 1; i >= 0; i--) {
+    if (recs[i]!.k === kind) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+/** Milliseconds since midnight in `s` (`10:15`, `10:15:12`, `10:15:12.345`), or -1. */
+export function parseTimeOfDay(s: string): number {
+  const m = /(\d{1,2}):(\d{2})(?::(\d{2})(?:[.,](\d{1,3}))?)?/.exec(s);
+  if (!m) {
+    return -1;
+  }
+  const [hh, mm, ss] = [Number(m[1]), Number(m[2]), m[3] ? Number(m[3]) : 0];
+  const ms = m[4] ? Number((m[4] + "00").slice(0, 3)) : 0;
+  return hh < 24 && mm < 60 && ss < 60 ? ((hh * 60 + mm) * 60 + ss) * 1000 + ms : -1;
+}
+
+/** The first row at or after `ms` (a record without a header takes its predecessor's time), or -1. */
+export function rowAtTime(recs: TraceRec[], ms: number): number {
+  let last = -1;
+  for (let i = 0; i < recs.length; i++) {
+    const t = recs[i]!.tm ?? -1;
+    last = t >= 0 ? t : last;
+    if (last >= ms) {
+      return i;
+    }
+  }
+  return -1;
 }
 
 export type ChannelCode = TraceRec["c"];

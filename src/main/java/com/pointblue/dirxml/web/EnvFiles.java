@@ -12,16 +12,24 @@ import java.nio.file.Paths;
  * {@code definitions} merged with one person's {@code credentials}. Nothing here resolves a
  * secret; the core does that when an environment is opened.
  */
-public record EnvFiles(Path definitions, Path credentials) {
+public record EnvFiles(Path definitions, Path credentials, boolean commands) {
 
     /** One file holding everything, the CLI's form. */
     public static EnvFiles single(Path file) {
-        return new EnvFiles(file.toAbsolutePath().normalize(), null);
+        return new EnvFiles(file.toAbsolutePath().normalize(), null, true);
     }
 
     /** The project's definitions and one person's credentials, merged by the core. */
     public static EnvFiles split(Path definitions, Path credentials) {
-        return new EnvFiles(definitions.toAbsolutePath().normalize(), credentials.toAbsolutePath().normalize());
+        return split(definitions, credentials, true);
+    }
+
+    /**
+     * The same, with {@code commands} false for a person who is not a deployer: a hosted server runs a command
+     * reference as itself, so theirs are left out (docs/security.md) and asking for that secret says why.
+     */
+    public static EnvFiles split(Path definitions, Path credentials, boolean commands) {
+        return new EnvFiles(definitions.toAbsolutePath().normalize(), credentials.toAbsolutePath().normalize(), commands);
     }
 
     public boolean isSplit() {
@@ -36,7 +44,7 @@ public record EnvFiles(Path definitions, Path credentials) {
             }
             return Environments.load(definitions);
         }
-        return Environments.load(definitions, credentials);
+        return Environments.load(definitions, credentials, commands);
     }
 
     /** The file the Connections view writes a person's entries to: their credentials, else the one file. */

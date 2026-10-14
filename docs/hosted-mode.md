@@ -47,9 +47,10 @@ setup.roots=/srv,/var/lib/idmweb      # where path-based setup may point (defaul
 **Roles and the host.** An *editor* reads, edits, commits and pushes, and adds a project by
 uploading a Designer project or export, exporting from a vault, or cloning a remote. Attaching a
 path of the host — a checkout in place, a bare repository, a directory of files — typing a
-command to test a secret manager, and keeping one's own password or Git token as a command or
-secret-manager reference are the *deployer's*: they act on the server as its own user. An editor
-keeps theirs in their own file or an environment variable (docs/security.md).
+command to test a secret manager, and keeping one's own password or Git token as a reference
+(an environment variable, a command, a secret manager or the Keychain) are the *deployer's*: the
+server resolves a reference as its own user. An editor keeps the value itself in their own file
+(docs/security.md).
 Paths must lie under `setup.roots`. A token typed for a clone is never written into this file: it
 goes to `<data.dir>/secrets/<project>.repo.token` (owner-only) and the configuration references it
 as `project.<name>.repo.tokenCommand`. A project used in place is one person's working copy: the

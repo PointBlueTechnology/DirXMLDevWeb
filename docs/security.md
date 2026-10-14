@@ -23,12 +23,14 @@
 - In hosted mode, acting on the server's host is the deployer's: attaching a path (a checkout in
   place, a repository, a directory) is deployer-only and confined to `setup.roots`; a command
   typed to test a secret manager runs only for a deployer (an editor may still resolve a saved
-  credential by its key). A command or secret-manager reference in a person's own file (their
-  vault password, their event-store password, their Git provider token) runs on the server as the
-  server, so only a deployer may save one, and one an editor saved before is kept in their file
-  but never run: the Connections view shows it as *command (deployers only)*, opening that
-  environment says why, and a pull request falls back to the project's token. A literal in their
-  own file and an environment variable stay open to everyone. A clone's token is kept in an owner-only file under the data
+  credential by its key). A reference in a person's own file (their vault password, their
+  event-store password, their Git provider token), whether an environment variable, a command, a
+  secret manager or a Keychain item, is resolved on the server as the server: a variable reference
+  could name one of the server's own variables and send it to a vault URL of the person's choosing.
+  So only a deployer may save one, and one an editor saved before is kept in their file but never
+  resolved: the Connections view shows it as *env (deployers only)* or *command (deployers only)*,
+  opening that environment says why, and a pull request falls back to the project's token. The
+  value itself in their own (owner-only) file stays open to everyone. A clone's token is kept in an owner-only file under the data
   directory, never in the configuration. A checkout used in place belongs to the person who
   opened it.
 - Nothing is read from a vault until you choose an environment and ask. Every write to a vault

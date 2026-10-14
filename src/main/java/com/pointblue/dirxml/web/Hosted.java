@@ -78,7 +78,8 @@ public final class Hosted {
             return EnvFiles.single(environmentsFile);
         }
         users.touch(who);
-        // a command reference in a person's own file runs on this server as the server: a deployer's only
+        // a reference in a person's own file (a variable, command or Keychain item) is resolved by this server as
+        // itself: a deployer's only
         return EnvFiles.split(environmentsFile, users.credentials(who), who.deployer);
     }
     public final String identity;

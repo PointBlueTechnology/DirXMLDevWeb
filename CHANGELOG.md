@@ -7,6 +7,17 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Fixed
+
+- **Vault Compare failed with `NullPointerException: Cannot invoke "String.length()"`** (#116). It
+  happened when the vault holds the driver set's own jobs, templates or RBE policies and the tree has
+  none. The core's diff JSON choked on the driver-set-level guard; fixed in DirXMLDev 0.35.0.
+- **An internal error now leaves its stack trace in the server log** with the request's method and
+  path, and the page's message says the server log has the details. Before, the log had nothing,
+  so #116 could only be found by reproducing it.
+
+**Needs DirXMLDev 0.35.0.**
+
 ## [0.52.0] - 2026-10-14
 
 ### Added

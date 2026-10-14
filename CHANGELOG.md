@@ -9,6 +9,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Changed
 
+- **The image is public on GHCR**: `ghcr.io/pointbluetechnology/dirxml-dev-web:<version>` and `:latest`
+  pull without a login. docs/quickstart.md, the single-user bundle's README and `setup.sh` name it
+  (they still pointed at Point Blue's Harbor and at 0.12.0); Harbor stays the lab's (docs/hosted-install.md §6).
+
 - **Default behaviour change on a hosted server: command references are a deployer's.** A command or
   secret-manager reference runs on the server as the server, so only a deployer may keep their own vault
   password, event-store password or Git provider token that way. An editor's attempt is refused (403),

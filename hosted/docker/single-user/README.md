@@ -6,11 +6,12 @@ repository" is a bare git repository in that folder on your disk (`~/idmweb/repo
 file it writes is yours.
 
 ```bash
-IDMWEB_IMAGE=ghcr.io/pointbluetechnology/dirxml-dev-web:0.12.0 setup.sh /path/to/your/tree   # default directory ~/idmweb
-IDMWEB_IMAGE=ghcr.io/pointbluetechnology/dirxml-dev-web:0.12.0 setup.sh -                    # no tree yet: the page asks
+IDMWEB_IMAGE=ghcr.io/pointbluetechnology/dirxml-dev-web:latest setup.sh /path/to/your/tree   # default directory ~/idmweb
+IDMWEB_IMAGE=ghcr.io/pointbluetechnology/dirxml-dev-web:latest setup.sh -                    # no tree yet: the page asks
 ```
 
-The walk-through is [docs/quickstart.md](../../../docs/quickstart.md); the bundle on every
+The image is public on GitHub's registry (no login); `latest` is the newest release, or name a
+version (`:0.45.0`) to stay on it. The walk-through is [docs/quickstart.md](../../../docs/quickstart.md); the bundle on every
 release (`dirxml-dev-web-single-user-<version>.zip`) holds this directory, so no checkout is
 needed. `setup.sh` pulls the image when its name has a registry (a bare name is built from the
 checkouts, for developers), copies the engine jars from `IDM_LIB` (or DirXMLDev's `lib/` beside a

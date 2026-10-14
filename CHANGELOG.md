@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.51.0] - 2026-10-14
+
 ### Fixed
 
 - **The container's `idm` reaches a vault.** The environments file of a hosted server holds the

@@ -7,6 +7,21 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Fixed
+
+- **The local container answers at `http://127.0.0.1:8080`** as well as `http://localhost:8080`. A
+  hosted server whose `public.url` names a loopback host now accepts each loopback name
+  (`localhost`, `127.0.0.1`, `[::1]`) for that port, in `Host` and `Origin`; any other name is still
+  refused. A server on a public name is unchanged.
+- **`single-user/setup.sh` no longer copies passwords into `config/environments.properties`**, which
+  made the server refuse to start. With `IDM_ENVIRONMENTS` set, it splits your CLI file: the
+  environments go to `config/`, each `bindDn`, `trustAll` and password line goes to your own
+  `data/users/<you>/environments.properties`, and a relative `<env>.secrets` file is copied beside
+  the definitions. It names any Keychain reference (it cannot resolve in the container) and any
+  `…Env` reference (add the variable to `idmweb.env`). Run again on an older install whose
+  `config/` file holds passwords, it splits that file the same way and keeps the original as
+  `environments.properties.before-split`.
+
 ### Documentation
 
 - **The docs say which install a statement holds for.** docs/security.md opens with a table of the

@@ -1,6 +1,6 @@
 # Event Logger integration: design note
 
-Status: **decided 2026-10-07** (Jerry took the proposals in section 6). Nothing is built yet; the stack side waits on the logger's first two items in section 3.
+Status: **decided 2026-10-07** (Jerry took the proposals in section 6). Built: the event store in DirXMLDev 0.14.0 with DirXMLDevWeb 0.17.0, the Events view in 0.19.0.
 
 The question: can [DIrXMLEventLogger](https://github.com/jcombs-pointblue/DIrXMLEventLogger)
 be used by, and folded into, the DirXMLDev / DirXMLDevWeb / DirXMLSimulator stack?
@@ -67,8 +67,9 @@ converters do not keep everything (operation-data order, comments, unknown eleme
   dependency; nothing proprietary.
 - **Environment settings** (the environments file, same shape as the vault bind):
   `<env>.eventsUrl=jdbc:postgresql://host:5432/idmEvent`, `<env>.eventsUser`,
-  `<env>.eventsPasswordKeychain=` (or `…Password=` / `…PasswordCommand=` like the
-  other secrets), `<env>.eventsTable` (default `public.dxmlevent`). The read-only
+  `<env>.eventsPassword=` (or `…PasswordEnv=` / `…PasswordCommand=`, or `…PasswordKeychain=`
+  on a macOS workstation, like the other secrets; on a hosted server the reader password is in each
+  person's own file, and a reference is a deployer's), `<env>.eventsTable` (default `public.dxmlevent`). The read-only
   `eventlogger_reader` account the logger's README already asks for is the one to use.
 - **Web**: `/api/events/*` on `VaultService`'s model (per environment, no credentials
   on the page), an **Events** view with the Flask pages re-made — object timeline with

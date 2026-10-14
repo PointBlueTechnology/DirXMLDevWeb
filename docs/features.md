@@ -187,18 +187,23 @@ Every view of the page, by area, in every install; the items marked *local and s
 - **Connections** (the driver set is looked up from the vault and chosen from a list): the environments the `idm` CLI reads, set up from the page — vault URL, bind
   DN, driver set, tier, trust, SSH host, prerequisite, event store — with a connection test before saving; on a hosted server the project's *definitions* (deployers) and each person's *own connection* (bind DN, passwords) are two files (docs/multi-user.md); the password
   and each driver secret a deploy needs (shim, Remote Loader, named passwords, read off the
-  tree) typed once and kept in the macOS Keychain or an owner-only file, never shown again.
+  tree) typed once and kept in an owner-only file (or, on a macOS workstation, the Keychain),
+  never shown again. On a hosted server an editor keeps only the value itself in their own file;
+  references below are a deployer's (docs/security.md).
 - **Secret managers**: a password or driver secret can be a *reference* instead of a stored
   value — AWS Secrets Manager, Azure Key Vault, Google Cloud Secret Manager, CyberArk CCP,
   BeyondTrust Password Safe, Bitwarden (`bw`, for a workstation) and Bitwarden Secrets Manager
   (`bws`), a Terraform output, or any command. The page builds the command, tests that it yields
   a value, and saves only the command (the core's `…Command=` form); the value is read when
-  needed, on the host that runs the server, and never shown. See "Secret managers" below.
+  needed, on the host that runs the server, and never shown. On a hosted server this is a
+  deployer's, and the container image carries none of these CLIs (docs/secret-managers.md). See
+  "Secret managers" below.
 - **Repository bar**: the branch, what changed since the last commit, commit and push, update from
   the base branch, and on a hosted server *Create pull request…* through GitHub's or GitLab's API,
   then the branch's open request as a link (docs/pull-requests.md). With your own provider token
-  (Connections, *My Git provider tokens*) the request is yours on the provider. A local install
-  creates it through `gh` or `glab`, signed in as you already.
+  (Connections, *My Git provider tokens*) the request is yours on the provider. A workstation
+  install (`serve <tree>`) creates it through `gh` or `glab`, signed in as you already; the local
+  container is a hosted server and uses the API.
 - **Navigation**: every view is an address (`#type=…`), so the browser's Back and Forward move
   between views, a reload keeps the place, and a link to a policy, a PRD or a file can be shared.
 - **Live follow**: any change to the tree, by anything, reloads the page within a second.

@@ -12,7 +12,7 @@ there. Any other host gets no link at all.
 What the server already has:
 
 - **The project's repository token** (`repo.token`, `project.<name>.repo.token`, or a
-  `*.tokenCommand` / `*.tokenKeychain` reference). The server pushes with it over https.
+  `*.tokenEnv` / `*.tokenCommand` reference; `*.tokenKeychain` on a macOS host only). The server pushes with it over https.
 - **Each person's own file** (`data.dir/users/<subject>/`, docs/multi-user.md). Today it holds
   their vault credentials by environment, and nobody else reads it.
 - **Who is asking.** The signed-in person's name and email, and the editor and deployer roles.
@@ -66,9 +66,10 @@ The project token must allow it. On GitHub that is *Pull requests: read and writ
 *Contents* for the push. On GitLab it is the *api* scope. A token without it gets the provider's
 own answer back, shown as it is, and the compare link is offered.
 
-## 4. Local installs
+## 4. Workstation installs
 
-A workstation install has no repository token. Its pushes use the person's own git credentials.
+A workstation install (`serve <tree>`, local mode) has no repository token. The local container
+is a hosted server, so it uses sections 2 and 3. Its pushes use the person's own git credentials.
 Two ways to create a request there:
 
 - **The provider's CLI**: `gh pr create` or `glab mr create`, when one is installed and signed
@@ -93,7 +94,7 @@ Without either, the compare link stays.
 1. **Whose credential** (section 3): A, B, or C? (Recommended: C.)
 2. **Providers in version one**: GitHub and GitLab together, or GitHub first and GitLab
    second? (Recommended: together. They differ only in two calls.)
-3. **Local installs** (section 4): the provider's CLI, a Keychain token, or the compare link
+3. **Workstation installs** (section 4): the provider's CLI, a Keychain token, or the compare link
    only? (Recommended: the CLI.)
 4. **Draft by default?** (Recommended: no; the tick is there.)
 
@@ -102,7 +103,7 @@ Decided 2026-10-13 (Jerry: "Go with the recommendations"):
 1. **C**: the person's own provider token when they have one, otherwise the project's repository
    token, with "Opened by …" in the body.
 2. **GitHub and GitLab together**, self-hosted included.
-3. **Local installs through the provider's CLI** (`gh` / `glab`) when it is installed and signed in.
+3. **Workstation installs through the provider's CLI** (`gh` / `glab`) when it is installed and signed in.
 4. **Not a draft by default**; the tick is there.
 
 ## 7. Phases
@@ -111,7 +112,7 @@ Decided 2026-10-13 (Jerry: "Go with the recommendations"):
 |---|---|---|
 | P1 | `PullRequests` (GitHub and GitLab clients, provider detection), `POST /api/git/pull-request`, `GET /api/git/pull-request`, the dialog and the bar's link, audit | decisions 1–2 |
 | P2 | the person's provider token in *My connection* (if C or B) | P1, decision 1 |
-| P3 | local installs through `gh` / `glab` (if chosen) | P1, decision 3 |
+| P3 | workstation installs through `gh` / `glab` (if chosen) | P1, decision 3 |
 
 Each phase is tested against a stub provider in the unit tests and the smoke run. P1 is also
 checked against this repository on GitHub with a scratch branch, whose request is closed
@@ -162,7 +163,7 @@ afterwards.
 
 ## 10. As built (P3)
 
-- `CliPullRequests`: on a local install the remote's provider names the CLI, `gh` for GitHub and
+- `CliPullRequests`: on a workstation install (`serve <tree>`) the remote's provider names the CLI, `gh` for GitHub and
   `glab` for GitLab, found on `PATH` or in the usual install places (Homebrew included, for a server
   started from a launcher). `gh auth status --hostname <host>` (or `glab`'s) says whether it is
   signed in; its account is the author ("jcombs (through gh)"). It runs in the checkout, prompts and

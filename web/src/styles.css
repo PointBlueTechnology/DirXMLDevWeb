@@ -1294,6 +1294,14 @@ table.grid tr.detail td { background: var(--bg); padding-top: 4px; padding-botto
 .tk-STATUS_WARNING { color: #FFB454; font-weight: 600; }
 .tk-STATUS_SUCCESS { color: #7BD88F; font-weight: 600; }
 .tk-STATUS_RETRY { color: #E5C07B; }
+.tk-RULE_NAME { color: #DCDCAA; font-weight: 600; }
+.tk-JSON_KEY { color: #9CDCFE; }
+.tk-JSON_STRING { color: #CE9178; }
+.tk-JSON_NUMBER { color: #B5CEA8; }
+.tk-JSON_LITERAL { color: #569CD6; }
+.tk-JSON_PUNCT { color: #808080; }
+.tvlanded { background: rgba(255, 255, 255, 0.08); box-shadow: inset 3px 0 0 #E5C07B; }
+.tvbox:focus { outline: none; }
 .ds-0 { color: #808080; } .ds-1 { color: #569CD6; } .ds-2 { color: #6A9955; } .ds-3 { color: #4EC9B0; }
 .ds-4 { color: #F44747; } .ds-5 { color: #C586C0; } .ds-6 { color: #CE9178; } .ds-7 { color: #D4D4D4; }
 .ds-8 { color: #808080; } .ds-9 { color: #6CB6FF; } .ds-10 { color: #89D185; } .ds-11 { color: #4FC1FF; }

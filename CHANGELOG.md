@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.48.0] - 2026-10-14
+
 ### Fixed
 
 - **The local container answers at `http://127.0.0.1:8080`** as well as `http://localhost:8080`. A

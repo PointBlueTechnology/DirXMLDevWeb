@@ -17,6 +17,165 @@ export interface TraceRec {
   k?: string | null;
   /** The header's time of day in milliseconds, -1 without a header. */
   tm?: number;
+  /** Fold regions this record opens: [id, kind (POLICY_SET, POLICY, XML), parent id or -1, label]. Ids are made unique per stream or file by {@link ingest}. */
+  fo?: [number | string, string, number | string, string][];
+  /** The innermost fold region the record sits in. */
+  fw?: number | string;
+  /** XML documents inside the record's text, as [first line, last line], 0-based and inclusive. */
+  fx?: [number, number][];
+  /** A page-wide id for the record, set by {@link ingest}. */
+  u?: number;
+}
+
+/**
+ * A record as the page keeps it: region ids prefixed with the stream's or file's generation so two
+ * streams (or a stream and a file) never share one, and a page-wide id for the record's own folds.
+ */
+export function ingest(rec: TraceRec, gen: string, uid: number): TraceRec {
+  const key = (id: number | string) => `${gen}:${id}`;
+  const out: TraceRec = { ...rec, u: uid };
+  if (rec.fo) {
+    out.fo = rec.fo.map(([id, kind, parent, label]) => [key(id), kind, Number(parent) < 0 ? -1 : key(parent), label]);
+  }
+  if (rec.fw !== undefined && rec.fw !== null && !(typeof rec.fw === "number" && rec.fw < 0)) {
+    out.fw = key(rec.fw);
+  } else {
+    delete out.fw;
+  }
+  return out;
+}
+
+export interface FoldRegion {
+  key: string;
+  kind: string;
+  parent: string | null;
+  label: string;
+  /** The index (in the records given) of the record that opens it. */
+  opener: number;
+  /** Records it holds, and their lines; policies directly inside a set. */
+  members: number;
+  lines: number;
+  policies: number;
+}
+
+/**
+ * Which records a set of collapsed regions hides (folding, docs/folding.md in the trace viewer). A
+ * record is hidden when a region it sits in, or any region around that one, is collapsed; the record
+ * that opens a region stays visible. A region whose opening record is not among `recs` (filtered out,
+ * or dropped from the buffer) is unknown: it neither folds nor hides.
+ */
+export function foldPlan(recs: TraceRec[], collapsed: Set<string>): { regions: Map<string, FoldRegion>; hidden: boolean[] } {
+  const regions = new Map<string, FoldRegion>();
+  recs.forEach((r, i) => {
+    for (const [id, kind, parent, label] of r.fo ?? []) {
+      const p = Number(parent) < 0 && typeof parent === "number" ? null : String(parent);
+      regions.set(String(id), { key: String(id), kind, parent: p, label, opener: i, members: 0, lines: 0, policies: 0 });
+      if (kind === "POLICY" && p) {
+        const set = regions.get(p);
+        if (set) {
+          set.policies++;
+        }
+      }
+    }
+  });
+  const hidden = recs.map((r) => {
+    let hide = false;
+    const lines = lineCount(r.x);
+    for (let k = r.fw === undefined ? undefined : String(r.fw); k !== undefined && k !== null; ) {
+      const g = regions.get(k);
+      if (!g) {
+        break;
+      }
+      g.members++;
+      g.lines += lines;
+      if (collapsed.has(k)) {
+        hide = true;
+      }
+      k = g.parent ?? undefined;
+    }
+    // the opener of a collapsed region stays; one inside a collapsed ancestor does not (handled above via fw)
+    return hide;
+  });
+  return { regions, hidden };
+}
+
+/**
+ * The record as displayed: the inner lines of each collapsed XML document (its index in `fx` is in
+ * `collapsed`) dropped, and with `compactOn` the whitespace-only lines as {@link compact} drops them;
+ * runs and header remapped. `starts` is the display line of each document's first line, for its toggle.
+ */
+export function displayed(rec: TraceRec, collapsed: Set<number>, compactOn: boolean): { rec: TraceRec; starts: number[] } {
+  const lines = rec.x.split("\n");
+  const trailing = rec.x.endsWith("\n");
+  const n = trailing ? lines.length - 1 : lines.length;
+  const keep = new Array<boolean>(n).fill(true);
+  (rec.fx ?? []).forEach(([a, b], i) => {
+    if (collapsed.has(i)) {
+      for (let j = a + 1; j <= b && j < n; j++) {
+        keep[j] = false;
+      }
+    }
+  });
+  if (compactOn) {
+    for (let j = 1; j < n; j++) {
+      if (keep[j] && lines[j]!.trim() === "" && (trailing || j < n - 1)) {
+        keep[j] = false;
+      }
+    }
+  }
+  const removed: [number, number][] = [];
+  let pos = 0;
+  for (let j = 0; j < n; j++) {
+    const end = Math.min(pos + lines[j]!.length + 1, rec.x.length);
+    if (!keep[j]) {
+      const last = removed[removed.length - 1];
+      if (last && last[1] === pos) {
+        last[1] = end;
+      } else {
+        removed.push([pos, end]);
+      }
+    }
+    pos = end;
+  }
+  const display = new Array<number>(n);
+  let d = 0;
+  for (let j = 0; j < n; j++) {
+    display[j] = d;
+    if (keep[j]) {
+      d++;
+    }
+  }
+  return { rec: removeSpans(rec, removed), starts: (rec.fx ?? []).map(([a]) => display[a] ?? 0) };
+}
+
+function removeSpans(rec: TraceRec, removed: [number, number][]): TraceRec {
+  if (removed.length === 0) {
+    return rec;
+  }
+  const map = (p: number) => {
+    let out = p;
+    for (const [a, b] of removed) {
+      if (p >= b) {
+        out -= b - a;
+      } else if (p > a) {
+        out -= p - a;
+        break;
+      } else {
+        break;
+      }
+    }
+    return out;
+  };
+  let x = "";
+  let last = 0;
+  for (const [a, b] of removed) {
+    x += rec.x.slice(last, a);
+    last = b;
+  }
+  x += rec.x.slice(last);
+  const r = rec.r.map(([a, b, tk, ds]) => [map(a), map(b), tk, ds] as [number, number, string, number]).filter(([a, b]) => b > a);
+  const h = rec.h ? rec.h.map((v, i) => (i === 7 || v < 0 ? v : map(v))) : null;
+  return { ...rec, x, r, h };
 }
 
 /** The kinds of place to jump to (#2 of the trace viewer), as the library's `TraceMarker` names them. */
@@ -151,33 +310,7 @@ export function compact(rec: TraceRec): TraceRec {
     }
     pos = end;
   }
-  if (removed.length === 0) {
-    return rec;
-  }
-  const map = (p: number) => {
-    let out = p;
-    for (const [a, b] of removed) {
-      if (p >= b) {
-        out -= b - a;
-      } else if (p > a) {
-        out -= p - a;
-        break;
-      } else {
-        break;
-      }
-    }
-    return out;
-  };
-  let x = "";
-  let last = 0;
-  for (const [a, b] of removed) {
-    x += rec.x.slice(last, a);
-    last = b;
-  }
-  x += rec.x.slice(last);
-  const r = rec.r.map(([a, b, tk, ds]) => [map(a), map(b), tk, ds] as [number, number, string, number]).filter(([a, b]) => b > a);
-  const h = rec.h ? rec.h.map((v, i) => (i === 7 || v < 0 ? v : map(v))) : null;
-  return { ...rec, x, r, h };
+  return removeSpans(rec, removed);
 }
 
 export interface Filter {

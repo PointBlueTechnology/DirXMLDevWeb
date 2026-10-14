@@ -161,7 +161,13 @@ public final class TraceFiles {
             }
             List<TraceRecord> records = new ArrayList<>();
             TraceFileReader.read(p, records::add, bytes -> { }, () -> true);
-            parsed = new Parsed(p, modified, records);
+            // fold regions over the whole file, once, so every page and filter sees the same ids
+            com.pointbluetech.dirxml.trace.model.TraceFolds folds = new com.pointbluetech.dirxml.trace.model.TraceFolds();
+            List<com.pointbluetech.dirxml.trace.model.TraceFolds.Placement> places = new ArrayList<>(records.size());
+            for (TraceRecord r : records) {
+                places.add(folds.add(r));
+            }
+            parsed = new Parsed(p, modified, records, places);
         }
         return parsed;
     }
@@ -177,7 +183,8 @@ public final class TraceFiles {
         String needle = text == null || text.isBlank() ? null : text.toLowerCase(Locale.ROOT);
         String drv = driver == null || driver.isBlank() ? null : driver;
         int max = Math.max(1, Math.min(count, 50_000));
-        for (TraceRecord r : p.records) {
+        for (int i = 0; i < p.records.size(); i++) {
+            TraceRecord r = p.records.get(i);
             if (channels != null && !channels.contains(r.channel())) {
                 continue;
             }
@@ -188,7 +195,7 @@ public final class TraceFiles {
                 continue;
             }
             if (matched >= from && out.size() < max) {
-                out.add(TraceService.json(r));
+                out.add(TraceService.json(r, p.places.get(i)));
             }
             matched++;
         }
@@ -207,12 +214,15 @@ public final class TraceFiles {
         final Path path;
         final long modified;
         final List<TraceRecord> records;
+        /** Each record's fold placement, parallel to {@link #records}. */
+        final List<com.pointbluetech.dirxml.trace.model.TraceFolds.Placement> places;
         private List<String> drivers;
 
-        Parsed(Path path, long modified, List<TraceRecord> records) {
+        Parsed(Path path, long modified, List<TraceRecord> records, List<com.pointbluetech.dirxml.trace.model.TraceFolds.Placement> places) {
             this.path = path;
             this.modified = modified;
             this.records = records;
+            this.places = places;
         }
 
         List<String> drivers() {

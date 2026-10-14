@@ -7,6 +7,23 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- **Trace: folding** (DirXMLTraceViewer #3, its library's `TraceFolds`; docs/folding.md there).
+  - **What folds.** A policy set, a policy, or an XML document folds to its first line, with what
+    it hid summed up, e.g. "2 policies, 17 lines".
+  - **How.** Use the toggle in the gutter beside a region, or *Fold* sets, policies or XML in the
+    jump row to fold every one of a kind; *unfold all* opens everything.
+  - **Interleaved drivers.** A region holds only its own driver's and channel's records, so other
+    drivers' lines stay where they fall.
+  - **A trace file's XML.** An XML document inside a message (a trace file keeps it there) folds by
+    its lines.
+  - **Find and jumps.** Find, the jumps and *Time* open the folds around whatever they land on.
+  - **Save and Copy** still write everything in full.
+  - **Server fields.** Each record from the server carries `fo` (regions it opens), `fw` (the
+    region it sits in) and `fx` (XML line ranges in its text).
+  - **Needs dirxml-trace-core 1.7.0.**
+
 ## [0.49.0] - 2026-10-14
 
 ### Added

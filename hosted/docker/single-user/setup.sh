@@ -82,15 +82,6 @@ fi
 chmod 600 idmweb.env
 grep -q '^IDMWEB_TOKEN=' idmweb.env || printf 'IDMWEB_TOKEN=%s\n' "$(openssl rand -base64 24 | tr -d '=+/' | cut -c1-32)" >> idmweb.env
 grep -q '^IDMWEB_AGENT_TOKEN=' idmweb.env || printf 'IDMWEB_AGENT_TOKEN=%s\n' "$(openssl rand -base64 24 | tr -d '=+/' | cut -c1-32)" >> idmweb.env
-# the environments file: yours if you have one, else empty (the page's Connections view fills it)
-if [ ! -f config/environments.properties ]; then
-  if [ -n "$IDM_ENVIRONMENTS" ] && [ -f "$IDM_ENVIRONMENTS" ]; then
-    cp "$IDM_ENVIRONMENTS" config/environments.properties && echo "environments: copied from $IDM_ENVIRONMENTS (passwords in it are read by the container; Keychain references will not resolve there)"
-  else
-    : > config/environments.properties
-  fi
-fi
-chmod 600 config/*.properties
 if [ -n "$TREE" ]; then
   PROJECT=$(basename "$TREE" | sed 's#[^A-Za-z0-9._-]#-#g')
   [ "$PROJECT" = "tree" ] && PROJECT=$(basename "$(dirname "$TREE")" | sed 's#[^A-Za-z0-9._-]#-#g')
@@ -101,6 +92,49 @@ else
   sed -i.bak "s/^token.user=.*/token.user=${USER:-me}/; s#^public.url=.*#public.url=http://localhost:$PORT#; /PROJECT/d" config/hosted.properties
 fi
 rm -f config/hosted.properties.bak
+# the environments: the definitions (URL, driver set, tier) in config/environments.properties, your
+# bind DN and passwords in your own file under data/users/ (docs/multi-user.md); the server will not
+# start with a password in config/. Yours from IDM_ENVIRONMENTS if you have one, else empty (the
+# page's Connections view fills both). An older install's config/ file with passwords is split too.
+U=$(grep '^token.user=' config/hosted.properties | cut -d= -f2)
+MINE_DIR="data/users/$(printf '%s' "${U:-me}" | sed 's#[^A-Za-z0-9._-]#_#g')"
+MINE="$MINE_DIR/environments.properties"
+CRED='^[[:space:]]*[^.=:[:space:]#!]+\.(bindDn|trustAll|[A-Za-z0-9_]*[pP]assword(Env|Command|Keychain)?)[[:space:]]*[=:]'
+split_environments() {  # $1: a CLI environments file; definitions to config/, credentials to $MINE
+  mkdir -p "$MINE_DIR" && chmod 700 "$MINE_DIR"
+  [ -f "$MINE" ] || : > "$MINE"
+  grep -Ev "$CRED" "$1" > config/environments.properties.new || true
+  # keys already in your own file stay as they are
+  grep -E "$CRED" "$1" | while IFS= read -r line; do
+    key=$(printf '%s' "$line" | sed -E 's/^[[:space:]]*([^=:[:space:]]+).*/\1/')
+    grep -Eq "^[[:space:]]*$(printf '%s' "$key" | sed 's/[.[\*^$]/\\&/g')[[:space:]]*[=:]" "$MINE" || printf '%s\n' "$line" >> "$MINE"
+  done
+  mv config/environments.properties.new config/environments.properties
+  chmod 600 "$MINE"
+  n=$(grep -Ec "$CRED" "$MINE" || true)
+  echo "environments: definitions in $DIR/config/environments.properties, your bind DN and passwords in $DIR/$MINE ($n line(s))"
+  grep -Eq 'Keychain[[:space:]]*[=:]' "$MINE" && echo "  NOTE: Keychain references do not resolve in the container; set those passwords again under Connections" >&2
+  grep -Eq 'Env[[:space:]]*[=:]' "$MINE" && echo "  NOTE: …Env references read the container's environment: add each variable to $DIR/idmweb.env" >&2
+  # a relative <env>.secrets file (driver secrets) comes along beside the definitions
+  for f in $(sed -nE 's/^[[:space:]]*[^.=:[:space:]]+\.secrets[[:space:]]*[=:][[:space:]]*([^/[:space:]][^[:space:]]*)$/\1/p' config/environments.properties); do
+    src="$(dirname "$1")/$f"
+    [ -f "$src" ] && [ ! -f "config/$f" ] && [ "$src" != "config/$f" ] && cp "$src" "config/$f" && echo "  driver secrets: copied $f"
+  done
+  return 0
+}
+if [ ! -f config/environments.properties ]; then
+  if [ -n "$IDM_ENVIRONMENTS" ] && [ -f "$IDM_ENVIRONMENTS" ]; then
+    split_environments "$IDM_ENVIRONMENTS"
+  else
+    : > config/environments.properties
+  fi
+elif grep -Eq "$CRED" config/environments.properties; then
+  cp config/environments.properties config/environments.properties.before-split
+  chmod 600 config/environments.properties.before-split
+  split_environments config/environments.properties.before-split
+  echo "  (the file as it was: $DIR/config/environments.properties.before-split; delete it once the page connects)"
+fi
+chmod 600 config/*.properties
 cat > .env <<ENV
 IDMWEB_IMAGE=$IMAGE
 IDMWEB_PORT=$PORT
@@ -136,7 +170,7 @@ else
 fi
 echo "  more trees: 'add a project…' in the page's project picker (a vault, a Designer project, a repository, a directory)"
 echo "  the CLI and the simulator in that workspace:  $DIR/idm validate tree    $DIR/idm simulate tree --cases cases"
-echo "  vault connections: the page's Connections view, or $DIR/config/environments.properties"
+echo "  vault connections: the page's Connections view (environments in $DIR/config/, your bind DN and password in $DIR/$MINE)"
 echo "  an agent on this machine: the CLI above, or the API with  Authorization: Bearer \$IDMWEB_AGENT_TOKEN  (second line of idmweb.env)"
 echo "  engine jars: $DIR/lib (a volume; the image never holds them)"
 echo "  stop: (cd $DIR && $COMPOSE down)"

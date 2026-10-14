@@ -74,8 +74,8 @@ DirXMLDevWeb is at http://localhost:8080
 
 ## 4. Sign in
 
-Open the URL, paste the first token from `~/idmweb/idmweb.env`. Use `localhost`, as printed: the
-server answers only to the host in its `public.url`, so `http://127.0.0.1:8080` is refused.
+Open the URL, paste the first token from `~/idmweb/idmweb.env`. `http://127.0.0.1:8080` works as
+well: the container answers to each loopback name for its port, and to nothing else.
 
 - **With a tree**: open the branch `main`; it is cloned into a workspace of yours and every
   view is live. Edit, review, apply; commit and push from the bar at the top (pushes land in
@@ -117,7 +117,10 @@ The password may be the value itself, `…Env=NAME` with the value in `idmweb.en
 reference to a secret manager whose CLI you have added to the image
 ([secret-managers.md](secret-managers.md)). Keychain references do not resolve inside a container.
 `config/environments.properties` holds no password: the server will not start if it finds one
-there, so copy in an environments file of your own only without its secrets.
+there. With `IDM_ENVIRONMENTS` set, `setup.sh` splits your CLI file for you: the environments go to
+`config/`, each `bindDn`, `trustAll` and password line to your own file, and a relative
+`<env>.secrets` file comes along. Run again on an older install whose `config/` file holds
+passwords, it splits that too and keeps the original as `environments.properties.before-split`.
 
 `~/idmweb/idm` runs with `config/environments.properties` alone, so it sees the environments but
 not your password: a vault command there (`--env`) fails to bind. Reach a vault through the page,

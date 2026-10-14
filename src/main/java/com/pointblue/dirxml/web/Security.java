@@ -18,12 +18,17 @@ public final class Security {
     private final int port;
     private final String publicHost; // hosted mode: the host the browser addresses
     private final String publicOrigin;
+    /** Hosted mode: every host (and origin) that names this server; the loopback names together when it is on loopback. */
+    private final java.util.Set<String> hosts;
+    private final java.util.Set<String> origins;
 
     public Security(String token, int port) {
         this.token = token;
         this.port = port;
         this.publicHost = null;
         this.publicOrigin = null;
+        this.hosts = java.util.Set.of();
+        this.origins = java.util.Set.of();
     }
 
     private Security(String publicUrl) {
@@ -32,7 +37,27 @@ public final class Security {
         java.net.URI u = java.net.URI.create(publicUrl);
         this.publicHost = u.getPort() == -1 ? u.getHost() : u.getHost() + ":" + u.getPort();
         this.publicOrigin = u.getScheme() + "://" + publicHost;
+        // a server published on this machine's loopback (the one-person container, public.url
+        // http://localhost:8080) answers to each loopback name for it: a DNS-rebinding page names a
+        // host of its own, never one of these
+        java.util.Set<String> h = new java.util.LinkedHashSet<>();
+        String port = u.getPort() == -1 ? "" : ":" + u.getPort();
+        if (LOOPBACK.contains(u.getHost().toLowerCase(java.util.Locale.ROOT))) {
+            for (String name : LOOPBACK) {
+                h.add(name + port);
+            }
+        } else {
+            h.add(publicHost.toLowerCase(java.util.Locale.ROOT));
+        }
+        this.hosts = java.util.Set.copyOf(h);
+        java.util.Set<String> o = new java.util.LinkedHashSet<>();
+        for (String x : h) {
+            o.add(u.getScheme().toLowerCase(java.util.Locale.ROOT) + "://" + x);
+        }
+        this.origins = java.util.Set.copyOf(o);
     }
+
+    private static final java.util.List<String> LOOPBACK = java.util.List.of("localhost", "127.0.0.1", "[::1]");
 
     /** Hosted mode: requests must address the public URL's host; the session is a cookie, not a token. */
     public static Security hosted(String publicUrl) {
@@ -64,10 +89,10 @@ public final class Security {
     /** Why a request is refused, or null when it may proceed. */
     public String refuse(String host, String origin, String presented) {
         if (token == null) {
-            if (host == null || !host.equalsIgnoreCase(publicHost)) {
-                return "this server answers only as " + publicHost;
+            if (host == null || !hosts.contains(host.toLowerCase(java.util.Locale.ROOT))) {
+                return "this server answers only as " + String.join(" or ", hosts);
             }
-            if (origin != null && !origin.isBlank() && !origin.equalsIgnoreCase(publicOrigin)) {
+            if (origin != null && !origin.isBlank() && !origins.contains(origin.toLowerCase(java.util.Locale.ROOT))) {
                 return "requests from another origin are refused";
             }
             return null;

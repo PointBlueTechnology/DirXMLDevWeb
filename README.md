@@ -11,6 +11,12 @@ hosted mode. **New here? [docs/quickstart.md](docs/quickstart.md)** — one cont
 
 ## A look
 
+**Architecture** — the driver set as Designer's Modeler draws it: the Identity Vault in the
+middle, one card per driver with its icon and shim, live state from the vault when it can be
+reached, and SVG or PNG to download.
+
+![Architecture](docs/screenshots/architecture.png)
+
 **Adding a project** — the first run, and "add a project…" after it: a tree comes from an
 Identity Vault, a Designer project or export, a repository on the host, a directory of files,
 or a remote to clone.

@@ -8,8 +8,8 @@
 # configuration, and starts the container. Prints the URL and where the token is. Re-running on
 # an existing <dir> keeps its repository, token and configuration and just (re)starts the
 # container (a new IDMWEB_IMAGE is picked up).
-#   IDMWEB_IMAGE   the image: a registry name is pulled (harbor.pointbluetech.com/dirxmldev/dirxml-dev-web:0.12.0,
-#                  ghcr.io/pointbluetechnology/dirxml-dev-web:0.12.0); a bare name is built from the checkouts
+#   IDMWEB_IMAGE   the image: a registry name is pulled (ghcr.io/pointbluetechnology/dirxml-dev-web:latest, or
+#                  :<version> to stay on one release); a bare name is built from the checkouts
 #   IDMWEB_PORT    the page's port on localhost (default 8080)
 #   IDM_LIB        where the engine jars are
 #   CONTAINER      docker (default) or podman; COMPOSE overrides the compose command ("podman compose",

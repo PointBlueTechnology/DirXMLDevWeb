@@ -7,6 +7,19 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- **Rename… and Delete… on every artifact**: policies, mapping tables, ECMAScript and GCV resources,
+  and the rest. Before, only the CLI could do either.
+  - **Rename** rewrites every reference, as the core's `artifact.rename` does: policy-set links,
+    includes and Map tokens. The review lists every file it touches, and the page then shows the
+    renamed artifact.
+  - **Delete** removes the artifact's policy-set links with it. While anything else refers to it,
+    such as a policy reading a mapping table, the review refuses and names the reference.
+- **A mapping table column's type.** *Add column* now offers text ignoring case (the default),
+  case-sensitive text, or numeric, which is how the engine compares the column's values. A column
+  that isn't `nocase` shows its type in the grid's header.
+
 ## [0.52.0] - 2026-10-14
 
 ### Added

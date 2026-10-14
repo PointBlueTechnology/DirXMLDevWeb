@@ -12,6 +12,7 @@ export function TableEditor({ path, content, pending }: { path: string; content:
   const table = parseMappingTable(content);
   const [rows, setRows] = useState<string[][]>([]);
   const [newColumn, setNewColumn] = useState("");
+  const [newType, setNewType] = useState("nocase");
   const [merge, setMerge] = useState(false);
   const fileInput = useRef<HTMLInputElement | null>(null);
 
@@ -125,6 +126,7 @@ export function TableEditor({ path, content, pending }: { path: string; content:
               <th key={c.name} title={`${c.type}${i === 0 ? " — the key column" : ""}`}>
                 {c.name}
                 {i === 0 ? " (key)" : ""}
+                {c.type && c.type !== "nocase" ? <span className="muted small"> · {c.type}</span> : null}
               </th>
             ))}
             <th />
@@ -172,12 +174,18 @@ export function TableEditor({ path, content, pending }: { path: string; content:
         <button onClick={() => setRows([...rows, cols.map(() => "")])}>Add row</button>
         <span className="muted small">A new row is staged once its key cell has a value.</span>
         <span className="spacer" />
-        <input placeholder="new column name" value={newColumn} onChange={(e) => setNewColumn(e.target.value)} />
+        <input placeholder="new column name" value={newColumn} onChange={(e) => setNewColumn(e.target.value)} data-testid="table-new-column" />
+        <select value={newType} onChange={(e) => setNewType(e.target.value)} title="How the engine compares values in this column when it looks a row up" data-testid="table-new-column-type">
+          <option value="nocase">text, ignoring case</option>
+          <option value="case">text, case-sensitive</option>
+          <option value="numeric">numeric</option>
+        </select>
         <button
           disabled={!newColumn.trim() || cols.some((c) => c.name === newColumn.trim())}
           onClick={() => {
-            pending.put(`col:${newColumn.trim()}`, { name: "mapping-table.add-column", args: { path, column: newColumn.trim() }, label: `add column ${newColumn.trim()}` });
+            pending.put(`col:${newColumn.trim()}`, { name: "mapping-table.add-column", args: { path, column: newColumn.trim(), type: newType }, label: `add column ${newColumn.trim()} (${newType})` });
             setNewColumn("");
+            setNewType("nocase");
           }}
         >
           Add column

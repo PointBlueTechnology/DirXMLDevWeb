@@ -7,6 +7,25 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- **Mapping tables: CSV import and export.** The table editor has *Export CSV*, which downloads the
+  table as saved, and *Import CSV…*. An import replaces the table: its columns become the CSV's
+  header, existing column types are kept, and its rows become the CSV's rows. With *merge by key* it
+  adds and updates rows by key instead and keeps the others. The import is staged and reviewed like
+  any change, and a duplicate or empty key, a ragged row or bad quoting is refused in the review.
+- **Mapping tables: the drivers that use one.** References now lists, besides the policies that
+  read a table, each driver that runs one of those policies: its own, a Library one it links, or one
+  the driver set links for every driver. This is the counterpart of an ECMAScript resource's driver
+  links.
+
+### Fixed
+
+- **New mapping table note.** It said "a table with one column is written"; a new table has two,
+  `key` and `value`.
+
+**Needs DirXMLDev 0.34.0** (`mapping-table.import-csv`, `Refs.withDrivers`).
+
 ## [0.51.0] - 2026-10-14
 
 ### Fixed

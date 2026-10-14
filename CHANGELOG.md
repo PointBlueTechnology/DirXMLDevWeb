@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.45.0] - 2026-10-14
+
 ### Added
 
 - **Pull requests from a local install** (#35, P3 of docs/pull-requests.md): the repository bar's

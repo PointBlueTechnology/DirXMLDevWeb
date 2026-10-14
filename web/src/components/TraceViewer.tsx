@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { api, followTrace, tokenForLink } from "../api";
-import { ALL, CHANNELS, TIMESTAMP_FORMATS, compact as compactRec, findRanges, lineCount, matches, segments, withTimestamp, type ChannelCode, type Filter, type Segment, type TimestampFormat, type TraceRec } from "../trace/model";
+import { ALL, CHANNELS, MARKERS, TIMESTAMP_FORMATS, compact as compactRec, findRanges, lineCount, markerRow, matches, parseTimeOfDay, rowAtTime, segments, withTimestamp, type ChannelCode, type Filter, type Segment, type TimestampFormat, type TraceRec } from "../trace/model";
 import type { Outline, Selection } from "../types";
 
 interface Props {
@@ -337,10 +337,57 @@ export function TraceViewer({ env, file, drivers, popout, outline, onSelect, onO
     const el = box.current;
     if (el) {
       el.scrollTop = Math.max(0, (offsets[row] ?? 0) - el.clientHeight / 3);
+      // the rows to render follow now, not when the scroll event arrives (it may come late, or not
+      // at all when the position did not change)
+      setView({ top: el.scrollTop, height: el.clientHeight });
     }
   };
   const first = Math.max(0, lowerBound(offsets, view.top) - 1);
   const last = Math.min(prepared.length, lowerBound(offsets, view.top + view.height) + 1);
+
+  // jump markers (#2 of the trace viewer): from the record last landed on while it is in view, else from the top of the view
+  const [jumpKind, setJumpKind] = useState("POLICY");
+  const [landed, setLanded] = useState<TraceRec | null>(null);
+  const [jumpNote, setJumpNote] = useState<string | null>(null);
+  const [timeText, setTimeText] = useState("");
+  const noteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const say = (s: string) => {
+    setJumpNote(s);
+    if (noteTimer.current) {
+      clearTimeout(noteTimer.current);
+    }
+    noteTimer.current = setTimeout(() => setJumpNote(null), 3000);
+  };
+  const land = (row: number) => {
+    setFollow(false);
+    setLanded(shown[row]!);
+    setJumpNote(null);
+    scrollToRow(row);
+  };
+  const jump = (dir: 1 | -1 | 0) => {
+    const at = landed ? shown.indexOf(landed) : -1;
+    const base = at >= first && at < last ? at : first;
+    const row = markerRow(shown, jumpKind, base, dir);
+    const label = (MARKERS.find((m) => m.code === jumpKind)?.label ?? jumpKind).toLowerCase();
+    if (row < 0) {
+      say(`no ${dir === 1 ? "later " : dir === -1 ? "earlier " : ""}${label} shown`);
+    } else {
+      land(row);
+    }
+  };
+  const goToTime = () => {
+    const ms = parseTimeOfDay(timeText);
+    if (ms < 0) {
+      say("not a time of day: try 10:15 or 10:15:12.345");
+      return;
+    }
+    const row = rowAtTime(shown, ms);
+    if (row < 0) {
+      say(`nothing shown at or after ${timeText.trim()}`);
+    } else {
+      land(row);
+    }
+  };
 
   // save and copy what is shown
   const shownText = () => prepared.map((p) => p.rec.x).join("");
@@ -384,6 +431,16 @@ export function TraceViewer({ env, file, drivers, popout, outline, onSelect, onO
     if (e.key === "Enter" && (e.target as HTMLElement).getAttribute("data-testid") === "trace-find") {
       e.preventDefault();
       step(e.shiftKey ? -1 : 1);
+      return;
+    }
+    // [ and ] step between markers, Shift-] goes to the most recent, unless typing in a field
+    const tag = (e.target as HTMLElement).tagName;
+    if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA" || e.metaKey || e.ctrlKey || e.altKey) {
+      return;
+    }
+    if (e.code === "BracketRight" || e.code === "BracketLeft") {
+      e.preventDefault();
+      jump(e.code === "BracketLeft" ? -1 : e.shiftKey ? 0 : 1);
     }
   };
 
@@ -514,6 +571,47 @@ export function TraceViewer({ env, file, drivers, popout, outline, onSelect, onO
           <input type="checkbox" checked={follow} onChange={(e) => setFollow(e.target.checked)} /> follow
         </label>
       </div>
+      <div className="addrow tvjump" data-testid="trace-jump">
+        <span className="small muted">Jump to</span>
+        <select value={jumpKind} onChange={(e) => setJumpKind(e.target.value)} title="The kind of place to jump to, by the engine's own message" data-testid="trace-jump-kind">
+          {MARKERS.map((m) => (
+            <option key={m.code} value={m.code}>
+              {m.label}
+            </option>
+          ))}
+        </select>
+        <button className="mini" disabled={prepared.length === 0} onClick={() => jump(-1)} title="Previous ([)" data-testid="trace-jump-prev">
+          ◀
+        </button>
+        <button className="mini" disabled={prepared.length === 0} onClick={() => jump(1)} title="Next (])" data-testid="trace-jump-next">
+          ▶
+        </button>
+        <button className="mini" disabled={prepared.length === 0} onClick={() => jump(0)} title="The most recent (Shift-])" data-testid="trace-jump-last">
+          most recent
+        </button>
+        <span className="small muted">Time</span>
+        <input
+          className="outline-filter"
+          style={{ width: 110 }}
+          placeholder="hh:mm:ss"
+          value={timeText}
+          onChange={(e) => setTimeText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              goToTime();
+            }
+          }}
+          spellCheck={false}
+          title="A time of day; Enter goes to the first message at or after it, by the messages' own timestamps"
+          data-testid="trace-time"
+        />
+        {jumpNote && (
+          <span className="small muted" data-testid="trace-jump-note">
+            {jumpNote}
+          </span>
+        )}
+      </div>
       {showSettings && (
         <div className="addrow tvsettings" data-testid="trace-settings">
           <label className="field">
@@ -546,12 +644,12 @@ export function TraceViewer({ env, file, drivers, popout, outline, onSelect, onO
       )}
       {failure && <div className="banner error">{failure}</div>}
       {streamErrors.length > 0 && <div className="banner error">{streamErrors.slice(-3).join(" · ")}</div>}
-      <div className={"tvbox" + (settings.wrap ? " wrap" : "")} ref={box} onScroll={onScroll} style={{ fontSize: settings.font, lineHeight: `${lineHeight}px` }} data-testid="trace-lines">
+      <div className={"tvbox" + (settings.wrap ? " wrap" : "")} ref={box} onScroll={onScroll} tabIndex={0} style={{ fontSize: settings.font, lineHeight: `${lineHeight}px` }} data-testid="trace-lines">
         <div style={{ height: total, position: "relative" }}>
           {prepared.slice(first, last).map((p, i) => {
             const row = first + i;
             return (
-              <div key={row} className="tvrec" style={{ position: "absolute", top: offsets[row], left: 0, right: 0 }} data-driver={p.rec.d ?? ""} data-channel={p.rec.c}>
+              <div key={row} className={"tvrec" + (landed && shown[row] === landed ? " tvlanded" : "")} style={{ position: "absolute", top: offsets[row], left: 0, right: 0 }} data-driver={p.rec.d ?? ""} data-channel={p.rec.c}>
                 {segments(p.rec.x, p.rec.r, hitRows.get(row) ?? []).map((s, j) => {
                   const link = linkFor(s);
                   return (

@@ -29,7 +29,7 @@
         <!-- Directory Console's shared libraries (console-auth: OIDC sign-in, TLS trust). Install with
              `mvn install` in the directory-console checkout. -->
         <console.version>0.1.0</console.version>
-        <tracecore.version>1.5.0</tracecore.version>
+        <tracecore.version>1.6.0</tracecore.version>
         <!-- the PostgreSQL JDBC driver the core's event store opens; the core's release attaches it too -->
         <postgresql.version>42.7.7</postgresql.version>
     </properties>

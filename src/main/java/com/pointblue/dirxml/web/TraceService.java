@@ -7,6 +7,8 @@ import com.pointbluetech.dirxml.trace.ldap.LdapTraceEventSource;
 import com.pointbluetech.dirxml.trace.model.Channel;
 import com.pointbluetech.dirxml.trace.model.FormattedText;
 import com.pointbluetech.dirxml.trace.model.TraceHighlighter;
+import com.pointbluetech.dirxml.trace.model.TraceMarker;
+import com.pointbluetech.dirxml.trace.model.TraceTime;
 import com.pointbluetech.dirxml.trace.model.TraceParser;
 import com.pointbluetech.dirxml.trace.model.TraceRecord;
 import java.net.URI;
@@ -109,7 +111,8 @@ public final class TraceService {
      * (null for engine messages), {@code c} channel (S, P, V, O), {@code h} header positions
      * [timestampStart, timestampEnd, nameStart, nameEnd, threadStart, threadEnd, end, stamped]
      * or null for a continuation, {@code x} the text, {@code r} highlighting runs
-     * [[start, end, token, dsColor]…].
+     * [[start, end, token, dsColor]…], {@code k} the jump marker ({@link TraceMarker} name) or null,
+     * {@code tm} the header's time of day in milliseconds, or -1 without a header.
      */
     public static Map<String, Object> json(TraceRecord r) {
         Map<String, Object> m = new LinkedHashMap<>();
@@ -125,6 +128,9 @@ public final class TraceService {
             runs.add(List.of(run.start(), run.end(), run.token().name(), run.dsColor()));
         }
         m.put("r", runs);
+        TraceMarker k = TraceMarker.of(r);
+        m.put("k", k == null ? null : k.name());
+        m.put("tm", TraceTime.timeOfDay(r));
         return m;
     }
 

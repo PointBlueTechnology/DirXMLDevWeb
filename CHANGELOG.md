@@ -7,6 +7,18 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- **Trace: jump markers and more highlighting** (DirXMLTraceViewer #2 and #4, through its library 1.6.0).
+  *Jump to* under the filters picks a kind of place by the engine's own message (driver start,
+  publisher event, subscriber event, subscriber shim, policy set, policy, end transaction, log event,
+  pump to eDirectory). ◀ and ▶ (or `[` and `]` in the trace) step to the previous and next one from
+  the line last landed on, or from the top of the view, and *most recent* (`Shift-]`) goes to the
+  latest. *Time* goes to the first message at or after a time of day, by the messages' own
+  timestamps. A jump turns *follow* off and marks the line it lands on; only what is shown is
+  searched. Rule names in policy trace and JSON bodies (a REST shim's) are coloured too. Each record
+  from the server carries `k` (its marker) and `tm` (its time of day). **Needs dirxml-trace-core 1.6.0.**
+
 ## [0.48.0] - 2026-10-14
 
 ### Fixed

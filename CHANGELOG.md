@@ -20,9 +20,9 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
     container, and the examples use `…Env`. The image carries none of the secret managers' CLIs.
     docs/secret-managers.md gains a table by install.
   - **Smaller fixes.** "Local install" becomes "workstation" where it meant `serve <tree>`. The trace
-    and workspace paths and the environments lookup order are corrected. Notes for what changed
-    since the design: hosted.md and design.md gain a note on what has changed since, and
-    event-logger.md and trace-viewer.md are marked as built.
+    and workspace paths and the environments lookup order are corrected. hosted.md and design.md
+    gain a note on what has changed since they were written, and event-logger.md and
+    trace-viewer.md are marked as built.
 
 ## [0.47.0] - 2026-10-14
 

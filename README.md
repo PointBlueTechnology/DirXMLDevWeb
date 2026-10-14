@@ -58,6 +58,11 @@ and the merge authority.
 
 ![Filter](docs/screenshots/config-filter.png)
 
+**Reviewing a change** — every edit is planned on a copy of the tree first: the pending change,
+the files it touches and a side-by-side diff of each. Nothing is written until *Apply*.
+
+![Reviewing a change to the filter](docs/screenshots/filter-review.png)
+
 **Schema map** — the eDirectory-to-application class and attribute mapping as a table.
 
 ![Schema map](docs/screenshots/schema-map.png)
@@ -67,6 +72,12 @@ process: activities, branches and merges, approval and condition links; select a
 change it.
 
 ![PRD workflow](docs/screenshots/prd-workflow.png)
+
+**Live trace** — the driver set's trace streamed from the vault into the page, from every server
+or one: channel, driver and text filters, find, the engine's colours and the XML highlighted, a
+pop-out window, and recording to a file.
+
+![Live trace](docs/screenshots/vault-trace.png)
 
 ## What it is, and is not
 

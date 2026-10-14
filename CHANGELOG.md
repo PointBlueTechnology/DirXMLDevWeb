@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.49.0] - 2026-10-14
+
 ### Added
 
 - **Trace: jump markers and more highlighting** (DirXMLTraceViewer #2 and #4, through its library 1.6.0).
@@ -17,7 +19,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   latest. *Time* goes to the first message at or after a time of day, by the messages' own
   timestamps. A jump turns *follow* off and marks the line it lands on; only what is shown is
   searched. Rule names in policy trace and JSON bodies (a REST shim's) are coloured too. Each record
-  from the server carries `k` (its marker) and `tm` (its time of day). **Needs dirxml-trace-core 1.6.0.**
+  from the server carries `k` (its marker) and `tm` (its time of day). **Needs dirxml-trace-core 1.6.0** (DirXMLTraceViewer 1.6.0).
 
 ## [0.48.0] - 2026-10-14
 

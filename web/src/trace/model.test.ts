@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ALL, compact, findRanges, formatTimestamp, lineCount, matches, segments, withTimestamp, type TraceRec } from "./model";
+import { ALL, compact, findRanges, formatTimestamp, lineCount, markerRow, matches, parseTimeOfDay, rowAtTime, segments, withTimestamp, type TraceRec } from "./model";
 
 const rec = (x: string, extra: Partial<TraceRec> = {}): TraceRec => ({ s: "idm1", t: 0, d: "AD", c: "S", h: null, x, r: [], ...extra });
 
@@ -63,5 +63,34 @@ describe("find and segments", () => {
     expect(lineCount("a\n")).toBe(1);
     expect(lineCount("a\nb\n")).toBe(2);
     expect(lineCount("a")).toBe(1);
+  });
+});
+
+describe("jump markers (#2 of the trace viewer)", () => {
+  const rec = (k: string | null, tm: number): TraceRec => ({ s: "", t: 0, d: "AD", c: "S", h: null, x: "x\n", r: [], k, tm });
+  const recs = [rec("SUBSCRIBER_EVENT", 1000), rec("POLICY", 2000), rec(null, -1), rec("POLICY", 5000), rec("END_TRANSACTION", 6000)];
+
+  it("steps to the next and previous of a kind, and the most recent", () => {
+    expect(markerRow(recs, "POLICY", 0, 1)).toBe(1);
+    expect(markerRow(recs, "POLICY", 1, 1)).toBe(3);
+    expect(markerRow(recs, "POLICY", 3, 1)).toBe(-1);
+    expect(markerRow(recs, "POLICY", 3, -1)).toBe(1);
+    expect(markerRow(recs, "POLICY", 1, -1)).toBe(-1);
+    expect(markerRow(recs, "POLICY", 0, 0)).toBe(3);
+    expect(markerRow(recs, "DRIVER_START", 0, 0)).toBe(-1);
+  });
+
+  it("goes to the first record at or after a time, a continuation taking its predecessor's", () => {
+    expect(rowAtTime(recs, 1500)).toBe(1);
+    expect(rowAtTime(recs, 2000)).toBe(1);
+    expect(rowAtTime(recs, 4000)).toBe(3);
+    expect(rowAtTime(recs, 7000)).toBe(-1);
+  });
+
+  it("reads a time of day", () => {
+    expect(parseTimeOfDay("10:15")).toBe((10 * 60 + 15) * 60000);
+    expect(parseTimeOfDay(" 09:05:07.5 ")).toBe(((9 * 60 + 5) * 60 + 7) * 1000 + 500);
+    expect(parseTimeOfDay("25:00")).toBe(-1);
+    expect(parseTimeOfDay("soon")).toBe(-1);
   });
 });

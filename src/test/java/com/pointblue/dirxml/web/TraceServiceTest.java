@@ -36,6 +36,8 @@ public class TraceServiceTest {
             List<?> run = (List<?>) o;
             assertEquals(4, run.size());
         }
+        assertEquals("a policy is a jump marker", "POLICY", m.get("k"));
+        assertTrue("a live record's stamped header has a time of day", ((Number) m.get("tm")).longValue() >= 0);
     }
 
     @Test
@@ -47,6 +49,8 @@ public class TraceServiceTest {
         assertEquals("AD", m.get("d"));
         assertEquals("P", m.get("c"));
         assertNull(m.get("h"));
+        assertNull(m.get("k"));
+        assertEquals(-1L, ((Number) m.get("tm")).longValue());
     }
 
     @Test

@@ -141,7 +141,10 @@ Every view of the page, by area, in every install; the items marked *local and s
     with the filters applied there — downloaded, removed.
   - *Trace*: the DirXML Trace Viewer in the page (its `dirxml-trace-core` library does the parsing
     and highlighting, so a line reads the same as in the desktop app): the driver set's trace live
-    from every server or one, channel/driver/text filters, find, DSTrace colours, compact
+    from every server or one, channel/driver/text filters, find, DSTrace colours (rule names and
+    JSON bodies too), *Jump to* a kind of place — driver start, publisher or subscriber event,
+    subscriber shim, policy set, policy, end of transaction, log event, pump to eDirectory — with
+    ◀ / ▶ (`[` / `]`) and *most recent* (`Shift-]`), or to a time of day; compact
     whitespace, timestamp formats, pause, save, copy, a pop-out window, recording to a file; a
     driver's or a policy's name in the trace opens it in the tree; the Drivers tab sets a
     driver's trace level. Before this it was a driver's raw lines with a filter — from any server of the driver set, each of

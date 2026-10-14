@@ -89,4 +89,23 @@ public class TraceServiceTest {
             throw new IllegalStateException(ex);
         }
     }
+
+    /** #3 of the trace viewer: a record's fold placement goes to the page as fo, fw and fx, each only when there is one. */
+    @Test
+    public void foldPlacementsGoToThePage() {
+        com.pointbluetech.dirxml.trace.model.TraceFolds folds = new com.pointbluetech.dirxml.trace.model.TraceFolds();
+        TraceParser p = new TraceParser();
+        TraceRecord set = p.parseText("", "[10/14/26 10:00:00.000]:AD ST:Applying event transformation policies.\n");
+        Map<String, Object> m = TraceService.json(set, folds.add(set));
+        assertEquals(List.of(List.of(0, "POLICY_SET", -1, "Applying event transformation policies.")), m.get("fo"));
+        assertNull(m.get("fw"));
+        TraceRecord pol = p.parseText("", "[10/14/26 10:00:00.100]:AD ST:Applying policy: one.\n");
+        Map<String, Object> m2 = TraceService.json(pol, folds.add(pol));
+        assertEquals(0, m2.get("fw"));
+        TraceRecord doc = p.parseText("", "[10/14/26 10:00:00.200]:AD ST:Policy returned:\n<nds>\n  <input/>\n</nds>\n");
+        Map<String, Object> m3 = TraceService.json(doc, folds.add(doc));
+        assertEquals(1, m3.get("fw"));
+        assertEquals(List.of(List.of(1, 3)), m3.get("fx"));
+        assertNull("no fold fields without a placement", TraceService.json(doc).get("fx"));
+    }
 }

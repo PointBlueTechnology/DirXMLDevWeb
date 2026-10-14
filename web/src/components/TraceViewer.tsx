@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { api, followTrace, tokenForLink } from "../api";
-import { ALL, CHANNELS, MARKERS, TIMESTAMP_FORMATS, compact as compactRec, findRanges, lineCount, markerRow, matches, parseTimeOfDay, rowAtTime, segments, withTimestamp, type ChannelCode, type Filter, type Segment, type TimestampFormat, type TraceRec } from "../trace/model";
+import { ALL, CHANNELS, MARKERS, TIMESTAMP_FORMATS, compact as compactRec, displayed, findRanges, foldPlan, ingest, lineCount, markerRow, matches, parseTimeOfDay, rowAtTime, segments, withTimestamp, type ChannelCode, type Filter, type FoldRegion, type Segment, type TimestampFormat, type TraceRec } from "../trace/model";
 import type { Outline, Selection } from "../types";
 
 interface Props {
@@ -114,6 +114,9 @@ export function TraceViewer({ env, file, drivers, popout, outline, onSelect, onO
 
   // the buffer: records arrive on the stream's thread of events; the view re-renders at most every 100 ms
   const buffer = useRef<TraceRec[]>([]);
+  // fold region ids are made unique per stream (s1, s2 …) or file (f:name); records get a page-wide id
+  const gen = useRef(0);
+  const uid = useRef(0);
   const seenDrivers = useRef<Set<string>>(new Set());
   const [, bump] = useState(0);
   const dirty = useRef(false);
@@ -127,7 +130,8 @@ export function TraceViewer({ env, file, drivers, popout, outline, onSelect, onO
     return () => clearInterval(id);
   }, []);
   const push = useCallback(
-    (r: TraceRec) => {
+    (raw: TraceRec) => {
+      const r = ingest(raw, "s" + gen.current, uid.current++);
       const b = buffer.current;
       b.push(r);
       if (b.length > settings.bufferMax) {
@@ -155,6 +159,7 @@ export function TraceViewer({ env, file, drivers, popout, outline, onSelect, onO
     setStreamErrors([]);
     setRecording(null);
     setState("connecting");
+    gen.current++;
     stop.current = followTrace(
       env,
       null,
@@ -206,7 +211,7 @@ export function TraceViewer({ env, file, drivers, popout, outline, onSelect, onO
     api.traces
       .records(file, 0, settings.bufferMax, { channels: letters, driver: oneDriver, text: text.trim() || undefined })
       .then((r) => {
-        buffer.current = r.records;
+        buffer.current = r.records.map((x) => ingest(x, "f:" + file, uid.current++));
         r.drivers.forEach((d) => seenDrivers.current.add(d));
         setFileInfo({ matched: r.matched, total: r.total, drivers: r.drivers });
         dirty.current = true;
@@ -252,17 +257,33 @@ export function TraceViewer({ env, file, drivers, popout, outline, onSelect, onO
     }
   }, [paused]);
 
-  // what each shown record renders as: timestamp format and compacting applied, line count for the layout
+  // folding (#3 of the trace viewer, docs/folding.md there): collapsed regions hide the records inside them;
+  // a collapsed XML document inside a record hides its inner lines
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [collapsedX, setCollapsedX] = useState<Set<string>>(new Set());
+  const plan = useMemo(() => foldPlan(shown, collapsed), [shown, collapsed]);
+
+  // what each visible record renders as: timestamp format, folded XML and compacting applied, line count for
+  // the layout; idx is its place in `shown`
   const prepared = useMemo(() => {
-    const rows = shown.map((r) => {
-      let x = withTimestamp(r, settings.ts);
-      if (settings.compact) {
-        x = compactRec(x);
+    const rows: { rec: TraceRec; lines: number; idx: number; starts: number[]; fxKeys: string[] }[] = [];
+    shown.forEach((r, idx) => {
+      if (plan.hidden[idx]) {
+        return;
       }
-      return { rec: x, lines: lineCount(x.x) };
+      const ts = withTimestamp(r, settings.ts);
+      const fxKeys = (r.fx ?? []).map((_, i) => `${r.u}:${i}`);
+      const shut = new Set<number>();
+      fxKeys.forEach((k, i) => {
+        if (collapsedX.has(k)) {
+          shut.add(i);
+        }
+      });
+      const d = (r.fx?.length ?? 0) > 0 || settings.compact ? displayed(ts, shut, settings.compact) : { rec: ts, starts: [] as number[] };
+      rows.push({ rec: d.rec, lines: lineCount(d.rec.x), idx, starts: d.starts, fxKeys });
     });
     return rows;
-  }, [shown, settings.ts, settings.compact]);
+  }, [shown, plan, collapsedX, settings.ts, settings.compact]);
 
   // find: every match, across the shown records
   const hits = useMemo(() => {
@@ -277,22 +298,33 @@ export function TraceViewer({ env, file, drivers, popout, outline, onSelect, onO
     }
     return out;
   }, [prepared, query]);
-  const hitCount = hits.reduce((n, h) => n + h.ranges.length, 0);
+  // stepping covers what folds hide too (a step opens the folds around its match)
+  const fullHits = useMemo(() => {
+    const out: number[] = [];
+    if (query) {
+      shown.forEach((r, i) => {
+        const n = findRanges(r.x, query).length;
+        for (let k = 0; k < n; k++) {
+          out.push(i);
+        }
+      });
+    }
+    return out;
+  }, [shown, query]);
+  const hitCount = fullHits.length;
   const hitRows = useMemo(() => {
     const m = new Map<number, [number, number][]>();
     hits.forEach((h) => m.set(h.row, h.ranges));
     return m;
   }, [hits]);
-  const flatHits = useMemo(() => hits.flatMap((h) => h.ranges.map((r) => ({ row: h.row, range: r }))), [hits]);
   useEffect(() => setCurrent(0), [query]);
   const step = (by: number) => {
-    if (flatHits.length === 0) {
+    if (fullHits.length === 0) {
       return;
     }
-    const next = (current + by + flatHits.length) % flatHits.length;
+    const next = (current + by + fullHits.length) % fullHits.length;
     setCurrent(next);
-    setFollow(false);
-    scrollToRow(flatHits[next]!.row);
+    reveal(fullHits[next]!, false, true);
   };
 
   // the virtual list: heights from line counts (exact without wrap; a wrapped line counts once more per 160 columns)
@@ -358,15 +390,53 @@ export function TraceViewer({ env, file, drivers, popout, outline, onSelect, onO
     }
     noteTimer.current = setTimeout(() => setJumpNote(null), 3000);
   };
-  const land = (row: number) => {
+  // open what hides the record at `idx` of `shown` (the regions around it; with openXml its XML documents
+  // too), then scroll to it once it is drawn
+  const [pending, setPending] = useState<TraceRec | null>(null);
+  const reveal = (idx: number, mark: boolean, openXml: boolean) => {
+    const r = shown[idx]!;
+    const around: string[] = [];
+    for (let k: string | undefined = r.fw === undefined ? undefined : String(r.fw); k; ) {
+      around.push(k);
+      k = plan.regions.get(k)?.parent ?? undefined;
+    }
+    if (around.some((k) => collapsed.has(k))) {
+      setCollapsed((cur) => {
+        const next = new Set(cur);
+        around.forEach((k) => next.delete(k));
+        return next;
+      });
+    }
+    if (openXml && r.fx?.length) {
+      setCollapsedX((cur) => {
+        const next = new Set(cur);
+        r.fx!.forEach((_, i) => next.delete(`${r.u}:${i}`));
+        return next;
+      });
+    }
     setFollow(false);
-    setLanded(shown[row]!);
+    if (mark) {
+      setLanded(r);
+    }
     setJumpNote(null);
-    scrollToRow(row);
+    setPending(r);
   };
+  useEffect(() => {
+    if (!pending) {
+      return;
+    }
+    const row = prepared.findIndex((p) => shown[p.idx] === pending);
+    if (row >= 0) {
+      scrollToRow(row);
+      setPending(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pending, prepared]);
+  const land = (idx: number) => reveal(idx, true, false);
   const jump = (dir: 1 | -1 | 0) => {
     const at = landed ? shown.indexOf(landed) : -1;
-    const base = at >= first && at < last ? at : first;
+    const atRow = at >= 0 ? prepared.findIndex((p) => p.idx === at) : -1;
+    const base = atRow >= first && atRow < last ? at : (prepared[first]?.idx ?? 0);
     const row = markerRow(shown, jumpKind, base, dir);
     const label = (MARKERS.find((m) => m.code === jumpKind)?.label ?? jumpKind).toLowerCase();
     if (row < 0) {
@@ -390,7 +460,37 @@ export function TraceViewer({ env, file, drivers, popout, outline, onSelect, onO
   };
 
   // save and copy what is shown
-  const shownText = () => prepared.map((p) => p.rec.x).join("");
+  // save and copy write folded regions in full (folding is a reading aid)
+  const shownText = () => shown.map((r) => (settings.compact ? compactRec(withTimestamp(r, settings.ts)) : withTimestamp(r, settings.ts)).x).join("");
+  const flip = (cur: Set<string>, key: string) => {
+    const next = new Set(cur);
+    if (!next.delete(key)) {
+      next.add(key);
+    }
+    return next;
+  };
+  const toggleRegion = (key: string) => setCollapsed((cur) => flip(cur, key));
+  const toggleXml = (key: string) => setCollapsedX((cur) => flip(cur, key));
+  const foldAll = (kind: string) => {
+    const keys: string[] = [];
+    plan.regions.forEach((g) => {
+      if (g.kind === kind && g.members > 0) {
+        keys.push(g.key);
+      }
+    });
+    setCollapsed((cur) => new Set([...cur, ...keys]));
+    if (kind === "XML") {
+      const xs: string[] = [];
+      shown.forEach((r) => r.fx?.forEach((_, i) => xs.push(`${r.u}:${i}`)));
+      setCollapsedX((cur) => new Set([...cur, ...xs]));
+    }
+  };
+  const unfoldAll = () => {
+    setCollapsed(new Set());
+    setCollapsedX(new Set());
+  };
+  const summary = (g: FoldRegion) =>
+    g.kind === "POLICY_SET" ? `${g.policies} ${g.policies === 1 ? "policy" : "policies"}, ${g.lines} lines` : `${g.lines} lines`;
   const save = () => {
     const blob = new Blob([shownText()], { type: "text/plain" });
     const a = document.createElement("a");
@@ -606,6 +706,19 @@ export function TraceViewer({ env, file, drivers, popout, outline, onSelect, onO
           title="A time of day; Enter goes to the first message at or after it, by the messages' own timestamps"
           data-testid="trace-time"
         />
+        <span className="small muted">Fold</span>
+        <button className="mini" onClick={() => foldAll("POLICY_SET")} title="Collapse every policy set shown" data-testid="trace-fold-sets">
+          sets
+        </button>
+        <button className="mini" onClick={() => foldAll("POLICY")} title="Collapse every policy shown" data-testid="trace-fold-policies">
+          policies
+        </button>
+        <button className="mini" onClick={() => foldAll("XML")} title="Collapse every XML document shown" data-testid="trace-fold-xml">
+          XML
+        </button>
+        <button className="mini" disabled={collapsed.size === 0 && collapsedX.size === 0} onClick={unfoldAll} title="Open every fold" data-testid="trace-unfold">
+          unfold all
+        </button>
         {jumpNote && (
           <span className="small muted" data-testid="trace-jump-note">
             {jumpNote}
@@ -649,7 +762,44 @@ export function TraceViewer({ env, file, drivers, popout, outline, onSelect, onO
           {prepared.slice(first, last).map((p, i) => {
             const row = first + i;
             return (
-              <div key={row} className={"tvrec" + (landed && shown[row] === landed ? " tvlanded" : "")} style={{ position: "absolute", top: offsets[row], left: 0, right: 0 }} data-driver={p.rec.d ?? ""} data-channel={p.rec.c}>
+              <div key={row} className={"tvrec" + (landed && shown[p.idx] === landed ? " tvlanded" : "")} style={{ position: "absolute", top: offsets[row], left: 0, right: 0 }} data-driver={p.rec.d ?? ""} data-channel={p.rec.c}>
+                {(() => {
+                  const g = (shown[p.idx]!.fo ?? []).map(([id]) => plan.regions.get(String(id))).find((x) => x !== undefined && x.members > 0);
+                  const firstLine = p.rec.x.split("\n", 1)[0]!.length;
+                  return (
+                    <>
+                      {g && (
+                        <button className={"tvfold" + (collapsed.has(g.key) ? " shut" : "")} style={{ top: 0, height: lineHeight }} onClick={() => toggleRegion(g.key)} title={(collapsed.has(g.key) ? "Open " : "Fold ") + g.label} data-testid="trace-fold-toggle">
+                          {collapsed.has(g.key) ? "▸" : "▾"}
+                        </button>
+                      )}
+                      {g && collapsed.has(g.key) && (
+                        <span className="tvfoldnote" style={{ top: 0, left: `calc(${GUTTER}px + ${firstLine + 1}ch)` }} data-testid="trace-fold-note">
+                          {summary(g)}
+                        </span>
+                      )}
+                      {p.starts.map((line, i) => {
+                        if (g && line === 0) {
+                          return null;
+                        }
+                        const shut = collapsedX.has(p.fxKeys[i]!);
+                        const [a, b] = shown[p.idx]!.fx![i]!;
+                        return (
+                          <span key={i}>
+                            <button className={"tvfold" + (shut ? " shut" : "")} style={{ top: line * lineHeight, height: lineHeight }} onClick={() => toggleXml(p.fxKeys[i]!)} title={shut ? "Open the XML document" : "Fold the XML document"} data-testid="trace-fold-xml-toggle">
+                              {shut ? "▸" : "▾"}
+                            </button>
+                            {shut && (
+                              <span className="tvfoldnote" style={{ top: line * lineHeight, left: `calc(${GUTTER}px + ${(p.rec.x.split("\n")[line] ?? "").length + 1}ch)` }}>
+                                {b - a} lines
+                              </span>
+                            )}
+                          </span>
+                        );
+                      })}
+                    </>
+                  );
+                })()}
                 {segments(p.rec.x, p.rec.r, hitRows.get(row) ?? []).map((s, j) => {
                   const link = linkFor(s);
                   return (
@@ -667,6 +817,9 @@ export function TraceViewer({ env, file, drivers, popout, outline, onSelect, onO
     </div>
   );
 }
+
+/** The width of the fold toggles' gutter, left of every record. */
+const GUTTER = 16;
 
 /** The first index whose offset is greater than `v` (binary search over ascending offsets). */
 function lowerBound(offsets: number[], v: number): number {

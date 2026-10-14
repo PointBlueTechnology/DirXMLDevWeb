@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ALL, compact, findRanges, formatTimestamp, lineCount, markerRow, matches, parseTimeOfDay, rowAtTime, segments, withTimestamp, type TraceRec } from "./model";
+import { ALL, compact, displayed, findRanges, foldPlan, formatTimestamp, ingest, lineCount, markerRow, matches, parseTimeOfDay, rowAtTime, segments, withTimestamp, type TraceRec } from "./model";
 
 const rec = (x: string, extra: Partial<TraceRec> = {}): TraceRec => ({ s: "idm1", t: 0, d: "AD", c: "S", h: null, x, r: [], ...extra });
 
@@ -92,5 +92,60 @@ describe("jump markers (#2 of the trace viewer)", () => {
     expect(parseTimeOfDay(" 09:05:07.5 ")).toBe(((9 * 60 + 5) * 60 + 7) * 1000 + 500);
     expect(parseTimeOfDay("25:00")).toBe(-1);
     expect(parseTimeOfDay("soon")).toBe(-1);
+  });
+});
+
+describe("folding (#3 of the trace viewer)", () => {
+  const r = (x: string, extra: Partial<TraceRec> = {}): TraceRec => ({ s: "", t: 0, d: "AD", c: "S", h: null, x, r: [], ...extra });
+  // a set (0) holding a policy (1) whose returned document is an XML region (2), as a live stream sends them
+  const raw = [
+    r("set\n", { fo: [[0, "POLICY_SET", -1, "Applying event transformation policies."]] }),
+    r("policy\n", { fo: [[1, "POLICY", 0, "one"]], fw: 0 }),
+    r("rule\n", { fw: 1 }),
+    r("Policy returned:\n", { fw: 1 }),
+    r("<nds>\n", { fo: [[2, "XML", 1, "<nds>"]], fw: 1 }),
+    r("  <input/>\n</nds>\n", { fw: 2 }),
+    r("End transaction.\n"),
+  ];
+  const recs = raw.map((x, i) => ingest(x, "s1", i));
+
+  it("prefixes region ids with the stream, so two streams never share one", () => {
+    expect(recs[1]!.fo![0]).toEqual(["s1:1", "POLICY", "s1:0", "one"]);
+    expect(recs[0]!.fo![0]![2]).toBe(-1);
+    expect(recs[2]!.fw).toBe("s1:1");
+    expect(recs[6]!.fw).toBeUndefined();
+    expect(recs[3]!.u).toBe(3);
+  });
+
+  it("hides what a collapsed region holds, keeping its first line, and counts it", () => {
+    const open = foldPlan(recs, new Set());
+    expect(open.hidden.every((h) => !h)).toBe(true);
+    const set = open.regions.get("s1:0")!;
+    expect([set.members, set.lines, set.policies]).toEqual([5, 6, 1]);
+    expect(open.regions.get("s1:2")!.members).toBe(1);
+
+    expect(foldPlan(recs, new Set(["s1:0"])).hidden).toEqual([false, true, true, true, true, true, false]);
+    expect(foldPlan(recs, new Set(["s1:1"])).hidden).toEqual([false, false, true, true, true, true, false]);
+    expect(foldPlan(recs, new Set(["s1:2"])).hidden).toEqual([false, false, false, false, false, true, false]);
+  });
+
+  it("ignores a region whose first line is not shown (filtered out or dropped)", () => {
+    const withoutOpener = recs.slice(1);
+    const p = foldPlan(withoutOpener, new Set(["s1:0"]));
+    expect(p.regions.has("s1:0")).toBe(false);
+    expect(p.hidden.every((h) => !h)).toBe(true);
+  });
+
+  it("folds an XML document inside a record to its first line, runs remapped, and places its toggle", () => {
+    const x = "head:\n<nds>\n  <input/>\n</nds>\n\ntail\n";
+    const rec = r(x, { fx: [[1, 3]], r: [[x.indexOf("tail"), x.indexOf("tail") + 4, "STATUS_ERROR", -1]] });
+    const shut = displayed(rec, new Set([0]), false);
+    expect(shut.rec.x).toBe("head:\n<nds>\n\ntail\n");
+    expect(shut.starts).toEqual([1]);
+    const [a, b, tk] = shut.rec.r[0]!;
+    expect([shut.rec.x.slice(a, b), tk]).toEqual(["tail", "STATUS_ERROR"]);
+    expect(displayed(rec, new Set([0]), true).rec.x).toBe("head:\n<nds>\ntail\n");
+    expect(displayed(rec, new Set(), true).rec.x).toBe(compact(rec).x);
+    expect(displayed(r("a\n\n<x>\n<y/>\n</x>\n", { fx: [[2, 4]] }), new Set(), true).starts).toEqual([1]);
   });
 });

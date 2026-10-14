@@ -124,4 +124,47 @@ public class CredentialServiceSplitTest {
             // one file: the environment form does it all
         }
     }
+
+    /**
+     * A command reference runs on a hosted server as the server, so someone who is not a deployer may not save one,
+     * and one already in their file is listed as refused and never run (here or when the environment is opened).
+     */
+    @Test
+    public void aNonDeployersCommandReferenceIsRefusedAndNeverRun() throws Exception {
+        Path etc = tmp.newFolder("etc").toPath();
+        Path defs = etc.resolve("environments.properties");
+        Files.writeString(defs, "edir3.url=ldaps://edir3:636\nedir3.driverSet=cn=driverset1,o=system\nedir3.tier=dev\n");
+        Path mine = tmp.newFolder("users", "alice").toPath().resolve("environments.properties");
+        Path marker = tmp.getRoot().toPath().resolve("ran");
+        CredentialService editor = new CredentialService(tmp.newFolder("tree").toPath(), EnvFiles.split(defs, mine, false));
+        try {
+            editor.saveMine(req("name", "edir3", "bindDn", "cn=alice,o=system", "passwordStore", "command:touch " + marker + "; echo pw"));
+            fail("an editor saved a command reference");
+        } catch (Api.Forbidden expected) {
+            assertTrue(expected.getMessage().contains("only a deployer"));
+        }
+        assertFalse("nothing was written", Files.exists(mine) && Files.readString(mine).contains("Command"));
+
+        // one saved before the restriction
+        Files.writeString(mine, "edir3.bindDn=cn=alice,o=system\nedir3.passwordCommand=touch " + marker + "; echo pw\n");
+        Map<String, Object> e = env(editor.list(), "edir3");
+        assertEquals(true, e.get("passwordRefused"));
+        assertEquals("not connected: the password cannot be read here", false, e.get("connected"));
+        Map<String, Object> r = editor.resolve(req("env", "edir3"));
+        assertEquals(false, r.get("ok"));
+        assertTrue(String.valueOf(r.get("message")), String.valueOf(r.get("message")).contains("only a deployer"));
+        try {
+            EnvFiles.split(defs, mine, false).load().get("edir3");
+            fail("opened the environment with a refused command");
+        } catch (java.io.IOException expected) {
+            assertTrue(expected.getMessage(), expected.getMessage().contains("only a deployer"));
+        }
+        assertFalse("the command never ran", Files.exists(marker));
+
+        // a deployer's runs
+        CredentialService deployer = new CredentialService(tmp.newFolder("tree2").toPath(), EnvFiles.split(defs, mine, true));
+        assertNull(env(deployer.list(), "edir3").get("passwordRefused"));
+        assertEquals(true, deployer.resolve(req("env", "edir3")).get("ok"));
+        assertTrue(Files.exists(marker));
+    }
 }

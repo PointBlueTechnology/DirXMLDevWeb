@@ -77,4 +77,31 @@ public class GitTokensTest {
         assertEquals("file", hosts.get(1).get("store"));
         assertFalse("never the value", hosts.toString().contains("glpat"));
     }
+
+    @Test
+    public void aNonDeployersCommandTokenIsRefusedAndNeverRun() throws Exception {
+        Path f = tmp.getRoot().toPath().resolve("git.properties");
+        Path marker = tmp.getRoot().toPath().resolve("ran");
+        GitTokens editor = new GitTokens(f, false);
+        try {
+            editor.save("github.com", "command:touch " + marker + "; echo t", null);
+            fail("an editor saved a command reference");
+        } catch (Api.Forbidden expected) {
+            assertTrue(expected.getMessage().contains("only a deployer"));
+        }
+        editor.save("gitlab.example.com", "env:SOME_VAR", null);   // the other forms stay open
+        Files.writeString(f, "github.com.tokenCommand=touch " + marker + "; echo t\n", java.nio.charset.StandardCharsets.UTF_8, java.nio.file.StandardOpenOption.APPEND);
+        try {
+            editor.resolve("github.com");
+            fail("resolved a refused command");
+        } catch (java.io.IOException expected) {
+            assertTrue(expected.getMessage().contains("only a deployer"));
+        }
+        Project p = new Project("a", "https://github.com/org/a.git", null, ".", "cases", "main", null, null);
+        Map<String, Object> h = editor.hosts(List.of(p)).get(0);
+        assertEquals(Boolean.TRUE, h.get("refused"));
+        assertEquals(Boolean.FALSE, h.get("set"));
+        assertFalse("the command never ran", Files.exists(marker));
+        assertEquals("a deployer's runs", "t", new GitTokens(f, true).resolve("github.com"));
+    }
 }

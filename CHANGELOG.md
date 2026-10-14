@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.50.0] - 2026-10-14
+
 ### Added
 
 - **Trace: folding** (DirXMLTraceViewer #3, its library's `TraceFolds`; docs/folding.md there).
@@ -22,7 +24,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   - **Save and Copy** still write everything in full.
   - **Server fields.** Each record from the server carries `fo` (regions it opens), `fw` (the
     region it sits in) and `fx` (XML line ranges in its text).
-  - **Needs dirxml-trace-core 1.7.0.**
+  - **Needs dirxml-trace-core 1.7.0** (DirXMLTraceViewer 1.7.0).
 
 ## [0.49.0] - 2026-10-14
 

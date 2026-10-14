@@ -2,6 +2,11 @@
 
 Status: **decided 2026-10-05; W0–W6 built** (this repository). The note was written in DirXMLDev as `docs/web-designer.md`; this is its home now.
 
+> This note describes the workstation install (local mode: loopback, one token, the macOS
+> Keychain, `idm serve`). The hosted server came later and differs on sign-in, binding,
+> credentials and roles: see [hosted-mode.md](hosted-mode.md) and the table in
+> [security.md](security.md).
+
 The question: build a web version of Designer, perhaps with WebAssembly.
 The answer in one paragraph: **yes to a web workbench, no to porting Designer,
 and WebAssembly is a side road, not the route.** The fastest and safest web

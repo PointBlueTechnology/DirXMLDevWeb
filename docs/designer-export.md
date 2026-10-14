@@ -8,8 +8,11 @@ their ids, as two runs of the CLI do.
 No vault password is ever written: the vault object is written with
 `IdentityVaultSavePassword=false`, and none of the routes takes a password.
 
-The examples use a local install's token (`X-IDMWeb-Token`, from the address the server prints).
-A hosted install signs in with a session cookie and a CSRF header instead (docs/hosted-mode.md).
+The examples use a workstation install's token (`X-IDMWeb-Token`, from the address `serve <tree>`
+prints). On a hosted server (the local container or a team server), a script sends an agent's
+token instead, `Authorization: Bearer <token>` (the local container's is `IDMWEB_AGENT_TOKEN` in
+`idmweb.env`; a team server's comes from `agents=`), with the server's `public.url` as `B`; the
+page itself uses a session cookie and a CSRF header (docs/security.md).
 
 ```bash
 B=http://127.0.0.1:<port>     # the address the server prints (or give --port)

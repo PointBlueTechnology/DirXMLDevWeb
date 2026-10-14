@@ -6,6 +6,7 @@ import com.pointbluetech.dirxml.trace.ldap.ConnectionSettings;
 import com.pointbluetech.dirxml.trace.ldap.LdapTraceEventSource;
 import com.pointbluetech.dirxml.trace.model.Channel;
 import com.pointbluetech.dirxml.trace.model.FormattedText;
+import com.pointbluetech.dirxml.trace.model.TraceFolds;
 import com.pointbluetech.dirxml.trace.model.TraceHighlighter;
 import com.pointbluetech.dirxml.trace.model.TraceMarker;
 import com.pointbluetech.dirxml.trace.model.TraceTime;
@@ -58,6 +59,9 @@ public final class TraceService {
     /** As above; {@code raw} (may be null) gets every record before the driver filter, for a recording. */
     public static void stream(Environments.Environment env, List<Source> sources, String driver, boolean engineToo, Consumer<Map<String, Object>> sink, Consumer<TraceRecord> raw) throws Exception {
         List<LdapTraceEventSource> open = new ArrayList<>();
+        // fold regions (#3 of the trace viewer): one builder for the whole stream, so region ids are unique
+        // across its servers; a region belongs to one server's driver and channel
+        TraceFolds folds = new TraceFolds();
         try {
             for (Source s : sources) {
                 ConnectionSettings settings = settings(env, s.url());
@@ -71,11 +75,18 @@ public final class TraceService {
                     synchronized (parser) {
                         r = parser.parse(ev);
                     }
-                    if (r != null && raw != null) {
+                    if (r == null) {
+                        return;
+                    }
+                    if (raw != null) {
                         raw.accept(r);
                     }
-                    if (r != null && wanted(r, driver, engineToo)) {
-                        sink.accept(json(r));
+                    TraceFolds.Placement place;
+                    synchronized (folds) {
+                        place = folds.add(r);
+                    }
+                    if (wanted(r, driver, engineToo)) {
+                        sink.accept(json(r, place));
                     }
                 }, e -> sink.accept(Map.of("error", s.name() + ": " + e.getMessage())));
                 open.add(source);
@@ -115,6 +126,15 @@ public final class TraceService {
      * {@code tm} the header's time of day in milliseconds, or -1 without a header.
      */
     public static Map<String, Object> json(TraceRecord r) {
+        return json(r, null);
+    }
+
+    /**
+     * {@link #json(TraceRecord)} with the record's fold placement (docs/folding.md in the viewer): {@code fo}
+     * the regions it opens [[id, kind, parent or -1, label]…], {@code fw} the innermost region it sits in,
+     * {@code fx} the XML documents in its text as line ranges [[first, last]…]; each only when there is one.
+     */
+    public static Map<String, Object> json(TraceRecord r, TraceFolds.Placement place) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("s", r.server());
         m.put("t", r.receivedAt());
@@ -131,6 +151,25 @@ public final class TraceService {
         TraceMarker k = TraceMarker.of(r);
         m.put("k", k == null ? null : k.name());
         m.put("tm", TraceTime.timeOfDay(r));
+        if (place != null) {
+            if (!place.opens().isEmpty()) {
+                List<Object> fo = new ArrayList<>();
+                for (TraceFolds.Region g : place.opens()) {
+                    fo.add(List.of(g.id(), g.kind().name(), g.parent(), g.label()));
+                }
+                m.put("fo", fo);
+            }
+            if (place.within() >= 0) {
+                m.put("fw", place.within());
+            }
+            if (!place.xmlLines().isEmpty()) {
+                List<Object> fx = new ArrayList<>();
+                for (int[] d : place.xmlLines()) {
+                    fx.add(List.of(d[0], d[1]));
+                }
+                m.put("fx", fx);
+            }
+        }
         return m;
     }
 

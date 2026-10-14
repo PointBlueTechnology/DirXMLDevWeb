@@ -1300,6 +1300,10 @@ table.grid tr.detail td { background: var(--bg); padding-top: 4px; padding-botto
 .tk-JSON_NUMBER { color: #B5CEA8; }
 .tk-JSON_LITERAL { color: #569CD6; }
 .tk-JSON_PUNCT { color: #808080; }
+.tv .tvrec { padding-left: 16px; }
+.tvfold { position: absolute; left: 0; width: 14px; padding: 0; border: 0; background: none; color: #6B7280; font: inherit; font-size: 0.8em; line-height: inherit; cursor: pointer; }
+.tvfold:hover, .tvfold.shut { color: #E5C07B; }
+.tvfoldnote { position: absolute; color: #7F848E; font-style: italic; pointer-events: none; white-space: pre; }
 .tvlanded { background: rgba(255, 255, 255, 0.08); box-shadow: inset 3px 0 0 #E5C07B; }
 .tvbox:focus { outline: none; }
 .ds-0 { color: #808080; } .ds-1 { color: #569CD6; } .ds-2 { color: #6A9955; } .ds-3 { color: #4EC9B0; }

@@ -144,7 +144,10 @@ Every view of the page, by area, in every install; the items marked *local and s
     from every server or one, channel/driver/text filters, find, DSTrace colours (rule names and
     JSON bodies too), *Jump to* a kind of place — driver start, publisher or subscriber event,
     subscriber shim, policy set, policy, end of transaction, log event, pump to eDirectory — with
-    ◀ / ▶ (`[` / `]`) and *most recent* (`Shift-]`), or to a time of day; compact
+    ◀ / ▶ (`[` / `]`) and *most recent* (`Shift-]`), or to a time of day; *Fold* a policy set, a
+    policy or an XML document to its first line (a toggle beside it, or every one of a kind at
+    once), each driver's and channel's own lines only, with find and the jumps opening what they
+    land in; compact
     whitespace, timestamp formats, pause, save, copy, a pop-out window, recording to a file; a
     driver's or a policy's name in the trace opens it in the tree; the Drivers tab sets a
     driver's trace level. Before this it was a driver's raw lines with a filter — from any server of the driver set, each of

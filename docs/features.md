@@ -77,7 +77,14 @@ Every view of the page, by area, in every install; the items marked *local and s
   - *Settings*: shim class and authentication, shim parameters, engine control values.
   - *Filter*: classes and attributes with each channel's setting and the merge authority.
   - *Policy sets*: every set as an ordered list; drag or use the arrows to reorder, link, unlink.
-  - *Schema map* and *mapping table* as their own structured tab on the artifact.
+  - *Schema map* and *mapping table* as their own structured tab on the artifact. A mapping
+    table's grid edits rows and adds columns, and *Export CSV* / *Import CSV…* move the whole table
+    out and back (a spreadsheet's CSV: header = column names, first column = key). An import
+    replaces the table, or with *merge by key* adds and updates rows, and the review shows the
+    result before anything is written.
+  - *References* on any artifact: what refers to it. For a mapping table that is the policies that
+    read it and the drivers that run them, since a table is not linked into a driver the way an
+    ECMAScript resource is.
   - *Env overrides*: every environment's values in one matrix beside the base.
   - Configuration files and entitlement definitions are also editable as XML.
 - **One review for every write.** An editor collects its changes; Review runs them against a

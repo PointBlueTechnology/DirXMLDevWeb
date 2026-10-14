@@ -265,7 +265,8 @@ public final class TreeService {
         m.put("editable", file != null);
         m.put("packaged", a.meta.keySet().stream().anyMatch(k -> k.toLowerCase().startsWith("dirxml-pkg") || k.equals("package-id")));
         List<Object> refs = new ArrayList<>();
-        for (Refs.Ref r : Refs.to(ds, path)) {
+        // a mapping table also names the drivers that run a policy reading it (DirXMLDev 0.34.0)
+        for (Refs.Ref r : Refs.withDrivers(ds, path)) {
             Map<String, Object> rm = new LinkedHashMap<>();
             rm.put("kind", r.kind);
             rm.put("from", r.from);

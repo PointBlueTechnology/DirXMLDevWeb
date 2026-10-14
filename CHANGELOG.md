@@ -7,6 +7,26 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Fixed
+
+- **The container's `idm` reaches a vault.** The environments file of a hosted server holds the
+  definitions only, and each person's bind DN and password are in their own file, so the `idm`
+  inside the container saw the environments but could not bind. With DirXMLDev 0.33.0 the CLI
+  merges the file `IDM_CREDENTIALS` names:
+  - **The local container:** `~/idmweb/idm` passes your own file. Run `setup.sh` again to rewrite
+    the wrapper.
+  - **A team server:** `docker exec -e IDM_CREDENTIALS=/var/lib/idmweb/users/<subject>/environments.properties idmweb idm …`
+    (docs/hosted-install.md §5).
+  - **Needs DirXMLDev 0.33.0.**
+- **The local container's `~/idmweb/idm` ran nothing.** `setup.sh` wrote `COMPOSE=docker compose`
+  unquoted into `.engine`, so sourcing it tried to run a command named `compose`. It now writes the
+  values quoted.
+- **`~/idmweb/idm` works before a branch is opened, and with no project.** It used to `cd` into a
+  workspace that did not exist yet. It now runs in the workspace when there is one, and otherwise
+  outside it with a note, which is enough for vault commands and `doctor`.
+- **The wrapper names the workspace the way the server does.** It cleans the user name the same way
+  the server's workspace paths do.
+
 ## [0.50.0] - 2026-10-14
 
 ### Added

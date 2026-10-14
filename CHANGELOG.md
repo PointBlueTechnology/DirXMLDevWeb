@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.52.0] - 2026-10-14
+
 ### Added
 
 - **Mapping tables: CSV import and export.** The table editor has *Export CSV*, which downloads the

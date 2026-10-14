@@ -23,8 +23,8 @@
 - Cases are kept in `cases/` beside the tree (or `--cases DIR`). They are not part of the
   tree's revision: the page reloads them after its own writes.
 - Pull requests are created through the API on a hosted server (the person's own provider token,
-  else the project's), and through `gh` or `glab` on a local install, signed in already. A remote on
-  another provider, a project without a token, or a local install without a signed-in CLI gets the
-  compare-page link. Reviewers, labels and merging stay on the provider.
+  else the project's; the local container is one), and through `gh` or `glab` on a workstation
+  install (`serve <tree>`), signed in already. A remote on another provider, a project without a
+  token, or a workstation without a signed-in CLI gets the compare-page link. Reviewers, labels and merging stay on the provider.
 - Exporting a project uploads and downloads it whole (up to 512 MB zipped). A project written new
   mints fresh Designer ids, so two exports of the same tree differ in their ids, as with the CLI.

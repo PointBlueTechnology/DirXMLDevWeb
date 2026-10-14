@@ -56,7 +56,7 @@ the repository itself stays private. To build one by hand:
 /srv/idmweb/
   compose.yml  Caddyfile  .env  idmweb.env        # from hosted/docker/, filled in
   config/hosted.properties                        # from hosted/docker/config.example/
-  config/environments.properties                  # the vault environments, as the CLI reads them
+  config/environments.properties                  # the vault environment definitions (URL, driver set, tier): no passwords
   config/secrets-<env>.properties                 # driver secrets, or references to a secret manager
   lib/*.jar                                       # the engine jars from the customer's IDM install
   keycloak/realm.json                             # from hosted/keycloak/realm-example.json, adjusted
@@ -65,7 +65,11 @@ the repository itself stays private. To build one by hand:
 
 `config/` is owned by uid 1100 (the container's user) and the credential files are `0600`.
 `idmweb.env` holds the secrets the configuration references through `*Env` keys: the repository
-token, the OIDC client secret, agent tokens. Nothing else holds a value.
+token, the OIDC client secret, agent tokens. Under `config/`, only the driver secrets hold values.
+Each person's vault password and Git provider token are in their own owner-only file in the data
+volume (`users/<subject>/`), and a token typed to clone a project is in `secrets/<project>.repo.token`
+there; see §7 for what the volume holds. `environments.properties` must hold no password: the
+server will not start with one (docs/multi-user.md).
 
 - `.env`: `PUBLIC_HOST` (the DNS name), `ACME_EMAIL`, the Keycloak admin credentials.
 - `hosted.properties`: `public.url=https://<PUBLIC_HOST>`, `bind=0.0.0.0`, the repository
@@ -105,9 +109,12 @@ An agent (CI, an MCP server, a coding agent) does not install anything:
 
 - **API**: `Authorization: Bearer <token>` with a token from `agents=` gives it a session with its
   roles; every endpoint the page uses. Its name is on every audit line.
-- **CLI**: `docker exec idmweb idm validate /var/lib/idmweb/workspaces/<user>/<branch>/tree`, or
-  any other `idm` command, with the same files and engine jars the server uses. Workspaces are
-  under `/var/lib/idmweb/workspaces/<user>/<branch>`.
+- **CLI**: `docker exec idmweb idm validate /var/lib/idmweb/workspaces/<project>/<user>/<branch>/tree`,
+  or any other `idm` command, with the same tree files and engine jars the server uses. Workspaces
+  are under `/var/lib/idmweb/workspaces/<project>/<user>/<branch>`. The CLI reads
+  `environments.properties` alone, which holds no passwords, so a vault command (`--env`) cannot
+  bind there; an agent reaches a vault through the API, with the credentials of its own
+  connection.
 
 ## 6. The lab (Point Blue)
 
@@ -134,7 +141,9 @@ ssh debian@192.168.103.99 'cd ~/idmweb && sed -i "s#^IDMWEB_IMAGE=.*#IDMWEB_IMAG
 ## 7. Operate
 
 - `docker compose pull && docker compose up -d` (or `docker load` a new tarball) upgrades.
-- Workspaces and `audit.log` live in the `idmweb-data` volume; the configuration in `./config`.
+- The `idmweb-data` volume holds the workspaces, `audit.log`, `sessions.json`, each person's
+  files (`users/<subject>/`: vault credentials, Git tokens, traces), clone tokens (`secrets/`) and
+  archived projects (`archive/`); the configuration is in `./config`. Back up both.
 - `audit.log` is one JSON line per event; ship it where the customer keeps logs.
 - Sessions are kept in `<data.dir>/sessions.json` (owner-only): a restart signs nobody out, and
   each person gets their last project and branch back on their next session.

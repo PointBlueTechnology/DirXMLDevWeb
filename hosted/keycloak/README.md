@@ -22,7 +22,7 @@ JSON before importing (`bin/smoke-oidc.sh` does that with `sed`):
 identity=oidc
 oidc.issuer=http://localhost:8081/realms/idm
 oidc.clientId=idmweb
-oidc.clientSecretKeychain=idmweb/oidc        # or oidc.clientSecret for a lab
+oidc.clientSecretKeychain=idmweb/oidc        # a server run from a macOS checkout; in the container oidc.clientSecretEnv=IDMWEB_OIDC_SECRET, or oidc.clientSecret for a lab
 oidc.groupsClaim=groups
 roles.editor=idm-editors,idm-deployers
 roles.deployer=idm-deployers

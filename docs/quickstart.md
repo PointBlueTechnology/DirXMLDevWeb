@@ -74,7 +74,8 @@ DirXMLDevWeb is at http://localhost:8080
 
 ## 4. Sign in
 
-Open the URL, paste the first token from `~/idmweb/idmweb.env`.
+Open the URL, paste the first token from `~/idmweb/idmweb.env`. Use `localhost`, as printed: the
+server answers only to the host in its `public.url`, so `http://127.0.0.1:8080` is refused.
 
 - **With a tree**: open the branch `main`; it is cloned into a workspace of yours and every
   view is live. Edit, review, apply; commit and push from the bar at the top (pushes land in
@@ -104,12 +105,23 @@ the page uses, with the agent's name on each audit line.
 
 ## 6. Vaults
 
-*Connections* on the page sets up each environment (URL, bind DN, driver set, tier, trust) with
-a connection test, and takes the password and the driver secrets a deploy needs; they are
-written to `~/idmweb/config/environments.properties` on your disk (readable by you alone) —
-never into the tree, the repository or the vault. A credential may be a literal,
-a `…Command=` reference to a secret manager ([secret-managers.md](secret-managers.md)) or
-`…Env=NAME` with the value in `idmweb.env`. Keychain references do not resolve inside a container.
+*Connections* on the page sets up each environment with a connection test. The container is a
+hosted server for one person, so it keeps an environment in two places, both on your disk and
+readable by you alone, and never in the tree, the repository or the vault:
+
+- the environment itself (URL, driver set, tier, trust) in `~/idmweb/config/environments.properties`,
+  with the driver secrets a deploy needs beside it (`~/idmweb/config/secrets-<env>.properties`);
+- your bind DN and password in your own file, `~/idmweb/data/users/<you>/environments.properties`.
+
+The password may be the value itself, `…Env=NAME` with the value in `idmweb.env`, or a `…Command=`
+reference to a secret manager whose CLI you have added to the image
+([secret-managers.md](secret-managers.md)). Keychain references do not resolve inside a container.
+`config/environments.properties` holds no password: the server will not start if it finds one
+there, so copy in an environments file of your own only without its secrets.
+
+`~/idmweb/idm` runs with `config/environments.properties` alone, so it sees the environments but
+not your password: a vault command there (`--env`) fails to bind. Reach a vault through the page,
+or the API with the agent token.
 
 ## Day to day
 

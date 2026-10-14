@@ -87,9 +87,9 @@ view by view: [docs/features.md](docs/features.md).
 |---|---|---|---|
 | Where | Docker on your own machine, `http://localhost:8080`; everything it keeps is in one folder on your disk (`~/idmweb/`) | a host behind a proxy with TLS, `https://idm.example.com` | your machine, `bin/idmweb serve <tree>`, loopback only |
 | Sign-in | one token (yours) and one for your agents | your identity provider (OpenID Connect: Keycloak, Entra, Okta …), groups → roles | none: the URL carries a one-time token |
-| The tree | a git repository in that folder, `~/idmweb/repo.git` (or none yet: the page asks) | the team's repository on GitHub or GitLab; a branch per person as a workspace | one tree on disk, edited in place; git is yours to run |
-| Projects, branches, commit & push, audit | yes | yes | no — one tree, no sign-in, no audit |
-| Vault credentials | a file on your disk, `~/idmweb/config/environments.properties`, readable by you alone — or a reference to a secret manager; never in the tree, never in eDirectory | files on the server's disk, owner-only — or a secret manager | the `idm` CLI's files and your Keychain |
+| The tree | a git repository in that folder, `~/idmweb/repo.git` (or none yet: the page asks) | the team's repository on GitHub or GitLab; a branch per person as a workspace | one tree on disk, edited in place; when it is a git checkout, the page commits, pushes and opens pull requests (through `gh` or `glab`) on the branch it is on |
+| Projects, branches, sign-in, roles, audit | yes | yes | no — one tree, one person, no audit |
+| Vault credentials | the environments (URL, driver set, tier) in `~/idmweb/config/environments.properties`; your bind DN and password in your own file, `~/idmweb/data/users/<you>/environments.properties`, readable by you alone, or a variable you set in `~/idmweb/idmweb.env`; never in the tree, never in eDirectory | the definitions in one file on the server; each person's bind DN and password in their own owner-only file; a deployer may use a secret manager | the `idm` CLI's file (secrets included), your macOS Keychain, or a secret manager |
 | Engine jars | `~/idmweb/lib/`, mounted into the container | a folder on the host, mounted into the container | DirXMLDev's `lib/` |
 | CLI and simulator | `~/idmweb/idm …` inside the container | `docker exec idmweb idm …` | `bin/idm …` from the checkout |
 | Get it | [docs/quickstart.md](docs/quickstart.md) | [docs/hosted-install.md](docs/hosted-install.md), [docs/hosted-mode.md](docs/hosted-mode.md) | [docs/development.md](docs/development.md) |
@@ -108,15 +108,15 @@ for developing it or for a quick look at a tree. Upgrading an install is pulling
 | [docs/multi-user.md](docs/multi-user.md) | design note: per-user connections, data and traces on a hosted server |
 | [docs/architecture-view.md](docs/architecture-view.md) | design note: the Architecture (Designer Modeler) and Developer views |
 | [docs/hosted-install.md](docs/hosted-install.md) | the container for a team: image, host layout, proxy, Keycloak, the lab |
-| [docs/hosted-mode.md](docs/hosted-mode.md) | hosted configuration: projects, repositories, identity (`none`, `oidc`), roles, agents |
-| [docs/security.md](docs/security.md) | what the server refuses, where credentials live, what never leaves it |
+| [docs/hosted-mode.md](docs/hosted-mode.md) | hosted configuration: projects, repositories, identity (`token`, `oidc`, `none`), roles, agents |
+| [docs/security.md](docs/security.md) | what the server refuses, where credentials live, what never leaves it; how the workstation and hosted modes differ |
 | [docs/secret-managers.md](docs/secret-managers.md) | AWS, Azure, GCP, CyberArk, BeyondTrust, Bitwarden, Terraform: a credential as a command |
 | [docs/development.md](docs/development.md) | running from a checkout, layout, tests, releasing |
 | [docs/limits.md](docs/limits.md) | what still goes through Operations or the CLI |
 | [docs/design.md](docs/design.md) | the assessment and the phases |
 | [docs/hosted.md](docs/hosted.md) | the hosted-mode design and its decisions |
-| [docs/event-logger.md](docs/event-logger.md) | the Event Logger integration: events as simulator cases, an Events view, the logger as a package (proposed) |
-| [docs/trace-viewer.md](docs/trace-viewer.md) | the DirXML Trace Viewer in the workbench: a shared trace library, live and file trace with colours, filters, find and links into the tree (proposed) |
+| [docs/event-logger.md](docs/event-logger.md) | design note: the Event Logger integration: events as simulator cases, an Events view, the logger as a package |
+| [docs/trace-viewer.md](docs/trace-viewer.md) | design note: the DirXML Trace Viewer in the workbench: a shared trace library, live and file trace with colours, filters, find and links into the tree |
 | [CHANGELOG.md](CHANGELOG.md) | every release |
 
 ## License

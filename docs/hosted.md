@@ -2,6 +2,20 @@
 
 Status: **decided 2026-10-05 (Keycloak, GitHub, container, proxy TLS, the server's bind, all at once); building in three steps: workspaces + git + audit (done), OIDC (done), container (done); live at https://idmweb.pointbluetech.com:8443 on DockerHost1 since 2026-10-06.**
 
+> **As built, read this first.** This is the design as decided; later work changed several points.
+> The current reference is [hosted-mode.md](hosted-mode.md) and [security.md](security.md):
+> - The server is started with `serve --hosted <file>`, and identity is `token` (one person, the
+>   local container), `oidc` or `none` (tests).
+> - Vault credentials are per person (docs/multi-user.md): the server's environments file holds
+>   definitions only; only the driver secrets are shared.
+> - The roles keys are `roles.editor` and `roles.deployer`. Watching a live trace is open to
+>   anyone signed in; setting trace levels and reading the engine's trace file are a deployer's.
+> - The cookie is `Secure` only when `public.url` is https, and sessions persist in
+>   `data.dir/sessions.json` across restarts.
+> - Host and Origin are checked against `public.url`, not loopback.
+> - Pull requests are created through the provider's API (docs/pull-requests.md), not only
+>   linked to the compare page.
+
 Local mode (W0–W6) is one person, one tree on their workstation, one server on loopback with
 a one-time token. Hosted mode is the same server and page for a team: it runs inside the
 customer's network next to their vault, people sign in, each works on a workspace that is a

@@ -7,6 +7,23 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Documentation
+
+- **The docs say which install a statement holds for.** docs/security.md opens with a table of the
+  workstation install (local mode) against the local container and the team server (hosted mode):
+  where it listens, sign-in, the Host and Origin check, roles, where credentials live, the audit
+  log. It no longer says the server binds to loopback only.
+  - **Container installs.** docs/quickstart.md, the single-user README and README.md now say a
+    person's password goes to their own file under `data/users/`, not `config/environments.properties`.
+    The CLI inside the container cannot bind to a vault, since it sees no password.
+  - **The Keychain and secret managers.** Keychain settings work only on macOS, never in the
+    container, and the examples use `…Env`. The image carries none of the secret managers' CLIs.
+    docs/secret-managers.md gains a table by install.
+  - **Smaller fixes.** "Local install" becomes "workstation" where it meant `serve <tree>`. The trace
+    and workspace paths and the environments lookup order are corrected. hosted.md and design.md
+    gain a note on what has changed since they were written, and event-logger.md and
+    trace-viewer.md are marked as built.
+
 ## [0.47.0] - 2026-10-14
 
 ### Changed

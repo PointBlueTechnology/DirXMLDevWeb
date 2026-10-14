@@ -79,7 +79,7 @@ public class GitTokensTest {
     }
 
     @Test
-    public void aNonDeployersCommandTokenIsRefusedAndNeverRun() throws Exception {
+    public void aNonDeployersReferenceTokenIsRefusedAndNeverResolved() throws Exception {
         Path f = tmp.getRoot().toPath().resolve("git.properties");
         Path marker = tmp.getRoot().toPath().resolve("ran");
         GitTokens editor = new GitTokens(f, false);
@@ -89,8 +89,22 @@ public class GitTokensTest {
         } catch (Api.Forbidden expected) {
             assertTrue(expected.getMessage().contains("only a deployer"));
         }
-        editor.save("gitlab.example.com", "env:SOME_VAR", null);   // the other forms stay open
-        Files.writeString(f, "github.com.tokenCommand=touch " + marker + "; echo t\n", java.nio.charset.StandardCharsets.UTF_8, java.nio.file.StandardOpenOption.APPEND);
+        try {
+            editor.save("gitlab.example.com", "env:PATH", null);
+            fail("an editor saved an environment variable reference");
+        } catch (Api.Forbidden expected) {
+            assertTrue(expected.getMessage().contains("only a deployer"));
+        }
+        editor.save("gitlab.example.com", "file", "glpat-x");   // a value in their own file stays open
+        Files.writeString(f, "github.com.tokenCommand=touch " + marker + "; echo t\nbitbucket.example.com.tokenEnv=PATH\n",
+            java.nio.charset.StandardCharsets.UTF_8, java.nio.file.StandardOpenOption.APPEND);
+        try {
+            editor.resolve("bitbucket.example.com");
+            fail("read the server's variable");
+        } catch (java.io.IOException expected) {
+            assertTrue(expected.getMessage(), expected.getMessage().contains("read from an environment variable, which only a deployer"));
+        }
+        assertEquals("glpat-x", editor.resolve("gitlab.example.com"));
         try {
             editor.resolve("github.com");
             fail("resolved a refused command");

@@ -193,19 +193,35 @@ s, pr, _ = alice.call("GET", "/api/git/pull-request")
 check("pull request: with her own token it is created as her", s == 200 and pr["as"] == "Alice Example" and stub_seen[-1][2] == "Bearer alice-own-token")
 s, made, _ = alice.call("POST", "/api/git/pull-request", {"title": "Mine", "body": "by me", "draft": True})
 check("pull request: sent with her token, no 'Opened by' line (the provider shows her)", s == 200 and made["ok"] and stub_seen[-1][2] == "Bearer alice-own-token" and stub_seen[-1][3]["body"] == "by me" and stub_seen[-1][3]["draft"] is True)
-alice.call("POST", "/api/credentials/git", {"host": "github.com", "store": "env:IDMWEB_SMOKE_UNSET_VARIABLE"})
+# a variable reference saved before references were a deployer's: kept, never read for her
+gitfile = os.path.join(work, "data", "users", "alice", "git.properties")
+with open(gitfile) as f:
+    kept = [l for l in f if not l.startswith("github.com.token")]
+with open(gitfile, "w") as f:
+    f.writelines(kept + ["github.com.tokenEnv=PATH\n"])
 s, pr, _ = alice.call("GET", "/api/git/pull-request")
-check("pull request: a token that cannot be read falls back to the project's, and says so", s == 200 and pr["as"] == "the project's repository token" and "could not be read" in pr.get("personalTokenError", ""))
+check("pull request: a token that cannot be read falls back to the project's, and says so", s == 200 and pr["as"] == "the project's repository token" and "could not be read" in pr.get("personalTokenError", "") and "only a deployer" in pr.get("personalTokenError", ""))
 s, rm, _ = alice.call("POST", "/api/credentials/git/remove", {"host": "github.com"})
 s, pr, _ = alice.call("GET", "/api/git/pull-request")
 check("git tokens: forgotten, the project's token is used again", rm["removed"] and pr["as"] == "the project's repository token" and "personalTokenError" not in pr)
-# a command reference runs on the server as the server: a deployer's only
+# a reference (a variable, a command) is resolved on the server as the server: a deployer's only
 s, r, _ = alice.call("POST", "/api/credentials/git", {"host": "github.com", "store": "command:echo x"})
 check("an editor may not save a command reference for a token (403)", s == 403 and "only a deployer" in r.get("error", ""))
+s, r, _ = alice.call("POST", "/api/credentials/git", {"host": "github.com", "store": "env:PATH"})
+check("nor an environment variable reference for a token (403)", s == 403 and "only a deployer" in r.get("error", ""))
 s, r, _ = alice.call("POST", "/api/credentials/mine", {"name": "cmdtest", "url": "ldaps://127.0.0.1:1", "bindDn": "cn=a,o=x", "driverSet": "cn=ds,o=x", "passwordStore": "command:echo x"})
 check("nor for her own connection's password (403)", s == 403 and "only a deployer" in r.get("error", ""))
-s, r, _ = alice.call("POST", "/api/credentials/mine", {"name": "cmdtest", "url": "ldaps://127.0.0.1:1", "bindDn": "cn=a,o=x", "driverSet": "cn=ds,o=x", "passwordStore": "env:CMDTEST_PW"})
-check("an environment variable stays hers to use", s == 200)
+s, r, _ = alice.call("POST", "/api/credentials/mine", {"name": "cmdtest", "url": "ldaps://127.0.0.1:1", "bindDn": "cn=a,o=x", "driverSet": "cn=ds,o=x", "passwordStore": "env:PATH"})
+check("nor an environment variable for it (403)", s == 403 and "only a deployer" in r.get("error", ""))
+s, r, _ = alice.call("POST", "/api/credentials/mine", {"name": "cmdtest", "url": "ldaps://127.0.0.1:1", "bindDn": "cn=a,o=x", "driverSet": "cn=ds,o=x", "passwordStore": "file", "password": "pw"})
+check("a password kept in her own file stays hers to use", s == 200)
+mine = os.path.join(work, "data", "users", "alice", "environments.properties")
+with open(mine) as f:
+    kept = [l for l in f if not l.startswith("cmdtest.password=")]
+with open(mine, "w") as f:
+    f.writelines(kept + ["cmdtest.passwordEnv=PATH\n"])
+s, r, _ = alice.call("POST", "/api/credentials/resolve", {"env": "cmdtest"})
+check("a variable reference saved before is never read for her", s == 200 and r["ok"] is False and "environment variable, which only a deployer" in r.get("message", ""))
 alice.call("POST", "/api/credentials/mine/remove", {"name": "cmdtest"})
 with open(os.path.join(work, "data", "users", "alice", "git.properties"), "a") as f:
     f.write("github.com.tokenCommand=touch " + os.path.join(work, "ran-by-alice") + "; echo t\n")

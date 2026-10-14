@@ -7,6 +7,19 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- **Default behaviour change on a hosted server: environment-variable and Keychain references are a
+  deployer's too.** 0.46.0 kept commands to deployers; a variable reference is resolved on the server as
+  well, so an editor could name one of the server's own variables and have it sent as a vault password.
+  An editor may now keep their own vault password, event-store password or Git provider token only as
+  the value in their own (owner-only) file. Saving an `env:` (or Keychain) reference is refused (403); one
+  saved before is kept in their file but never read: Connections shows it as *env (deployers only)* and
+  the environment as not connected, opening it says why, and a pull request falls back to the project's
+  token. **Editors who use `env:` references must re-enter the password or token in their file.** Local
+  installs and deployers are unaffected. **Needs DirXMLDev 0.32.0** (`Environments.load(…, false)` leaves
+  out every reference form).
+
 ## [0.46.0] - 2026-10-14
 
 ### Changed

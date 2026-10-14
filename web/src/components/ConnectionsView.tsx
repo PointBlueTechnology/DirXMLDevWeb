@@ -92,7 +92,7 @@ export function ConnectionsView({ initialEnv, deployer }: { initialEnv: string |
                   <td className="small">{e.bindDn ?? <span className="muted">—</span>}</td>
                   <td>
                     {e.passwordRefused ? (
-                      <span className="pill warn" title="Kept in your file, but a command runs on the server as the server: only a deployer's are used. Keep the password in your file or an environment variable.">command (deployers only)</span>
+                      <span className="pill warn" title="Kept in your file, but the server reads it as itself: only a deployer's are used. Keep the password itself in your file.">{e.password} (deployers only)</span>
                     ) : e.password ? (
                       <span className="pill ok">{e.password}</span>
                     ) : (
@@ -115,12 +115,12 @@ export function ConnectionsView({ initialEnv, deployer }: { initialEnv: string |
             </tbody>
           </table>
           {data.environments.length === 0 && <p className="muted">No environments yet. {deployer ? "Add the project's first: the vault's LDAPS URL and the driver set's DN; everyone then adds their own bind DN and password." : "A deployer adds the project's environments; you then add your own bind DN and password to each."}</p>}
-          <GitTokensPanel helpers={data.helpers} commands={deployer} />
-          {editing === "new" && deployer && <EnvForm key="new" env={null} mode="definition" commands={deployer} keychain={data.keychain} helpers={data.helpers} onDone={(name) => (void load(), setEditing(name))} onCancel={() => setEditing(null)} />}
-          {editing === "new-mine" && <EnvForm key="new-mine" env={null} mode="own" commands={deployer} keychain={data.keychain} helpers={data.helpers} onDone={(name) => (void load(), setEditing(name))} onCancel={() => setEditing(null)} />}
+          <GitTokensPanel helpers={data.helpers} references={deployer} />
+          {editing === "new" && deployer && <EnvForm key="new" env={null} mode="definition" references={deployer} keychain={data.keychain} helpers={data.helpers} onDone={(name) => (void load(), setEditing(name))} onCancel={() => setEditing(null)} />}
+          {editing === "new-mine" && <EnvForm key="new-mine" env={null} mode="own" references={deployer} keychain={data.keychain} helpers={data.helpers} onDone={(name) => (void load(), setEditing(name))} onCancel={() => setEditing(null)} />}
           {current && (
             <>
-              <EnvForm key={mode + current.name} env={current} mode={mode} commands={deployer} keychain={data.keychain} helpers={data.helpers} onDone={() => void load()} onCancel={() => setEditing(null)} onRemoved={() => (void load(), setEditing(null))} />
+              <EnvForm key={mode + current.name} env={current} mode={mode} references={deployer} keychain={data.keychain} helpers={data.helpers} onDone={() => void load()} onCancel={() => setEditing(null)} onRemoved={() => (void load(), setEditing(null))} />
               {deployer && current.defined && mode === "definition" && <SecretsPanel key={"s" + current.name} env={current.name} keychain={data.keychain} helpers={data.helpers} />}
             </>
           )}
@@ -207,7 +207,7 @@ type FormMode = "all" | "definition" | "mine" | "own";
 function EnvForm({
   env,
   mode,
-  commands = true,
+  references = true,
   keychain,
   helpers,
   onDone,
@@ -216,8 +216,8 @@ function EnvForm({
 }: {
   env: ConnectionEnv | null;
   mode: FormMode;
-  /** False for someone who is not a deployer on a hosted server: no command or secret-manager reference. */
-  commands?: boolean;
+  /** False for someone who is not a deployer on a hosted server: no variable, command, secret-manager or Keychain reference. */
+  references?: boolean;
   keychain: boolean;
   helpers: string;
   onDone: (name: string) => void;
@@ -240,7 +240,7 @@ function EnvForm({
     eventsPseudonymise: env?.eventsPseudonymise === "true",
     eventsTree: env?.eventsTree ?? "",
     password: "",
-    store: keychain ? "keychain" : "file",
+    store: keychain && references ? "keychain" : "file",
     ref: "",
     eventsPassword: "",
     eventsStore: "",
@@ -451,11 +451,11 @@ function EnvForm({
       {!isNew && <p className="muted small">Configured: {env!.password ? `from the ${env!.password === "literal" ? "file" : env!.password}` : "none"}. Leave the field empty to keep it.</p>}
       <div className="addrow">
         <select value={f.store} onChange={(e) => setF({ ...f, store: e.target.value })} data-testid="conn-store">
-          {keychain && <option value="keychain">keep it in the macOS Keychain</option>}
+          {keychain && references && <option value="keychain">keep it in the macOS Keychain</option>}
           <option value="file">keep it in the environments file (readable by you only)</option>
-          {commands && <option value="manager">read it from a secret manager (AWS, Azure, GCP, CyberArk, BeyondTrust, Bitwarden…)</option>}
-          <option value="env">read it from an environment variable</option>
-          {commands && <option value="command">read it from a command's output</option>}
+          {references && <option value="manager">read it from a secret manager (AWS, Azure, GCP, CyberArk, BeyondTrust, Bitwarden…)</option>}
+          {references && <option value="env">read it from an environment variable</option>}
+          {references && <option value="command">read it from a command's output</option>}
         </select>
         {f.store === "manager" ? null : refStore ? (
           <input className="wide" value={f.ref} onChange={(e) => setF({ ...f, ref: e.target.value })} placeholder={f.store === "env" ? "VARIABLE_NAME" : "op read op://vault/item/password"} spellCheck={false} />
@@ -464,7 +464,7 @@ function EnvForm({
         )}
       </div>
       {f.store === "manager" && <ManagerPicker helpers={helpers} onCommand={(c) => setF((cur) => ({ ...cur, ref: c }))} />}
-      {!commands && <p className="muted small">A secret manager or a command runs on the server as the server, so only a deployer may use one here.</p>}
+      {!references && <p className="muted small">An environment variable, a secret manager, a command or the Keychain is read on the server as the server, so only a deployer may use one here.</p>}
       {(f.eventsUrl || env?.eventsUrl) && (
         <>
           <h4>Event store password</h4>
@@ -473,9 +473,9 @@ function EnvForm({
             <select value={f.eventsStore} onChange={(e) => setF({ ...f, eventsStore: e.target.value })} data-testid="conn-events-store">
               <option value="">keep as is</option>
               <option value="file">keep it in my file (readable by me only)</option>
-              {commands && <option value="manager">read it from a secret manager</option>}
-              <option value="env">read it from an environment variable</option>
-              {commands && <option value="command">read it from a command's output</option>}
+              {references && <option value="manager">read it from a secret manager</option>}
+              {references && <option value="env">read it from an environment variable</option>}
+              {references && <option value="command">read it from a command's output</option>}
             </select>
             {f.eventsStore === "file" ? (
               <input type="password" value={f.eventsPassword} onChange={(e) => setF({ ...f, eventsPassword: e.target.value })} placeholder="reader password" autoComplete="new-password" />

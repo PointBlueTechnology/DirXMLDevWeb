@@ -142,8 +142,10 @@ afterwards.
 - `GitTokens`: a person's provider tokens in `data.dir/users/<subject>/git.properties` (owner-only),
   by host: `<host>.token` (kept in that file), `<host>.tokenEnv`, `<host>.tokenCommand` (a secret
   manager's CLI, through the same picker as a vault password). Write-only: nothing gives a value back.
-  A command (or secret manager) reference is a deployer's (2026-10-14): an editor's is refused when
-  saved, and one already in their file is never run (the project's token stands in, with the reason).
+  A reference (an environment variable, a command or a secret manager) is a deployer's (commands
+  2026-10-14, variables in 0.47.0): an editor's is refused when saved, and one already in their file
+  is never resolved (the project's token stands in, with the reason). An editor keeps the token in
+  their file.
 - `GET /api/credentials/git` lists the provider hosts of the server's projects, with each host's
   projects and how the person's token is kept (`file`, `env:VAR`, `command`) or none.
   `POST /api/credentials/git` takes `host`, `store` (`file` with `token`, `env:VAR`, `command:…`);

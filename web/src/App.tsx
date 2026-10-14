@@ -407,7 +407,7 @@ export function App() {
         <main className="main">
           {selection.type === "home" && <Home outline={outline} validation={validation} onSelect={setSelection} />}
           {selection.type === "flow" && <FlowView key={selection.driver} driver={selection.driver} revision={revision} outline={outline} onOpen={open} onOpenFile={(file) => setSelection({ type: "file", file })} onSaved={reload} />}
-          {selection.type === "artifact" && <ArtifactView key={selection.path} path={selection.path} revision={revision} onOpen={open} onSaved={reload} />}
+          {selection.type === "artifact" && <ArtifactView key={selection.path} path={selection.path} revision={revision} onOpen={open} onSaved={reload} onGone={() => (reload(), setSelection({ type: "home" }))} onMoved={(p) => (reload(), setSelection({ type: "artifact", path: p }))} />}
           {selection.type === "file" && <FileView key={selection.file} file={selection.file} revision={revision} saveOp={saveOpFor(selection.file)} onSaved={reload} />}
           {selection.type === "config" && outline && (
             <ConfigEditor

@@ -78,10 +78,14 @@ Every view of the page, by area, in every install; the items marked *local and s
   - *Filter*: classes and attributes with each channel's setting and the merge authority.
   - *Policy sets*: every set as an ordered list; drag or use the arrows to reorder, link, unlink.
   - *Schema map* and *mapping table* as their own structured tab on the artifact. A mapping
-    table's grid edits rows and adds columns, and *Export CSV* / *Import CSV…* move the whole table
+    table's grid edits rows and adds columns (text ignoring case, case-sensitive, or numeric, as the
+    engine compares them), and *Export CSV* / *Import CSV…* move the whole table
     out and back (a spreadsheet's CSV: header = column names, first column = key). An import
     replaces the table, or with *merge by key* adds and updates rows, and the review shows the
     result before anything is written.
+  - *Rename…* and *Delete…* on any artifact (a policy, a mapping table, a resource): a rename rewrites
+    every reference (policy-set links, includes, Map tokens); a delete removes its policy-set links
+    and is refused, naming them, while anything else refers to it. Both are reviewed first.
   - *References* on any artifact: what refers to it. For a mapping table that is the policies that
     read it and the drivers that run them, since a table is not linked into a driver the way an
     ECMAScript resource is.

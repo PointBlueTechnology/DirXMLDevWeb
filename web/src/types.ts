@@ -887,6 +887,9 @@ export interface BuildResult {
 
 export interface ConnectionEnv {
   name: string;
+  /** The person's password is a command reference, kept in their file but never run here: they are not a deployer. */
+  passwordRefused?: boolean;
+  eventsPasswordRefused?: boolean;
   url: string | null;
   bindDn: string | null;
   driverSet: string | null;
@@ -1193,4 +1196,6 @@ export interface GitTokenHost {
   set: boolean;
   /** file, env:VAR, command, or null. */
   store: string | null;
+  /** A command reference kept in the file but never run here: the person is not a deployer. */
+  refused?: boolean;
 }

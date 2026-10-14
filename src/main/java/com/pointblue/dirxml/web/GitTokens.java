@@ -22,13 +22,20 @@ import java.util.Properties;
 final class GitTokens {
 
     private final Path file;
+    /** A deployer's command references run; anyone else's are kept but never run (a hosted server runs them as itself). */
+    private final boolean commands;
 
     GitTokens(Path file) {
+        this(file, true);
+    }
+
+    GitTokens(Path file, boolean commands) {
         this.file = file;
+        this.commands = commands;
     }
 
     static GitTokens of(UserData users, Session.Principal who) throws IOException {
-        return new GitTokens(users.dir(who).resolve("git.properties"));
+        return new GitTokens(users.dir(who).resolve("git.properties"), who.deployer);
     }
 
     static String host(String host) {
@@ -71,7 +78,13 @@ final class GitTokens {
         if (host == null || !Files.isRegularFile(file)) {
             return null;
         }
-        char[] v = SecretSource.resolve(props(), host(host) + ".token", "your " + host + " token");
+        Properties p = props();
+        String k = host(host) + ".token";
+        if (!commands && p.remove(k + "Command") != null && !SecretSource.has(p, k)) {
+            throw new IOException("it is read by a command, which only a deployer may use on this server; "
+                + "keep the token in your file or an environment variable instead");
+        }
+        char[] v = SecretSource.resolve(p, k, "your " + host + " token");
         return v == null || v.length == 0 ? null : new String(v);
     }
 
@@ -80,6 +93,10 @@ final class GitTokens {
         String k = host(host) + ".token";
         if (store == null || store.isBlank()) {
             throw new TreeService.BadRequest("store is file, env:VAR or command:…");
+        }
+        if (!commands && store.startsWith("command:")) {
+            throw new Api.Forbidden("a command (or secret manager) reference runs on this server as the server: "
+                + "only a deployer may save one; keep the token in your file or an environment variable");
         }
         PropertiesFile pf = new PropertiesFile(file);
         clear(pf, k);
@@ -153,8 +170,12 @@ final class GitTokens {
         }
         for (Map<String, Object> h : byHost.values()) {
             String store = store((String) h.get("host"));
-            h.put("set", store != null);
+            boolean refused = "command".equals(store) && !commands;
+            h.put("set", store != null && !refused);
             h.put("store", store);
+            if (refused) {
+                h.put("refused", true);   // kept in the file, never run here
+            }
         }
         return new ArrayList<>(byHost.values());
     }

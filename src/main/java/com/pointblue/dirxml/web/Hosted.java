@@ -78,7 +78,8 @@ public final class Hosted {
             return EnvFiles.single(environmentsFile);
         }
         users.touch(who);
-        return EnvFiles.split(environmentsFile, users.credentials(who));
+        // a command reference in a person's own file runs on this server as the server: a deployer's only
+        return EnvFiles.split(environmentsFile, users.credentials(who), who.deployer);
     }
     public final String identity;
     public final List<String> editorGroups;

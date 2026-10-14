@@ -7,11 +7,9 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
-### Changed
+## [0.46.0] - 2026-10-14
 
-- **The image is public on GHCR**: `ghcr.io/pointbluetechnology/dirxml-dev-web:<version>` and `:latest`
-  pull without a login. docs/quickstart.md, the single-user bundle's README and `setup.sh` name it
-  (they still pointed at Point Blue's Harbor and at 0.12.0); Harbor stays the lab's (docs/hosted-install.md §6).
+### Changed
 
 - **Default behaviour change on a hosted server: command references are a deployer's.** A command or
   secret-manager reference runs on the server as the server, so only a deployer may keep their own vault
@@ -20,6 +18,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   (deployers only)* and the environment as not connected, opening it says why, and a pull request falls
   back to the project's token. Editors keep theirs in their own file or an environment variable. Local
   installs and deployers are unaffected. **Needs DirXMLDev 0.31.0** (`Environments.load(…, commands)`).
+
+- **The image is public on GHCR**: `ghcr.io/pointbluetechnology/dirxml-dev-web:<version>` and `:latest`
+  pull without a login. docs/quickstart.md, the single-user bundle's README and `setup.sh` name it
+  (they still pointed at Point Blue's Harbor and at 0.12.0); Harbor stays the lab's (docs/hosted-install.md §6).
 
 ## [0.45.0] - 2026-10-14
 

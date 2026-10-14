@@ -122,9 +122,9 @@ there. With `IDM_ENVIRONMENTS` set, `setup.sh` splits your CLI file for you: the
 `<env>.secrets` file comes along. Run again on an older install whose `config/` file holds
 passwords, it splits that too and keeps the original as `environments.properties.before-split`.
 
-`~/idmweb/idm` runs with `config/environments.properties` alone, so it sees the environments but
-not your password: a vault command there (`--env`) fails to bind. Reach a vault through the page,
-or the API with the agent token.
+`~/idmweb/idm` reads the same two: the environments, and your own file through `IDM_CREDENTIALS`,
+so a vault command there (`~/idmweb/idm vault.status --env lab`) binds as you do on the page. An
+`idm` from before 0.51.0 does not: run `setup.sh` again to rewrite it.
 
 ## Day to day
 

@@ -167,4 +167,50 @@ public class CredentialServiceSplitTest {
         assertEquals(true, deployer.resolve(req("env", "edir3")).get("ok"));
         assertTrue(Files.exists(marker));
     }
+
+    /**
+     * An environment variable or Keychain reference is resolved by the server too, from its own environment or
+     * Keychain: someone who is not a deployer may not save one, and one already in their file is refused, so a
+     * server variable is never read on their behalf. A value kept in their own file is theirs.
+     */
+    @Test
+    public void aNonDeployersEnvAndKeychainReferencesAreRefused() throws Exception {
+        Path etc = tmp.newFolder("etc").toPath();
+        Path defs = etc.resolve("environments.properties");
+        Files.writeString(defs, "edir3.url=ldaps://edir3:636\nedir3.driverSet=cn=driverset1,o=system\nedir3.tier=dev\n");
+        Path mine = tmp.newFolder("users", "alice").toPath().resolve("environments.properties");
+        CredentialService editor = new CredentialService(tmp.newFolder("tree").toPath(), EnvFiles.split(defs, mine, false));
+        for (String store : new String[] {"env:PATH", "keychain"}) {
+            try {
+                editor.saveMine(req("name", "edir3", "bindDn", "cn=alice,o=system", "passwordStore", store, "password", "x"));
+                fail("an editor saved " + store);
+            } catch (Api.Forbidden expected) {
+                assertTrue(expected.getMessage().contains("only a deployer"));
+            }
+        }
+        assertFalse("nothing was written", Files.exists(mine) && Files.readString(mine).contains("password"));
+
+        Files.writeString(mine, "edir3.bindDn=cn=alice,o=system\nedir3.passwordEnv=PATH\n");
+        Map<String, Object> e = env(editor.list(), "edir3");
+        assertEquals(true, e.get("passwordRefused"));
+        assertEquals(false, e.get("connected"));
+        Map<String, Object> r = editor.resolve(req("env", "edir3"));
+        assertEquals(false, r.get("ok"));
+        assertTrue(String.valueOf(r.get("message")), String.valueOf(r.get("message")).contains("read from an environment variable, which only a deployer"));
+        try {
+            EnvFiles.split(defs, mine, false).load().get("edir3");
+            fail("opened the environment with the server's variable");
+        } catch (java.io.IOException expected) {
+            assertTrue(expected.getMessage(), expected.getMessage().contains("only a deployer"));
+        }
+
+        // a value in their own file is theirs
+        editor.saveMine(req("name", "edir3", "bindDn", "cn=alice,o=system", "passwordStore", "file", "password", "pw"));
+        assertNull(env(editor.list(), "edir3").get("passwordRefused"));
+        assertEquals("pw", EnvFiles.split(defs, mine, false).load().get("edir3").password);
+
+        // a deployer's variable is read
+        Files.writeString(mine, "edir3.bindDn=cn=alice,o=system\nedir3.passwordEnv=PATH\n");
+        assertEquals(System.getenv("PATH"), EnvFiles.split(defs, mine, true).load().get("edir3").password);
+    }
 }

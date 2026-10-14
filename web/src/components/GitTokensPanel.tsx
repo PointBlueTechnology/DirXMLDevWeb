@@ -8,7 +8,7 @@ import { ManagerPicker } from "./ManagerPicker";
  * With one, a pull request you create is yours on the provider; without, the project's token creates it and the
  * description says you opened it. Kept in your own file, write-only, in the forms every credential here takes.
  */
-export function GitTokensPanel({ helpers, commands = true }: { helpers: string; commands?: boolean }) {
+export function GitTokensPanel({ helpers, references = true }: { helpers: string; references?: boolean }) {
   const [hosts, setHosts] = useState<GitTokenHost[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
@@ -88,7 +88,7 @@ export function GitTokensPanel({ helpers, commands = true }: { helpers: string; 
               </td>
               <td>{h.provider}</td>
               <td className="small">{h.projects.join(", ")}</td>
-              <td>{h.refused ? <span className="pill warn" title="Kept in your file, but a command runs on the server as the server: only a deployer's are used.">command (deployers only)</span> : h.set ? <span className="pill ok">{h.store === "file" ? "in your file" : h.store?.startsWith("env:") ? `from ${h.store.substring(4)}` : `from a ${h.store}`}</span> : <span className="muted">none: the project's token is used</span>}</td>
+              <td>{h.refused ? <span className="pill warn" title="Kept in your file, but the server reads it as itself: only a deployer's are used. Keep the token itself in your file.">{h.store?.startsWith("env:") ? "variable" : h.store} (deployers only)</span> : h.set ? <span className="pill ok">{h.store === "file" ? "in your file" : h.store?.startsWith("env:") ? `from ${h.store.substring(4)}` : `from a ${h.store}`}</span> : <span className="muted">none: the project's token is used</span>}</td>
               <td className="right">
                 <button onClick={() => start(h.host)} disabled={busy} data-testid={"git-token-set-" + h.host}>
                   {h.set ? "Replace…" : "Add…"}
@@ -107,9 +107,9 @@ export function GitTokensPanel({ helpers, commands = true }: { helpers: string; 
         <div className="addrow" data-testid="git-token-form">
           <select value={store} onChange={(e) => (setStore(e.target.value), setValue(""))} data-testid="git-token-store">
             <option value="file">keep it in my file (readable by me only)</option>
-            {commands && <option value="manager">read it from a secret manager</option>}
-            <option value="env">read it from an environment variable</option>
-            {commands && <option value="command">read it from a command's output</option>}
+            {references && <option value="manager">read it from a secret manager</option>}
+            {references && <option value="env">read it from an environment variable</option>}
+            {references && <option value="command">read it from a command's output</option>}
           </select>
           {store === "file" ? (
             <input type="password" value={value} onChange={(e) => setValue(e.target.value)} placeholder={`your ${editing} token`} autoComplete="new-password" data-testid="git-token-value" />

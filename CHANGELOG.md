@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.55.0] - 2026-10-15
+
 **Vault access no longer needs the engine jars.** On DirXMLDev 0.37.0, talking to a vault uses
 open-source JLDAP and the core's own extended operations. The image and the launchers now carry
 `jldap.jar`, so import, diff, deploy and the driver operations work with no `/opt/idm/lib` mounted.

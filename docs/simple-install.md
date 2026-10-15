@@ -14,7 +14,7 @@ PowerShell, macOS and Linux, and there is no zip.
 ## The install, after
 
 ```bash
-docker run --rm -v "$HOME/idmweb:/idmweb" ghcr.io/pointbluetechnology/dirxml-dev-web:latest setup
+docker run --rm --pull always -v "$HOME/idmweb:/idmweb" ghcr.io/pointbluetechnology/dirxml-dev-web:latest setup
 docker compose -f "$HOME/idmweb/compose.yml" up -d
 ```
 
@@ -23,7 +23,7 @@ accepts the Windows path in `-v`. On Linux, create the folder first and run `set
 so the files are yours:
 
 ```bash
-mkdir -p ~/idmweb && docker run --rm -u "$(id -u):$(id -g)" -v "$HOME/idmweb:/idmweb" ghcr.io/pointbluetechnology/dirxml-dev-web:latest setup
+mkdir -p ~/idmweb && docker run --rm --pull always -u "$(id -u):$(id -g)" -v "$HOME/idmweb:/idmweb" ghcr.io/pointbluetechnology/dirxml-dev-web:latest setup
 ```
 
 The first command writes `~/idmweb` (the configuration, the tokens, the compose file, and the

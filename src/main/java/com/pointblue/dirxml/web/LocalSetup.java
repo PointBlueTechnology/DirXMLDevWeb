@@ -67,7 +67,7 @@ public final class LocalSetup {
     static final String USAGE = "usage: idmweb setup [--tree DIR] [--cases DIR] [--port N] [--image NAME] [--user NAME]\n"
         + "                    [--project NAME] [--environments FILE] [--podman] [--dir DIR]\n"
         + "  run in the image, with your folder mounted at /idmweb:\n"
-        + "    docker run --rm -v \"$HOME/idmweb:/idmweb\" " + DEFAULT_IMAGE_REPO + ":latest setup\n"
+        + "    docker run --rm --pull always -v \"$HOME/idmweb:/idmweb\" " + DEFAULT_IMAGE_REPO + ":latest setup\n"
         + "  a tree, mounted read-only:  -v /path/to/tree:/tree:ro  …  setup --tree /tree";
 
     /** The command: 0 done, 1 refused, 2 usage. */

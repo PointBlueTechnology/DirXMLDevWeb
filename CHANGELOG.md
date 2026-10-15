@@ -21,9 +21,6 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - **Commit the deploy record** under a deploy's or a rollback's result. It commits
   `deploy-log/` alone, whatever else is uncommitted (`POST /api/git/commit` with `"record": true`;
   audit action `commit-deploy-record`). The tutorial's last step uses it.
-
-### Added
-
 - `docs/tutorial.md`: a new user's first session, from a new install without a tree to a first
   deploy: read a driver set from an Identity Vault, change a policy, commit, deploy, and commit
   the deploy record. Linked from the README and the quickstart.

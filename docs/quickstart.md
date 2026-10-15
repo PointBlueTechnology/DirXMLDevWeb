@@ -35,13 +35,13 @@ download or write a compose file yourself.
 **macOS, and Windows in PowerShell:**
 
 ```bash
-docker run --rm -v "$HOME/idmweb:/idmweb" ghcr.io/pointbluetechnology/dirxml-dev-web:latest setup
+docker run --rm --pull always -v "$HOME/idmweb:/idmweb" ghcr.io/pointbluetechnology/dirxml-dev-web:latest setup
 ```
 
 **Linux:** create the folder first and run setup as yourself, so the files are yours:
 
 ```bash
-mkdir -p ~/idmweb && docker run --rm -u "$(id -u):$(id -g)" -v "$HOME/idmweb:/idmweb" ghcr.io/pointbluetechnology/dirxml-dev-web:latest setup
+mkdir -p ~/idmweb && docker run --rm --pull always -u "$(id -u):$(id -g)" -v "$HOME/idmweb:/idmweb" ghcr.io/pointbluetechnology/dirxml-dev-web:latest setup
 ```
 
 `setup` runs inside the image and writes one folder, `~/idmweb` (your profile folder's `idmweb`
@@ -59,7 +59,7 @@ on Windows). That folder holds everything:
 **With a tree,** mount it and name it, read-only:
 
 ```bash
-docker run --rm -v "$HOME/idmweb:/idmweb" -v "/path/to/tree:/tree:ro" ghcr.io/pointbluetechnology/dirxml-dev-web:latest setup --tree /tree --project lab
+docker run --rm --pull always -v "$HOME/idmweb:/idmweb" -v "/path/to/tree:/tree:ro" ghcr.io/pointbluetechnology/dirxml-dev-web:latest setup --tree /tree --project lab
 ```
 
 In PowerShell the tree's path is a Windows one: `-v "C:\idm\tree:/tree:ro"`. `setup` seeds a git
@@ -158,7 +158,7 @@ environments go to `config/`, each `bindDn`, `trustAll` and password line goes t
 and a relative `<env>.secrets` file comes along:
 
 ```bash
-docker run --rm -v "$HOME/idmweb:/idmweb" -v "$HOME/environments.properties:/env/environments.properties:ro" ghcr.io/pointbluetechnology/dirxml-dev-web:latest setup --environments /env/environments.properties
+docker run --rm --pull always -v "$HOME/idmweb:/idmweb" -v "$HOME/environments.properties:/env/environments.properties:ro" ghcr.io/pointbluetechnology/dirxml-dev-web:latest setup --environments /env/environments.properties
 ```
 
 Run on an older install whose `config/` file holds passwords, `setup` splits that too and keeps
@@ -187,7 +187,7 @@ Use the same commands with `podman`. Run `setup` with your own uid kept inside t
 tell it you use Podman so the compose file does the same for the server (`compose.podman.yml`):
 
 ```bash
-mkdir -p ~/idmweb && podman run --rm --userns=keep-id -v "$HOME/idmweb:/idmweb" ghcr.io/pointbluetechnology/dirxml-dev-web:latest setup --podman
+mkdir -p ~/idmweb && podman run --rm --pull always --userns=keep-id -v "$HOME/idmweb:/idmweb" ghcr.io/pointbluetechnology/dirxml-dev-web:latest setup --podman
 ```
 
 Then start it with `podman compose -f "$HOME/idmweb/compose.yml" up -d` (or `podman-compose`).

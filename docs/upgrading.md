@@ -26,13 +26,13 @@ compose file for the new image, and keeps your repository, tokens and configurat
 **macOS, and Windows in PowerShell:**
 
 ```bash
-docker run --rm -v "$HOME/idmweb:/idmweb" ghcr.io/pointbluetechnology/dirxml-dev-web:latest setup
+docker run --rm --pull always -v "$HOME/idmweb:/idmweb" ghcr.io/pointbluetechnology/dirxml-dev-web:latest setup
 ```
 
 **Linux:**
 
 ```bash
-docker run --rm -u "$(id -u):$(id -g)" -v "$HOME/idmweb:/idmweb" ghcr.io/pointbluetechnology/dirxml-dev-web:latest setup
+docker run --rm --pull always -u "$(id -u):$(id -g)" -v "$HOME/idmweb:/idmweb" ghcr.io/pointbluetechnology/dirxml-dev-web:latest setup
 ```
 
 **Then, everywhere:**
@@ -41,9 +41,27 @@ docker run --rm -u "$(id -u):$(id -g)" -v "$HOME/idmweb:/idmweb" ghcr.io/pointbl
 docker compose -f "$HOME/idmweb/compose.yml" up -d
 ```
 
-`latest` takes the newest release; name a version (`:0.57.0`) to take exactly that one. If you
+`latest` takes the newest release, and `--pull always` makes Docker fetch it. Without that flag,
+`docker run` uses whatever `latest` it already holds, which is the release you're on, and nothing
+changes. Name a version (`:0.59.0`) to take exactly that one; then no `--pull` is needed. If you
 gave `--port`, `--user` or `--podman` the first time, give them again. Your browser session
 survives the upgrade, and the page comes back to the branch and view you were on.
+
+### Check that it worked
+
+The top bar shows `web … · core …`, and it should name the new release. `setup` also prints the
+image it wrote into the folder (`image …:<version>`), and that is the version the container runs:
+
+```bash
+docker inspect idmweb --format "{{.Config.Image}}"
+```
+
+**Still on the old version?** Usually one of these:
+- `setup` ran without `--pull always`, from the `latest` Docker already held. Run it again with the
+  flag, or name the version.
+- Only `setup` ran. Run `docker compose … up -d` as well: setup writes the compose file, and compose
+  replaces the container.
+- The folder isn't the one the container uses. Mount the same folder setup used the first time.
 
 ### Coming from the zip install (DirXMLDevWeb 0.55.0 and earlier)
 

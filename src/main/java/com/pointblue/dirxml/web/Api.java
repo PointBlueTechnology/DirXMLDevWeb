@@ -8,6 +8,7 @@ import java.io.OutputStream;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -1235,8 +1236,11 @@ public final class Api implements HttpHandler {
             switch (path) {
                 case "/api/git/commit": {
                     boolean push = Boolean.TRUE.equals(req.get("push"));
-                    Map<String, Object> r = git.commit(w.root, Json.asString(req.get("message")), session.principal.name, session.principal.email, push);
-                    audit.log(session, w, push ? "commit+push" : "commit", Map.of("message", String.valueOf(req.get("message")), "hash", String.valueOf(r.get("hash"))), "ok");
+                    // "record": just the deploy record (deploy-log/ at the tree's top), the rest of the work left uncommitted (#128)
+                    boolean record = Boolean.TRUE.equals(req.get("record"));
+                    List<String> only = record ? List.of(w.root.relativize(w.tree.resolve(Watcher.DEPLOY_LOG)).toString().replace('\\', '/')) : null;
+                    Map<String, Object> r = git.commit(w.root, Json.asString(req.get("message")), session.principal.name, session.principal.email, push, only);
+                    audit.log(session, w, (record ? "commit-deploy-record" : "commit") + (push ? "+push" : ""), Map.of("message", String.valueOf(req.get("message")), "hash", String.valueOf(r.get("hash"))), "ok");
                     return r;
                 }
                 case "/api/git/merge-captured": {

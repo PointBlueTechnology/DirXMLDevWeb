@@ -15,8 +15,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 
 /**
- * The tree's revision: a short hash over every file's path, size and modification time. It
- * changes when anything edits the tree — this server, the CLI, an agent, an editor, git — and
+ * The tree's revision: a short hash over every file's path, size and modification time (but not
+ * {@link #DEPLOY_LOG}'s). It changes when anything edits the tree — this server, the CLI, an agent, an editor, git — and
  * that is the signal the page reloads on and the value a write must quote to prove it was
  * planned against the tree as it is now. Polled, because the JDK's file watching on macOS is
  * itself a slow poll and a tree is a few hundred small files.
@@ -25,6 +25,13 @@ public final class Watcher implements AutoCloseable {
 
     /** Directories that are not part of the tree's content. */
     static final Set<String> SKIP = Set.of(".git", "node_modules", ".dirxmldev", "deploy-snapshots");
+
+    /**
+     * The deploy record, {@code deploy-log/} at the tree's top (core {@code DeployLog}): every vault write appends
+     * to it. It is committed with the tree but is not what a deploy deploys, so it does not move the revision —
+     * otherwise a deploy would make its own comparison stale (#128). Git status still counts it.
+     */
+    static final String DEPLOY_LOG = "deploy-log";
 
     private final Path tree;
     private final long intervalMs;
@@ -100,7 +107,10 @@ public final class Watcher implements AutoCloseable {
         Files.walkFileTree(tree, new SimpleFileVisitor<>() {
             @Override
             public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
-                return !dir.equals(tree) && SKIP.contains(dir.getFileName().toString()) ? FileVisitResult.SKIP_SUBTREE : FileVisitResult.CONTINUE;
+                if (dir.equals(tree)) {
+                    return FileVisitResult.CONTINUE;
+                }
+                return SKIP.contains(dir.getFileName().toString()) || dir.equals(tree.resolve(DEPLOY_LOG)) ? FileVisitResult.SKIP_SUBTREE : FileVisitResult.CONTINUE;
             }
 
             @Override

@@ -337,6 +337,14 @@ public final class Api implements HttpHandler {
             m.put("revision", w == null ? null : w.watcher.revision());
             send(ex, 409, m);
         } catch (Exception e) {
+            if (e instanceof RuntimeException) {
+                // a bug, not a refusal or an unreachable vault: the stack trace goes to the server log (#116),
+                // the page says where to find it
+                System.err.println("error: " + ex.getRequestMethod() + " " + ex.getRequestURI().getPath() + ": " + e);
+                e.printStackTrace();
+                send(ex, 500, error(e.getClass().getSimpleName() + ": " + e.getMessage() + " (an internal error; the server log has the details)"));
+                return;
+            }
             send(ex, 500, error(e.getClass().getSimpleName() + ": " + e.getMessage()));
         }
     }

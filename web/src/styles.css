@@ -1372,3 +1372,6 @@ a.button { display: inline-block; padding: 5px 10px; border: 1px solid var(--bor
 .devrow .devicon { border-radius: 3px; }
 .devnode.unresolved > .devrow .leaf { color: var(--warn); }
 .archhint { padding-top: 8px; padding-bottom: 12px; }
+.task-lines { margin: 6px 0 0; padding-left: 0; list-style: none; }
+.task-lines li { padding: 1px 0; }
+.task-lines li.current { font-weight: 600; }

@@ -381,6 +381,25 @@ export interface DeployResult {
   driftRefused?: boolean;
   /** The as-found branch a capture made, to merge under this branch's change. */
   capturedBranch?: string;
+  /** Another deploy or rollback to the environment is running: this one was not started. */
+  busy?: boolean;
+}
+
+/** A deploy or rollback the server runs (GET /api/vault/task): its progress line by line, and its result when done. */
+export interface VaultTask {
+  id: string;
+  kind: "deploy" | "rollback";
+  env: string;
+  user: string;
+  project?: string | null;
+  branch?: string | null;
+  startedAt: number;
+  finishedAt: number | null;
+  running: boolean;
+  lines: { at: number; text: string }[];
+  result: DeployResult | null;
+  /** The server's clock when it answered, to show elapsed time whatever the browser's clock says. */
+  now: number;
 }
 
 export interface DriverState {

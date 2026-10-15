@@ -201,6 +201,11 @@ public final class VaultService {
      * first, so a rollback is itself reversible, and verifies afterwards.
      */
     public Map<String, Object> rollback(String envName, String snapshot, String confirm, String server) throws IOException {
+        return rollback(envName, snapshot, confirm, server, line -> { });
+    }
+
+    /** As above; {@code progress} hears each step as the core takes it (a {@link VaultTasks.Task}). */
+    public Map<String, Object> rollback(String envName, String snapshot, String confirm, String server, java.util.function.Consumer<String> progress) throws IOException {
         Environments.Environment e = env(envName);
         Map<String, Object> m = new LinkedHashMap<>();
         String refusal = gate(e.name, confirm);
@@ -218,7 +223,7 @@ public final class VaultService {
         if (!file.startsWith(dir) || !java.nio.file.Files.isRegularFile(file) || !file.getFileName().toString().endsWith(".ldif")) {
             throw new TreeService.BadRequest("the snapshot must be one of " + e.name + "'s under deploy-snapshots/");
         }
-        return result(Deployer.rollback(tree, e, file, true, server == null || server.isBlank() ? null : server), e);
+        return result(Deployer.rollback(tree, e, file, true, server == null || server.isBlank() ? null : server, progress), e);
     }
 
     /** Run the deploy. {@code confirm} must be the environment's name. */
@@ -230,7 +235,13 @@ public final class VaultService {
     }
 
     public Map<String, Object> deploy(String envName, List<String> drivers, DeployChoices choices, String confirm) throws IOException {
+        return deploy(envName, drivers, choices, confirm, line -> { });
+    }
+
+    /** As above; {@code progress} hears each step as the core takes it (a {@link VaultTasks.Task}). */
+    public Map<String, Object> deploy(String envName, List<String> drivers, DeployChoices choices, String confirm, java.util.function.Consumer<String> progress) throws IOException {
         Deployer.Options o = options(envName, drivers, choices);
+        o.progress = progress;
         String refusal = gate(o.env.name, confirm);
         if (refusal != null) {
             Map<String, Object> m = new LinkedHashMap<>();

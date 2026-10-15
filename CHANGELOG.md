@@ -7,6 +7,22 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- **Deploy and rollback progress.** After **Deploy** (or **Roll back**) the page shows each step as
+  the server takes it, with a running clock: the snapshot, each write (`3/9`), the driver restart and
+  its wait for Running, verify. A line at the top of the tab says what's running and who started it.
+  - The deploy runs on the server as a task (`POST /api/vault/deploy` or `/rollback` with
+    `"async": true`, then `GET /api/vault/task?id=` or `?env=`), so leaving the page stops nothing.
+  - Coming back shows the running deploy, or the result of one that finished in the last half hour,
+    with its **Commit the deploy record** button.
+  - **One write at a time per environment:** while a deploy or rollback to it runs, every other write
+    to it is refused, with who started the running one and when.
+  - Agents and scripts calling without `async` get the result at the end, as before, and are shown
+    and locked the same way.
+
+  Needs DirXMLDev 0.42.0.
+
 ## [0.59.0] - 2026-10-15
 
 Needs DirXMLDev 0.41.0.

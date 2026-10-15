@@ -7,6 +7,14 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.57.0] - 2026-10-15
+
+### Fixed
+
+- **A fresh install can export from an Identity Vault, and import a Designer project or export,
+  without the engine jars.** These failed with `NoClassDefFoundError` when no `lib/` was mounted.
+  Needs DirXMLDev 0.40.0, whose readers parse with the JDK.
+
 ## [0.56.0] - 2026-10-15
 
 **The local install is two commands, and Docker is the only requirement** (docs/simple-install.md):

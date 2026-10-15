@@ -27,6 +27,15 @@ installs from a checkout.
   `idm` finds them, so there is no wrapper script on any OS. The compose file names the container
   `idmweb` (one local install per machine).
 - `bin/smoke-hosted.sh` runs `setup` into a temporary folder.
+- **`docs/upgrading.md`** covers upgrading each install (local, team server, checkout), what to
+  check first, moving an install made with the old zip, and rolling back.
+
+### Changed
+
+- Needs DirXMLDev 0.39.0: `validate` without the engine jars skips the checks that need them
+  instead of crashing, so `docker exec idmweb idm validate tree` works on a fresh install.
+- The team server's `compose.env.example` names the public image
+  (`ghcr.io/pointbluetechnology/dirxml-dev-web:latest`), where it used to name a local build.
 
 **The single-user install is shorter.** On a release's bundle, `setup.sh` with no argument starts
 without a tree (`-` still works) and runs the bundle's own release, so `IDMWEB_IMAGE` is no longer

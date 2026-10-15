@@ -143,7 +143,7 @@ ssh debian@192.168.103.99 'cd ~/idmweb && sed -i "s#^IDMWEB_IMAGE=.*#IDMWEB_IMAG
 
 ## 7. Operate
 
-- `docker compose pull && docker compose up -d` (or `docker load` a new tarball) upgrades.
+- Upgrade: set `IDMWEB_IMAGE` in `.env` to the new version, then `docker compose pull idmweb && docker compose up -d idmweb` ([upgrading.md](upgrading.md): before you upgrade, rolling back).
 - The `idmweb-data` volume holds the workspaces, `audit.log`, `sessions.json`, each person's
   files (`users/<subject>/`: vault credentials, Git tokens, traces), clone tokens (`secrets/`) and
   archived projects (`archive/`); the configuration is in `./config`. Back up both.

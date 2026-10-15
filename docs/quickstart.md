@@ -154,7 +154,8 @@ command there (`docker exec idmweb idm vault.status --env lab`) binds as you do 
 - Your session never times out, and a restart (an upgrade, a reboot) brings you back to the branch
   and the view you were on.
 - **Upgrade:** run step 1 again with the new version (or `:latest`), then step 2. The folder, with
-  its repository, tokens and configuration, is kept.
+  its repository, tokens and configuration, is kept. [upgrading.md](upgrading.md) has the details,
+  including moving an install made with the old zip, and rolling back.
 - **Stop:** `docker compose -f "$HOME/idmweb/compose.yml" down`. Everything lives in the folder:
   back it up, move it or delete it, and that is the whole install.
 - **One per machine:** the container is named `idmweb`.

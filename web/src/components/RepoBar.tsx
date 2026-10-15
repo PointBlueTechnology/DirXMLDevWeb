@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api } from "../api";
+import { GIT_CHANGED, api } from "../api";
 import type { GitStatus, PullRequestInfo, Selection, Session, WorkspacesInfo } from "../types";
 import { PullRequestDialog } from "./PullRequestDialog";
 
@@ -64,6 +64,10 @@ export function RepoBar({ session, revision, onWorkspaceChanged, onBusy, onAddPr
     }
   };
   useEffect(load, [session.workspace, revision, hosted, project]);
+  useEffect(() => {
+    window.addEventListener(GIT_CHANGED, load);
+    return () => window.removeEventListener(GIT_CHANGED, load);
+  }, [session.workspace, hosted, project]);
   useEffect(() => setProject(session.project ?? ""), [session.project]);
 
   const run = (what: string, fn: () => Promise<{ text: string; ok: boolean }>) => {

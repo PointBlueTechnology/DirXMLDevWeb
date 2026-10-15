@@ -78,8 +78,15 @@ async function call<T>(method: string, path: string, body?: unknown): Promise<T>
     }
     throw new ApiError(message, res.status, !!data && typeof data === "object" && "noWorkspace" in data);
   }
+  if (method !== "GET" && path.startsWith("/api/vault/")) {
+    // a vault write appends to the deploy record, which does not move the revision (#128): the commit bar asks git again
+    window.dispatchEvent(new Event(GIT_CHANGED));
+  }
   return data as T;
 }
+
+/** Fired when the workspace's git status may have changed without the tree's revision moving (the deploy record). */
+export const GIT_CHANGED = "idmweb:git-changed";
 
 const q = encodeURIComponent;
 
@@ -136,6 +143,8 @@ export const api = {
     status: () => call<GitStatus>("GET", "/api/git/status"),
     diff: (against: "head" | "base" | "upstream") => call<GitDiff>("GET", `/api/git/diff?against=${against}`),
     commit: (message: string, push: boolean) => call<{ committed: boolean; hash?: string; pushed?: boolean; message?: string }>("POST", "/api/git/commit", { message, push }),
+    /** Commit the deploy record (deploy-log/) alone, the rest of the work left uncommitted (#128). */
+    commitRecord: (message: string) => call<{ committed: boolean; hash?: string; message?: string }>("POST", "/api/git/commit", { message, push: false, record: true }),
     update: (base?: string) => call<{ merged: boolean; message: string; conflicts?: string[] }>("POST", "/api/git/update", base ? { base } : {}),
     /** Merge a captured as-found/<env>/<time> branch (vault.deploy --capture-drift) into this branch. */
     mergeCaptured: (branch: string) => call<{ merged: boolean; message: string; conflicts?: string[] }>("POST", "/api/git/merge-captured", { branch }),

@@ -12,9 +12,10 @@ and server as a team's, configured for one person on localhost. For a team on a 
   (rootless works; `podman compose` or `podman-compose`, whichever is installed).
 - **The engine jars** from an Identity Manager engine — `dirxml.jar`, `dirxml_misc.jar`,
   `nxsl.jar`, `xp.jar`, `CommonDriverShim.jar`, `jclient.jar`, `dhutil.jar`, `XDS.jar`,
-  `js.jar`, `ldap.jar` — from its `lib/dirxml/classes` (copy the files, not symlinks: `cp -L`).
-  They are OpenText's and never part of the image; without them the page runs, but the compile
-  check, the simulator and vault access do not.
+  `js.jar` — from its `lib/dirxml/classes` (copy the files, not symlinks: `cp -L`).
+  They are OpenText's and never part of the image. Without them the page and vault access work
+  (the image carries open-source JLDAP, DirXMLDev 0.37.0 on); the compile check and the simulator
+  do not.
 - Nothing to sign in to for the image: it is public on GitHub's registry,
   `ghcr.io/pointbluetechnology/dirxml-dev-web`, one tag per release (`0.45.0`, …) and `latest`,
   for amd64 and arm64.
@@ -38,7 +39,7 @@ unzip dirxml-dev-web-single-user-*.zip
 
 ```bash
 mkdir -p ~/idmweb/lib
-cp -L /path/to/idm/lib/dirxml/classes/{dirxml,dirxml_misc,nxsl,xp,CommonDriverShim,jclient,dhutil,XDS,js,ldap}.jar ~/idmweb/lib/
+cp -L /path/to/idm/lib/dirxml/classes/{dirxml,dirxml_misc,nxsl,xp,CommonDriverShim,jclient,dhutil,XDS,js}.jar ~/idmweb/lib/
 ```
 
 (`IDM_LIB=/path/to/them` on the next step does the copy for you.)

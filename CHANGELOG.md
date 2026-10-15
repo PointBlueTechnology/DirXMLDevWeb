@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.56.0] - 2026-10-15
+
 **The local install is two commands, and Docker is the only requirement** (docs/simple-install.md):
 `docker run … setup` writes `~/idmweb` from inside the image, then `docker compose up -d` starts it.
 The same commands work in PowerShell, macOS and Linux (Linux adds `-u "$(id -u):$(id -g)"`). The

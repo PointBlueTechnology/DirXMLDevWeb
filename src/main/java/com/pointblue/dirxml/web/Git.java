@@ -199,15 +199,37 @@ public final class Git {
     }
 
     public Map<String, Object> commit(Path dir, String message, String authorName, String authorEmail, boolean push) throws IOException {
+        return commit(dir, message, authorName, authorEmail, push, null);
+    }
+
+    /**
+     * Commit everything uncommitted, or with {@code only} just those paths (relative to {@code dir}), leaving the
+     * rest of the work uncommitted — the deploy record after a deploy (#128).
+     */
+    public Map<String, Object> commit(Path dir, String message, String authorName, String authorEmail, boolean push, List<String> only) throws IOException {
         if (message == null || message.isBlank()) {
             throw new TreeService.BadRequest("a commit needs a message");
         }
-        must(run(dir, "add", "-A"), "stage");
-        List<String> args = new ArrayList<>(List.of("-c", "user.name=" + (authorName == null ? "DirXMLDevWeb" : authorName), "-c", "user.email=" + (authorEmail == null ? "idmweb@localhost" : authorEmail), "commit", "-m", message));
-        Result c = run(dir, args.toArray(new String[0]));
         Map<String, Object> m = new LinkedHashMap<>();
+        if (only != null && only.stream().noneMatch(p -> Files.exists(dir.resolve(p)))) {
+            m.put("committed", false);
+            m.put("message", "nothing to commit");
+            return m;
+        }
+        List<String> add = new ArrayList<>(List.of("add", "-A"));
+        if (only != null) {
+            add.add("--");
+            add.addAll(only);
+        }
+        must(run(dir, add.toArray(new String[0])), "stage");
+        List<String> args = new ArrayList<>(List.of("-c", "user.name=" + (authorName == null ? "DirXMLDevWeb" : authorName), "-c", "user.email=" + (authorEmail == null ? "idmweb@localhost" : authorEmail), "commit", "-m", message));
+        if (only != null) {
+            args.add("--");
+            args.addAll(only);
+        }
+        Result c = run(dir, args.toArray(new String[0]));
         if (!c.ok()) {
-            if (c.out.contains("nothing to commit") || c.err.contains("nothing to commit")) {
+            if (c.out.contains("nothing to commit") || c.err.contains("nothing to commit") || c.out.contains("no changes added to commit")) {
                 m.put("committed", false);
                 m.put("message", "nothing to commit");
             } else {

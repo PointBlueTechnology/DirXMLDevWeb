@@ -180,13 +180,15 @@ The deploy does four things:
 
 ## 8. Commit the deploy record
 
-The top bar shows *1 uncommitted file* again, and the page says the tree changed since the
-comparison. That is the deploy's own record. Every deploy adds a line to
-`tree/deploy-log/<environment>.jsonl`, with the time, who deployed, the commit deployed, the
-snapshot taken and the outcome. Commit it like any change, so the repository records what went
-where:
+The top bar shows *1 uncommitted file* again. That is the deploy's own record: every deploy adds a
+line to `tree/deploy-log/<environment>.jsonl`, with the time, who deployed, the commit deployed,
+the snapshot taken and the outcome. The repository should record what went where, so commit it.
+Under the deploy's result, choose **Commit the deploy record**:
 
-![Committing the deploy record](screenshots/tutorial/17-commit-deploy-log.png)
+![Commit the deploy record, under the deploy's result](screenshots/tutorial/17-deploy-record.png)
+
+It commits that file alone, as *Deployed to lab (Tutorial Loopback)*. Anything else you have not
+committed stays as it was. The bar then offers **Push**: choose it so that others see the record.
 
 ## Where things are
 

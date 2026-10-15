@@ -32,6 +32,10 @@ public class WatcherTest {
         Files.writeString(tree.resolve("deploy-snapshots/stg/a.ldif"), "dn: x", StandardCharsets.UTF_8);
         assertEquals("git and snapshots are not content", r0, Watcher.signature(tree));
 
+        Files.createDirectories(tree.resolve("deploy-log"));
+        Files.writeString(tree.resolve("deploy-log/stg.jsonl"), "{\"env\":\"stg\"}\n", StandardCharsets.UTF_8);
+        assertEquals("a deploy's own record does not make its comparison stale (#128)", r0, Watcher.signature(tree));
+
         Files.createDirectories(tree.resolve("drivers/AD"));
         Files.writeString(tree.resolve("drivers/AD/driver.xml"), "<driver/>", StandardCharsets.UTF_8);
         String r1 = Watcher.signature(tree);

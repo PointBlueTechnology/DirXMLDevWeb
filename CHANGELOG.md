@@ -7,6 +7,19 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Fixed
+
+- After a deploy, the page no longer says "The tree changed since this comparison", which also
+  disabled Plan the deploy until the next Compare (#128). The deploy record
+  (`deploy-log/<env>.jsonl`, which every vault write appends to) no longer moves the tree's
+  revision. The commit bar still counts it, and refreshes after every vault write.
+
+### Added
+
+- **Commit the deploy record** under a deploy's or a rollback's result. It commits
+  `deploy-log/` alone, whatever else is uncommitted (`POST /api/git/commit` with `"record": true`;
+  audit action `commit-deploy-record`). The tutorial's last step uses it.
+
 ### Added
 
 - `docs/tutorial.md`: a new user's first session, from a new install without a tree to a first

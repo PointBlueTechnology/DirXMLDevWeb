@@ -87,6 +87,9 @@ loopback name for its port, and to nothing else.
   Designer export, use a repository, or clone a remote. It remembers the answer; more trees are
   added the same way from the project picker.
 
+[tutorial.md](tutorial.md) walks through a first session from here: reading a driver set from a
+vault, changing a policy, committing and deploying it.
+
 ## 4. Optional: the engine jars
 
 Validate's compile check and the simulator run the real Identity Manager engine. Its jars are

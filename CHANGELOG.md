@@ -7,6 +7,12 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- `docs/tutorial.md`: a new user's first session, from a new install without a tree to a first
+  deploy: read a driver set from an Identity Vault, change a policy, commit, deploy, and commit
+  the deploy record. Linked from the README and the quickstart.
+
 ## [0.57.0] - 2026-10-15
 
 ### Fixed

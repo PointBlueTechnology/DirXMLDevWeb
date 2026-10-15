@@ -1,6 +1,6 @@
 # Setup in the image: one install for every operating system (design note)
 
-**Status: proposed (2026-10-15). Confirm before building.**
+**Status: confirmed (Jerry, 2026-10-15), with the recommended decisions below; building S1–S4.**
 
 ## Why
 
@@ -19,7 +19,12 @@ docker compose -f "$HOME/idmweb/compose.yml" up -d
 ```
 
 In PowerShell, the same two lines work: `$HOME` is your profile folder, and Docker Desktop
-accepts the Windows path in `-v`.
+accepts the Windows path in `-v`. On Linux, create the folder first and run `setup` as yourself,
+so the files are yours:
+
+```bash
+mkdir -p ~/idmweb && docker run --rm -u "$(id -u):$(id -g)" -v "$HOME/idmweb:/idmweb" ghcr.io/pointbluetechnology/dirxml-dev-web:latest setup
+```
 
 The first command writes `~/idmweb` (the configuration, the tokens, the compose file, and the
 repository when you give a tree) and prints the sign-in link. The second starts the server.
@@ -60,10 +65,12 @@ entrypoint's `case`. It does what `setup.sh` does today, from inside the contain
    `sed` moves into Java. That code already parses the same files (`CredentialService`).
 6. Prints the sign-in link (`/auth/login#signin=…`, as #123 adds) and the next command.
 
-**File ownership.** Docker Desktop on macOS and Windows maps ownership, so files written in the
-container are yours. On Linux, `setup` runs as root in the container only to `chown` what it wrote
-to the owner of the mounted `/idmweb`, which it reads with `stat`. `compose.yml` records that
-uid:gid as the server's `user:`, as `IDMWEB_UID` does today. Nothing else runs as root.
+**File ownership** (revised while building: the image runs as `idmweb`, and a plain `docker run`
+cannot become root, so there is no `chown`). Docker Desktop on macOS and Windows maps ownership:
+`setup` runs as the image's user and the files are yours. On Linux the command passes
+`-u "$(id -u):$(id -g)"`, so `setup` writes as you. Either way, `compose.yml` records the uid:gid
+`setup` ran as for the server's `user:`, as `IDMWEB_UID` does today. When `/idmweb` is not
+writable, `setup` says so and gives the Linux command. Nothing runs as root.
 
 ### The `idm` launcher finds the workspace
 
@@ -89,15 +96,11 @@ working.
 setup step root-equivalent control of the host. Two commands, the second plain `docker compose`,
 keep the install inspectable: you can read `compose.yml` before you start it.
 
-## Decisions for you
+## Decided (Jerry, 2026-10-15)
 
-1. **The zip bundle:** drop it once `setup` ships (recommended; the release notes give the two
-   commands), or keep it one more release with a `setup.sh` that just runs them.
-2. **`container_name: idmweb`**, one local install per machine, which makes
-   `docker exec idmweb …` work (recommended). The alternative is compose's generated name, which
-   would need `docker compose -f … exec idmweb …` for the CLI.
-3. **Java for `setup`** (recommended: unit-testable, and it reuses `CredentialService` and the
-   config writer) rather than porting the shell script into the image.
+1. **The zip bundle is dropped** once `setup` ships. The release notes give the two commands.
+2. **`container_name: idmweb`**: one local install per machine, so `docker exec idmweb …` works.
+3. **`setup` is Java**: unit-testable, and it reuses the server's configuration code.
 
 ## Verification
 
@@ -114,5 +117,4 @@ keep the install inspectable: you can read `compose.yml` before you start it.
 - **S2** The `idm` launcher finds the workspace; `container_name`.
 - **S3** Docs: the quickstart becomes the two commands, with PowerShell, macOS and Linux side by
   side, and the release notes carry them too.
-- **S4** The verification runs above, then a release. The zip goes or stays, as you decide in
-  decision 1.
+- **S4** The verification runs above, then a release without the zip.

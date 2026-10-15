@@ -756,7 +756,7 @@ export function TraceViewer({ env, file, drivers, popout, outline, onSelect, onO
         </div>
       )}
       {failure && <div className="banner error">{failure}</div>}
-      {streamErrors.length > 0 && <div className="banner error">{streamErrors.slice(-3).join(" · ")}</div>}
+      {streamErrors.length > 0 && <div className="banner warn" data-testid="trace-stream-errors">{streamErrors.slice(-3).join(" · ")}</div>}
       <div className={"tvbox" + (settings.wrap ? " wrap" : "")} ref={box} onScroll={onScroll} tabIndex={0} style={{ fontSize: settings.font, lineHeight: `${lineHeight}px` }} data-testid="trace-lines">
         <div style={{ height: total, position: "relative" }}>
           {prepared.slice(first, last).map((p, i) => {

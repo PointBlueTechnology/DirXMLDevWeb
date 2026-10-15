@@ -108,4 +108,35 @@ public class TraceServiceTest {
         assertEquals(List.of(List.of(1, 3)), m3.get("fx"));
         assertNull("no fold fields without a placement", TraceService.json(doc).get("fx"));
     }
+
+    @Test
+    public void aServerThatCannotBeReachedIsReportedAndTheOthersStreamOn() throws Exception {
+        List<TraceService.Source> sources = List.of(new TraceService.Source("idm1", "ldaps://idm1:636"), new TraceService.Source("idm2", "ldaps://10.0.0.2:636"));
+        List<Map<String, Object>> sink = new java.util.ArrayList<>();
+        List<String> started = TraceService.startEach(sources, s -> {
+            if (s.name().equals("idm2")) {
+                throw new java.io.IOException("Connection refused");
+            }
+            return s.name();
+        }, sink::add);
+        assertEquals(List.of("idm1"), started);
+        assertEquals(1, sink.size());
+        String error = String.valueOf(sink.get(0).get("error"));
+        assertTrue(error, error.contains("idm2 (ldaps://10.0.0.2:636): Connection refused") && error.contains("servers="));
+    }
+
+    @Test
+    public void whenNoServerCanBeReachedTheStreamFails() {
+        List<TraceService.Source> sources = List.of(new TraceService.Source("idm1", "ldaps://idm1:636"));
+        List<Map<String, Object>> sink = new java.util.ArrayList<>();
+        try {
+            TraceService.startEach(sources, s -> {
+                throw new java.io.IOException("Connection refused");
+            }, sink::add);
+            org.junit.Assert.fail("expected the stream to fail");
+        } catch (Exception e) {
+            assertEquals("Connection refused", e.getMessage());
+        }
+        assertTrue(sink.isEmpty());
+    }
 }

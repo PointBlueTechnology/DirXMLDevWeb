@@ -7,6 +7,11 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.60.0] - 2026-10-15
+
+Needs DirXMLDev 0.42.0, which also fixes **capture drift first** inside the container (git had no
+identity, so the capture failed before recording the vault's state).
+
 ### Added
 
 - **Deploy and rollback progress.** After **Deploy** (or **Roll back**) the page shows each step as
@@ -22,6 +27,13 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
     and locked the same way.
 
   Needs DirXMLDev 0.42.0.
+
+### Fixed
+
+- **Upgrading with `setup` and `:latest` actually takes the new release.** `docker run` reuses the
+  `latest` it already holds, so setup wrote the old version back. Every setup command in the docs now
+  has `--pull always`, and docs/upgrading.md explains how to check the version you're on and what to
+  do when it didn't change.
 
 ## [0.59.0] - 2026-10-15
 

@@ -9,7 +9,9 @@ One host inside the customer's network, next to the vault. Three containers from
 [`hosted/docker/compose.yml`](../hosted/docker/compose.yml): **idmweb** (this server, the page
 and the `idm` CLI), **Keycloak** (sign-in; skip it if the customer has an identity provider and
 point `oidc.issuer` there), **Caddy** (TLS at the edge, one hostname for both). The image never
-carries the NetIQ/OpenText engine jars: the customer mounts them.
+carries the NetIQ/OpenText engine jars: the customer mounts them for validate's compile check and
+the simulator. Vault access (import, diff, deploy, driver operations) needs none of them: the image
+carries open-source JLDAP (DirXMLDev 0.37.0, docs/vendor-free-vault.md there).
 
 For **one person on a workstation** — the web UI, the CLI and the simulator in one local
 container, agents included — use [`hosted/docker/single-user/`](../hosted/docker/single-user/README.md)

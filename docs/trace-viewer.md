@@ -40,9 +40,8 @@ the desktop is fixed for the web in the next release, and the two never disagree
 line means.
 
 jldap is open source and on Maven Central; it is not one of the engine jars the build refuses in
-an image. The workbench already carries no LDAP client of its own (the core's is the engine
-install's `ldap.jar` at system scope), so the web server adds jldap as an ordinary dependency for
-this source only.
+an image. From DirXMLDev 0.37.0 it is the core's LDAP client too (the engine install's `ldap.jar`
+is no longer needed), and the image carries it.
 
 ## 3. Server side (DirXMLDevWeb)
 

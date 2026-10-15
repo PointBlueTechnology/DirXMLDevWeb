@@ -38,6 +38,8 @@ CP="$HERE/target/classes:$IDM_HOME/target/classes"
 [ -f "$SIM_JAR" ] && CP="$CP:$SIM_JAR"
 [ -f "$PG_JAR" ] && CP="$CP:$PG_JAR"
 if [ -f "$AUTH_JAR" ]; then CP="$CP:$AUTH_JAR"; else echo "ERROR: $AUTH_JAR not found. Run 'mvn install' in the directory-console checkout (see docs/development.md)." >&2; exit 1; fi
+JLDAP_JAR="$HOME/.m2/repository/com/novell/ldap/jldap/4.3/jldap-4.3.jar"   # the vault path's LDAP client (open source)
+[ -f "$JLDAP_JAR" ] && CP="$CP:$JLDAP_JAR"
 if [ -f "$TRACE_JAR" ]; then CP="$CP:$TRACE_JAR"; else echo "WARNING: $TRACE_JAR not found; live trace will fail. Install it from the DirXMLTraceViewer release (see docs/development.md)." >&2; fi
 for j in "$IDM_HOME"/lib/*.jar; do
   [ -f "$j" ] && CP="$CP:$j"

@@ -1,9 +1,11 @@
 # DirXMLDevWeb for one person, in a container: no Keycloak, no proxy. The page is on
 # http://localhost:8080, sign-in is one token, the repository is a bare git repo in ./repo.git,
 # the engine jars come from ./lib, workspaces and the audit log in ./data. The container runs
-# as your own user so every file it writes is yours. setup.sh writes .env and starts it.
+# as your own user so every file it writes is yours. `setup` (in the image) or setup.sh writes .env.
+# One local install per machine: the container is named idmweb, so `docker exec idmweb idm …` works.
 services:
   idmweb:
+    container_name: idmweb
     image: ${IDMWEB_IMAGE:-dirxml-dev-web:latest}
     restart: unless-stopped
     user: "${IDMWEB_UID:-1000}:${IDMWEB_GID:-1000}"

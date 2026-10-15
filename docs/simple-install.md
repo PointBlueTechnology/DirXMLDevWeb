@@ -1,6 +1,6 @@
 # Setup in the image: one install for every operating system (design note)
 
-**Status: confirmed (Jerry, 2026-10-15), with the recommended decisions below; building S1–S4.**
+**Status: built 2026-10-15 (S1–S3, S4 on macOS and Linux); confirmed by Jerry with the recommended decisions below.**
 
 ## Why
 
@@ -118,3 +118,31 @@ keep the install inspectable: you can read `compose.yml` before you start it.
 - **S3** Docs: the quickstart becomes the two commands, with PowerShell, macOS and Linux side by
   side, and the release notes carry them too.
 - **S4** The verification runs above, then a release without the zip.
+
+## Results (2026-10-15)
+
+- **S1.** `idmweb setup` (`LocalSetup`) is built, with `LocalSetupTest` (6 tests): a fresh folder,
+  a re-run that keeps tokens and configuration and takes a new port and image (`public.url`
+  follows the port), a tree and cases seeded, the environments split (including an older
+  `config/` with passwords), refusals, and the templates in the jar. The templates are
+  `hosted/docker/single-user`'s files, copied into the jar by the build: one source with
+  `setup.sh`.
+- **S2.** The image's `idm` finds the workspace and your credentials file. The compose file
+  names the container `idmweb`.
+- **S3.** The quickstart is the two commands, for macOS, Windows (PowerShell) and Linux. The
+  single-user README is the checkout reference. The release no longer carries the zip.
+- **S4, macOS** (Docker Desktop), with an image built from the checkout:
+  - `setup` with a tree mounted read-only wrote the folder, owned by you;
+  - `compose up` started it, and the printed link signed in;
+  - opening the branch and running `docker exec idmweb idm validate tree` ran in the workspace;
+  - adding the jars and `docker restart idmweb` gave the full validation;
+  - re-running `setup` with a newer tag, then `compose up`, kept the token, the project and the
+    workspace.
+- **S4, Linux** (DockerHost1, Debian):
+  - without `-u`, `setup` refused with the Linux command, including how to take back a folder
+    Docker had made as root;
+  - with it, every file was owned by the user (uid 1000) and the server ran as that uid;
+  - the token signed in, and `docker exec idmweb idm` ran.
+- **Found on the way:** `idm validate` crashed without the engine jars (`NoClassDefFoundError`).
+  DirXMLDev#77 skips the checks that need them, with an info finding.
+- **Not yet run:** Windows PowerShell (no Windows machine here) and Podman.

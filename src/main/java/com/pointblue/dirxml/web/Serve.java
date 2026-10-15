@@ -25,12 +25,15 @@ public final class Serve {
             System.out.println("DirXMLDevWeb " + VERSION);
             return;
         }
+        if (args.length >= 1 && args[0].equals("setup")) {
+            System.exit(LocalSetup.main(java.util.Arrays.copyOfRange(args, 1, args.length), System.out, System.err));
+        }
         if (args.length >= 3 && args[0].equals("serve") && args[1].equals("--hosted")) {
             hosted(Path.of(args[2]));
             return;
         }
         if (args.length < 2 || !args[0].equals("serve")) {
-            System.err.println("usage: idmweb serve <tree> [--port N] [--no-open] [--web DIR] [--cases DIR] [--catalog DIR]\n       idmweb serve --hosted <hosted.properties>\n       idmweb version");
+            System.err.println("usage: idmweb serve <tree> [--port N] [--no-open] [--web DIR] [--cases DIR] [--catalog DIR]\n       idmweb serve --hosted <hosted.properties>\n       idmweb setup [--tree DIR] [--port N] …   (in the image: the local install, docs/simple-install.md)\n       idmweb version");
             System.exit(2);
         }
         Path tree = Path.of(args[1]).toAbsolutePath().normalize();

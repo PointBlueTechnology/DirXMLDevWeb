@@ -7,6 +7,27 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+**The local install is two commands, and Docker is the only requirement** (docs/simple-install.md):
+`docker run … setup` writes `~/idmweb` from inside the image, then `docker compose up -d` starts it.
+The same commands work in PowerShell, macOS and Linux (Linux adds `-u "$(id -u):$(id -g)"`). The
+release no longer carries the `single-user` zip: `setup` replaces it, and `setup.sh` stays for
+installs from a checkout.
+
+### Added
+
+- **`idmweb setup`** (the image's `setup` command). It writes:
+  - the compose file and `.env`, pinned to the release that ran it;
+  - `config/hosted.properties` and the tokens;
+  - the repository, seeded from a mounted tree (`--tree`, `--cases`, `--project`);
+  - the environments, split from a mounted CLI file (`--environments`).
+
+  It prints the sign-in link. A re-run keeps the folder and takes a new `--image` or `--port`. On
+  Linux, when the folder isn't writable, it explains how to run as yourself.
+- **`docker exec idmweb idm …`** runs in your workspace with your credentials file: the image's
+  `idm` finds them, so there is no wrapper script on any OS. The compose file names the container
+  `idmweb` (one local install per machine).
+- `bin/smoke-hosted.sh` runs `setup` into a temporary folder.
+
 **The single-user install is shorter.** On a release's bundle, `setup.sh` with no argument starts
 without a tree (`-` still works) and runs the bundle's own release, so `IDMWEB_IMAGE` is no longer
 needed. It prints a link that signs you in. The engine jars are optional.

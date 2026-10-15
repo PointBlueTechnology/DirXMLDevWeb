@@ -107,14 +107,14 @@ view by view: [docs/features.md](docs/features.md).
 
 | | **Local** — one person, one container | **Server** — a team | **Workstation** — from a checkout |
 |---|---|---|---|
-| Where | Docker on your own machine, `http://localhost:8080`; everything it keeps is in one folder on your disk (`~/idmweb/`) | a host behind a proxy with TLS, `https://idm.example.com` | your machine, `bin/idmweb serve <tree>`, loopback only |
+| Where | Docker on your own machine (macOS, Windows or Linux; nothing else to install), `http://localhost:8080`; everything it keeps is in one folder on your disk (`~/idmweb/`) | a host behind a proxy with TLS, `https://idm.example.com` | your machine, `bin/idmweb serve <tree>`, loopback only |
 | Sign-in | one token (yours) and one for your agents | your identity provider (OpenID Connect: Keycloak, Entra, Okta …), groups → roles | none: the URL carries a one-time token |
 | The tree | a git repository in that folder, `~/idmweb/repo.git` (or none yet: the page asks) | the team's repository on GitHub or GitLab; a branch per person as a workspace | one tree on disk, edited in place; when it is a git checkout, the page commits, pushes and opens pull requests (through `gh` or `glab`) on the branch it is on |
 | Projects, branches, sign-in, roles, audit | yes | yes | no — one tree, one person, no audit |
 | Vault credentials | the environments (URL, driver set, tier) in `~/idmweb/config/environments.properties`; your bind DN and password in your own file, `~/idmweb/data/users/<you>/environments.properties`, readable by you alone, or a variable you set in `~/idmweb/idmweb.env`; never in the tree, never in eDirectory | the definitions in one file on the server; each person's bind DN and password in their own owner-only file; a deployer may use a secret manager | the `idm` CLI's file (secrets included), your macOS Keychain, or a secret manager |
-| Engine jars | `~/idmweb/lib/`, mounted into the container | a folder on the host, mounted into the container | DirXMLDev's `lib/` |
-| CLI and simulator | `~/idmweb/idm …` inside the container | `docker exec idmweb idm …` | `bin/idm …` from the checkout |
-| Get it | [docs/quickstart.md](docs/quickstart.md) | [docs/hosted-install.md](docs/hosted-install.md), [docs/hosted-mode.md](docs/hosted-mode.md) | [docs/development.md](docs/development.md) |
+| Engine jars | optional (compile check, simulator): `~/idmweb/lib/`, mounted into the container | a folder on the host, mounted into the container | DirXMLDev's `lib/` |
+| CLI and simulator | `docker exec idmweb idm …` | `docker exec idmweb idm …` | `bin/idm …` from the checkout |
+| Get it | two commands: [docs/quickstart.md](docs/quickstart.md) | [docs/hosted-install.md](docs/hosted-install.md), [docs/hosted-mode.md](docs/hosted-mode.md) | [docs/development.md](docs/development.md) |
 
 The first two are the same image and the same hosted server (`serve --hosted`), one configured
 for one person on localhost and one for a team; the third is the server in its local mode,

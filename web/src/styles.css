@@ -752,6 +752,10 @@ input.changed,
 select.changed {
   border-color: var(--warn);
 }
+select.warn {
+  border-color: var(--err);
+  border-style: dashed;
+}
 tr.removed > td,
 .fclass.removed {
   opacity: 0.45;

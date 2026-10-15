@@ -3,6 +3,7 @@ package com.pointblue.dirxml.web;
 import com.pointblue.dirxml.dev.ascode.AsCodeReader;
 import com.pointblue.dirxml.dev.ascode.AsCodeWriter;
 import com.pointblue.dirxml.dev.flow.Flow;
+import com.pointblue.dirxml.dev.model.AppCategories;
 import com.pointblue.dirxml.dev.model.AppObject;
 import com.pointblue.dirxml.dev.model.Driver;
 import com.pointblue.dirxml.dev.model.DriverSet;
@@ -256,6 +257,41 @@ public final class ProvisioningService {
         out.put("roles", roles);
         out.put("resources", resources);
         out.put("entities", entities);
+        Map<String, Object> categories = new LinkedHashMap<>();
+        for (Driver d : ds.drivers) {
+            if (d.provisioning != null) {
+                Map<String, Object> lists = new LinkedHashMap<>();
+                for (AppCategories.For f : AppCategories.For.values()) {
+                    lists.put(f.key, categories(d, f));
+                }
+                categories.put(d.name, lists);
+            }
+        }
+        out.put("categories", categories);
+        return out;
+    }
+
+    /** A driver's role or resource category list (core #70): key, label, labels, how many use it; null when the tree has no list. */
+    private static List<Object> categories(Driver d, AppCategories.For f) {
+        List<AppCategories.Category> cats = AppCategories.of(d.provisioning, f);
+        if (cats == null) {
+            return null;
+        }
+        List<Object> out = new ArrayList<>();
+        for (AppCategories.Category c : cats) {
+            int used = 0;
+            for (AppObject o : d.provisioning.objects) {
+                if (o.kind() == f.kind && o.all(f.attr).contains(c.key())) {
+                    used++;
+                }
+            }
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("key", c.key());
+            m.put("label", c.label());
+            m.put("labels", c.labels());
+            m.put("used", used);
+            out.add(m);
+        }
         return out;
     }
 

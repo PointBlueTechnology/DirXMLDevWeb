@@ -38,7 +38,11 @@ public final class TokenIdentity implements Identity {
     public void login(HttpExchange ex, String next) throws IOException {
         String page = "<!doctype html><meta charset=utf-8><title>Sign in</title><style>body{font:15px system-ui;margin:48px auto;max-width:28em;color:#1c2330}input,button{font:inherit;padding:8px;border:1px solid #d9dde3;border-radius:6px;width:100%;box-sizing:border-box;margin:6px 0}button{background:#2f6fd0;color:#fff;cursor:pointer}</style>"
             + "<h1>DirXMLDevWeb</h1><p>This server is for one person. Enter its access token.</p>"
-            + "<form method=post action=/auth/callback><input type=password name=token autocomplete=current-password autofocus><input type=hidden name=next value=\"" + NoneIdentity.esc(next) + "\"><button>Sign in</button></form>";
+            + "<form method=post action=/auth/callback><input type=password name=token autocomplete=current-password autofocus><input type=hidden name=next value=\"" + NoneIdentity.esc(next) + "\"><button>Sign in</button></form>"
+            // the link setup.sh prints, /auth/login#signin=<token>: the fragment never reaches the server or
+            // its logs; it is taken out of the address bar and history first, then the form is sent
+            + "<script>(function(){var m=location.hash.match(/^#signin=([A-Za-z0-9._~-]+)$/);if(!m)return;"
+            + "history.replaceState(null,'',location.pathname+location.search);var f=document.forms[0];f.token.value=m[1];f.submit();})();</script>";
         byte[] body = page.getBytes(StandardCharsets.UTF_8);
         ex.getResponseHeaders().set("Content-Type", "text/html; charset=utf-8");
         ex.getResponseHeaders().set("Cache-Control", "no-store");

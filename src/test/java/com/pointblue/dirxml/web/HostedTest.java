@@ -74,6 +74,26 @@ public class HostedTest {
         assertEquals("token", t.name());
     }
 
+    /** setup.sh's link, /auth/login#signin=<token>: the page signs in from the fragment, which the server never sees. */
+    @Test
+    public void theTokenSignInPageTakesTheTokenFromTheFragment() throws Exception {
+        TokenIdentity t = new TokenIdentity(hosted("identity=token\ntoken.value=0123456789abcdefXYZ\ntoken.user=jerry\n"));
+        com.sun.net.httpserver.HttpServer server = com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/auth/login", ex -> t.login(ex, "/"));
+        server.start();
+        try {
+            java.net.HttpURLConnection c = (java.net.HttpURLConnection) java.net.URI.create(
+                "http://127.0.0.1:" + server.getAddress().getPort() + "/auth/login").toURL().openConnection();
+            String page = new String(c.getInputStream().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+            assertEquals(200, c.getResponseCode());
+            assertEquals("no-store", c.getHeaderField("Cache-Control"));
+            assertTrue(page, page.contains("location.hash.match(/^#signin=") && page.contains("history.replaceState") && page.contains("f.submit()"));
+            assertTrue("the token itself is never in the page", !page.contains("0123456789abcdefXYZ"));
+        } finally {
+            server.stop(0);
+        }
+    }
+
     @Test
     public void hostedSecurityChecksThePublicHostAndOriginOnly() {
         Security s = Security.hosted("https://idm.example.com");

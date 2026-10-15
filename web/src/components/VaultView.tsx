@@ -1,7 +1,7 @@
 import { DiffEditor } from "@monaco-editor/react";
 import { monacoTheme } from "../monaco";
 import { Fragment, useEffect, useState } from "react";
-import { ApiError, api } from "../api";
+import { ApiError, GIT_CHANGED, api } from "../api";
 import { EnvPicker, useEnvironment } from "../env";
 import { CachePanel } from "./CachePanel";
 import { EventsView } from "./EventsView";
@@ -114,6 +114,37 @@ function VaultError({ message, onFix }: { message: string; onFix: () => void }) 
         </>
       )}
     </div>
+  );
+}
+
+/**
+ * A deploy or a rollback appends a line to deploy-log/<env>.jsonl (who, when, which commit, the snapshot, the outcome),
+ * which is committed with the tree so the repository says what went where (#128). Commits that file alone, whatever
+ * else is uncommitted; the commit bar then offers the push.
+ */
+function RecordCommit({ message }: { message: string }) {
+  const [state, setState] = useState<{ ok: boolean; text: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const commit = () => {
+    setBusy(true);
+    api.git
+      .commitRecord(message)
+      .then((r) => setState({ ok: true, text: r.committed ? `Committed the deploy record as ${r.hash}. Push it from the bar at the top.` : "The deploy record is already committed." }))
+      .catch((e: Error) => setState({ ok: false, text: e.message }))
+      .finally(() => (setBusy(false), window.dispatchEvent(new Event(GIT_CHANGED))));
+  };
+  return state ? (
+    <p className={state.ok ? "small ok-text" : "small err-text"} data-testid="vault-record-result">
+      {state.text}
+    </p>
+  ) : (
+    <p className="small" data-testid="vault-record">
+      Recorded in <code>deploy-log/</code>: who, when, the commit and the snapshot.{" "}
+      <button onClick={commit} disabled={busy} data-testid="vault-record-commit">
+        {busy ? "Committing…" : "Commit the deploy record"}
+      </button>{" "}
+      <span className="muted">— that file alone, as “{message}”; the rest of your work stays uncommitted.</span>
+    </p>
   );
 }
 
@@ -476,6 +507,7 @@ function Compare({ env, drivers, revision, onOpen, onFix }: { env: string; drive
             </p>
           )}
           {merged && <pre className={merged.ok ? "outcome" : "outcome err-text"}>{merged.text}</pre>}
+          {!result.refusal && (result.snapshot || result.capturedBranch) && <RecordCommit key={result.snapshot ?? result.text} message={`Deployed to ${env}${scope.length ? ` (${scope.join(", ")})` : ""}`} />}
           {result.snapshot && (
             <p className="muted small">
               Snapshot: <code>{result.snapshot}</code>{" "}
@@ -557,6 +589,7 @@ function Compare({ env, drivers, revision, onOpen, onFix }: { env: string; drive
                 The state before this rollback: <code>{rollbackResult.snapshot}</code>
               </p>
             )}
+            {!rollbackResult.refusal && rollbackResult.snapshot && <RecordCommit key={rollbackResult.snapshot ?? rollbackResult.text} message={`Rolled ${env} back`} />}
           </div>
         )}
       </div>

@@ -9,9 +9,10 @@
 # check and the simulator need them), and starts the container. Prints a link that signs you in.
 # Re-running on an existing <dir> keeps its repository, tokens and configuration and just
 # (re)starts the container (a new IDMWEB_IMAGE is picked up).
-#   IDMWEB_IMAGE   the image. Default: the release this bundle came with
-#                  (ghcr.io/pointbluetechnology/dirxml-dev-web:<its version>, pulled); from a checkout,
-#                  dirxml-dev-web:latest built from the checkouts. :latest follows every release.
+#   IDMWEB_IMAGE   the image. Default dirxml-dev-web:latest, built from the checkouts; a registry
+#                  name (ghcr.io/pointbluetechnology/dirxml-dev-web:<version>) is pulled.
+# To install a release, use the image's own `setup` instead (docs/quickstart.md): this script is
+# the same install from a checkout, for developers.
 #   IDMWEB_PORT    the page's port on localhost (default 8080)
 #   IDM_LIB        where the engine jars are
 #   CONTAINER      docker (default) or podman; COMPOSE overrides the compose command ("podman compose",
@@ -26,10 +27,6 @@ if [ "$ARG" != "-" ]; then
   [ -f "$TREE/driverset.xml" ] || { echo "ERROR: $TREE is not an IDM-as-code tree (no driverset.xml); pass - to start without one" >&2; exit 1; }
 fi
 DIR=${2:-$HOME/idmweb}
-# the bundle on a release carries VERSION (image.yml writes it): its own image is the default
-if [ -z "${IDMWEB_IMAGE:-}" ] && [ -f "$HERE/VERSION" ]; then
-  IDMWEB_IMAGE="ghcr.io/pointbluetechnology/dirxml-dev-web:$(tr -d ' \n' < "$HERE/VERSION")"
-fi
 IMAGE=${IDMWEB_IMAGE:-dirxml-dev-web:latest}
 PORT=${IDMWEB_PORT:-8080}
 CONTAINER=${CONTAINER:-docker}

@@ -367,3 +367,12 @@ check("the audit log has sign-ins, the workspace, the edit, the commit and the s
 check("and no line carries a file's contents", all("Hosted Corp" not in json.dumps(l["details"]) for l in lines))
 print("smoke-hosted: all passed")
 PY
+# the local install's `setup` (docs/simple-install.md), written into a temporary folder
+mkdir -p "$WORK/setup"
+"$HERE/bin/idmweb" setup --dir "$WORK/setup" --port 18099 --user smoke > "$WORK/setup.out" 2>&1 || { cat "$WORK/setup.out"; echo "FAIL setup"; exit 1; }
+if grep -q "container_name: idmweb" "$WORK/setup/compose.yml" && grep -q "^IDMWEB_TOKEN=" "$WORK/setup/idmweb.env" \
+   && grep -q "^IDMWEB_PORT=18099" "$WORK/setup/.env" && grep -q "auth/login#signin=" "$WORK/setup.out"; then
+  echo "ok   setup: the local install is written (compose.yml, .env, tokens, the sign-in link)"
+else
+  echo "FAIL setup: the local install is incomplete"; exit 1
+fi

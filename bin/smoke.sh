@@ -195,6 +195,7 @@ s, frm = call("GET", "/api/form?driver=Loop&name=Request%20Access")
 check("provisioning: a form with the PRD that binds it", s == 200 and frm["kind"] == "request" and '"components"' in frm["json"] and frm["usedBy"] == [{"prd": "Request Access", "activity": None, "fields": ["reason", "submit"]}])
 s, cat = call("GET", "/api/roles")
 check("provisioning: the catalog of the driver with provisioning", s == 200 and cat["drivers"] == ["Loop"] and cat["roles"] == [] and cat["resources"] == [])
+check("provisioning: the category lists, null where the tree has none", cat.get("categories") == {"Loop": {"role": None, "resource": None}})
 rev = call("GET", "/api/session")[1]["revision"]
 s, fe = call("POST", "/api/op/flow.activity.set", {"args": {"prd": "Request Access", "driver": "Loop", "id": "Approval", "name": "Manager approval"}, "dryRun": False, "revision": rev})
 if s == 200 and fe.get("ok"):

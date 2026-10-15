@@ -7,6 +7,20 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- **Container and category are separate in Roles and resources** (core #70). The new-role and
+  new-resource rows have a container field and a category picker drawn from the tree's category
+  list. Each row's category is a picker too, which stages `role.set` or `resource.set`. A key the
+  list does not have is marked.
+- **A Categories tab** lists the role and resource category keys with their labels and how many
+  roles or resources use each. It edits the English label, and it adds or removes a key
+  (`category.*`); Remove is disabled while a key is in use.
+- `GET /api/roles` now also returns `categories`: per driver, the role and resource lists (`null`
+  where the tree has none).
+
+Needs DirXMLDev 0.36.0.
+
 ## [0.53.0] - 2026-10-14
 
 ### Added

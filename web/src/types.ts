@@ -749,6 +749,16 @@ export interface RoleCatalog {
   roles: CatalogObject[];
   resources: CatalogObject[];
   entities: EntityDef[];
+  /** Per driver, the role and resource category lists; a list is null when the tree has none (older cores send no field). */
+  categories?: Record<string, { role: Category[] | null; resource: Category[] | null }>;
+}
+
+/** A category key of the Directory Abstraction Layer's roles-category / resources-category list. */
+export interface Category {
+  key: string;
+  label: string;
+  labels: Record<string, string>;
+  used: number;
 }
 
 export interface CatalogPackage {

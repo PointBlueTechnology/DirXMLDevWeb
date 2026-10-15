@@ -86,4 +86,4 @@ bin/smoke.sh           # every endpoint, the security gates and the write path, 
 
 ## Releasing
 
-A release bumps `pom.xml`, `Serve.VERSION` (a test pins the two together) and the CHANGELOG heading, merges `--no-ff`, tags `vX.Y.Z` and publishes the jar and the page zip on GitHub. Publishing the release runs `.github/workflows/image.yml`, which builds the image for amd64 and arm64 from the released jars, pushes it to GHCR and attaches the single-user bundle to the release. The lab pulls its image from Harbor (see hosted-install.md).
+A release bumps `pom.xml`, `Serve.VERSION` (a test pins the two together) and the CHANGELOG heading, merges `--no-ff`, tags `vX.Y.Z` and publishes the jar and the page zip on GitHub. Publishing the release runs `.github/workflows/image.yml`, which builds the image for amd64 and arm64 from the released jars, pushes it to GHCR. The lab pulls its image from Harbor (see hosted-install.md).

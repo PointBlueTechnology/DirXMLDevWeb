@@ -99,6 +99,21 @@
     </dependencies>
 
     <build>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+            </resource>
+            <!-- the single-user files, for `idmweb setup` in the image: one source with setup.sh -->
+            <resource>
+                <directory>hosted/docker/single-user</directory>
+                <targetPath>com/pointblue/dirxml/web/setup</targetPath>
+                <includes>
+                    <include>compose.yml</include>
+                    <include>compose.podman.yml</include>
+                    <include>config/hosted.properties</include>
+                </includes>
+            </resource>
+        </resources>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

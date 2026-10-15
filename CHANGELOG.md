@@ -7,6 +7,12 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- **CI no longer needs a `DIRECTORY_CONSOLE_TOKEN` secret.** directory-console is public, so the
+  workflows download console-auth with their own token. That also lets pull requests from forks
+  (which get no secrets) build. The secret can be deleted from the repository settings.
+
 ## [0.55.0] - 2026-10-15
 
 **Vault access no longer needs the engine jars.** On DirXMLDev 0.37.0, talking to a vault uses

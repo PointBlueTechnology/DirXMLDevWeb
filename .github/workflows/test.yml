@@ -19,7 +19,6 @@ jobs:
       - name: DirXMLDev and simulator jars from their releases
         env:
           GH_TOKEN: ${{ github.token }}
-          DIRECTORY_CONSOLE_TOKEN: ${{ secrets.DIRECTORY_CONSOLE_TOKEN }}
         run: |
           CORE=$(sed -n 's#.*<dirxmldev.version>\([^<]*\)</dirxmldev.version>.*#\1#p' pom.xml | head -1)
           SIM=$(sed -n 's#.*<simulator.version>\([^<]*\)</simulator.version>.*#\1#p' pom.xml | head -1); SIM=${SIM:-1.7.0}
@@ -32,11 +31,9 @@ jobs:
           gh release download "v$TRACE" --repo PointBlueTechnology/DirXMLTraceViewer -p "dirxml-trace-core-$TRACE.jar" -D /tmp
           printf '<project xmlns="http://maven.apache.org/POM/4.0.0"><modelVersion>4.0.0</modelVersion><groupId>com.pointbluetech</groupId><artifactId>dirxml-trace-core</artifactId><version>%s</version><dependencies><dependency><groupId>com.novell.ldap</groupId><artifactId>jldap</artifactId><version>4.3</version></dependency></dependencies></project>' "$TRACE" > /tmp/trace-core.pom
           mvn -B -q install:install-file -Dfile=/tmp/dirxml-trace-core-$TRACE.jar -DpomFile=/tmp/trace-core.pom
-          # Directory Console's console-auth library, from its release; that repository is private, so
-          # this download uses a token that can read it (the workflow's own token cannot)
-          if [ -z "${DIRECTORY_CONSOLE_TOKEN:-}" ]; then echo "::error::DIRECTORY_CONSOLE_TOKEN is not set: a token that can read PointBlueTechnology/directory-console releases (that repository is private)"; exit 1; fi
+          # Directory Console's console-auth library, from its (public) release
           AUTH=$(sed -n 's#.*<console.version>\([^<]*\)</console.version>.*#\1#p' pom.xml | head -1)
-          GH_TOKEN="$DIRECTORY_CONSOLE_TOKEN" gh release download "v$AUTH" --repo PointBlueTechnology/directory-console -p "console-auth-$AUTH.jar" -D /tmp
+          gh release download "v$AUTH" --repo PointBlueTechnology/directory-console -p "console-auth-$AUTH.jar" -D /tmp
           mvn -B -q install:install-file -Dfile=/tmp/console-auth-$AUTH.jar -DgroupId=com.pointblue.console -DartifactId=console-auth -Dversion=$AUTH -Dpackaging=jar
       - run: mvn -B test
   page:

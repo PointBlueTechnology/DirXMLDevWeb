@@ -323,7 +323,8 @@ public final class Api implements HttpHandler {
                 return;
             }
             Object body = route(session, w, method, path, query, ex);
-            if (!method.equals("GET") && !path.startsWith("/api/git/") && !path.startsWith("/api/sim/detail")) {
+            boolean startedTask = body instanceof Map && Boolean.TRUE.equals(((Map<?, ?>) body).get("started")) && ((Map<?, ?>) body).containsKey("task");
+            if (!method.equals("GET") && !path.startsWith("/api/git/") && !path.startsWith("/api/sim/detail") && !startedTask) {
                 audit.log(session, w, path.substring("/api/".length()), summary(body), outcome(body));
             }
             send(ex, 200, body);
@@ -427,6 +428,11 @@ public final class Api implements HttpHandler {
         CredentialService credentials = w.credentials;
         if (path.startsWith("/api/git/")) {
             return gitRoute(session, w, method, path, query, ex);
+        }
+        if (method.equals("GET") && path.equals("/api/vault/task")) {
+            // a deploy or rollback's progress and result: by id, or the latest for an environment (none: {})
+            VaultTasks.Task t = query.get("id") != null ? VaultTasks.get(query.get("id")) : VaultTasks.latest(required(query, "env"));
+            return t == null ? Map.of() : t.json();
         }
         if (path.startsWith("/api/credentials")) {
             return credentialsRoute(credentials, session, method, path, query, ex);
@@ -605,6 +611,13 @@ public final class Api implements HttpHandler {
                 }
             }
             boolean restart = !Boolean.FALSE.equals(req.get("restart"));
+            // one write at a time per environment: while a deploy or rollback to it runs, its other writes wait
+            if (env != null && DEPLOYER_ONLY.contains(path) && !path.equals("/api/vault/trace-tail")) {
+                String busy = VaultTasks.busy(env);
+                if (busy != null) {
+                    return busyRefusal(env, busy);
+                }
+            }
             switch (path) {
                 case "/api/vault/schema":
                     return vault.refreshSchema(Json.asString(req.get("env")));
@@ -617,7 +630,8 @@ public final class Api implements HttpHandler {
                 case "/api/vault/plan":
                     return vault.plan(env, drivers, deployChoices(req, restart));
                 case "/api/vault/deploy":
-                    return vault.deploy(env, drivers, deployChoices(req, restart), Json.asString(req.get("confirm")));
+                    return task(session, w, path, env, Boolean.TRUE.equals(req.get("async")),
+                        t -> vault.deploy(env, drivers, deployChoices(req, restart), Json.asString(req.get("confirm")), t::line));
                 case "/api/vault/job":
                     return vault.jobAction(env, Json.asString(req.get("job")), Json.asString(req.get("driver")), Json.asString(req.get("action")), Json.asString(req.get("confirm")));
                 case "/api/vault/health-clear":
@@ -643,7 +657,8 @@ public final class Api implements HttpHandler {
                 case "/api/vault/start-option":
                     return vault.startOption(env, Json.asString(req.get("driver")), Json.asString(req.get("option")), Json.asString(req.get("confirm")));
                 case "/api/vault/rollback":
-                    return vault.rollback(env, Json.asString(req.get("snapshot")), Json.asString(req.get("confirm")), Json.asString(req.get("server")));
+                    return task(session, w, path, env, Boolean.TRUE.equals(req.get("async")),
+                        t -> vault.rollback(env, Json.asString(req.get("snapshot")), Json.asString(req.get("confirm")), Json.asString(req.get("server")), t::line));
                 case "/api/vault/driver":
                     return vault.lifecycle(env, Json.asString(req.get("driver")), Json.asString(req.get("action")), Json.asString(req.get("confirm")));
                 case "/api/vault/cache-case":
@@ -951,6 +966,73 @@ public final class Api implements HttpHandler {
     }
 
     /** What an audit line keeps of a response: names and flags, never contents. */
+    /** A deploy or rollback: what the page and an agent call. */
+    interface VaultWrite {
+        Map<String, Object> run(VaultTasks.Task task) throws IOException;
+    }
+
+    private static Map<String, Object> busyRefusal(String env, String why) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("ok", false);
+        m.put("environment", env);
+        m.put("refusal", why);
+        m.put("busy", true);
+        m.put("text", "REFUSED — " + why);
+        return m;
+    }
+
+    /**
+     * Runs a deploy or rollback as a {@link VaultTasks.Task}, so its progress can be followed
+     * ({@code GET /api/vault/task}) and no other write to the environment starts meanwhile. {@code async}
+     * (the page): it runs on its own thread, the answer is {@code {task, started}} at once, and the audit line is
+     * written when it ends. Otherwise (an agent, a script) the call waits for the result, as before.
+     */
+    private Map<String, Object> task(Session session, Workspace w, String path, String env, boolean async, VaultWrite write) throws IOException {
+        if (env == null || env.isBlank()) {
+            throw new TreeService.BadRequest("which environment?");
+        }
+        Project p = workspaces.projectOf(w);
+        VaultTasks.Task t = VaultTasks.start(path.endsWith("/rollback") ? "rollback" : "deploy", env, session.principal.name,
+            p == null ? null : p.name, w.branch);
+        if (t == null) {
+            return busyRefusal(env, VaultTasks.busy(env));
+        }
+        if (!async) {
+            Map<String, Object> r = null;
+            try {
+                r = write.run(t);
+                return r;
+            } finally {
+                VaultTasks.finish(t, r != null ? r : failed(env, "the " + t.kind + " stopped with an error"));
+            }
+        }
+        Thread th = new Thread(() -> {
+            Map<String, Object> r;
+            try {
+                r = write.run(t);
+            } catch (Exception e) {
+                r = failed(env, e.getMessage() == null ? e.toString() : e.getMessage());
+            }
+            VaultTasks.finish(t, r);
+            audit.log(session, w, path.substring("/api/".length()), summary(r), outcome(r));
+        }, "vault-" + t.kind + "-" + env);
+        th.start();
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("task", t.id);
+        m.put("started", true);
+        m.put("environment", env);
+        return m;
+    }
+
+    private static Map<String, Object> failed(String env, String why) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("ok", false);
+        m.put("environment", env);
+        m.put("failure", why);
+        m.put("text", "FAILED   " + why + "\n");
+        return m;
+    }
+
     private static Map<String, Object> summary(Object body) {
         Map<String, Object> out = new LinkedHashMap<>();
         if (body instanceof Map) {

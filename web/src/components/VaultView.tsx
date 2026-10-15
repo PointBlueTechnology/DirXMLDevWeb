@@ -1,12 +1,12 @@
 import { DiffEditor } from "@monaco-editor/react";
 import { monacoTheme } from "../monaco";
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { ApiError, GIT_CHANGED, api } from "../api";
 import { EnvPicker, useEnvironment } from "../env";
 import { CachePanel } from "./CachePanel";
 import { EventsView } from "./EventsView";
 import { TraceViewer } from "./TraceViewer";
-import type { FileDiff, PullResult, DeployResult, Outline, Selection, VaultDiffResult, VaultStatus, VaultSnapshot, DriverAssociations, ObjectInspection, PasswordSync, VaultJobs, VaultPolicies, PolicyMembers, AppQueryResult, DriverHealth, LogLevel, DriverRights, DriverSetAdmin, EngineMetrics, WorkOrders, EmailServer, EngineInfo, DriverDetail, TraceShow, NamedPasswords, SimCase } from "../types";
+import type { VaultTask, FileDiff, PullResult, DeployResult, Outline, Selection, VaultDiffResult, VaultStatus, VaultSnapshot, DriverAssociations, ObjectInspection, PasswordSync, VaultJobs, VaultPolicies, PolicyMembers, AppQueryResult, DriverHealth, LogLevel, DriverRights, DriverSetAdmin, EngineMetrics, WorkOrders, EmailServer, EngineInfo, DriverDetail, TraceShow, NamedPasswords, SimCase } from "../types";
 
 type Tab = "compare" | "drivers" | "set" | "jobs" | "policies" | "objects" | "trace" | "events";
 
@@ -244,6 +244,84 @@ function PullDialog({ env, drivers, onClose, onApplied }: { env: string; drivers
   );
 }
 
+/** m:ss */
+function clock(ms: number): string {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+
+/** The server's "now" for a task, ticking: its answer's clock plus the time since it came (the browser's clock may differ). */
+function useServerNow(task: VaultTask): number {
+  const [since, setSince] = useState(() => ({ server: task.now, local: Date.now() }));
+  const [, tick] = useState(0);
+  useEffect(() => setSince({ server: task.now, local: Date.now() }), [task.now]);
+  useEffect(() => {
+    if (!task.running) {
+      return;
+    }
+    const t = window.setInterval(() => tick((n) => n + 1), 1000);
+    return () => window.clearInterval(t);
+  }, [task.running]);
+  return since.server + (Date.now() - since.local);
+}
+
+const VERB: Record<VaultTask["kind"], string> = { deploy: "Deploying to", rollback: "Rolling back" };
+
+/** One line at the top of the tab while a deploy or rollback runs, someone else's included. */
+function TaskLine({ task, mine }: { task: VaultTask; mine: boolean }) {
+  const now = useServerNow(task);
+  const last = task.lines[task.lines.length - 1];
+  return (
+    <div className="banner warn" style={{ display: "flex", gap: 8, alignItems: "center" }} data-testid="vault-task-line">
+      <span className="spinner" />
+      <span>
+        {VERB[task.kind]} {task.env}
+        {mine ? "" : ` (started by ${task.user}${task.branch ? ` on ${task.branch}` : ""})`} — {clock(now - task.startedAt)}
+        {last ? ` — ${last.text}` : ""}. Other writes to {task.env} wait until it finishes; leaving this page does not stop it.
+      </span>
+    </div>
+  );
+}
+
+/** A deploy or rollback step by step, as the server reports it: each step's time from the start, the current one's clock. */
+function TaskProgress({ task }: { task: VaultTask }) {
+  const now = useServerNow(task);
+  const end = task.finishedAt ?? now;
+  const body = (
+    <ol className="plain small task-lines" data-testid="vault-task-lines">
+      {task.lines.map((l, i) => {
+        const current = task.running && i === task.lines.length - 1;
+        return (
+          <li key={i} className={current ? "current" : ""}>
+            <code className="muted">+{clock(l.at - task.startedAt)}</code> {l.text}
+            {current && <span className="muted"> … {clock(now - l.at)}</span>}
+          </li>
+        );
+      })}
+      {task.running && task.lines.length === 0 && <li className="muted">starting…</li>}
+    </ol>
+  );
+  if (task.running) {
+    return (
+      <div className="block" data-testid="vault-task">
+        <h4 className="addrow tight" style={{ margin: 0 }}>
+          <span className="spinner" /> {VERB[task.kind]} {task.env} — {clock(now - task.startedAt)}
+        </h4>
+        {body}
+      </div>
+    );
+  }
+  return (
+    <details className="block" data-testid="vault-task">
+      <summary className="small">
+        {task.kind === "deploy" ? "Deploy" : "Rollback"} to {task.env} by {task.user}: {task.lines.length} step(s) in {clock(end - task.startedAt)}, finished{" "}
+        {clock(now - end)} ago
+      </summary>
+      {body}
+    </details>
+  );
+}
+
 function Compare({ env, drivers, revision, onOpen, onFix }: { env: string; drivers: string[]; revision: string; onOpen: (path: string) => void; onFix: () => void }) {
   const [only, setOnly] = useState<string>("");
   const [restart, setRestart] = useState(true);
@@ -270,20 +348,13 @@ function Compare({ env, drivers, revision, onOpen, onFix }: { env: string; drive
       .then((r) => setSnapshots(r.snapshots))
       .catch((e: Error) => setError(e.message));
   const rollback = () =>
-    act("Rolling back…", async () => {
+    act("Starting the rollback…", async () => {
       if (!rollbackOf) {
         return;
       }
-      const r = await api.vault.rollback(env, rollbackOf.file, rollbackConfirm, rollbackOf.server);
-      setRollbackResult(r);
-      setRollbackConfirm("");
-      if (r.ok) {
-        setRollbackOf(null);
-        setDiff(null);
-        setPlan(null);
-        setResult(null);
-        void loadSnapshots();
-      }
+      setRollbackResult(null);
+      const r = await api.vault.rollbackStart(env, rollbackOf.file, rollbackConfirm, rollbackOf.server);
+      await follow(r, setRollbackResult);
     });
   const [diff, setDiff] = useState<VaultDiffResult | null>(null);
   const [comparedAt, setComparedAt] = useState("");
@@ -321,16 +392,95 @@ function Compare({ env, drivers, revision, onOpen, onFix }: { env: string; drive
       setPlan(await api.vault.plan(env, scope, choices));
     });
   const deploy = () =>
-    act("Deploying…", async () => {
-      const r = await api.vault.deploy(env, scope, choices, confirm);
+    act("Starting the deploy…", async () => {
+      setResult(null);
+      const r = await api.vault.deployStart(env, scope, choices, confirm);
+      await follow(r, setResult);
+    });
+
+  // ---- a deploy or rollback runs on the server as a task: followed here, step by step ----
+  const [task, setTask] = useState<VaultTask | null>(null);
+  const followed = useRef<string | null>(null);   // the task this view started or watched running
+  const finished = useRef<string | null>(null);   // the task whose result this view has taken in
+  const running = task?.running ?? false;
+  /** A start's answer: the task to follow, or a refusal (another write to the environment is running). */
+  const follow = async (r: DeployResult & { task?: string }, refused: (r: DeployResult) => void) => {
+    if (!r.task) {
+      refused(r);
+      return;
+    }
+    followed.current = r.task;
+    const t = await api.vault.task({ id: r.task });
+    if ("id" in t) {
+      setTask(t as VaultTask);
+    }
+  };
+  // the latest deploy or rollback to this environment: one running (anyone's), or one finished in the last half hour
+  useEffect(() => {
+    let live = true;
+    api.vault
+      .task({ env })
+      .then((t) => {
+        if (live && "id" in t) {
+          const vt = t as VaultTask;
+          if (vt.running || (vt.finishedAt !== null && vt.now - vt.finishedAt < 30 * 60 * 1000)) {
+            if (vt.running) {
+              followed.current = vt.id;
+            }
+            setTask(vt);
+          }
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [env]);
+  // poll while it runs
+  useEffect(() => {
+    if (!task || !task.running) {
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      api.vault
+        .task({ id: task.id })
+        .then((t) => "id" in t && setTask(t as VaultTask))
+        .catch(() => setTask({ ...task }));   // a missed answer: ask again
+    }, 1000);
+    return () => window.clearTimeout(timer);
+  }, [task]);
+  // take its result in once: the result block, and (for one followed here) the comparison again
+  useEffect(() => {
+    if (!task || task.running || !task.result || finished.current === task.id) {
+      return;
+    }
+    finished.current = task.id;
+    const r = task.result;
+    const here = followed.current === task.id;
+    window.dispatchEvent(new Event(GIT_CHANGED));   // the deploy record
+    if (task.kind === "deploy") {
       setResult(r);
       setConfirm("");
-      if (r.ok) {
+      if (r.ok && here) {
         setPlan(null);
-        setDiff(await api.vault.diff(env, scope));
-        setComparedAt(revision);
+        void act("Comparing…", async () => {
+          setDiff(await api.vault.diff(env, scope));
+          setComparedAt(revision);
+        });
       }
-    });
+    } else {
+      setRollbackResult(r);
+      setRollbackConfirm("");
+      if (r.ok && here) {
+        setRollbackOf(null);
+        setDiff(null);
+        setPlan(null);
+        setResult(null);
+        void loadSnapshots();
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [task]);
 
   return (
     <div className="pad">
@@ -369,6 +519,7 @@ function Compare({ env, drivers, revision, onOpen, onFix }: { env: string; drive
         {busy && <span className="muted">{busy}</span>}
       </div>
       {error && <VaultError message={error} onFix={onFix} />}
+      {task && task.running && <TaskLine task={task} mine={followed.current === task.id} />}
       {stale && <div className="banner warn">The tree changed since this comparison. Compare again before deploying.</div>}
       {diff && (
         <>
@@ -456,7 +607,7 @@ function Compare({ env, drivers, revision, onOpen, onFix }: { env: string; drive
                 <label className="checkchip" title="A production deploy needs the vault's current state known. When it is unknown or has drifted, capture it first as an as-found branch (vault.deploy --capture-drift); the deploy then stops so your change can go on top of it">
                   <input type="checkbox" checked={captureDrift} onChange={(e) => (setCaptureDrift(e.target.checked), setPlan(null))} data-testid="vault-capture-drift" /> capture drift first
                 </label>
-                <button onClick={makePlan} disabled={busy !== null || stale} data-testid="vault-plan">
+                <button onClick={makePlan} disabled={busy !== null || stale || running} data-testid="vault-plan">
                   Plan the deploy
                 </button>
               </div>
@@ -474,7 +625,7 @@ function Compare({ env, drivers, revision, onOpen, onFix }: { env: string; drive
           {plan.ok && !plan.refusal && (
             <div className="addrow">
               <Confirm env={env} value={confirm} onChange={setConfirm} />
-              <button className="danger" onClick={deploy} disabled={busy !== null || confirm !== env || stale} data-testid="vault-deploy">
+              <button className="danger" onClick={deploy} disabled={busy !== null || confirm !== env || stale || running} data-testid="vault-deploy">
                 Deploy to {env}
               </button>
               <span className="muted small">A snapshot of the vault is taken first; the result is verified by comparing again.</span>
@@ -482,6 +633,7 @@ function Compare({ env, drivers, revision, onOpen, onFix }: { env: string; drive
           )}
         </div>
       )}
+      {task && task.kind === "deploy" && <TaskProgress task={task} />}
       {result && (
         <div className="block">
           <h4 className={result.ok ? "ok-text" : "err-text"}>{result.ok ? "Deployed" : result.refusal ? "Refused" : "Failed"}</h4>
@@ -569,7 +721,7 @@ function Compare({ env, drivers, revision, onOpen, onFix }: { env: string; drive
             <p className="small">Every object in the snapshot is put back as it was — attributes a deploy added are removed, objects it deleted are re-added, objects it added are deleted — and the drivers that were running then are restarted. The current state is snapshotted first, so this is reversible; the result is verified against the snapshot.</p>
             <div className="addrow">
               <Confirm env={env} value={rollbackConfirm} onChange={setRollbackConfirm} />
-              <button className="danger" onClick={rollback} disabled={busy !== null || rollbackConfirm !== env} data-testid="vault-rollback-go">
+              <button className="danger" onClick={rollback} disabled={busy !== null || rollbackConfirm !== env || running} data-testid="vault-rollback-go">
                 Roll back
               </button>
               <button onClick={() => setRollbackOf(null)} disabled={busy !== null}>
@@ -578,6 +730,7 @@ function Compare({ env, drivers, revision, onOpen, onFix }: { env: string; drive
             </div>
           </div>
         )}
+        {task && task.kind === "rollback" && <TaskProgress task={task} />}
         {rollbackResult && (
           <div className="block">
             <h4 className={rollbackResult.ok ? "ok-text" : "err-text"}>{rollbackResult.ok ? "Rolled back" : rollbackResult.refusal ? "Refused" : "Failed"}</h4>

@@ -1,6 +1,6 @@
 import type { CacheView, CaseFiles, CasePlan, EventDetail, EventRow, EventsDescribe, TraceFileEntry, VaultPolicies, PolicyMembers, AppQueryResult, DriverHealth, LogLevel, DriverRights, DriverSetAdmin, EngineMetrics, WorkOrders, EmailServer, EngineInfo, DriverDetail, TraceShow, TraceTailResult, NamedPasswords, OperateOutcome, PullResult, NewProjectFields, ProjectExportResult, PullRequestInfo, PullRequestCreated, GitTokenHost } from "./types";
 import type { TraceRec } from "./trace/model";
-import type { AppSchema, Architecture, DevNode, DeployChoices, DriverAssociations, ObjectInspection, PasswordSync, VaultJobs, VaultSnapshot, SchemaDiffResult, ProjectArchive, ProjectArchiveResult, Artifact, AuditEntry, BuildResult, ConfigView, Connections, DeployResult, EnvSecrets, FetchResult, FormData as FormDoc, GitDiff, GitStatus, ImportResult, LifecycleResult, OpCall, OpResult, OpSpec, Outline, OverridesData, PackagePrompts, PackagesData, PrdData, RoleCatalog, SchemaActionResult, SchemaClass, SchemaData, Session, SetupResult, SimCaseFiles, SimCases, SimDetail, SimRun, SiteListing, TreeFile, UpdateSites, Validation, VaultDiffResult, VaultEnvironments, VaultStatus, WorkspacesInfo } from "./types";
+import type { AppSchema, Architecture, DevNode, DeployChoices, DriverAssociations, ObjectInspection, PasswordSync, VaultJobs, VaultSnapshot, SchemaDiffResult, ProjectArchive, ProjectArchiveResult, Artifact, AuditEntry, BuildResult, ConfigView, Connections, DeployResult, EnvSecrets, FetchResult, FormData as FormDoc, GitDiff, GitStatus, ImportResult, LifecycleResult, OpCall, OpResult, OpSpec, Outline, OverridesData, PackagePrompts, PackagesData, PrdData, RoleCatalog, SchemaActionResult, SchemaClass, SchemaData, Session, SetupResult, SimCaseFiles, SimCases, SimDetail, SimRun, SiteListing, TreeFile, UpdateSites, Validation, VaultDiffResult, VaultEnvironments, VaultStatus, VaultTask, WorkspacesInfo } from "./types";
 import type { FishboneModel } from "./fishbone/types";
 
 /**
@@ -274,6 +274,11 @@ export const api = {
     rollback: (env: string, snapshot: string, confirm: string, server?: string | null) => call<DeployResult>("POST", "/api/vault/rollback", { env, snapshot, confirm, ...(server ? { server } : {}) }),
     /** `confirm` is the environment's name, typed by the person: the server refuses anything else. */
     deploy: (env: string, drivers: string[], choices: DeployChoices, confirm: string) => call<DeployResult>("POST", "/api/vault/deploy", { env, drivers, ...choices, confirm }),
+    /** Start a deploy on the server and follow it with `task`: `{task}` at once, or a refusal (another write is running). */
+    deployStart: (env: string, drivers: string[], choices: DeployChoices, confirm: string) => call<DeployResult & { task?: string }>("POST", "/api/vault/deploy", { env, drivers, ...choices, confirm, async: true }),
+    rollbackStart: (env: string, snapshot: string, confirm: string, server?: string | null) => call<DeployResult & { task?: string }>("POST", "/api/vault/rollback", { env, snapshot, confirm, ...(server ? { server } : {}), async: true }),
+    /** A deploy or rollback by id, or the latest for an environment; `{}` when there is none. */
+    task: (by: { id: string } | { env: string }) => call<VaultTask | Record<string, never>>("GET", "id" in by ? `/api/vault/task?id=${q(by.id)}` : `/api/vault/task?env=${q(by.env)}`),
     status: (env: string) => call<VaultStatus>("GET", `/api/vault/status?env=${q(env)}`),
     servers: (env: string) => call<{ environment: string; primary: string | null; servers: { dn: string; name: string; url: string | null; primary: boolean }[] }>("GET", `/api/vault/servers?env=${q(env)}`),
     driver: (env: string, driver: string, action: string, confirm: string) => call<LifecycleResult>("POST", "/api/vault/driver", { env, driver, action, confirm }),

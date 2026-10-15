@@ -55,6 +55,8 @@ jobs:
           PG=$(sed -n 's#.*<postgresql.version>\([^<]*\)</postgresql.version>.*#\1#p' pom.xml | head -1)
           P=~/.m2/repository/org/postgresql/postgresql/$PG; mkdir -p "$P"
           gh release download "v${{ steps.v.outputs.core }}" --repo PointBlueTechnology/DirXMLDev -p "postgresql-$PG.jar" -D "$P"
+          J=~/.m2/repository/com/novell/ldap/jldap/4.3; mkdir -p "$J"
+          gh release download "v${{ steps.v.outputs.core }}" --repo PointBlueTechnology/DirXMLDev -p "jldap-4.3.jar" -D "$J"
           AUTH=$(sed -n 's#.*<console.version>\([^<]*\)</console.version>.*#\1#p' pom.xml | head -1)
           A=~/.m2/repository/com/pointblue/console/console-auth/$AUTH; mkdir -p "$A"
           # directory-console is private: this download uses a token that can read it

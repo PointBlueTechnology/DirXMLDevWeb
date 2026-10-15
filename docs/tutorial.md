@@ -26,13 +26,13 @@ folder `~/idmweb`, including the compose file `~/idmweb/compose.yml`, then the c
 **macOS, and Windows in PowerShell:**
 
 ```bash
-docker run --rm -v "$HOME/idmweb:/idmweb" ghcr.io/pointbluetechnology/dirxml-dev-web:latest setup
+docker run --rm --pull always -v "$HOME/idmweb:/idmweb" ghcr.io/pointbluetechnology/dirxml-dev-web:latest setup
 ```
 
 **Linux:**
 
 ```bash
-mkdir -p ~/idmweb && docker run --rm -u "$(id -u):$(id -g)" -v "$HOME/idmweb:/idmweb" ghcr.io/pointbluetechnology/dirxml-dev-web:latest setup
+mkdir -p ~/idmweb && docker run --rm --pull always -u "$(id -u):$(id -g)" -v "$HOME/idmweb:/idmweb" ghcr.io/pointbluetechnology/dirxml-dev-web:latest setup
 ```
 
 `setup` ends by printing the command that starts the server, and a sign-in link,

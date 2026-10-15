@@ -1,13 +1,18 @@
 # DirXMLDevWeb
 
+> **Beta.** DirXMLDevWeb is a beta release. It is in active use against lab and test trees, but
+> expect rough edges and changes between versions. It can deploy to an Identity Vault, so try it on
+> a non-production tree first. See [docs/features.md](docs/features.md) for what it does and
+> [CHANGELOG.md](CHANGELOG.md) for what changed.
+
 A browser workbench for NetIQ / OpenText Identity Manager driver sets, over the
 [DirXMLDev](https://github.com/PointBlueTechnology/DirXMLDev) core: Designer's job, done on an
 IDM-as-code tree in git. It runs as a container on your own machine for one person, on a server
 for a team, or from a checkout on a workstation — see [Three ways to run it](#three-ways-to-run-it).
 
-Status: released (see [CHANGELOG.md](CHANGELOG.md)); every phase of
-[docs/design.md](docs/design.md) is built — editors, vault, simulator, provisioning, packages,
-hosted mode. **New here? [docs/quickstart.md](docs/quickstart.md)** — one container, one command.
+Every phase of [docs/design.md](docs/design.md) is built: editors, vault, simulator, provisioning,
+packages, hosted mode. **New here? [docs/quickstart.md](docs/quickstart.md)** — one container, one
+command.
 
 ## A look
 
@@ -138,5 +143,11 @@ for developing it or for a quick look at a tree. Upgrading an install is pulling
 
 ## License
 
-[MIT](LICENSE). The image and the jars hold nothing of OpenText's; the engine jars a running
-instance needs are yours, mounted from your own Identity Manager.
+[MIT](LICENSE). The image and the jars hold nothing of OpenText's. The engine jars that validate's
+compile check and the simulator need are yours, mounted from your own Identity Manager; vault
+access needs none of them. [THIRD-PARTY.md](THIRD-PARTY.md) lists what a release carries, with
+the licenses.
+
+## Security
+
+Report vulnerabilities privately: see [SECURITY.md](SECURITY.md).

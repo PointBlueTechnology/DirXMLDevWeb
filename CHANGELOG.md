@@ -13,6 +13,15 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   workflows download console-auth with their own token. That also lets pull requests from forks
   (which get no secrets) build. The secret can be deleted from the repository settings.
 
+### Added
+
+- **`THIRD-PARTY.md`** lists what a release carries and loads (the jars, the page's libraries, the
+  image's base) with their licenses, and states that the engine jars are never included.
+- **`SECURITY.md`** says how to report a vulnerability privately (GitHub's private vulnerability
+  reporting), what is in scope, and that the latest release gets the fixes.
+- **The README says DirXMLDevWeb is a beta**, as directory-console's does: try it on a
+  non-production tree first. It links THIRD-PARTY.md and SECURITY.md.
+
 ## [0.55.0] - 2026-10-15
 
 **Vault access no longer needs the engine jars.** On DirXMLDev 0.37.0, talking to a vault uses

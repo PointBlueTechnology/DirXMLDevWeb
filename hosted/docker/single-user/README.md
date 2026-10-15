@@ -1,20 +1,22 @@
-# One person, one container (the local install — reference)
+# One person, one container (the local install — reference for setup.sh)
 
-The web UI, the `idm` CLI and the simulator in one local container, for one person, with one
-command. No Keycloak, no proxy; the page is on localhost, sign-in is one token, "the team's
-repository" is a bare git repository in that folder on your disk (`~/idmweb/repo.git`), and the container runs as you so every
-file it writes is yours.
+**Installing it?** Use the two commands in [docs/quickstart.md](../../../docs/quickstart.md):
+`setup` runs inside the image, so the host needs only Docker (macOS, Windows or Linux). This
+directory is what that `setup` writes, and `setup.sh` here is the same install **from a
+checkout**, for developers working on DirXMLDevWeb (it builds the image from the checkouts).
+
+The web UI, the `idm` CLI and the simulator in one local container, for one person. No Keycloak,
+no proxy; the page is on localhost, sign-in is one token, "the team's repository" is a bare git
+repository in that folder on your disk (`~/idmweb/repo.git`), and the container runs as you so
+every file it writes is yours.
 
 ```bash
 setup.sh                      # no tree yet: the page asks (default directory ~/idmweb)
 setup.sh /path/to/your/tree   # start with a tree you have
 ```
 
-The image is public on GitHub's registry (no login). A release's bundle runs that release
-(`ghcr.io/pointbluetechnology/dirxml-dev-web:<version>`, from the bundle's `VERSION` file);
-`IDMWEB_IMAGE=ghcr.io/pointbluetechnology/dirxml-dev-web:latest` follows every release instead. The walk-through is [docs/quickstart.md](../../../docs/quickstart.md); the bundle on every
-release (`dirxml-dev-web-single-user-<version>.zip`) holds this directory, so no checkout is
-needed. `setup.sh` pulls the image when its name has a registry (a bare name is built from the
+From a checkout, `setup.sh` builds `dirxml-dev-web:latest` from the checkouts;
+`IDMWEB_IMAGE=ghcr.io/pointbluetechnology/dirxml-dev-web:<version>` runs a release instead. `setup.sh` pulls the image when its name has a registry (a bare name is built from the
 checkouts, for developers), copies the engine jars from `IDM_LIB` (or DirXMLDev's `lib/` beside a
 checkout) when it finds them (optional: only validate's compile check and the simulator need
 them; added to a running container, they are read after the restart it does), makes `repo.git`

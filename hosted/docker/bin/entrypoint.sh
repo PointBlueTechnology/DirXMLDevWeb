@@ -6,11 +6,11 @@ if [ ! -f /etc/idmweb/hosted.properties ] && [ "$1" = "serve" ]; then
   exit 1
 fi
 n=$(ls /opt/idm/lib/*.jar 2>/dev/null | wc -l | tr -d ' ')
-if [ "$n" = "0" ]; then
+if [ "$n" = "0" ] && [ "$1" = "serve" ]; then
   echo "WARNING: no engine jars at /opt/idm/lib; validation's compile check and the simulator need them (mount the customer's lib/); vault access does not." >&2
 fi
 case "$1" in
   idm) shift; exec /opt/idmweb/bin/idm "$@" ;;
-  serve|version) exec /opt/idmweb/bin/idmweb "$@" ;;
+  serve|version|setup) exec /opt/idmweb/bin/idmweb "$@" ;;
   *) exec "$@" ;;
 esac

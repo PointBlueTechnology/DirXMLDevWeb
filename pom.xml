@@ -23,7 +23,7 @@
         <!-- The DirXMLDev release this server is written against. Install it once with
              `mvn -o install -DskipTests` in the DirXMLDev checkout; bin/idmweb then runs
              against that checkout's classes, engine jars and simulator. -->
-        <dirxmldev.version>0.37.0</dirxmldev.version>
+        <dirxmldev.version>0.39.0</dirxmldev.version>
         <simulator.version>1.7.0</simulator.version>
         <!-- the DirXML Trace Viewer's library: parser, highlighter, LDAP trace source (its release attaches the jar) -->
         <!-- Directory Console's shared libraries (console-auth: OIDC sign-in, TLS trust). Install with
@@ -99,6 +99,21 @@
     </dependencies>
 
     <build>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+            </resource>
+            <!-- the single-user files, for `idmweb setup` in the image: one source with setup.sh -->
+            <resource>
+                <directory>hosted/docker/single-user</directory>
+                <targetPath>com/pointblue/dirxml/web/setup</targetPath>
+                <includes>
+                    <include>compose.yml</include>
+                    <include>compose.podman.yml</include>
+                    <include>config/hosted.properties</include>
+                </includes>
+            </resource>
+        </resources>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

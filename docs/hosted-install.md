@@ -14,8 +14,8 @@ the simulator. Vault access (import, diff, deploy, driver operations) needs none
 carries open-source JLDAP (DirXMLDev 0.37.0, docs/vendor-free-vault.md there).
 
 For **one person on a workstation** — the web UI, the CLI and the simulator in one local
-container, agents included — use [`hosted/docker/single-user/`](../hosted/docker/single-user/README.md)
-instead: `setup.sh` (or `setup.sh <tree>`) does all of the below for that case. The rest of this page is the
+container, agents included — use the [quickstart](quickstart.md)
+instead: two commands, with Docker as the only requirement, do all of the below for that case. The rest of this page is the
 team install.
 
 ## 1. Build and publish the image
@@ -143,7 +143,7 @@ ssh debian@192.168.103.99 'cd ~/idmweb && sed -i "s#^IDMWEB_IMAGE=.*#IDMWEB_IMAG
 
 ## 7. Operate
 
-- `docker compose pull && docker compose up -d` (or `docker load` a new tarball) upgrades.
+- Upgrade: set `IDMWEB_IMAGE` in `.env` to the new version, then `docker compose pull idmweb && docker compose up -d idmweb` ([upgrading.md](upgrading.md): before you upgrade, rolling back).
 - The `idmweb-data` volume holds the workspaces, `audit.log`, `sessions.json`, each person's
   files (`users/<subject>/`: vault credentials, Git tokens, traces), clone tokens (`secrets/`) and
   archived projects (`archive/`); the configuration is in `./config`. Back up both.

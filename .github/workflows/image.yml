@@ -79,5 +79,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           Z="dirxml-dev-web-single-user-${{ steps.v.outputs.ver }}.zip"
+          # VERSION: setup.sh's default image is this release's
+          printf '%s\n' "${{ steps.v.outputs.ver }}" > hosted/docker/single-user/VERSION
           (cd hosted/docker && zip -qr "../../$Z" single-user -x '*/.DS_Store')
           gh release upload "v${{ steps.v.outputs.ver }}" "$Z" --clobber

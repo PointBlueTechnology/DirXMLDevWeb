@@ -6,22 +6,27 @@ repository" is a bare git repository in that folder on your disk (`~/idmweb/repo
 file it writes is yours.
 
 ```bash
-IDMWEB_IMAGE=ghcr.io/pointbluetechnology/dirxml-dev-web:latest setup.sh /path/to/your/tree   # default directory ~/idmweb
-IDMWEB_IMAGE=ghcr.io/pointbluetechnology/dirxml-dev-web:latest setup.sh -                    # no tree yet: the page asks
+setup.sh                      # no tree yet: the page asks (default directory ~/idmweb)
+setup.sh /path/to/your/tree   # start with a tree you have
 ```
 
-The image is public on GitHub's registry (no login); `latest` is the newest release, or name a
-version (`:0.45.0`) to stay on it. The walk-through is [docs/quickstart.md](../../../docs/quickstart.md); the bundle on every
+The image is public on GitHub's registry (no login). A release's bundle runs that release
+(`ghcr.io/pointbluetechnology/dirxml-dev-web:<version>`, from the bundle's `VERSION` file);
+`IDMWEB_IMAGE=ghcr.io/pointbluetechnology/dirxml-dev-web:latest` follows every release instead. The walk-through is [docs/quickstart.md](../../../docs/quickstart.md); the bundle on every
 release (`dirxml-dev-web-single-user-<version>.zip`) holds this directory, so no checkout is
 needed. `setup.sh` pulls the image when its name has a registry (a bare name is built from the
 checkouts, for developers), copies the engine jars from `IDM_LIB` (or DirXMLDev's `lib/` beside a
-checkout), makes `repo.git` with your tree under `tree/` (and `cases/` beside your tree, if
-there is one) — or leaves the first project to the page's first run when you passed `-` —
-generates the token, writes the configuration, starts the container and prints:
+checkout) when it finds them (optional: only validate's compile check and the simulator need
+them; added to a running container, they are read after the restart it does), makes `repo.git`
+with your tree under `tree/` (and `cases/` beside your tree, if there is one), or leaves the first
+project to the page's first run when you gave none, generates the tokens, writes the
+configuration, starts the container and prints:
 
 ```
 DirXMLDevWeb is at http://localhost:8080
-  sign in with the token in ~/idmweb/idmweb.env   (cat ~/idmweb/idmweb.env)
+  open this link to sign in (it carries your token; keep it to yourself):
+    http://localhost:8080/auth/login#signin=…
+  or sign in with the token in ~/idmweb/idmweb.env   (cat ~/idmweb/idmweb.env)
   open a branch (main) on the page; it is cloned under ~/idmweb/data/workspaces/
   the CLI and the simulator in that workspace:  ~/idmweb/idm validate tree    ~/idmweb/idm simulate tree --cases cases
   vault connections: the page's Connections view (your password goes to ~/idmweb/data/users/<you>/)

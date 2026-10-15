@@ -15,7 +15,7 @@ carries open-source JLDAP (DirXMLDev 0.37.0, docs/vendor-free-vault.md there).
 
 For **one person on a workstation** — the web UI, the CLI and the simulator in one local
 container, agents included — use [`hosted/docker/single-user/`](../hosted/docker/single-user/README.md)
-instead: `setup.sh <tree>` does all of the below for that case. The rest of this page is the
+instead: `setup.sh` (or `setup.sh <tree>`) does all of the below for that case. The rest of this page is the
 team install.
 
 ## 1. Build and publish the image

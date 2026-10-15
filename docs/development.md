@@ -50,7 +50,8 @@ mvn -q install:install-file -Dfile=/tmp/dirxml-trace-core-$V.jar -DpomFile=/tmp/
 ```
 
 (or `mvn install` in a DirXMLTraceViewer checkout at that tag). The launcher adds the jar to the
-class path; the LDAP classes it needs come from the engine's own `ldap.jar`. Simulator cases are read from `cases/` beside the tree; name
+class path; the LDAP classes it needs are JLDAP's, which the launcher takes from `~/.m2`
+(`mvn install` in DirXMLDev puts them there). Simulator cases are read from `cases/` beside the tree; name
 another place with `--cases DIR`. The package catalog is `--catalog DIR` (or `IDM_CATALOG`);
 without one, installed packages are still listed from the tree but nothing can be installed,
 upgraded or built.

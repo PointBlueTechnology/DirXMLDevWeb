@@ -1,15 +1,17 @@
 #!/bin/sh
 # One person, one container, one command:
-#   setup.sh <tree> [<dir>]      start with an IDM-as-code tree you already have
-#   setup.sh - [<dir>]           start with nothing: the page asks where the tree comes from
+#   setup.sh                     start with nothing: the page asks where the tree comes from
 #                                (export from a vault, a Designer project or export, a repository, a remote)
-# Makes <dir> (default ~/idmweb): the engine jars (from $IDM_LIB, or DirXMLDev's lib/ beside a
-# checkout), a bare repository holding your tree when you gave one, one access token, the
-# configuration, and starts the container. Prints the URL and where the token is. Re-running on
-# an existing <dir> keeps its repository, token and configuration and just (re)starts the
-# container (a new IDMWEB_IMAGE is picked up).
-#   IDMWEB_IMAGE   the image: a registry name is pulled (ghcr.io/pointbluetechnology/dirxml-dev-web:latest, or
-#                  :<version> to stay on one release); a bare name is built from the checkouts
+#   setup.sh <tree> [<dir>]      start with an IDM-as-code tree you already have
+#   setup.sh - <dir>             no tree, another folder
+# Makes <dir> (default ~/idmweb): a bare repository holding your tree when you gave one, the access
+# tokens, the configuration, the engine jars when it finds them (optional: only validate's compile
+# check and the simulator need them), and starts the container. Prints a link that signs you in.
+# Re-running on an existing <dir> keeps its repository, tokens and configuration and just
+# (re)starts the container (a new IDMWEB_IMAGE is picked up).
+#   IDMWEB_IMAGE   the image. Default: the release this bundle came with
+#                  (ghcr.io/pointbluetechnology/dirxml-dev-web:<its version>, pulled); from a checkout,
+#                  dirxml-dev-web:latest built from the checkouts. :latest follows every release.
 #   IDMWEB_PORT    the page's port on localhost (default 8080)
 #   IDM_LIB        where the engine jars are
 #   CONTAINER      docker (default) or podman; COMPOSE overrides the compose command ("podman compose",
@@ -17,13 +19,17 @@
 #                  container through compose.podman.yml (userns keep-id), so files stay yours.
 set -e
 HERE=$(cd "$(dirname "$0")" && pwd)
-ARG=${1:?usage: setup.sh <tree>|- [<dir>]}
+ARG=${1:--}
 TREE=
 if [ "$ARG" != "-" ]; then
   TREE=$(cd "$ARG" && pwd)
   [ -f "$TREE/driverset.xml" ] || { echo "ERROR: $TREE is not an IDM-as-code tree (no driverset.xml); pass - to start without one" >&2; exit 1; }
 fi
 DIR=${2:-$HOME/idmweb}
+# the bundle on a release carries VERSION (image.yml writes it): its own image is the default
+if [ -z "${IDMWEB_IMAGE:-}" ] && [ -f "$HERE/VERSION" ]; then
+  IDMWEB_IMAGE="ghcr.io/pointbluetechnology/dirxml-dev-web:$(tr -d ' \n' < "$HERE/VERSION")"
+fi
 IMAGE=${IDMWEB_IMAGE:-dirxml-dev-web:latest}
 PORT=${IDMWEB_PORT:-8080}
 CONTAINER=${CONTAINER:-docker}
@@ -52,13 +58,14 @@ cp "$HERE/compose.yml" compose.yml
 cp "$HERE/compose.podman.yml" compose.podman.yml
 mkdir -p config data lib
 [ -f config/hosted.properties ] || cp "$HERE/config/hosted.properties" config/hosted.properties
-# the engine jars: never in the image; $DIR/lib is the volume the container reads them from
+# the engine jars: never in the image; $DIR/lib is the volume the container reads them from. Optional:
+# the page, vault access and the driver operations work without them
 if [ -z "$(ls lib/*.jar 2>/dev/null)" ]; then
   SRC=${IDM_LIB:-$HERE/../../../../DirXMLDev/lib}
   if [ -n "$(ls "$SRC"/*.jar 2>/dev/null)" ]; then
-    cp -L "$SRC"/*.jar lib/ && echo "engine jars: $(ls lib | wc -l | tr -d ' ') copied from $SRC into $DIR/lib"
+    cp -L "$SRC"/*.jar lib/ && echo "engine jars: $(ls lib | wc -l | tr -d ' ') copied from $SRC into $DIR/lib" && NEWJARS=1
   else
-    echo "NOTE: put the engine jars in $DIR/lib (or run again with IDM_LIB=/path/to/them): dirxml.jar, dirxml_misc.jar, nxsl.jar, xp.jar, CommonDriverShim.jar, jclient.jar, dhutil.jar, XDS.jar, js.jar, ldap.jar — from an IDM engine's lib/dirxml/classes (copy the files, not symlinks). Without them the page runs, but the compile check, the simulator and vault access do not." >&2
+    echo "engine jars: none yet (optional). Validate's compile check and the simulator need them: put dirxml.jar, dirxml_misc.jar, nxsl.jar, xp.jar, CommonDriverShim.jar, jclient.jar, dhutil.jar, XDS.jar and js.jar from an IDM engine's lib/dirxml/classes in $DIR/lib (files, not symlinks), or run again with IDM_LIB=/path/to/them. Everything else works without them."
   fi
 fi
 # the repository: your tree under tree/, the corpus under cases/ (with no tree, the page makes the
@@ -166,12 +173,22 @@ fi
 exec $COMPOSE exec -T -w /var/lib/idmweb -e "$CRED" idmweb idm "$@"
 SH
 chmod +x idm
-$COMPOSE $COMPOSE_FILES up -d >/dev/null
+# compose reports its progress on stderr: shown only when the start fails
+RUNNING=$($COMPOSE $COMPOSE_FILES ps -q idmweb 2>/dev/null || true)
+$COMPOSE $COMPOSE_FILES up -d > .compose-up.log 2>&1 || { cat .compose-up.log >&2; exit 1; }
+# jars added to a running container are read at its next start
+if [ -n "$RUNNING" ] && [ -n "${NEWJARS:-}" ]; then
+  $COMPOSE $COMPOSE_FILES restart idmweb >> .compose-up.log 2>&1 || { cat .compose-up.log >&2; exit 1; }
+fi
+rm -f .compose-up.log
 i=0
 until curl -s "http://localhost:$PORT/api/session" >/dev/null 2>&1; do i=$((i + 1)); [ $i -gt 40 ] && { $COMPOSE $COMPOSE_FILES logs idmweb | tail -5; exit 1; }; sleep 0.5; done
+TOKEN=$(sed -n 's/^IDMWEB_TOKEN=//p' idmweb.env)
 echo
 echo "DirXMLDevWeb is at http://localhost:$PORT"
-echo "  sign in with the token in $DIR/idmweb.env   (cat $DIR/idmweb.env)"
+echo "  open this link to sign in (it carries your token; keep it to yourself):"
+echo "    http://localhost:$PORT/auth/login#signin=$TOKEN"
+echo "  or sign in with the token in $DIR/idmweb.env   (cat $DIR/idmweb.env)"
 if [ -n "$PROJECT" ]; then
   echo "  project '$PROJECT': open a branch (main) on the page; it is cloned under $DIR/data/workspaces/$PROJECT/"
 else

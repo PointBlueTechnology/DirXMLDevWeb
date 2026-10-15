@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.58.0] - 2026-10-15
+
 ### Fixed
 
 - After a deploy, the page no longer says "The tree changed since this comparison", which also

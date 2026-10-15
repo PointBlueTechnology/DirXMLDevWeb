@@ -7,6 +7,28 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+**The single-user install is shorter.** On a release's bundle, `setup.sh` with no argument starts
+without a tree (`-` still works) and runs the bundle's own release, so `IDMWEB_IMAGE` is no longer
+needed. It prints a link that signs you in. The engine jars are optional.
+
+### Changed
+
+- **`setup.sh`:**
+  - With no argument it starts without a tree.
+  - The default image is the bundle's own release (`VERSION`, which the release workflow writes
+    into the zip). A checkout still builds `dirxml-dev-web:latest`.
+  - Compose's progress lines show only when the start fails.
+  - Engine jars added on a re-run are loaded: the running container is restarted.
+  - The note about missing engine jars is corrected: they are optional, only validate's compile
+    check and the simulator need them, and `ldap.jar` is not one of them.
+- **Signing in with a link:** `setup.sh` prints `http://localhost:<port>/auth/login#signin=<token>`.
+  The token sign-in page reads the fragment, which never reaches the server or its logs, removes it
+  from the address bar and history, and signs you in.
+- **The quickstart:**
+  - Docker is the only requirement, and the engine jars are an optional later step.
+  - It has a Windows section (Docker Desktop with WSL 2, the commands in an Ubuntu terminal).
+  - Upgrading is "run the new bundle's `setup.sh`".
+
 ### Changed
 
 - **CI no longer needs a `DIRECTORY_CONSOLE_TOKEN` secret.** directory-console is public, so the

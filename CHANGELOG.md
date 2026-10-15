@@ -7,6 +7,14 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Fixed
+
+- **Live trace, All servers:** a server of the driver set that can't be reached no longer fails the
+  whole stream. Its address comes from its server object, which is often an internal one. The trace
+  now streams from every server it can reach, and the page names each one it can't reach, with the
+  fix: give a reachable address in the environment's `servers=` setting, or pick one server. The
+  stream fails only when no server can be reached.
+
 ## [0.58.0] - 2026-10-15
 
 ### Fixed

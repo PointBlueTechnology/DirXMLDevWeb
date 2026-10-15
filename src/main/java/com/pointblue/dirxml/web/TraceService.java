@@ -63,40 +63,80 @@ public final class TraceService {
         // across its servers; a region belongs to one server's driver and channel
         TraceFolds folds = new TraceFolds();
         try {
-            for (Source s : sources) {
+            open.addAll(startEach(sources, s -> {
                 ConnectionSettings settings = settings(env, s.url());
                 if (env.trustAll) {
                     TRUSTED.add(settings.host() + ":" + settings.port());
                 }
                 TraceParser parser = new TraceParser();
                 LdapTraceEventSource source = new LdapTraceEventSource(settings, s.name());
-                source.start(ev -> {
-                    TraceRecord r;
-                    synchronized (parser) {
-                        r = parser.parse(ev);
-                    }
-                    if (r == null) {
-                        return;
-                    }
-                    if (raw != null) {
-                        raw.accept(r);
-                    }
-                    TraceFolds.Placement place;
-                    synchronized (folds) {
-                        place = folds.add(r);
-                    }
-                    if (wanted(r, driver, engineToo)) {
-                        sink.accept(json(r, place));
-                    }
-                }, e -> sink.accept(Map.of("error", s.name() + ": " + e.getMessage())));
-                open.add(source);
-            }
+                try {
+                    source.start(ev -> {
+                        TraceRecord r;
+                        synchronized (parser) {
+                            r = parser.parse(ev);
+                        }
+                        if (r == null) {
+                            return;
+                        }
+                        if (raw != null) {
+                            raw.accept(r);
+                        }
+                        TraceFolds.Placement place;
+                        synchronized (folds) {
+                            place = folds.add(r);
+                        }
+                        if (wanted(r, driver, engineToo)) {
+                            sink.accept(json(r, place));
+                        }
+                    }, e -> sink.accept(Map.of("error", s.name() + ": " + e.getMessage())));
+                } catch (Exception e) {
+                    source.close();
+                    throw e;
+                }
+                return source;
+            }, sink));
             Thread.currentThread().join();
         } finally {
             for (LdapTraceEventSource s : open) {
                 s.close();
             }
         }
+    }
+
+    /** Starts one server's stream; throws when it cannot connect. */
+    interface Starter<T> {
+        T start(Source s) throws Exception;
+    }
+
+    /**
+     * Starts every source that can be reached. A server that cannot be reached at start is reported as an
+     * {@code error} record and the others stream on (a driver set's other servers are reached at the
+     * address their server object names, often one this host cannot reach). Throws the first failure only
+     * when no server could be started.
+     */
+    static <T> List<T> startEach(List<Source> sources, Starter<T> starter, Consumer<Map<String, Object>> sink) throws Exception {
+        List<T> started = new ArrayList<>();
+        Exception first = null;
+        List<String> failed = new ArrayList<>();
+        for (Source s : sources) {
+            try {
+                started.add(starter.start(s));
+            } catch (Exception e) {
+                if (first == null) {
+                    first = e;
+                }
+                failed.add(s.name() + " (" + s.url() + "): " + e.getMessage());
+            }
+        }
+        if (started.isEmpty() && first != null) {
+            throw first;
+        }
+        for (String f : failed) {
+            sink.accept(Map.of("error", "not streaming from " + f + " — the other servers stream on. A server is reached at the address its"
+                + " server object names; give a reachable one in the environment's servers= setting (dn=ldaps://host:636;…), or pick one server."));
+        }
+        return started;
     }
 
     static boolean wanted(TraceRecord r, String driver, boolean engineToo) {

@@ -15,6 +15,10 @@ interface Props {
   revision: string;
   onOpen: (path: string) => void;
   onSaved: () => void;
+  /** The artifact was deleted: leave its view. */
+  onGone?: () => void;
+  /** The artifact was renamed: show it at its new path. */
+  onMoved?: (path: string) => void;
 }
 
 type Tab = "structured" | "source" | "refs";
@@ -27,7 +31,11 @@ const STRUCTURED: Record<string, string> = { "dirxml-script": "Rules", "schema-m
  * Source is the document itself. For a policy the two tabs edit one draft, checked by the
  * engine's compiler as you go, reviewed as a diff, and saved through `artifact.set-content`.
  */
-export function ArtifactView({ path, revision, onOpen, onSaved }: Props) {
+export function ArtifactView({ path, revision, onOpen, onSaved, onGone, onMoved }: Props) {
+  const [renaming, setRenaming] = useState(false);
+  const [renameReview, setRenameReview] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [deleting, setDeleting] = useState(false);
   const [artifact, setArtifact] = useState<Artifact | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("structured");
@@ -126,6 +134,16 @@ export function ArtifactView({ path, revision, onOpen, onSaved }: Props) {
           <div className="muted small">{artifact.file ?? artifact.path}</div>
         </div>
         <div className="actions">
+          {!editing && pending.ops.length === 0 && (
+            <>
+              <button onClick={() => (setNewName(artifact.name), setRenaming(true))} title="Rename it, and rewrite every reference to it (links, includes, Map tokens)" data-testid="artifact-rename">
+                Rename…
+              </button>
+              <button className="danger" onClick={() => setDeleting(true)} title="Delete it; refused while anything refers to it" data-testid="artifact-delete">
+                Delete…
+              </button>
+            </>
+          )}
           {!editing && artifact.editable && (
             <button
               disabled={pending.ops.length > 0}
@@ -278,6 +296,52 @@ export function ArtifactView({ path, revision, onOpen, onSaved }: Props) {
             </table>
           )}
         </div>
+      )}
+      {renaming && !renameReview && (
+        <div className="modal-back" role="dialog" aria-modal="true">
+          <div className="modal" data-testid="rename-dialog">
+            <div className="modal-head">
+              <h3>Rename {artifact.name}</h3>
+              <span className="muted small">Every reference is rewritten with it: policy-set links, includes, Map tokens ({artifact.refs.length} now).</span>
+            </div>
+            <div className="modal-body pad">
+              <label className="field wide">
+                <em>New name</em>
+                <input value={newName} onChange={(e) => setNewName(e.target.value)} spellCheck={false} autoFocus data-testid="rename-name" />
+              </label>
+            </div>
+            <div className="modal-foot">
+              <button onClick={() => setRenaming(false)}>Cancel</button>
+              <button className="primary" disabled={!newName.trim() || newName.trim() === artifact.name} onClick={() => setRenameReview(true)} data-testid="rename-review">
+                Review
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {renaming && renameReview && (
+        <ReviewDialog
+          title={`Rename ${artifact.name} to ${newName.trim()}`}
+          ops={[{ name: "artifact.rename", args: { path: artifact.path, name: newName.trim() }, label: `rename ${artifact.name} to ${newName.trim()}` }]}
+          onClose={() => (setRenameReview(false), setRenaming(false))}
+          onApplied={() => {
+            setRenameReview(false);
+            setRenaming(false);
+            const moved = artifact.path.replace(/[^/]+$/, newName.trim());
+            onMoved ? onMoved(moved) : (onSaved(), onOpen(moved));
+          }}
+        />
+      )}
+      {deleting && (
+        <ReviewDialog
+          title={`Delete ${artifact.name}`}
+          ops={[{ name: "artifact.delete", args: { path: artifact.path, unlink: "true" }, label: `delete ${artifact.name}${artifact.refs.some((r) => r.kind === "link") ? " and its policy-set links" : ""}` }]}
+          onClose={() => setDeleting(false)}
+          onApplied={() => {
+            setDeleting(false);
+            onGone ? onGone() : onSaved();
+          }}
+        />
       )}
       {reviewing && draft !== null && (
         <ReviewDialog

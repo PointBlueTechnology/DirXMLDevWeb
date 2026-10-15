@@ -173,7 +173,11 @@ Every view of the page, by area, in every install; the items marked *local and s
     `form.field.*`), the document as JSON (saved whole through `form.set-content`), and the
     PRD activities that show it.
   - *Roles and resources*: the catalog, with display names and descriptions editable, add and
-    remove, through `role.*` and `resource.*`.
+    remove, through `role.*` and `resource.*`. A role's or resource's container and its
+    category are separate: the category is a picker over the Directory Abstraction Layer's list
+    (`roles-category` / `resources-category`), the container its own field. *Categories* lists
+    both lists' keys with their labels and use, edits the English label, and adds or removes a
+    key (`category.*`; a key still in use cannot be removed).
 - **Packages**: what each driver and the Library have installed against the catalog, with
   upgrades the catalog offers, customized packaged objects (revert) and missing records
   (adopt); install, upgrade and uninstall through the review; the catalog's packages; *Update

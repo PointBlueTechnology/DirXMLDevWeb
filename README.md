@@ -118,7 +118,8 @@ view by view: [docs/features.md](docs/features.md).
 
 The first two are the same image and the same hosted server (`serve --hosted`), one configured
 for one person on localhost and one for a team; the third is the server in its local mode,
-for developing it or for a quick look at a tree. Upgrading an install is pulling the next image.
+for developing it or for a quick look at a tree. Upgrading an install is running the next image:
+[docs/upgrading.md](docs/upgrading.md).
 
 ## Documentation
 

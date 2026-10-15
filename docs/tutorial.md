@@ -20,6 +20,9 @@ You do not need a tree, Designer or the Identity Manager engine jars.
 
 ## 1. Install
 
+Installing takes two commands. The first runs the image once, as an installer. `setup` writes the
+folder `~/idmweb`, including the compose file `~/idmweb/compose.yml`, then the container exits.
+
 **macOS, and Windows in PowerShell:**
 
 ```bash
@@ -32,15 +35,17 @@ docker run --rm -v "$HOME/idmweb:/idmweb" ghcr.io/pointbluetechnology/dirxml-dev
 mkdir -p ~/idmweb && docker run --rm -u "$(id -u):$(id -g)" -v "$HOME/idmweb:/idmweb" ghcr.io/pointbluetechnology/dirxml-dev-web:latest setup
 ```
 
-Then start it:
+`setup` ends by printing the command that starts the server, and a sign-in link,
+`http://localhost:8080/auth/login#signin=…`. The link carries your token, so keep it to yourself.
+
+The second command starts the server, a container named `idmweb`, from the compose file setup
+just wrote:
 
 ```bash
 docker compose -f "$HOME/idmweb/compose.yml" up -d
 ```
 
-`setup` writes everything into one folder, `~/idmweb`, and ends by printing a sign-in link,
-`http://localhost:8080/auth/login#signin=…`. The link carries your token, so keep it to yourself.
-[quickstart.md](quickstart.md) explains each option and what is in the folder.
+[quickstart.md](quickstart.md) explains each option and what else is in the folder.
 
 ## 2. Sign in
 

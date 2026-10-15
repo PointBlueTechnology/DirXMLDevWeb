@@ -27,6 +27,11 @@ The image is public on GitHub's registry, so there is nothing to sign in to:
 
 ## 1. Set it up
 
+Installing takes two commands. The first runs the image once, as an installer: `setup` writes a
+folder, `~/idmweb`, with a compose file in it, `~/idmweb/compose.yml`, then the container exits.
+The second command ([step 2](#2-start-it)) starts the server from that compose file. You never
+download or write a compose file yourself.
+
 **macOS, and Windows in PowerShell:**
 
 ```bash
@@ -40,9 +45,16 @@ mkdir -p ~/idmweb && docker run --rm -u "$(id -u):$(id -g)" -v "$HOME/idmweb:/id
 ```
 
 `setup` runs inside the image and writes one folder, `~/idmweb` (your profile folder's `idmweb`
-on Windows). That folder holds everything: the compose file, the configuration, your token and one
-for agents, and the repository. It pins the release it came from, so `:latest` today stays that
-version until you upgrade.
+on Windows). That folder holds everything:
+
+- `compose.yml` and `.env`: the server's container, written from a template inside the image.
+  `.env` names the exact release setup came from, so `:latest` today stays that version until you
+  upgrade.
+- `config/`: the server's configuration.
+- `idmweb.env`: your token and one for agents.
+- `repo.git`: the repository.
+- `data/`: your workspaces.
+- `lib/`: for the engine jars.
 
 **With a tree,** mount it and name it, read-only:
 
@@ -66,6 +78,9 @@ Then open this link to sign in (it carries your token; keep it to yourself):
 ```
 
 ## 2. Start it
+
+Start the server from the compose file setup wrote. It runs as a container named `idmweb` and
+restarts with Docker:
 
 ```bash
 docker compose -f "$HOME/idmweb/compose.yml" up -d

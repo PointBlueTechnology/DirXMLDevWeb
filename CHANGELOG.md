@@ -7,8 +7,22 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.59.0] - 2026-10-15
+
+Needs DirXMLDev 0.41.0.
+
+### Changed
+
+- **Compare & deploy scoped to a driver is no longer refused for validation errors in other
+  drivers.** It's held to the errors in that driver, the Library artifacts it links, and the driver
+  set itself. Errors elsewhere are listed on the plan's first line. A whole-driver-set deploy still
+  needs the whole tree clean (DirXMLDev 0.41.0).
+
 ### Fixed
 
+- **RBE policies no longer show as changed right after an import from a vault**, when a Description
+  or criteria was typed on Windows (CR LF) (DirXMLDev 0.41.0). A tree imported earlier keeps the
+  difference until you choose **Take the vault's state into this branch…** once.
 - **Live trace, All servers:** a server of the driver set that can't be reached no longer fails the
   whole stream. Its address comes from its server object, which is often an internal one. The trace
   now streams from every server it can reach, and the page names each one it can't reach, with the

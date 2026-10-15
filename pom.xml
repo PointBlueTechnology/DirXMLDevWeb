@@ -23,7 +23,7 @@
         <!-- The DirXMLDev release this server is written against. Install it once with
              `mvn -o install -DskipTests` in the DirXMLDev checkout; bin/idmweb then runs
              against that checkout's classes, engine jars and simulator. -->
-        <dirxmldev.version>0.36.0</dirxmldev.version>
+        <dirxmldev.version>0.37.0</dirxmldev.version>
         <simulator.version>1.7.0</simulator.version>
         <!-- the DirXML Trace Viewer's library: parser, highlighter, LDAP trace source (its release attaches the jar) -->
         <!-- Directory Console's shared libraries (console-auth: OIDC sign-in, TLS trust). Install with
@@ -76,8 +76,9 @@
             </exclusions>
         </dependency>
         <!-- Live trace: the viewer's parser and highlighting, so the page shows what the desktop shows.
-             jldap comes with it for compiling; at run time the engine's own ldap.jar (same classes)
-             is on the class path, so the launchers add only this jar. -->
+             jldap (open source, Maven Central) comes with it, and with the core from 0.37.0: the vault
+             path's LDAP client, so the launchers and the image carry jldap themselves and the vault
+             needs no engine jar (DirXMLDev docs/vendor-free-vault.md). -->
         <dependency>
             <groupId>com.pointbluetech</groupId>
             <artifactId>dirxml-trace-core</artifactId>

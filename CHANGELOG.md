@@ -7,6 +7,18 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+**Vault access no longer needs the engine jars.** On DirXMLDev 0.37.0, talking to a vault uses
+open-source JLDAP and the core's own extended operations. The image and the launchers now carry
+`jldap.jar`, so import, diff, deploy and the driver operations work with no `/opt/idm/lib` mounted.
+Validate's compile check and the simulator still need the customer's engine jars. `ldap.jar` is no
+longer one of them.
+
+### Changed
+
+- Needs DirXMLDev 0.37.0, which also brings `trace.view` and the MCP trace view.
+- The quickstart and hosted install docs list the engine jars without `ldap.jar` and say what still
+  needs them. The container's start-up warning no longer says vault access needs them.
+
 ## [0.54.0] - 2026-10-15
 
 ### Added

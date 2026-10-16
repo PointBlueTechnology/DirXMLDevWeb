@@ -395,6 +395,7 @@ public final class Api implements HttpHandler {
                     m.put("inPlace", chosen.inPlace != null);
                     m.put("base", chosen.base);
                     m.put("branches", workspaces.branches(which));
+                    m.put("yours", workspaces.yourBranches(which, session.principal));
                 }
             }
             return m;

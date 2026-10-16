@@ -650,7 +650,7 @@ function MoreSettings({ f, onChange, others }: { f: MoreFields; onChange: (p: Pa
       <div className="attrs">
         <label className="field">
           <em>Deploy order: deploy to … first</em>
-          <input list="conn-envs" value={f.requires} onChange={(e) => onChange({ requires: e.target.value })} placeholder="QA" spellCheck={false} title="A production deploy is refused until the same commit deployed green here" />
+          <input list="conn-envs" value={f.requires} onChange={(e) => onChange({ requires: e.target.value })} placeholder="QA" spellCheck={false} title="A production deploy is refused until the same content (the commit, or one differing only in deploy records) deployed green here" />
           {others && (
             <datalist id="conn-envs">
               {others.map((o) => (

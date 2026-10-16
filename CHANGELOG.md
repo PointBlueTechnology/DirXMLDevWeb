@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.62.0] - 2026-10-16
+
 Needs DirXMLDev 0.44.0.
 
 ### Added
@@ -20,6 +22,9 @@ Needs DirXMLDev 0.44.0.
     main** takes you there.
   - A conflict merges nothing and lists the files; Update from main on the branch resolves it.
   - On GitHub or GitLab, branches are still merged there as pull requests, with their reviews.
+- **docs/git-workflow.md**, a guide to working with git, with screenshots: how the page uses
+  git; one driver set's dev, test and production vaults; overrides; promotion; when to start a
+  branch; merging into main; resolving a conflict; where the repository lives.
 - **Get latest main.** On the base branch, the bar brings in what others merged since your copy
   was taken.
 

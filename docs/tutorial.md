@@ -154,8 +154,9 @@ Type a commit message in the top bar and choose **Commit & push**:
 project's repository, where other people's branches and the CLI see it. The bar then says
 *committed … and pushed*.
 
-On a real project you would work on a branch of your own (**switch** beside the branch name) and
-open a pull request. On `main` in a tutorial, committing straight to it is fine.
+On a real project you would work on a branch of your own (**switch** beside the branch name),
+merge it into `main`, and promote it from there; [git-workflow.md](git-workflow.md) shows how. On
+`main` in a tutorial, committing straight to it is fine.
 
 ## 7. Deploy it
 
@@ -231,5 +232,7 @@ committed stays as it was. The bar then offers **Push**: choose it so that other
   `docker exec idmweb idm vault.deploy tree --env lab --dry-run` plans a deploy.
 - Add the engine jars to the folder's `lib/` for the compile checks and the simulator
   ([quickstart.md](quickstart.md#4-optional-the-engine-jars)).
+- [git-workflow.md](git-workflow.md): branches, dev, test and production of one driver set,
+  promotion, merging into main, and where the repository lives.
 - [features.md](features.md) lists every view.
 - [hosted-install.md](hosted-install.md) is the same server for a team.

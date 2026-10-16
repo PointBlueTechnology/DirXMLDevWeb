@@ -103,6 +103,11 @@ public final class Workspaces {
         return defaultGit;
     }
 
+    /** A project's remote or token changed (RepositoryService): its git connection is made again; workspaces stay open. */
+    public synchronized void repositoryChanged(String name) {
+        gits.remove(name);
+    }
+
     /** A project was added or changed: forget what was open for it. */
     public synchronized void projectChanged(String name) {
         gits.remove(name);

@@ -392,9 +392,14 @@ export function App() {
             </button>
           )}
           {outline ? <OutlineTree outline={outline} selection={selection} onSelect={setSelection} /> : <p className="muted pad">Loading the tree…</p>}
+          {session?.mode === "hosted" && !session.user.deployer && (
+            <button className={selection.type === "projects" ? "navbtn active advanced" : "navbtn advanced"} onClick={() => setSelection({ type: "projects" })} title="Each project's repository, and your Git tokens">
+              Projects
+            </button>
+          )}
           {session?.mode === "hosted" && session.user.deployer && (
             <>
-              <button className={selection.type === "projects" ? "navbtn active advanced" : "navbtn advanced"} onClick={() => setSelection({ type: "projects" })} title="The projects this server holds: archive or remove one">
+              <button className={selection.type === "projects" ? "navbtn active advanced" : "navbtn advanced"} onClick={() => setSelection({ type: "projects" })} title="The projects this server holds: their repositories; archive or remove one">
                 Projects
               </button>
               <button className={selection.type === "audit" ? "navbtn active advanced" : "navbtn advanced"} onClick={() => setSelection({ type: "audit" })} title="Who did what on this server">
@@ -430,7 +435,7 @@ export function App() {
           {selection.type === "form" && <FormView key={selection.driver + "/" + selection.name} driver={selection.driver} name={selection.name} revision={revision} onSelect={setSelection} onSaved={reload} />}
           {selection.type === "roles" && <RolesView revision={revision} onSaved={reload} />}
           {selection.type === "audit" && <AuditView />}
-          {selection.type === "projects" && <ProjectsView />}
+          {selection.type === "projects" && <ProjectsView deployer={session?.user.deployer ?? true} />}
           {selection.type === "architecture" && <ArchitectureView revision={revision} onSelect={setSelection} />}
           {selection.type === "developer" && <DeveloperView revision={revision} onSelect={setSelection} />}
           {selection.type === "traces" && <TraceFilesView onSelect={setSelection} />}

@@ -13,7 +13,9 @@ reference for both; [quickstart.md](quickstart.md) sets it up for one person on 
 each opens a **branch** of the team's git repository as a workspace of their own (a checkout
 under the server's data directory, cloned on first use), edits it with every view above, and
 commits and pushes from the bar at the top, and creates the pull request (GitHub) or merge
-request (GitLab) from there too (docs/pull-requests.md). The server holds the environment
+request (GitLab) from there too (docs/pull-requests.md); a repository with neither in front of it
+(one the server made, or plain git) is merged with **Merge into main…** on the bar. Production
+deploys come from the base branch only, as the repository holds it. The server holds the environment
 definitions (`environments.file`, no secrets) with the driver secrets beside them, and each
 person's bind DN and password in their own file under `data.dir/users/<subject>/`
 (docs/multi-user.md); it writes an audit line per sign-in, write, deploy, driver action, trace

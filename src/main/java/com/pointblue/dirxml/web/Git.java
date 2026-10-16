@@ -109,12 +109,43 @@ public final class Git {
         Result r = run(null, "clone", "--branch", branch, "--single-branch", url, dir.toString());
         if (r.ok()) {
             trackOwnBranch(dir, branch);
+            unionDeployLogs(dir);
             return false;
         }
         must(run(null, "clone", "--branch", base, "--single-branch", url, dir.toString()), "clone " + base);
         must(run(dir, "checkout", "-b", branch), "create branch " + branch);
         trackOwnBranch(dir, branch);
+        unionDeployLogs(dir);
         return true;
+    }
+
+    /** What this repository's own (uncommitted) attributes say about deploy logs: merged by keeping both sides' lines. */
+    static final String UNION = "**/deploy-log/*.jsonl merge=union";
+
+    /**
+     * Deploy logs merge without conflicts in this checkout (docs/git-workflow.md): every branch that deployed appended
+     * to {@code deploy-log/<env>.jsonl}, and each line is a whole record, so a merge keeps both sides' lines. Set in
+     * the checkout's {@code info/attributes}, so a repository made before the tree's {@code .gitattributes} carried
+     * the line merges the same way, with nothing to commit.
+     */
+    void unionDeployLogs(Path dir) throws IOException {
+        Result common = run(dir, "rev-parse", "--git-common-dir");
+        if (!common.ok()) {
+            return;
+        }
+        Path info = dir.resolve(common.out.trim()).resolve("info");
+        Path attrs = info.resolve("attributes");
+        String have = Files.exists(attrs) ? Files.readString(attrs, StandardCharsets.UTF_8) : "";
+        if (have.contains(UNION)) {
+            return;
+        }
+        Files.createDirectories(info);
+        Files.writeString(attrs, (have.isEmpty() || have.endsWith("\n") ? have : have + "\n") + UNION + "\n", StandardCharsets.UTF_8);
+    }
+
+    /** {@code origin/<branch>} as the remote has it now, whatever the clone's fetch configuration tracks (a single-branch clone tracks one). */
+    void fetchBranch(Path dir, String branch) throws IOException {
+        must(run(dir, "fetch", "origin", "+refs/heads/" + branch + ":refs/remotes/origin/" + branch), "fetch " + branch);
     }
 
     /**
@@ -346,8 +377,153 @@ public final class Git {
 
     /** As above, the merge commit by {@code authorName <authorEmail>} (git in a container has no identity of its own). */
     public Map<String, Object> update(Path dir, String base, String authorName, String authorEmail) throws IOException {
-        must(run(dir, "fetch", "origin", base), "fetch");
+        fetchBranch(dir, base);
+        unionDeployLogs(dir);
         return merge(dir, "origin/" + base, null, authorName, authorEmail);
+    }
+
+    /**
+     * What merging this checkout's branch into {@code base} would do (docs/git-workflow.md): the commits it carries,
+     * the files they change, and how far {@code base} has moved on without it. Fetches {@code base} first.
+     */
+    public Map<String, Object> mergePreview(Path dir, String base) throws IOException {
+        fetchBranch(dir, base);
+        String branch = run(dir, "rev-parse", "--abbrev-ref", "HEAD").out.trim();
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("branch", branch);
+        m.put("base", base);
+        List<Object> commits = new ArrayList<>();
+        for (String line : run(dir, "log", "--format=%h%x09%an%x09%s", "--max-count=50", "origin/" + base + "..HEAD").out.split("\n")) {
+            if (!line.isBlank()) {
+                String[] p = line.split("\t", 3);
+                Map<String, Object> c = new LinkedHashMap<>();
+                c.put("hash", p[0]);
+                c.put("author", p.length > 1 ? p[1] : "");
+                c.put("subject", p.length > 2 ? p[2] : "");
+                commits.add(c);
+            }
+        }
+        m.put("commits", commits);
+        List<Object> files = new ArrayList<>();
+        for (String line : run(dir, "diff", "--name-status", "origin/" + base + "...HEAD").out.split("\n")) {
+            if (!line.isBlank()) {
+                String[] p = line.split("\t");
+                Map<String, Object> f = new LinkedHashMap<>();
+                f.put("status", p[0].substring(0, 1));
+                f.put("file", p[p.length - 1]);
+                files.add(f);
+            }
+        }
+        m.put("files", files);
+        m.put("behind", count(dir, "HEAD..origin/" + base));
+        int dirty = 0;
+        for (String line : run(dir, "status", "--porcelain=v1", "--untracked-files=all").out.split("\n")) {
+            if (line.length() > 3) {
+                dirty++;
+            }
+        }
+        m.put("uncommitted", dirty);
+        return m;
+    }
+
+    private int count(Path dir, String range) throws IOException {
+        Result r = run(dir, "rev-list", "--count", range);
+        try {
+            return r.ok() ? Integer.parseInt(r.out.trim()) : 0;
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
+    /**
+     * Merge this checkout's branch into {@code base} on the remote, by {@code authorName <authorEmail>}: the branch is
+     * pushed, merged into the remote's {@code base} in a worktree of its own (this checkout stays on its branch), and
+     * the merge pushed. A conflict abandons the merge and lists the files; {@code base} moving meanwhile refuses the
+     * push and says to try again. Nothing uncommitted may be left behind: a merge carries commits.
+     */
+    public Map<String, Object> mergeInto(Path dir, String base, String authorName, String authorEmail) throws IOException {
+        String branch = run(dir, "rev-parse", "--abbrev-ref", "HEAD").out.trim();
+        if (branch.isEmpty() || branch.equals("HEAD") || branch.equals(base)) {
+            throw new TreeService.BadRequest("open the branch to merge: this checkout is on " + (branch.isEmpty() ? "no branch" : branch));
+        }
+        if (!run(dir, "status", "--porcelain=v1", "--untracked-files=all").out.isBlank()) {
+            throw new TreeService.BadRequest("commit first: " + branch + " has uncommitted changes, and a merge carries commits");
+        }
+        fetchBranch(dir, base);
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("branch", branch);
+        m.put("base", base);
+        if (count(dir, "origin/" + base + "..HEAD") == 0) {
+            m.put("merged", false);
+            m.put("message", base + " already has everything on " + branch + ": nothing to merge");
+            return m;
+        }
+        pushBranch(dir, new LinkedHashMap<>());
+        unionDeployLogs(dir);
+        String head = run(dir, "rev-parse", "HEAD").out.trim();
+        Path wt = Files.createTempDirectory("idmweb-merge");
+        must(run(dir, "worktree", "add", "--detach", wt.toString(), "origin/" + base), "prepare the merge");
+        try {
+            List<String> args = new ArrayList<>(List.of("-c", "user.name=" + (authorName == null ? "DirXMLDevWeb" : authorName),
+                "-c", "user.email=" + (authorEmail == null ? "idmweb@localhost" : authorEmail),
+                "merge", "--no-ff", "-m", "Merge branch '" + branch + "' into " + base, head));
+            Result merge = run(wt, args.toArray(new String[0]));
+            if (!merge.ok()) {
+                List<String> conflicts = new ArrayList<>();
+                for (String line : run(wt, "diff", "--name-only", "--diff-filter=U").out.split("\n")) {
+                    if (!line.isBlank()) {
+                        conflicts.add(line.trim());
+                    }
+                }
+                run(wt, "merge", "--abort");
+                m.put("merged", false);
+                m.put("conflicts", conflicts);
+                String why = (merge.err.isBlank() ? merge.out : merge.err).trim();
+                m.put("message", conflicts.isEmpty()
+                    ? "merging " + branch + " into " + base + " failed: " + (why.isEmpty() ? "git gave no reason" : why)
+                    : branch + " conflicts with " + base + " in " + conflicts.size() + " file(s); nothing was merged. Update from " + base
+                        + " on this branch, resolve the conflicts there, and merge again");
+                return m;
+            }
+            Result push = run(wt, "push", "origin", "HEAD:refs/heads/" + base);
+            if (!push.ok()) {
+                m.put("merged", false);
+                m.put("message", "pushing the merge to " + base + " was refused: " + push.err.trim()
+                    + (push.err.contains("fetch first") || push.err.contains("non-fast-forward") ? " (" + base + " moved while merging: merge again)" : ""));
+                return m;
+            }
+            m.put("merged", true);
+            m.put("commit", run(wt, "rev-parse", "--short", "HEAD").out.trim());
+            m.put("message", "merged " + branch + " into " + base + " (" + m.get("commit") + ") and pushed it; open " + base + " to deploy it");
+        } finally {
+            run(dir, "worktree", "remove", "--force", wt.toString());
+            fetchBranch(dir, base);
+        }
+        return m;
+    }
+
+    /**
+     * Null when this checkout may deploy to production from {@code base}: it is on {@code base}, and its commit is
+     * the remote's {@code base} — everything pushed, nothing merged since that this checkout lacks. Else why not.
+     */
+    public String productionSource(Path dir, String base) throws IOException {
+        String branch = run(dir, "rev-parse", "--abbrev-ref", "HEAD").out.trim();
+        if (!base.equals(branch)) {
+            return "a production deploy comes from " + base + "; this is " + (branch.isEmpty() ? "no branch" : branch)
+                + " — merge it into " + base + ", open " + base + " and deploy from there";
+        }
+        if (run(dir, "remote", "get-url", "origin").ok()) {
+            fetchBranch(dir, base);
+            int ahead = count(dir, "origin/" + base + "..HEAD");
+            int behind = count(dir, "HEAD..origin/" + base);
+            if (ahead > 0) {
+                return "push first: " + ahead + " commit(s) here are not on the repository's " + base + ", and production takes what " + base + " holds";
+            }
+            if (behind > 0) {
+                return base + " has " + behind + " commit(s) this copy lacks: Get latest " + base + " first, so production takes what " + base + " holds";
+            }
+        }
+        return null;
     }
 
     /** Merge a local branch (a captured as-found state) into the current one; on conflicts the merge is abandoned and they are listed. */

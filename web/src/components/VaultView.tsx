@@ -49,7 +49,7 @@ export function VaultView({ drivers, revision, outline, onOpen, onSelect, onSave
           <em>Environment</em>
           <EnvPicker envs={envs} env={env} setEnv={setEnv} testid="vault-env" />
         </label>
-        {chosen && <span className={chosen.tier === "prod" ? "pill err" : "pill"}>{chosen.tier}</span>}
+        {chosen && <span className={chosen.tier === "prd" ? "pill err" : "pill"}>{chosen.tier}</span>}
         {chosen?.hasOverrides && <span className="pill ok" title="overrides/<env>.properties is applied to the tree before it is compared or deployed">overrides</span>}
         <button className="link" onClick={() => onSelect({ type: "connections", env: chosen?.name })} title="Connection parameters, password and driver secrets">
           {chosen ? "Connection and secrets" : "Connections"}

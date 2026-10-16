@@ -875,7 +875,7 @@ public final class TreeService {
             AsCodeWriter.write(result, copy);
             Path attrs = copy.resolve(".gitattributes");
             if (!Files.exists(attrs)) {
-                Files.writeString(attrs, "# IDM-as-code: content is byte-exact vault data; never normalize line endings\n* -text\n");
+                Files.writeString(attrs, com.pointblue.dirxml.dev.deploy.DeployLog.GITATTRIBUTES);
             }
             // what would change: every file under the paths a read writes, the overrides, and .gitattributes; a
             // partial pull only the named drivers' folders and the set's manifest, so a driver nobody asked for is

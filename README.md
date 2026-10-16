@@ -127,6 +127,7 @@ for developing it or for a quick look at a tree. Upgrading an install is running
 |---|---|
 | [docs/quickstart.md](docs/quickstart.md) | one person, one container, one command |
 | [docs/tutorial.md](docs/tutorial.md) | a new install to a first deploy: read a vault, change a policy, commit, deploy |
+| [docs/git-workflow.md](docs/git-workflow.md) | working with git: branches, dev/test/production of one driver set, promotion, merging into main, remotes |
 | [docs/features.md](docs/features.md) | every view, by area |
 | [docs/data-model.md](docs/data-model.md) | projects, workspaces, trees, environments and vaults: the entity relationship diagram |
 | [docs/multi-user.md](docs/multi-user.md) | design note: per-user connections, data and traces on a hosted server |

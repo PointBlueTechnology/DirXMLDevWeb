@@ -7,6 +7,35 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- **The Connections page, rebuilt** (#131, docs/connections-ui.md).
+  - **One status and one action per vault:** connected, not signed in, password rejected,
+    certificate not trusted or changed, vault unreachable, password expires in N days, N grace
+    logins left. Sign-ins are checked when the page opens and every five minutes.
+  - **Add a vault** follows the order its fields depend on:
+    1. the address, and its certificate;
+    2. the account and password, then **Test sign-in**;
+    3. the driver set, chosen from the vault's list;
+    4. a name and kind.
+
+    Optional settings go under **More settings**.
+  - **Edit** shows one vault's sections: your sign-in, the vault, driver secrets, more settings,
+    remove.
+  - Kinds are shown as production, test and dev. The files keep prd, stg and dev.
+- **Certificates are pinned, not accepted wholesale.** The page shows the vault certificate's
+  subject, issuer, expiry and SHA-256, and **Trust this certificate** pins it for the vault
+  (`certSha256`, DirXMLDev 0.43.0).
+  - A changed certificate is refused, naming both fingerprints, until someone trusts the new one.
+  - Pinning a vault that accepted any certificate removes that setting.
+- **Rotated passwords are obvious.** A rejected password is its own state, separate from an
+  unreachable vault.
+  - **Update password** tests the new password before it replaces the old, so a typo can't lock
+    you out.
+  - The top bar shows your vaults whose sign-in needs you, and vault errors from other views link
+    to **Update password**.
+  - A password read from a secret manager or variable gets **Check again**.
+
 ### Fixed
 
 - **The branch switcher lists your own branches, not only the repository's.**

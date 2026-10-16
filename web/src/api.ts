@@ -1,6 +1,6 @@
 import type { CacheView, CaseFiles, CasePlan, EventDetail, EventRow, EventsDescribe, TraceFileEntry, VaultPolicies, PolicyMembers, AppQueryResult, DriverHealth, LogLevel, DriverRights, DriverSetAdmin, EngineMetrics, WorkOrders, EmailServer, EngineInfo, DriverDetail, TraceShow, TraceTailResult, NamedPasswords, OperateOutcome, PullResult, NewProjectFields, ProjectExportResult, PullRequestInfo, PullRequestCreated, GitTokenHost } from "./types";
 import type { TraceRec } from "./trace/model";
-import type { AppSchema, Architecture, DevNode, DeployChoices, DriverAssociations, ObjectInspection, PasswordSync, VaultJobs, VaultSnapshot, SchemaDiffResult, ProjectArchive, ProjectArchiveResult, Artifact, AuditEntry, BuildResult, ConfigView, Connections, DeployResult, EnvSecrets, FetchResult, FormData as FormDoc, GitDiff, GitStatus, ImportResult, LifecycleResult, OpCall, OpResult, OpSpec, Outline, OverridesData, PackagePrompts, PackagesData, PrdData, RoleCatalog, SchemaActionResult, SchemaClass, SchemaData, Session, SetupResult, SimCaseFiles, SimCases, SimDetail, SimRun, SiteListing, TreeFile, UpdateSites, Validation, VaultDiffResult, VaultEnvironments, VaultStatus, VaultTask, WorkspacesInfo } from "./types";
+import type { AppSchema, Architecture, DevNode, DeployChoices, DriverAssociations, ObjectInspection, PasswordSync, VaultJobs, VaultSnapshot, SchemaDiffResult, ProjectArchive, ProjectArchiveResult, Artifact, AuditEntry, BuildResult, ConfigView, Connections, DeployResult, EnvSecrets, FetchResult, FormData as FormDoc, GitDiff, GitStatus, ImportResult, LifecycleResult, OpCall, OpResult, OpSpec, Outline, OverridesData, PackagePrompts, PackagesData, PrdData, RoleCatalog, SchemaActionResult, SchemaClass, SchemaData, Session, SetupResult, SimCaseFiles, SimCases, SimDetail, SimRun, SiteListing, TreeFile, UpdateSites, Validation, VaultDiffResult, VaultEnvironments, VaultStatus, VaultTask, VaultCertificate, SignInCheck, WorkspacesInfo } from "./types";
 import type { FishboneModel } from "./fishbone/types";
 
 /**
@@ -155,7 +155,13 @@ export const api = {
   connections: {
     list: () => call<Connections>("GET", "/api/credentials"),
     /** The parameters as typed; a password given here is used once and not kept. */
-    test: (req: Record<string, unknown>) => call<{ ok: boolean; message: string; driverSetFound?: boolean }>("POST", "/api/credentials/test", req),
+    test: (req: Record<string, unknown>) => call<{ ok: boolean; message: string; driverSetFound?: boolean; check?: SignInCheck }>("POST", "/api/credentials/test", req),
+    /** The certificate an ldaps:// address presents, for the page to show and pin. */
+    certificate: (url: string) => call<VaultCertificate>("POST", "/api/credentials/certificate", { url }),
+    /** One environment's sign-in, as configured; `fresh: false` may answer from the last five minutes. */
+    check: (env: string, fresh = true) => call<SignInCheck>("POST", "/api/credentials/check", { env, fresh }),
+    /** Your environments whose sign-in needs you: rejected, certificate, unreachable, or expiring within 14 days. */
+    problems: () => call<{ problems: SignInCheck[] }>("GET", "/api/credentials/problems"),
     driverSets: (req: Record<string, unknown>) => call<{ ok: boolean; message: string; driverSets?: { dn: string; name: string | null; servers: string[] }[] }>("POST", "/api/credentials/driversets", req),
     save: (req: Record<string, unknown>) => call<{ name: string; file: string; notes: string[] }>("POST", "/api/credentials/environment", req),
     remove: (name: string) => call<{ name: string; removed: number }>("POST", "/api/credentials/environment/remove", { name }),

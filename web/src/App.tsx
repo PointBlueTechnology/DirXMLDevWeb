@@ -24,6 +24,7 @@ import { FormView } from "./components/FormView";
 import { RolesView } from "./components/RolesView";
 import { PackagesView } from "./components/PackagesView";
 import { ConnectionsView } from "./components/ConnectionsView";
+import { SignInAlerts } from "./components/SignInAlerts";
 import { EntitlementView } from "./components/EntitlementView";
 import { SetupView } from "./components/SetupView";
 import { NewItemView } from "./components/NewItemView";
@@ -256,6 +257,7 @@ export function App() {
           {outline && <span className="set">{outline.driverSet.name}</span>}
         </div>
         <div className="meta">
+          {session && !noWorkspace && <SignInAlerts onOpen={(env) => setSelection({ type: "connections", env })} />}
           {session && !noWorkspace && !addingProject && <ValidationSummary validation={validation} open={!problemsHidden} onPick={pickSeverity} />}
           {session?.tree && <span title={session.tree}>{shorten(session.tree)}</span>}
           {session && (

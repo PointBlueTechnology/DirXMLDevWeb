@@ -31,9 +31,9 @@ public final class CredentialService {
 
     private static final Pattern NAME = Pattern.compile("[A-Za-z0-9][A-Za-z0-9_.-]*");
     /** Properties of an environment the page may set, besides the password. */
-    private static final List<String> FIELDS = List.of("url", "bindDn", "driverSet", "tier", "trustAll", "requires", "sshHost", "sshUser", "secrets", "eventsUrl", "eventsUser", "eventsTable", "eventsPseudonymise", "eventsTree");
+    private static final List<String> FIELDS = List.of("url", "bindDn", "driverSet", "tier", "trustAll", "certSha256", "requires", "sshHost", "sshUser", "secrets", "eventsUrl", "eventsUser", "eventsTable", "eventsPseudonymise", "eventsTree");
     /** With two files (docs/multi-user.md): the project's definition holds these… */
-    private static final List<String> DEFINITION_FIELDS = List.of("url", "driverSet", "tier", "requires", "sshHost", "sshUser", "secrets", "eventsUrl", "eventsUser", "eventsTable", "eventsPseudonymise", "eventsTree");
+    private static final List<String> DEFINITION_FIELDS = List.of("url", "driverSet", "tier", "certSha256", "requires", "sshHost", "sshUser", "secrets", "eventsUrl", "eventsUser", "eventsTable", "eventsPseudonymise", "eventsTree");
     /** …and a person's credential holds these, plus the password. */
     private static final List<String> CREDENTIAL_FIELDS = List.of("bindDn", "trustAll");
     private static final String KEYCHAIN_PREFIX = "idm-";
@@ -197,6 +197,7 @@ public final class CredentialService {
         c.url = Json.asString(req.get("url"));
         c.bindDn = Json.asString(req.get("bindDn"));
         c.trustAll = Boolean.TRUE.equals(req.get("trustAll"));
+        c.certSha256 = pinOf(req);
         String password = Json.asString(req.get("password"));
         String env = Json.asString(req.get("env"));
         Map<String, Object> m = new LinkedHashMap<>();
@@ -249,6 +250,7 @@ public final class CredentialService {
         c.url = Json.asString(req.get("url"));
         c.bindDn = Json.asString(req.get("bindDn"));
         c.trustAll = Boolean.TRUE.equals(req.get("trustAll"));
+        c.certSha256 = pinOf(req);
         String driverSet = Json.asString(req.get("driverSet"));
         String password = Json.asString(req.get("password"));
         String env = Json.asString(req.get("env"));
@@ -270,19 +272,113 @@ public final class CredentialService {
         } else {
             c.password = password;
         }
-        try (Vault v = Vault.connect(c)) {
-            m.put("ok", true);
-            if (driverSet != null && !driverSet.isBlank()) {
+        // the sign-in in words (docs/connections-ui.md): ok, rejected (and why), certificate, unreachable
+        com.pointblue.dirxml.dev.deploy.SignIn.Check check = com.pointblue.dirxml.dev.deploy.SignIn.check(c);
+        m.put("ok", check.state == com.pointblue.dirxml.dev.deploy.SignIn.State.OK);
+        m.put("check", scrubbed(check.json(), c.password));
+        m.put("message", scrub(check.message == null ? String.valueOf(check.state) : check.message, c.password));
+        if (check.state == com.pointblue.dirxml.dev.deploy.SignIn.State.OK && driverSet != null && !driverSet.isBlank()) {
+            try (Vault v = Vault.connect(c)) {
                 boolean there = v.exists(driverSet);
                 m.put("driverSetFound", there);
-                m.put("message", there ? "Connected; the driver set is there." : "Connected, but no object at " + driverSet + ".");
-            } else {
-                m.put("message", "Connected.");
+                m.put("message", there ? check.message + "; the driver set is there." : check.message + ", but there's no driver set at " + driverSet + ".");
+            } catch (RuntimeException e) {
+                m.put("message", scrub(e.getMessage() == null ? e.toString() : e.getMessage(), c.password));
             }
-        } catch (RuntimeException e) {
-            m.put("ok", false);
-            m.put("message", scrub(e.getMessage() == null ? e.toString() : e.getMessage(), c.password));
         }
+        return m;
+    }
+
+    /** The pin a request names, else the named environment's, else none. */
+    private String pinOf(Map<String, Object> req) throws IOException {
+        String pin = Json.asString(req.get("certSha256"));
+        if (pin != null && !pin.isBlank()) {
+            return com.pointblue.dirxml.dev.deploy.PinnedTrust.normalize(pin);
+        }
+        String env = Json.asString(req.get("env"));
+        if (env == null || env.isBlank()) {
+            return null;
+        }
+        return com.pointblue.dirxml.dev.deploy.PinnedTrust.normalize(merged().get(env + ".certSha256"));
+    }
+
+    private static Map<String, Object> scrubbed(Map<String, Object> m, String password) {
+        Map<String, Object> out = new LinkedHashMap<>(m);
+        for (Map.Entry<String, Object> e : out.entrySet()) {
+            if (e.getValue() instanceof String str) {
+                e.setValue(scrub(str, password));
+            }
+        }
+        return out;
+    }
+
+    /** The certificate at an address, for the page to show and pin (nothing is saved, nobody signs in). */
+    public Map<String, Object> certificate(Map<String, Object> req) {
+        String url = Json.asString(req.get("url"));
+        if (url == null || !url.trim().toLowerCase(java.util.Locale.ROOT).startsWith("ldaps://")) {
+            throw new TreeService.BadRequest("a certificate needs an ldaps:// address");
+        }
+        Map<String, Object> m = new LinkedHashMap<>();
+        try {
+            m.putAll(com.pointblue.dirxml.dev.deploy.SignIn.probe(url.trim(), 6000).json());
+            m.put("ok", true);
+        } catch (Exception e) {
+            m.put("ok", false);
+            m.put("message", "Can't reach " + url.trim() + ": " + (e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage()));
+        }
+        return m;
+    }
+
+    /** Sign-in checks, per credentials file and environment, so the top bar and the list don't bind on every request. */
+    private static final Map<String, Map<String, Object>> CHECKS = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final long FRESH_MS = 5 * 60 * 1000;
+
+    /** One environment's sign-in, as the person's own files configure it; {@code fresh}: never from the cache. */
+    public Map<String, Object> check(String env, boolean fresh) throws IOException {
+        nameOk(env);
+        String key = (files.isSplit() ? files.credentials() : environmentsFile()) + "#" + env;
+        Map<String, Object> cached = CHECKS.get(key);
+        if (!fresh && cached != null && System.currentTimeMillis() - ((Number) cached.get("checkedAt")).longValue() < FRESH_MS) {
+            return cached;
+        }
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("env", env);
+        Environments.Environment e;
+        try {
+            e = files.load().get(env);
+        } catch (IOException | RuntimeException ex) {
+            m.put("state", "not-signed-in");
+            m.put("message", ex.getMessage());
+            m.put("checkedAt", System.currentTimeMillis());
+            CHECKS.put(key, m);
+            return m;
+        }
+        Vault.Config c = e.vaultConfig();
+        m.putAll(scrubbed(com.pointblue.dirxml.dev.deploy.SignIn.check(c).json(), c.password));
+        m.put("env", env);
+        m.put("checkedAt", System.currentTimeMillis());
+        CHECKS.put(key, m);
+        return m;
+    }
+
+    /** The person's environments whose sign-in needs them: rejected, certificate, unreachable, or expiring soon. */
+    public Map<String, Object> problems() throws IOException {
+        List<Map<String, Object>> out = new ArrayList<>();
+        Map<String, String> mine = files.isSplit() ? entries(files.credentials()) : entries(definitionsFile());
+        for (String n : namesOf(merged())) {
+            if (mine.get(n + ".bindDn") == null || sourceKind(mine, n + ".password") == null) {
+                continue;   // not signed in: the list says so; nothing to warn about
+            }
+            Map<String, Object> c = check(n, false);
+            String state = String.valueOf(c.get("state"));
+            Object days = c.get("daysLeft");
+            boolean expiring = days instanceof Number d && d.longValue() <= 14;
+            if (!state.equals("ok") || expiring) {
+                out.add(c);
+            }
+        }
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("problems", out);
         return m;
     }
 

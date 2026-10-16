@@ -101,15 +101,19 @@ function Confirm({ env, value, onChange }: { env: string; value: string; onChang
 
 /** An error from a vault call, with a way to the connection when it looks like one. */
 function VaultError({ message, onFix }: { message: string; onFix: () => void }) {
-  const connection = /connect |password|authentication|bind|environment '|secrets?/i.test(message);
+  // a rotated password: the vault refused the bind (eDirectory -669/-222/-197, LDAP 49)
+  const rejected = /error code 49|failed authentication|\(-669\)|\(-222\)|\(-197\)|invalid credentials/i.test(message);
+  const certificate = /certificate (not trusted|changed)|vault's certificate/i.test(message);
+  const connection = rejected || certificate || /connect |password|authentication|bind|environment '|secrets?/i.test(message);
   return (
     <div className="banner error">
+      {rejected ? "The vault rejected your password. " : ""}
       {message}
       {connection && (
         <>
           {" "}
           <button className="link" onClick={onFix} data-testid="vault-fix">
-            Fix the connection or credentials
+            {rejected ? "Update password" : certificate ? "Check the certificate" : "Fix the connection or credentials"}
           </button>
         </>
       )}

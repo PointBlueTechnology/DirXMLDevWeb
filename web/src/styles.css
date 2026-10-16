@@ -1375,3 +1375,6 @@ a.button { display: inline-block; padding: 5px 10px; border: 1px solid var(--bor
 .task-lines { margin: 6px 0 0; padding-left: 0; list-style: none; }
 .task-lines li { padding: 1px 0; }
 .task-lines li.current { font-weight: 600; }
+.connform h4.clickable { cursor: pointer; }
+.connform h4 .muted { font-weight: normal; }
+.topbar .meta .pill { border: none; cursor: pointer; }

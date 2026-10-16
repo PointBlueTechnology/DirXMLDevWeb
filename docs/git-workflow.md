@@ -137,7 +137,7 @@ On top of that:
 |---|---|---|
 | dev | any | — |
 | test | any (recommended: `main`) | — |
-| production | **`main`, as the repository has it**: all your commits pushed, and nothing merged since that your copy lacks | Everything committed. A green deploy to `test` of the same content. Production's current state known: the vault must match the last production deploy, or **capture drift** first. |
+| production | **`main`, as the repository has it**: all your commits pushed, and nothing merged since that your copy lacks. Any branch when the vault allows it ([only one environment](#only-one-environment)). | Everything committed. A green deploy to `test` of the same content. Production's current state known: the vault must match the last production deploy, or **capture drift** first. |
 
 "The same content" means the commit you deployed to test, or any commit that differs from it only in
 `deploy-log/` and `deploy-snapshots/`. So committing the test deploy's record does not make
@@ -145,6 +145,21 @@ production ask for another test deploy. Any other change since does.
 
 The production check does not run the simulator. If the tree has simulator cases, run them before
 you promote.
+
+### Only one environment
+
+Some driver sets have a production vault and nothing else, so there is nowhere to try a change
+before it reaches production. Leave **Deploy order** empty: "deploy to test first" applies only
+when it is set. Then, on the production vault, open **Edit → More settings** and tick **deploy
+from any branch, not only main**. The file then says `prod.fromAnyBranch=true`.
+
+Production then takes a deploy from your branch, so you can deploy the change, check it and merge
+it afterwards. Production still needs:
+- everything committed;
+- the environment's name typed out;
+- production's state known.
+
+Only a deployer can change the setting. Untick it once the project has a dev or test vault.
 
 ## 3. The everyday loop
 

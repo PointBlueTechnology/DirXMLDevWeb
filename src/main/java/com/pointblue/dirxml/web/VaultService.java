@@ -58,6 +58,11 @@ public final class VaultService {
         this.productionSource = check;
     }
 
+    /** {@code <env>.fromAnyBranch=true}: production deploys from any branch, not only the base (a project with one environment). */
+    boolean fromAnyBranch(String envName) throws IOException {
+        return "true".equalsIgnoreCase(files.load().property(envName, "fromAnyBranch"));
+    }
+
     public void setEnvironmentFilter(List<String> names) {
         this.environmentFilter = names == null ? List.of() : List.copyOf(names);
     }
@@ -255,7 +260,10 @@ public final class VaultService {
         Deployer.Options o = options(envName, drivers, choices);
         o.progress = progress;
         String refusal = gate(o.env.name, confirm);
-        if (refusal == null && o.env.tier == Environments.Tier.PRD && productionBase != null) {
+        if (refusal == null && o.env.tier == Environments.Tier.PRD && productionBase != null && fromAnyBranch(o.env.name)) {
+            // <env>.fromAnyBranch=true: one environment, nowhere to try a change first (docs/git-workflow.md)
+            progress.accept("production from any branch (" + o.env.name + ".fromAnyBranch): not checking that this is " + productionBase);
+        } else if (refusal == null && o.env.tier == Environments.Tier.PRD && productionBase != null) {
             // docs/git-workflow.md: production takes what the project's base branch holds on the repository
             o.baseBranch = productionBase;
             progress.accept("checking that this is " + productionBase + " as the repository has it");

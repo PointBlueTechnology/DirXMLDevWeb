@@ -15,6 +15,21 @@ Status: **decided 2026-10-05 (Keycloak, GitHub, container, proxy TLS, the server
 > - Host and Origin are checked against `public.url`, not loopback.
 > - Pull requests are created through the provider's API (docs/pull-requests.md), not only
 >   linked to the compare page.
+> - A server holds several **projects** (`projects=…`), each with its own repository, tree and
+>   base branch. Workspaces are `workspaces/<project>/<user>/<branch>`, and a project can be a
+>   checkout used in place (one person's).
+> - A project can start without a repository: the server makes one (`data/projects/<project>.git`).
+>   **Projects → Repository** moves it to GitHub, GitLab or any git host, or changes its address
+>   (docs/connections-ui.md).
+> - **The page does merge** (docs/git-workflow.md). **Merge into main…** merges a branch into the
+>   base branch on the repository when it is not on GitHub or GitLab. **Get latest main**
+>   brings the base into a copy of it. §3's "the page does not merge" is out of date. **Update
+>   from main** still leaves a conflict to resolve with git.
+> - **Production deploys come from the base branch** as the repository holds it: pushed and
+>   current. A production vault can allow any branch with `<env>.fromAnyBranch=true`, for a
+>   project with one environment.
+> - The current guide to branches, environments and promotion is
+>   [git-workflow.md](git-workflow.md).
 
 Local mode (W0–W6) is one person, one tree on their workstation, one server on loopback with
 a one-time token. Hosted mode is the same server and page for a team: it runs inside the

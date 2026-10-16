@@ -76,4 +76,27 @@ public class GitCommitTest {
         assertEquals("Jerry", git.run(repo, "log", "-1", "--format=%an").out.trim());
         assertTrue(Files.exists(repo.resolve("b.txt")));
     }
+
+    @Test
+    public void pushWithNothingToCommitPushesWhatWasCommitted() throws Exception {
+        Git git = new Git(tmp.newFolder("data3").toPath(), null);
+        Path remote = tmp.newFolder("remote3.git").toPath();
+        assertTrue(git.run(remote, "init", "--bare", "-q", "-b", "main").ok());
+        Path w = tmp.newFolder("w3").toPath();
+        assertTrue(git.run(w, "clone", "-q", remote.toString(), ".").ok());
+        Files.writeString(w.resolve("a.txt"), "a", StandardCharsets.UTF_8);
+        assertEquals(Boolean.TRUE, git.commit(w, "first", "me", "me@x", true).get("pushed"));
+        Files.writeString(w.resolve("b.txt"), "b", StandardCharsets.UTF_8);
+        assertEquals(Boolean.TRUE, git.commit(w, "second, not pushed", "me", "me@x", false).get("committed"));
+        // the bar's Push: no message, nothing to commit
+        Map<String, Object> r = git.commit(w, "", "me", "me@x", true);
+        assertEquals(Boolean.TRUE, r.get("pushed"));
+        assertEquals(git.run(w, "rev-parse", "HEAD").out.trim(), git.run(remote, "rev-parse", "main").out.trim());
+        try {
+            git.commit(w, " ", "me", "me@x", false);
+            throw new AssertionError("a commit without a message");
+        } catch (TreeService.BadRequest expected) {
+            // still refused when not pushing
+        }
+    }
 }

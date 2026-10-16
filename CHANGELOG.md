@@ -7,6 +7,13 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Fixed
+
+- **"Merge it into this branch" after a capture, and "Update from <base>", work in the container.**
+  git there has no identity, so the merge commit was refused, and the page reported "conflicts in
+  0 file(s)". Merges now carry the signed-in person's name and email, as commits already did. A
+  merge that fails for another reason now says what git said.
+
 ## [0.60.0] - 2026-10-15
 
 Needs DirXMLDev 0.42.0, which also fixes **capture drift first** inside the container (git had no

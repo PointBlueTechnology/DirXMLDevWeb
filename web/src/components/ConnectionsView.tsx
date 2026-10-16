@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "../api";
 import type { ConnectionEnv, Connections, EnvSecrets, ServerAddress, SignInCheck, VaultCertificate } from "../types";
 import { ManagerPicker } from "./ManagerPicker";
-import { GitTokensPanel } from "./GitTokensPanel";
 
 /**
  * The vaults a project deploys to and how each person signs in to them (docs/connections-ui.md). One list with one
@@ -229,8 +228,7 @@ export function ConnectionsView({ initialEnv, deployer }: { initialEnv: string |
           />
         )}
 
-        <h3>Git tokens</h3>
-        <GitTokensPanel helpers={data.helpers} references={deployer} />
+        <p className="muted small">Your Git tokens are under Projects → Repository.</p>
       </div>
     </div>
   );

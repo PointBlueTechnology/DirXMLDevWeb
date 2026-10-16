@@ -95,6 +95,26 @@ are mounted, never shipped. `hosted/docker/compose.yml` runs it behind Caddy (TL
 **Agents** (CI, an MCP server) use the same server with `Authorization: Bearer <token>` from
 `agents=`, or the CLI with `docker exec idmweb idm …`; `bin/smoke-container.sh` proves the image.
 
+## A project's repository: moving it to GitHub or GitLab
+
+A project made on the page pushes to a repository this server created, `data/projects/<name>.git`.
+This happens when the project comes from a vault export, an upload, or a directory. Open
+**Projects → Repository** to see where any project pushes, its base branch and whether it has a
+token, and to keep your own Git token for pull requests.
+
+A deployer moves a project to a remote of its own with **Push this project to a remote…**:
+1. Give the remote's address and a token that can push.
+2. Choose **Check**. It confirms the remote is empty, or already holds exactly this history, and
+   lists each workspace's work that isn't pushed yet.
+3. Type the project's name and choose **Move**:
+   - every branch and tag is copied, and the copy is verified;
+   - the project, and every workspace's `origin`, switch to the remote, with no restart;
+   - the old repository is kept as `<name>.git.moved-<date>`.
+
+Unpushed work isn't lost: each workspace now pushes to the remote. For a remote that moved (a
+renamed organization, a new host), **Change remote…** checks the new address holds the base branch,
+then switches the same way. Both are recorded in the audit log.
+
 ## Archiving and removing a project
 
 Deployers, from **Projects** in the sidebar (or `POST /api/setup/archive` and `/api/setup/remove`).

@@ -211,10 +211,17 @@ public final class Git {
      * rest of the work uncommitted — the deploy record after a deploy (#128).
      */
     public Map<String, Object> commit(Path dir, String message, String authorName, String authorEmail, boolean push, List<String> only) throws IOException {
-        if (message == null || message.isBlank()) {
-            throw new TreeService.BadRequest("a commit needs a message");
-        }
         Map<String, Object> m = new LinkedHashMap<>();
+        if (message == null || message.isBlank()) {
+            if (!push || only != null) {
+                throw new TreeService.BadRequest("a commit needs a message");
+            }
+            // the bar's Push: nothing to commit, commits waiting to go
+            m.put("committed", false);
+            m.put("message", "pushed what was committed");
+            pushBranch(dir, m);
+            return m;
+        }
         if (only != null && only.stream().noneMatch(p -> Files.exists(dir.resolve(p)))) {
             m.put("committed", false);
             m.put("message", "nothing to commit");
@@ -244,15 +251,19 @@ public final class Git {
             m.put("hash", run(dir, "rev-parse", "--short", "HEAD").out.trim());
         }
         if (push) {
-            String branch = run(dir, "rev-parse", "--abbrev-ref", "HEAD").out.trim();
-            trackOwnBranch(dir, branch);
-            Result p = run(dir, "push", "-u", "origin", branch);
-            m.put("pushed", p.ok());
-            if (!p.ok()) {
-                throw new TreeService.BadRequest("push: " + p.err.trim());
-            }
+            pushBranch(dir, m);
         }
         return m;
+    }
+
+    private void pushBranch(Path dir, Map<String, Object> m) throws IOException {
+        String branch = run(dir, "rev-parse", "--abbrev-ref", "HEAD").out.trim();
+        trackOwnBranch(dir, branch);
+        Result p = run(dir, "push", "-u", "origin", branch);
+        m.put("pushed", p.ok());
+        if (!p.ok()) {
+            throw new TreeService.BadRequest("push: " + p.err.trim());
+        }
     }
 
     /**

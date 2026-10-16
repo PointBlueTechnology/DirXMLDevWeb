@@ -1,28 +1,35 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
-import type { ProjectArchive } from "../types";
+import type { ProjectArchive, ProjectRepository, RepositoryCheck } from "../types";
+import { GitTokensPanel } from "./GitTokensPanel";
 
 /**
  * The projects a hosted server holds (deployers, #76): archive one — its repository as a git
  * bundle, its workspaces and recordings moved aside, the project forgotten — or just remove it;
  * and the archives made so far, with the bundle to download.
  */
-export function ProjectsView() {
+export function ProjectsView({ deployer = true }: { deployer?: boolean }) {
   const [projects, setProjects] = useState<{ name: string; repository: string | null; inPlace: string | null; base: string; tree: string }[] | null>(null);
   const [archives, setArchives] = useState<{ dir: string; archives: ProjectArchive[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [acting, setActing] = useState<{ name: string; what: "archive" | "remove"; typed: string } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
+  const [repoOf, setRepoOf] = useState<string | null>(null);
+  const [helpers, setHelpers] = useState("");
 
   const load = () => {
-    Promise.all([api.setup.state(), api.setup.archives()])
+    Promise.all([api.setup.state(), deployer ? api.setup.archives() : Promise.resolve(null)])
       .then(([s, a]) => {
         setProjects((s as unknown as { projects: typeof projects }).projects ?? []);
         setArchives(a);
         setError(null);
       })
       .catch((e: Error) => setError(e.message));
+    api.connections
+      .list()
+      .then((c) => setHelpers(c.helpers))
+      .catch(() => undefined);
   };
   useEffect(load, []);
 
@@ -74,12 +81,17 @@ export function ProjectsView() {
                   <td className="small">{p.base}</td>
                   <td className="small">{p.tree}</td>
                   <td className="right">
+                    <button onClick={() => setRepoOf(repoOf === p.name ? null : p.name)} data-testid={"project-repository-" + p.name}>
+                      Repository
+                    </button>{" "}
+                    {deployer && (<>
                     <button disabled={busy !== null} onClick={() => setActing({ name: p.name, what: "archive", typed: "" })} title="The repository as a git bundle, the workspaces and recordings moved aside, the project forgotten" data-testid={"project-archive-" + p.name}>
                       Archive…
                     </button>{" "}
                     <button disabled={busy !== null} onClick={() => setActing({ name: p.name, what: "remove", typed: "" })} title="Forget the project; its files stay on disk" data-testid={"project-remove-" + p.name}>
                       Remove…
                     </button>
+                    </>)}
                   </td>
                 </tr>
               ))}
@@ -87,6 +99,9 @@ export function ProjectsView() {
           </table>
         )}
         {projects && projects.length === 0 && <p className="muted">No projects.</p>}
+        {repoOf && <RepositoryPanel key={repoOf} project={repoOf} deployer={deployer} onChanged={load} />}
+        <h3>Your Git tokens</h3>
+        <GitTokensPanel helpers={helpers} references={deployer} />
         {acting && (
           <section className="block" data-testid="project-confirm">
             <h3>{acting.what === "archive" ? `Archive ${acting.name}` : `Remove ${acting.name}`}</h3>
@@ -148,4 +163,159 @@ export function ProjectsView() {
 
 function fmt(bytes: number): string {
   return bytes < 1024 ? `${bytes} B` : bytes < 1024 * 1024 ? `${(bytes / 1024).toFixed(1)} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+/**
+ * A project's repository (docs/connections-ui.md): where it pushes, its base branch, whether it has a token; for a
+ * deployer, Push this project to a remote… (a repository the server made) or Change remote… (one that moved).
+ */
+function RepositoryPanel({ project, deployer, onChanged }: { project: string; deployer: boolean; onChanged: () => void }) {
+  const [repo, setRepo] = useState<ProjectRepository | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [url, setUrl] = useState("");
+  const [token, setToken] = useState("");
+  const [typed, setTyped] = useState("");
+  const [check, setCheck] = useState<RepositoryCheck | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [done, setDone] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
+  const load = () =>
+    api.setup
+      .repository(project)
+      .then((r) => (setRepo(r), setError(null)))
+      .catch((e: Error) => setError(e.message));
+  useEffect(() => {
+    void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project]);
+  const run = (what: string, fn: () => Promise<void>) => {
+    setBusy(what);
+    setError(null);
+    fn()
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setBusy(null));
+  };
+  if (!repo) {
+    return error ? <div className="banner error">{error}</div> : <p className="muted">Reading the repository…</p>;
+  }
+  const doCheck = () =>
+    run("Checking the remote…", async () => {
+      setCheck(null);
+      if (!url.trim()) {
+        throw new Error("Enter the remote's address");
+      }
+      setCheck(await api.setup.repositoryCheck(project, url.trim(), token));
+    });
+  const doMove = () =>
+    run("Moving: copying every branch and tag, then switching…", async () => {
+      const r = await api.setup.repositoryMove(project, url.trim(), token, typed);
+      setDone(`${project} now pushes to ${r.pushesTo}: ${r.branches} branch(es) and ${r.tags} tag(s) copied, ${r.workspaces} workspace(s) switched. The old repository is kept at ${r.kept}.`);
+      setOpen(false);
+      setToken("");
+      void load();
+      onChanged();
+    });
+  const doChange = () =>
+    run("Changing the remote…", async () => {
+      const r = await api.setup.repositoryChange(project, url.trim(), token, typed);
+      setDone(`${project} now pushes to ${r.pushesTo}; ${r.workspaces} workspace(s) switched.`);
+      setOpen(false);
+      setToken("");
+      void load();
+      onChanged();
+    });
+  return (
+    <section className="block" data-testid="project-repository">
+      <h3>Repository: {project}</h3>
+      <table className="grid">
+        <tbody>
+          <tr>
+            <td className="muted small">Pushes to</td>
+            <td data-testid="repo-pushes-to">
+              {repo.inPlace ? "a checkout on this server, used in place" : repo.serverMade ? "a repository on this server" : /^https?:\/\//.test(repo.pushesTo ?? "") ? <a href={repo.pushesTo!.replace(/\.git$/, "")} target="_blank" rel="noreferrer">{repo.pushesTo}</a> : <code>{repo.pushesTo}</code>}
+            </td>
+          </tr>
+          <tr>
+            <td className="muted small">Base branch</td>
+            <td>
+              <code>{repo.base}</code> <span className="muted small">where new branches start, and what pull requests target</span>
+            </td>
+          </tr>
+          <tr>
+            <td className="muted small">Project token</td>
+            <td>{repo.tokenSet ? <span className="pill ok">set</span> : <span className="muted">none</span>}</td>
+          </tr>
+        </tbody>
+      </table>
+      {done && <div className="banner" data-testid="repo-done">{done}</div>}
+      {deployer && !repo.inPlace && !open && (
+        <button onClick={() => (setOpen(true), setDone(null), setCheck(null), setTyped(""))} data-testid="repo-open-move">
+          {repo.serverMade ? "Push this project to a remote…" : "Change remote…"}
+        </button>
+      )}
+      {deployer && open && (
+        <div className="block" data-testid="repo-move">
+          <h4>{repo.serverMade ? "Push this project to a remote" : "Change remote"}</h4>
+          <p className="muted small">
+            {repo.serverMade
+              ? "An empty repository on GitHub, GitLab or any git host. Every branch and tag is copied, then the project and every workspace push there; the repository on this server is kept, renamed."
+              : "The same repository at a new address (a renamed organization, a new host). It must hold the base branch."}
+          </p>
+          <div className="attrs">
+            <label className="field wide">
+              <em>Remote</em>
+              <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://github.com/org/prod-idm.git" spellCheck={false} data-testid="repo-url" />
+            </label>
+            <label className="field wide">
+              <em>Token that can push{repo.serverMade ? "" : " (leave empty to keep the current one)"}</em>
+              <input type="password" value={token} onChange={(e) => setToken(e.target.value)} autoComplete="new-password" data-testid="repo-token" />
+              <span className="muted small">Kept on this server, readable by it only; never shown again.</span>
+            </label>
+          </div>
+          {repo.serverMade && (
+            <div className="addrow">
+              <button onClick={doCheck} disabled={busy !== null} data-testid="repo-check">
+                Check
+              </button>
+            </div>
+          )}
+          {check && (
+            <div className={check.ok ? "banner" : "banner error"} data-testid="repo-check-result">
+              {check.message} {check.ok && `${check.branches} branch(es) and ${check.tags} tag(s) will be copied.`}
+              {check.unpushed.length > 0 && (
+                <>
+                  <div className="small">Not pushed yet. Nothing is lost: each workspace switches with the project, so this work can be pushed afterwards.</div>
+                  <ul className="plain small">
+                    {check.unpushed.map((u) => (
+                      <li key={u.person + u.branch}>
+                        {u.person}: <code>{u.branch}</code>
+                        {u.ahead > 0 ? `, ${u.ahead} commit(s) not pushed` : ""}
+                        {u.uncommitted > 0 ? `, ${u.uncommitted} uncommitted file(s)` : ""}
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </div>
+          )}
+          {(!repo.serverMade || check?.ok) && (
+            <div className="addrow">
+              <span className="small">
+                Type <code>{project}</code> to {repo.serverMade ? "move it" : "change its remote"}:
+              </span>
+              <input value={typed} onChange={(e) => setTyped(e.target.value)} spellCheck={false} data-testid="repo-confirm" />
+              <button className="danger" onClick={repo.serverMade ? doMove : doChange} disabled={busy !== null || typed !== project || !url.trim()} data-testid="repo-go">
+                {repo.serverMade ? "Move" : "Change remote"}
+              </button>
+            </div>
+          )}
+          <div className="addrow">
+            <button onClick={() => setOpen(false)}>Cancel</button>
+            {busy && <span className="muted">{busy}</span>}
+          </div>
+        </div>
+      )}
+      {error && <div className="banner error">{error}</div>}
+    </section>
+  );
 }

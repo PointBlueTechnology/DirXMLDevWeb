@@ -878,6 +878,8 @@ public final class Api implements HttpHandler {
                     return credentials.list();
                 case "/api/credentials/secrets":
                     return credentials.secrets(required(query, "env"));
+                case "/api/credentials/problems":
+                    return credentials.problems();
                 default:
                     throw new TreeService.NotFound("no such endpoint: GET " + path);
             }
@@ -888,6 +890,10 @@ public final class Api implements HttpHandler {
                 return credentials.driverSets(req);
             case "/api/credentials/test":
                 return credentials.test(req);
+            case "/api/credentials/certificate":
+                return credentials.certificate(req);
+            case "/api/credentials/check":
+                return credentials.check(Json.asString(req.get("env")), !Boolean.FALSE.equals(req.get("fresh")));
             case "/api/credentials/resolve":
                 // a command typed into the page runs on this host as the server's user: that is the
                 // deployer's to do (#38); resolving a saved credential by its key stays open to editors

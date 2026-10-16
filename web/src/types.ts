@@ -1278,3 +1278,28 @@ export interface GitTokenHost {
   /** A command reference kept in the file but never run here: the person is not a deployer. */
   refused?: boolean;
 }
+
+/** Where a project pushes (GET /api/setup/repository). */
+export interface ProjectRepository {
+  project: string;
+  inPlace: boolean;
+  /** A repository this server made for the project (by an export from a vault, an upload…), not a remote. */
+  serverMade: boolean;
+  pushesTo: string | null;
+  base: string;
+  tree: string;
+  cases: string;
+  tokenSet: boolean;
+  provider: string | null;
+}
+
+/** POST /api/setup/repository/check: may the project move to the remote, and what moves. */
+export interface RepositoryCheck {
+  ok: boolean;
+  empty: boolean;
+  sameHistory: boolean;
+  branches: number;
+  tags: number;
+  unpushed: { person: string; branch: string; ahead: number; uncommitted: number; pushed: boolean }[];
+  message: string;
+}

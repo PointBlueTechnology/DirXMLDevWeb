@@ -9,10 +9,21 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Added
 
+- **The project's repository (Projects → Repository).** Shows where a project pushes, its base
+  branch, whether it has a token, and your own Git token (moved here from Connections). The Projects
+  view is now open to everyone on a hosted server; archive and remove stay deployers'.
+  - **Push this project to a remote…** (deployers) moves a project off the repository the server
+    made for it, as described in docs/hosted-mode.md: check the remote, list unpushed work, copy every
+    branch and tag, switch the project and every workspace, keep the old repository.
+  - **Change remote…** covers a remote that moved.
 - **Server addresses (#134).** A driver set on several servers lists them under **Edit → Servers**,
   each with the address it's reached at and whether it answers. Give a reachable address where the
   one on its server object doesn't work from here. It's saved as `servers=`, which the trace,
   import and deploy use. The list row says "2 servers, 1 unreachable".
+
+### Fixed
+
+- **Push** (nothing to commit, commits waiting) pushes. It used to fail with "a commit needs a message".
 
 ### Changed
 

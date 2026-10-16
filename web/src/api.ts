@@ -1,6 +1,6 @@
 import type { CacheView, CaseFiles, CasePlan, EventDetail, EventRow, EventsDescribe, TraceFileEntry, VaultPolicies, PolicyMembers, AppQueryResult, DriverHealth, LogLevel, DriverRights, DriverSetAdmin, EngineMetrics, WorkOrders, EmailServer, EngineInfo, DriverDetail, TraceShow, TraceTailResult, NamedPasswords, OperateOutcome, PullResult, NewProjectFields, ProjectExportResult, PullRequestInfo, PullRequestCreated, GitTokenHost } from "./types";
 import type { TraceRec } from "./trace/model";
-import type { AppSchema, Architecture, DevNode, DeployChoices, DriverAssociations, ObjectInspection, PasswordSync, VaultJobs, VaultSnapshot, SchemaDiffResult, ProjectArchive, ProjectArchiveResult, Artifact, AuditEntry, BuildResult, ConfigView, Connections, DeployResult, EnvSecrets, FetchResult, FormData as FormDoc, GitDiff, GitStatus, ImportResult, LifecycleResult, OpCall, OpResult, OpSpec, Outline, OverridesData, PackagePrompts, PackagesData, PrdData, RoleCatalog, SchemaActionResult, SchemaClass, SchemaData, Session, SetupResult, SimCaseFiles, SimCases, SimDetail, SimRun, SiteListing, TreeFile, UpdateSites, Validation, VaultDiffResult, VaultEnvironments, VaultStatus, VaultTask, VaultCertificate, SignInCheck, ServerAddress, WorkspacesInfo } from "./types";
+import type { AppSchema, Architecture, DevNode, DeployChoices, DriverAssociations, ObjectInspection, PasswordSync, VaultJobs, VaultSnapshot, SchemaDiffResult, ProjectArchive, ProjectArchiveResult, Artifact, AuditEntry, BuildResult, ConfigView, Connections, DeployResult, EnvSecrets, FetchResult, FormData as FormDoc, GitDiff, GitStatus, ImportResult, LifecycleResult, OpCall, OpResult, OpSpec, Outline, OverridesData, PackagePrompts, PackagesData, PrdData, RoleCatalog, SchemaActionResult, SchemaClass, SchemaData, Session, SetupResult, SimCaseFiles, SimCases, SimDetail, SimRun, SiteListing, TreeFile, UpdateSites, Validation, VaultDiffResult, VaultEnvironments, VaultStatus, VaultTask, VaultCertificate, SignInCheck, ServerAddress, ProjectRepository, RepositoryCheck, WorkspacesInfo } from "./types";
 import type { FishboneModel } from "./fishbone/types";
 
 /**
@@ -123,6 +123,12 @@ export const api = {
     /** Bundle the repository, move the project's data aside, forget it (deployers, #76). */
     archive: (project: string) => call<ProjectArchiveResult>("POST", "/api/setup/archive", { project }),
     archives: () => call<{ dir: string; archives: ProjectArchive[] }>("GET", "/api/setup/archives"),
+    /** Where a project pushes (docs/connections-ui.md, The project's repository); never a token. */
+    repository: (project: string) => call<ProjectRepository>("GET", `/api/setup/repository?project=${q(project)}`),
+    /** Can the project move to this remote: reachable, empty (or already this history), what isn't pushed yet. */
+    repositoryCheck: (project: string, url: string, token: string) => call<RepositoryCheck>("POST", "/api/setup/repository/check", { project, url, token }),
+    repositoryMove: (project: string, url: string, token: string, confirm: string) => call<{ ok: boolean; pushesTo: string; branches: number; tags: number; workspaces: number; kept: string }>("POST", "/api/setup/repository/move", { project, url, token, confirm }),
+    repositoryChange: (project: string, url: string, token: string, confirm: string) => call<{ ok: boolean; pushesTo: string; workspaces: number }>("POST", "/api/setup/repository/change", { project, url, token, confirm }),
     archiveFileUrl: (name: string) => `/api/setup/archive/file?name=${q(name)}${tokenForLink() ? `&token=${encodeURIComponent(tokenForLink())}` : ""}`,
     /** A Designer project (zip) or export (xml), streamed as the request body. */
     upload: async (project: string, kind: "project" | "export", file: File): Promise<SetupResult> => {

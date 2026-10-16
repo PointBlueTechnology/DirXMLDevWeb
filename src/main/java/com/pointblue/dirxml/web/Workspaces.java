@@ -220,6 +220,53 @@ public final class Workspaces {
         return git.remoteBranches(p.url);
     }
 
+    /**
+     * The person's own branches of a project: every workspace of theirs on this server, pushed or not (a branch
+     * started on the page lives only in its workspace until it is pushed, so the repository's list misses it).
+     * Each with {@code branch}, {@code pushed} (the repository has it) and {@code ahead} (commits not pushed).
+     */
+    public List<Map<String, Object>> yourBranches(String projectName, Session.Principal who) throws IOException {
+        List<Map<String, Object>> out = new ArrayList<>();
+        if (hosted == null || needsSetup() || who == null) {
+            return out;
+        }
+        Project p = project(projectName == null || projectName.isBlank() ? hosted.projects.keySet().iterator().next() : projectName);
+        if (p.inPlace != null) {
+            return out;
+        }
+        Path mine = hosted.dataDir.resolve("workspaces").resolve(safe(p.name)).resolve(safe(who.subject));
+        if (!Files.isDirectory(mine)) {
+            return out;
+        }
+        Git git = gitFor(p);
+        List<Path> dirs = new ArrayList<>();
+        try (var s = Files.list(mine)) {
+            s.filter(d -> Files.isDirectory(d.resolve(".git"))).sorted().forEach(dirs::add);
+        }
+        for (Path d : dirs) {
+            String branch = git.run(d, "rev-parse", "--abbrev-ref", "HEAD").out.trim();
+            if (branch.isEmpty() || branch.equals("HEAD")) {
+                continue;
+            }
+            boolean pushed = git.run(d, "rev-parse", "--verify", "--quiet", "refs/remotes/origin/" + branch).ok();
+            int ahead = 0;
+            Git.Result count = git.run(d, "rev-list", "--count", (pushed ? "origin/" + branch : "origin/" + p.base) + "..HEAD");
+            if (count.ok()) {
+                try {
+                    ahead = Integer.parseInt(count.out.trim());
+                } catch (NumberFormatException ignored) {
+                    // not a count: leave 0
+                }
+            }
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("branch", branch);
+            m.put("pushed", pushed);
+            m.put("ahead", ahead);
+            out.add(m);
+        }
+        return out;
+    }
+
     public Hosted config() {
         return hosted;
     }

@@ -928,6 +928,8 @@ export interface ConnectionEnv {
   trustAll: string | null;
   /** The pinned certificate's SHA-256 (docs/connections-ui.md), or null. */
   certSha256?: string | null;
+  /** `<serverDn>=<url>;…`: addresses given for the driver set's other servers. */
+  servers?: string | null;
   requires: string | null;
   sshHost: string | null;
   sshUser: string | null;
@@ -979,6 +981,21 @@ export interface SignInCheck {
   daysLeft?: number | null;
   graceRemaining?: number | null;
   checkedAt?: number;
+  /** A driver set on several servers: how many, and which this server can't reach (#134). */
+  servers?: number;
+  serversUnreachable?: string[];
+}
+
+/** One server of a driver set and the address it is reached at (GET /api/credentials/servers). */
+export interface ServerAddress {
+  dn: string;
+  name: string;
+  primary: boolean;
+  configured: string | null;
+  derived: string | null;
+  url: string | null;
+  reachable: boolean;
+  message?: string | null;
 }
 
 export interface Connections {

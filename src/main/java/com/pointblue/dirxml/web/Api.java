@@ -1324,8 +1324,27 @@ public final class Api implements HttpHandler {
             m.put("files", git.diff(w.root, ref, 200));
             return m;
         }
+        if (path.equals("/api/git/merge-into-base")) {
+            String why = mergeHereRefusal(w, project, git);
+            if (why != null) {
+                throw new TreeService.BadRequest(why);
+            }
+            if (method.equals("GET")) {
+                return git.mergePreview(w.root, base);
+            }
+            Map<String, Object> r = git.mergeInto(w.root, base, session.principal.name, session.principal.email);
+            audit.log(session, w, "merge-into-base", Map.of("branch", String.valueOf(r.get("branch")), "base", base),
+                Boolean.TRUE.equals(r.get("merged")) ? "ok" : "refused");
+            return r;
+        }
         if (method.equals("GET") && path.equals("/api/git/status")) {
             Map<String, Object> m = git.status(w.root, base);
+            if (Boolean.TRUE.equals(m.get("repository"))) {
+                // docs/git-workflow.md: merged on this page, or on the provider as a pull request
+                String why = mergeHereRefusal(w, project, git);
+                m.put("mergeHere", why == null);
+                m.put("mergeReason", why);
+            }
             if (base == null && Boolean.TRUE.equals(m.get("repository"))) {
                 // local mode: the branch the tree sits on is compared with main or master, whichever exists
                 for (String b : new String[] {"main", "master"}) {
@@ -1375,6 +1394,36 @@ public final class Api implements HttpHandler {
             }
         }
         throw new TreeService.NotFound("no such endpoint: " + method + " " + path);
+    }
+
+    /**
+     * Null when this workspace's branch can be merged into the project's base on this page (docs/git-workflow.md):
+     * hosted mode, a repository of the project's own (not a checkout in place), not the base itself, and a remote
+     * that is not on GitHub or GitLab — there a pull request is how a branch gets merged, with its reviews.
+     */
+    private String mergeHereRefusal(Workspace w, Project project, Git git) throws IOException {
+        if (project == null || !workspaces.hosted()) {
+            return "a checkout of your own: merge with git there";
+        }
+        if (project.inPlace != null) {
+            return "project '" + project.name + "' is a checkout in place: merge with git in it";
+        }
+        String branch = git.run(w.root, "rev-parse", "--abbrev-ref", "HEAD").out.trim();
+        if (project.base == null || project.base.equals(branch)) {
+            return "this is " + project.base + " itself: open the branch to merge into it";
+        }
+        Git.Result remote = git.run(w.root, "remote", "get-url", "origin");
+        PullRequests.Target t;
+        try {
+            t = PullRequests.target(remote.ok() ? remote.out.trim() : null, project.provider, project.apiUrl);
+        } catch (IllegalArgumentException e) {
+            t = null;
+        }
+        if (t != null) {
+            return "the repository is on " + t.provider().label + ": merge with a " + (t.provider() == PullRequests.Provider.GITLAB ? "merge" : "pull")
+                + " request there, where its reviews and rules apply";
+        }
+        return null;
     }
 
     /** The vault and server fields {@code export-project --new} takes (never a password: there is no field for one). */

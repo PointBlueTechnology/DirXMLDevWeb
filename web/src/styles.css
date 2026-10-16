@@ -680,6 +680,12 @@ textarea {
 .modal.prdialog .checkchip {
   align-self: flex-start;
 }
+.modal.prdialog .mergelist {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  max-height: 240px;
+  overflow: auto;
+}
 .modal.prdialog textarea {
   width: 100%;
   font-family: var(--mono, ui-monospace, monospace);

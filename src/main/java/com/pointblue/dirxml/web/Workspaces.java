@@ -140,6 +140,8 @@ public final class Workspaces {
 
                 w.traces = new TraceFiles(hosted.users.dir(who).resolve("traces").resolve(safe(p.name)));
                 w.vault.setEnvironmentFilter(p.environments);
+                // a checkout in place: production from the base branch too, pushed and current when it has a remote
+                w.vault.setProductionSource(p.base, () -> gitFor(p).productionSource(p.inPlace, p.base));
                 open.put(id, w);
             }
             return w;
@@ -160,6 +162,8 @@ public final class Workspaces {
 
         w.traces = new TraceFiles(hosted.users.dir(who).resolve("traces").resolve(safe(p.name)));
         w.vault.setEnvironmentFilter(p.environments);
+        Path root = dir;
+        w.vault.setProductionSource(p.base, () -> gitFor(p).productionSource(root, p.base));
         open.put(id, w);
         return w;
     }

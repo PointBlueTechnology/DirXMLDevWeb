@@ -51,6 +51,27 @@ export interface GitStatus {
   remote?: string | null;
   base?: string | null;
   compareUrl?: string | null;
+  /** docs/git-workflow.md: this branch can be merged into the base on this page (no GitHub or GitLab), else why not. */
+  mergeHere?: boolean;
+  mergeReason?: string | null;
+}
+
+/** What merging the open branch into the base would carry (GET /api/git/merge-into-base). */
+export interface MergePreview {
+  branch: string;
+  base: string;
+  commits: { hash: string; author: string; subject: string }[];
+  files: { status: string; file: string }[];
+  /** Commits on the base this branch lacks: the merge would hold content no environment tested. */
+  behind: number;
+  uncommitted: number;
+}
+
+export interface MergeResult {
+  merged: boolean;
+  message: string;
+  commit?: string;
+  conflicts?: string[];
 }
 
 export interface ArtifactNode {

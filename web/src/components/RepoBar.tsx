@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { GIT_CHANGED, api } from "../api";
 import type { GitStatus, PullRequestInfo, Selection, Session, WorkspacesInfo } from "../types";
+import { MergeDialog } from "./MergeDialog";
 import { PullRequestDialog } from "./PullRequestDialog";
 
 /**
@@ -35,6 +36,8 @@ export function RepoBar({ session, revision, onWorkspaceChanged, onBusy, onAddPr
   // changes, not on every tree change: each ask is a call to the provider (or its CLI).
   const [pr, setPr] = useState<PullRequestInfo | null>(null);
   const [prOpen, setPrOpen] = useState(false);
+  // docs/git-workflow.md: a repository with no GitHub or GitLab in front of it is merged on this page
+  const [mergeOpen, setMergeOpen] = useState(false);
   // hosted: the provider's API; a local install: gh or glab (P3)
   const prKey = status?.repository && status.base && status.branch !== status.base ? `${status.branch}|${status.upstream ?? ""}|${status.ahead ?? 0}` : "";
   useEffect(() => {
@@ -90,6 +93,19 @@ export function RepoBar({ session, revision, onWorkspaceChanged, onBusy, onAddPr
     run("Updating…", async () => {
       const r = await api.git.update(status?.base ?? undefined);
       return { ok: r.merged, text: r.message };
+    });
+  const openBase = (base: string) =>
+    run("Opening…", async () => {
+      setMergeOpen(false);
+      onBusy(`Opening ${base} — cloning it on the server the first time…`);
+      try {
+        await api.openWorkspace(base, project || undefined);
+      } catch (e) {
+        onBusy(null);
+        throw e;
+      }
+      onWorkspaceChanged();
+      return { ok: true, text: `opened ${project ? project + " / " : ""}${base}` };
     });
   const openBranch = () =>
     run("Opening…", async () => {
@@ -219,8 +235,18 @@ export function RepoBar({ session, revision, onWorkspaceChanged, onBusy, onAddPr
             {changed === 0 && status.ahead ? "Push" : "Commit & push"}
           </button>
           {status.base && status.base !== status.branch && (
-            <button onClick={update} disabled={busy !== null} title={`git merge origin/${status.base}`}>
+            <button onClick={update} disabled={busy !== null} title={`Bring what ${status.base} holds now into this branch (git merge origin/${status.base})`}>
               Update from {status.base}
+            </button>
+          )}
+          {status.base && status.base === status.branch && status.upstream && (
+            <button onClick={update} disabled={busy !== null} title={`What others merged into ${status.base} since this copy was taken (git pull)`} data-testid="repo-get-latest">
+              Get latest {status.base}
+            </button>
+          )}
+          {status.mergeHere && (session.user.editor || session.user.deployer) && status.base && status.base !== status.branch && (
+            <button onClick={() => setMergeOpen(true)} disabled={busy !== null || changed > 0} title={changed > 0 ? "Commit first: a merge carries commits" : `Merge this branch into ${status.base} on the repository`} data-testid="repo-merge">
+              Merge into {status.base}…
             </button>
           )}
           {pr?.request ? (
@@ -240,6 +266,14 @@ export function RepoBar({ session, revision, onWorkspaceChanged, onBusy, onAddPr
             )
           )}
         </>
+      )}
+      {mergeOpen && (
+        <MergeDialog
+          userName={session.user.name}
+          onClose={() => setMergeOpen(false)}
+          onMerged={(r) => (setNote({ ok: true, text: r.message }), load())}
+          onOpenBase={openBase}
+        />
       )}
       {prOpen && pr && (
         <PullRequestDialog

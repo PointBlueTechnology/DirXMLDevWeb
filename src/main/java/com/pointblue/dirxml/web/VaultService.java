@@ -46,6 +46,18 @@ public final class VaultService {
     /** The environments this tree is deployed to (hosted: the project's list); empty = every one the file names. */
     private volatile List<String> environmentFilter = List.of();
 
+    private String productionBase;
+    private java.util.concurrent.Callable<String> productionSource;
+
+    /**
+     * A project's workspace: production deploys come from {@code base} only, and {@code check} says why this checkout
+     * may not deploy to production (not on {@code base}, unpushed, behind), or null. Unset: any branch (local mode).
+     */
+    public void setProductionSource(String base, java.util.concurrent.Callable<String> check) {
+        this.productionBase = base;
+        this.productionSource = check;
+    }
+
     public void setEnvironmentFilter(List<String> names) {
         this.environmentFilter = names == null ? List.of() : List.copyOf(names);
     }
@@ -243,6 +255,18 @@ public final class VaultService {
         Deployer.Options o = options(envName, drivers, choices);
         o.progress = progress;
         String refusal = gate(o.env.name, confirm);
+        if (refusal == null && o.env.tier == Environments.Tier.PRD && productionBase != null) {
+            // docs/git-workflow.md: production takes what the project's base branch holds on the repository
+            o.baseBranch = productionBase;
+            progress.accept("checking that this is " + productionBase + " as the repository has it");
+            try {
+                refusal = productionSource.call();
+            } catch (IOException | RuntimeException e) {
+                throw e;
+            } catch (Exception e) {
+                throw new IOException(e);
+            }
+        }
         if (refusal != null) {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("ok", false);

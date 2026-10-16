@@ -7,6 +7,20 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- **Production from any branch, per vault.** A project with only a production vault has nowhere to
+  try a change before merging it. Tick **deploy from any branch, not only main** under **More
+  settings** on a production vault (`<env>.fromAnyBranch=true`, deployers). That vault then takes
+  deploys from any branch. Committed work, the typed name and a known state are still required
+  (docs/git-workflow.md, "Only one environment").
+
+### Changed
+
+- **The tutorial ends with docs/git-workflow.md as the next step.**
+- **docs/hosted.md's "As built" box** now covers projects, server-made repositories, merging on the
+  page, and production from the base branch.
+
 ## [0.62.0] - 2026-10-16
 
 Needs DirXMLDev 0.44.0.

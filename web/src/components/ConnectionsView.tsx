@@ -434,6 +434,7 @@ function AddVault({ data, deployer, onDone, onCancel }: { data: Connections; dep
     eventsTable: "",
     eventsTree: "",
     eventsPseudonymise: false,
+    fromAnyBranch: false,
   });
   const [store, setStore] = useState<Store>({ kind: data.keychain && references ? "keychain" : "file", ref: "" });
   const [more, setMore] = useState(false);
@@ -527,6 +528,7 @@ function AddVault({ data, deployer, onDone, onCancel }: { data: Connections; dep
       eventsTable: f.eventsTable,
       eventsTree: f.eventsTree,
       eventsPseudonymise: f.eventsPseudonymise ? "true" : "",
+      fromAnyBranch: f.tier === "prd" && f.fromAnyBranch ? "true" : "",
     };
     const mine: Record<string, unknown> = { name: f.name, bindDn: f.bindDn, trustAll: false, passwordStore: storeArg(store), ...(isRef(store) ? {} : { password: f.password }) };
     setBusy("Saving…");
@@ -629,7 +631,7 @@ function AddVault({ data, deployer, onDone, onCancel }: { data: Connections; dep
       <h4 className="clickable" onClick={() => setMore(!more)} data-testid="conn-more">
         {more ? "▾" : "▸"} More settings <span className="muted small">optional: deploy order, trace over SSH, event store</span>
       </h4>
-      {more && <MoreSettings f={f} onChange={(p) => set(p)} />}
+      {more && <MoreSettings f={f} onChange={(p) => set(p)} tier={f.tier} />}
 
       <div className="addrow">
         <button className="primary" onClick={save} disabled={busy !== null} data-testid="conn-save">
@@ -642,11 +644,19 @@ function AddVault({ data, deployer, onDone, onCancel }: { data: Connections; dep
   );
 }
 
-type MoreFields = { requires: string; sshHost: string; sshUser: string; eventsUrl: string; eventsUser: string; eventsTable: string; eventsTree: string; eventsPseudonymise: boolean };
+type MoreFields = { requires: string; sshHost: string; sshUser: string; eventsUrl: string; eventsUser: string; eventsTable: string; eventsTree: string; eventsPseudonymise: boolean; fromAnyBranch: boolean };
 
-function MoreSettings({ f, onChange, others }: { f: MoreFields; onChange: (p: Partial<MoreFields>) => void; others?: string[] }) {
+function MoreSettings({ f, onChange, others, tier }: { f: MoreFields; onChange: (p: Partial<MoreFields>) => void; others?: string[]; tier?: string }) {
   return (
     <div data-testid="conn-more-settings">
+      {tier === "prd" && (
+        <div className="attrs">
+          <label className="checkchip" title="Without it, a production deploy comes from the project's base branch (main) as the repository holds it: merged, pushed and current">
+            <input type="checkbox" checked={f.fromAnyBranch} onChange={(e) => onChange({ fromAnyBranch: e.target.checked })} data-testid="conn-from-any-branch" /> deploy from any branch, not only main
+          </label>
+          <span className="muted small">For a project with no other environment to try a change in first.</span>
+        </div>
+      )}
       <div className="attrs">
         <label className="field">
           <em>Deploy order: deploy to … first</em>
@@ -1025,7 +1035,7 @@ function ServersSection({ env, data, onSaved }: { env: ConnectionEnv; data: Conn
 }
 
 function MoreSection({ env, data, onSaved }: { env: ConnectionEnv; data: Connections; onSaved: () => void }) {
-  const has = !!(env.requires || env.sshHost || env.sshUser || env.eventsUrl);
+  const has = !!(env.requires || env.sshHost || env.sshUser || env.eventsUrl || env.fromAnyBranch === "true");
   const [open, setOpen] = useState(has);
   const [f, setF] = useState<MoreFields>({
     requires: env.requires ?? "",
@@ -1036,11 +1046,12 @@ function MoreSection({ env, data, onSaved }: { env: ConnectionEnv; data: Connect
     eventsTable: env.eventsTable ?? "",
     eventsTree: env.eventsTree ?? "",
     eventsPseudonymise: env.eventsPseudonymise === "true",
+    fromAnyBranch: env.fromAnyBranch === "true",
   });
   const [evPassword, setEvPassword] = useState("");
   const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
   const save = () => {
-    const def = { name: env.name, ...f, eventsPseudonymise: f.eventsPseudonymise ? "true" : "" };
+    const def = { name: env.name, ...f, eventsPseudonymise: f.eventsPseudonymise ? "true" : "", fromAnyBranch: env.tier === "prd" && f.fromAnyBranch ? "true" : "" };
     const first = !data.split ? api.connections.save(def) : env.own ? api.connections.saveMine(def) : api.connections.save(def);
     first
       .then(() => (evPassword ? (data.split ? api.connections.saveMine({ name: env.name, eventsPasswordStore: "file", eventsPassword: evPassword }) : api.connections.save({ name: env.name, eventsPasswordStore: "file", eventsPassword: evPassword })) : null))
@@ -1050,11 +1061,11 @@ function MoreSection({ env, data, onSaved }: { env: ConnectionEnv; data: Connect
   return (
     <div>
       <h4 className="clickable" onClick={() => setOpen(!open)}>
-        {open ? "▾" : "▸"} More settings <span className="muted small">deploy order, trace over SSH, event store</span>
+        {open ? "▾" : "▸"} More settings <span className="muted small">{env.tier === "prd" ? "deploy from any branch, " : ""}deploy order, trace over SSH, event store</span>
       </h4>
       {open && (
         <>
-          <MoreSettings f={f} onChange={(p) => setF({ ...f, ...p })} others={data.environments.map((e) => e.name).filter((n) => n !== env.name)} />
+          <MoreSettings f={f} onChange={(p) => setF({ ...f, ...p })} others={data.environments.map((e) => e.name).filter((n) => n !== env.name)} tier={env.tier ?? undefined} />
           {(f.eventsUrl || env.eventsUrl) && (
             <div className="attrs">
               <label className="field">

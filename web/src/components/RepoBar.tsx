@@ -142,7 +142,7 @@ export function RepoBar({ session, revision, onWorkspaceChanged, onBusy, onAddPr
       {hosted && (
         <span className="branchpick">
           <strong>{session.branch ?? "no branch open"}</strong>
-          <button className="link" onClick={() => setOpen(!open)} data-testid="repo-switch">
+          <button className="link" onClick={() => (!open && load(), setOpen(!open))} data-testid="repo-switch">
             {session.branch ? "switch" : "open a branch"}
           </button>
           {open && (
@@ -156,11 +156,26 @@ export function RepoBar({ session, revision, onWorkspaceChanged, onBusy, onAddPr
                 data-testid="repo-branch-select"
               >
                 <option value="">branch…</option>
-                {(info?.branches ?? []).map((b) => (
-                  <option key={b} value={b}>
-                    {b}
-                  </option>
-                ))}
+                {(info?.yours ?? []).length > 0 && (
+                  <optgroup label="Your branches">
+                    {(info?.yours ?? []).map((y) => (
+                      <option key={"y" + y.branch} value={y.branch}>
+                        {y.branch}
+                        {y.branch === session.branch ? " (open)" : ""}
+                        {!y.pushed ? " (not pushed)" : y.ahead > 0 ? ` (${y.ahead} commit${y.ahead === 1 ? "" : "s"} not pushed)` : ""}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                <optgroup label="On the repository">
+                  {(info?.branches ?? [])
+                    .filter((b) => !(info?.yours ?? []).some((y) => y.branch === b))
+                    .map((b) => (
+                      <option key={b} value={b}>
+                        {b}
+                      </option>
+                    ))}
+                </optgroup>
                 <option value={NEW}>new branch…</option>
               </select>
               {pick === NEW && <input value={branch} onChange={(e) => setBranch(e.target.value)} placeholder={`name (starts from ${info?.base ?? "main"})`} spellCheck={false} autoFocus data-testid="repo-branch" />}

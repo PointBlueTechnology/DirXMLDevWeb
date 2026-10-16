@@ -9,6 +9,13 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Fixed
 
+- **The branch switcher lists your own branches, not only the repository's.**
+  - A branch started on the page lives only in your workspace until it's pushed, so it was missing
+    from the list, and the only way back to it was typing its name.
+  - The switcher now shows **Your branches** first, marked "not pushed" or "N commits not pushed",
+    then the rest under **On the repository**.
+  - The list refreshes each time the switcher opens.
+
 - **"Merge it into this branch" after a capture, and "Update from <base>", work in the container.**
   git there has no identity, so the merge commit was refused, and the page reported "conflicts in
   0 file(s)". Merges now carry the signed-in person's name and email, as commits already did. A

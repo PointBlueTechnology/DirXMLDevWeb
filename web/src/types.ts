@@ -35,6 +35,8 @@ export interface WorkspacesInfo {
   repository?: string;
   base?: string;
   branches?: string[];
+  /** The person's own branches (their workspaces on the server), pushed or not. */
+  yours?: { branch: string; pushed: boolean; ahead: number }[];
 }
 
 export interface GitStatus {

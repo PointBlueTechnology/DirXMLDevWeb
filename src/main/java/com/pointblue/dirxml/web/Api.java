@@ -1332,7 +1332,7 @@ public final class Api implements HttpHandler {
                     if (b == null || !b.matches("as-found/[A-Za-z0-9._-]+/[A-Za-z0-9._:-]+")) {
                         throw new TreeService.BadRequest("only a captured as-found/<env>/<time> branch can be merged here");
                     }
-                    Map<String, Object> r = git.mergeLocal(w.root, b);
+                    Map<String, Object> r = git.mergeLocal(w.root, b, session.principal.name, session.principal.email);
                     audit.log(session, w, "merge-captured", Map.of("branch", b), Boolean.TRUE.equals(r.get("merged")) ? "ok" : "conflict");
                     return r;
                 }
@@ -1341,7 +1341,7 @@ public final class Api implements HttpHandler {
                     if (b == null || b.isBlank()) {
                         throw new TreeService.BadRequest("which branch to update from?");
                     }
-                    Map<String, Object> r = git.update(w.root, b);
+                    Map<String, Object> r = git.update(w.root, b, session.principal.name, session.principal.email);
                     audit.log(session, w, "update", Map.of("from", b), Boolean.TRUE.equals(r.get("merged")) ? "ok" : "conflict");
                     return r;
                 }

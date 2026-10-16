@@ -7,6 +7,13 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- **Server addresses (#134).** A driver set on several servers lists them under **Edit → Servers**,
+  each with the address it's reached at and whether it answers. Give a reachable address where the
+  one on its server object doesn't work from here. It's saved as `servers=`, which the trace,
+  import and deploy use. The list row says "2 servers, 1 unreachable".
+
 ### Changed
 
 - **The Connections page, rebuilt** (#131, docs/connections-ui.md).

@@ -31,9 +31,9 @@ public final class CredentialService {
 
     private static final Pattern NAME = Pattern.compile("[A-Za-z0-9][A-Za-z0-9_.-]*");
     /** Properties of an environment the page may set, besides the password. */
-    private static final List<String> FIELDS = List.of("url", "bindDn", "driverSet", "tier", "trustAll", "certSha256", "servers", "requires", "sshHost", "sshUser", "secrets", "eventsUrl", "eventsUser", "eventsTable", "eventsPseudonymise", "eventsTree");
+    private static final List<String> FIELDS = List.of("url", "bindDn", "driverSet", "tier", "trustAll", "certSha256", "servers", "requires", "sshHost", "sshUser", "secrets", "eventsUrl", "eventsUser", "eventsTable", "eventsPseudonymise", "eventsTree", "fromAnyBranch");
     /** With two files (docs/multi-user.md): the project's definition holds these… */
-    private static final List<String> DEFINITION_FIELDS = List.of("url", "driverSet", "tier", "certSha256", "servers", "requires", "sshHost", "sshUser", "secrets", "eventsUrl", "eventsUser", "eventsTable", "eventsPseudonymise", "eventsTree");
+    private static final List<String> DEFINITION_FIELDS = List.of("url", "driverSet", "tier", "certSha256", "servers", "requires", "sshHost", "sshUser", "secrets", "eventsUrl", "eventsUser", "eventsTable", "eventsPseudonymise", "eventsTree", "fromAnyBranch");
     /** …and a person's credential holds these, plus the password. */
     private static final List<String> CREDENTIAL_FIELDS = List.of("bindDn", "trustAll");
     private static final String KEYCHAIN_PREFIX = "idm-";

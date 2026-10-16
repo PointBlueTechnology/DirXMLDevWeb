@@ -960,6 +960,8 @@ export interface ConnectionEnv {
   eventsTable: string | null;
   eventsPseudonymise: string | null;
   eventsTree: string | null;
+  /** "true": production deploys from any branch, not only the base (one environment; docs/git-workflow.md). */
+  fromAnyBranch?: string | null;
   /** How the password is configured: literal, env, command, keychain, or null for none. */
   password: string | null;
   /** How the event store's password is configured, the same way; null for none. */

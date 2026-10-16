@@ -163,6 +163,14 @@ public class LocalSetupTest {
     }
 
     @Test
+    public void tokensAreAlwaysFortyAlphanumerics() {
+        for (int i = 0; i < 500; i++) {
+            String t = LocalSetup.newToken();
+            assertTrue(t, t.matches("[A-Za-z0-9]{40}"));
+        }
+    }
+
+    @Test
     public void theTemplatesAreInTheJar() throws Exception {
         assertTrue(LocalSetup.template("compose.yml").contains("container_name: idmweb"));
         assertTrue(LocalSetup.template("compose.podman.yml").contains("keep-id"));

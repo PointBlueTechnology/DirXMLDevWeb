@@ -10,7 +10,6 @@ import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.security.SecureRandom;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -293,10 +292,15 @@ public final class LocalSetup {
         return values.get("IDMWEB_TOKEN");
     }
 
+    /** 40 characters from A–Z, a–z, 0–9 (about 238 bits): always the same length, safe in a URL and a shell. */
     static String newToken() {
-        byte[] b = new byte[24];
-        new SecureRandom().nextBytes(b);
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(b).replace("-", "").replace("_", "");
+        String alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+        SecureRandom r = new SecureRandom();
+        StringBuilder sb = new StringBuilder(40);
+        for (int i = 0; i < 40; i++) {
+            sb.append(alphabet.charAt(r.nextInt(alphabet.length())));
+        }
+        return sb.toString();
     }
 
     /**

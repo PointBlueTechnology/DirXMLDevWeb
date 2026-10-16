@@ -28,15 +28,23 @@ import java.util.function.Consumer;
  * the page filters. Each record goes to the page as JSON with its highlighting runs computed here.
  *
  * <p>Certificates: the library asks a prompt about an LDAPS certificate the JVM does not trust.
- * Here the answer comes from the environment: {@code trustAll} accepts it for this run, otherwise
- * it is refused, which is what the vault connections of the core do as well.
+ * Here the answer comes from the environment: its pinned certificate ({@code certSha256}) or
+ * {@code trustAll} accepts it for this run, otherwise it is refused, which is what the vault
+ * connections of the core do as well.
  */
 public final class TraceService {
     /** host:port of the servers whose environment says trustAll. */
     private static final Set<String> TRUSTED = ConcurrentHashMap.newKeySet();
 
+    /** host:port → the certificate SHA-256 its environment pins ({@code certSha256}, docs/connections-ui.md). */
+    private static final java.util.Map<String, String> PINS = new ConcurrentHashMap<>();
+
     static {
-        CertificateTrust.setPrompt(req -> TRUSTED.contains(req.host() + ":" + req.port()) ? CertificateTrust.Decision.ONCE : CertificateTrust.Decision.REJECT);
+        CertificateTrust.setPrompt(req -> {
+            String key = req.host() + ":" + req.port();
+            return TRUSTED.contains(key) || com.pointblue.dirxml.dev.deploy.PinnedTrust.matches(PINS.get(key), req.certificate())
+                ? CertificateTrust.Decision.ONCE : CertificateTrust.Decision.REJECT;
+        });
     }
 
     /** One server to stream from: the name the records carry, and its LDAP URL. */
@@ -67,6 +75,9 @@ public final class TraceService {
                 ConnectionSettings settings = settings(env, s.url());
                 if (env.trustAll) {
                     TRUSTED.add(settings.host() + ":" + settings.port());
+                }
+                if (env.certSha256 != null) {
+                    PINS.put(settings.host() + ":" + settings.port(), env.certSha256);
                 }
                 TraceParser parser = new TraceParser();
                 LdapTraceEventSource source = new LdapTraceEventSource(settings, s.name());

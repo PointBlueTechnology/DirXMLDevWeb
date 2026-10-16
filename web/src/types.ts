@@ -926,6 +926,8 @@ export interface ConnectionEnv {
   driverSet: string | null;
   tier: string | null;
   trustAll: string | null;
+  /** The pinned certificate's SHA-256 (docs/connections-ui.md), or null. */
+  certSha256?: string | null;
   requires: string | null;
   sshHost: string | null;
   sshUser: string | null;
@@ -948,6 +950,35 @@ export interface ConnectionEnv {
   own?: boolean;
   /** Two files only: the person has a bind DN and a password source for it. */
   connected?: boolean;
+}
+
+/** A vault's certificate, as the server sees it (SignIn.probe): ok false when the vault can't be reached. */
+export interface VaultCertificate {
+  ok: boolean;
+  message?: string;
+  subject?: string;
+  issuer?: string;
+  notBefore?: string;
+  notAfter?: string;
+  sha256?: string;
+  /** Trusted by the server as is (its certificate authorities, the host name). */
+  trusted?: boolean;
+  problem?: string | null;
+}
+
+/** A sign-in's outcome (SignIn.check): what the list, the forms and the top bar show. */
+export interface SignInCheck {
+  env?: string;
+  state: "ok" | "rejected" | "certificate" | "unreachable" | "error" | "not-signed-in";
+  message: string | null;
+  reason?: string | null;
+  sha256?: string | null;
+  subject?: string | null;
+  pinned?: string | null;
+  passwordExpires?: string | null;
+  daysLeft?: number | null;
+  graceRemaining?: number | null;
+  checkedAt?: number;
 }
 
 export interface Connections {

@@ -225,14 +225,19 @@ committed stays as it was. The bar then offers **Push**: choose it so that other
   state into this branch…** on the Compare tab shows what would change in your tree, and Apply
   writes it there for you to commit.
 
-## Next
+## Next: work with branches and environments
+
+You changed `main` directly and deployed to one vault. Real work goes differently: each change on
+a branch of its own, deployed to dev, merged into `main`, then promoted to test and production.
+[git-workflow.md](git-workflow.md) walks through that, and through setting up the environments of
+one driver set. Read it next.
+
+Also:
 
 - The same steps from the command line run in your workspace of the branch you have open:
   `docker exec idmweb idm vault.diff tree --env lab` compares, and
   `docker exec idmweb idm vault.deploy tree --env lab --dry-run` plans a deploy.
 - Add the engine jars to the folder's `lib/` for the compile checks and the simulator
   ([quickstart.md](quickstart.md#4-optional-the-engine-jars)).
-- [git-workflow.md](git-workflow.md): branches, dev, test and production of one driver set,
-  promotion, merging into main, and where the repository lives.
 - [features.md](features.md) lists every view.
 - [hosted-install.md](hosted-install.md) is the same server for a team.

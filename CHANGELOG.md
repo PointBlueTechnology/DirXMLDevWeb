@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.63.0] - 2026-10-16
+
+Needs DirXMLDev 0.44.0.
+
 ### Added
 
 - **Production from any branch, per vault.** A project with only a production vault has nowhere to

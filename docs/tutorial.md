@@ -54,40 +54,49 @@ Open the link. With no tree yet, the page asks where the tree comes from:
 ![The first-run page: Where does the tree come from?](screenshots/tutorial/01-first-run.png)
 
 Type a **project name** (this tutorial uses `idm-lab`), then choose **Export from an Identity
-Vault**. The page says there is no vault connection yet; follow its **Set up one** link.
+Vault**. The page says there is no vault connection yet; follow its **Set one up** link.
 
 ## 3. Connect to the vault
 
-A connection has two halves. The *environment* says where the vault is. It is shared by everyone
-on a project. *Your connection* says who you bind as. It is yours alone.
+The **Connections** page opens. Choose **Add a vault**. The form asks for things in the order they
+depend on each other, and only the first four steps are required.
 
-**The environment.** Choose **New environment** and fill in:
+**1. Where it is.** Type the vault's **Address**, its LDAPS URL. The page reads the vault's
+certificate straight away:
 
-- **Name**: a short name such as `lab`. You type it later to confirm a deploy.
-- **Tier**: `dev` for a lab.
-- **Vault URL**: the vault's LDAPS URL.
-- **Driver set DN**: the driver set to work on. Once your connection works (below), **Look up**
-  under *Definition* lists the driver sets the vault holds.
+- If this server already trusts the certificate, a green line says so. Carry on.
+- If not (a lab, or a vault with its own certificate authority), the page shows who the certificate
+  names, who issued it, when it expires, and its **SHA-256 fingerprint**. Check the fingerprint with
+  whoever runs the vault, then choose **Trust this certificate**. That pins exactly this certificate
+  for this vault. If it ever changes, the page refuses it and shows both fingerprints until someone
+  trusts the new one.
 
-Leave the rest (SSH host, event store) empty, and **Save**.
+![Add a vault: the address, and a certificate this server doesn't trust yet](screenshots/tutorial/03-new-environment.png)
 
-![New environment: name, tier, vault URL and driver set DN](screenshots/tutorial/03-new-environment.png)
+**2. How you sign in.** Give your **Account DN** and **Password**, then choose **Test sign-in**.
+The password is stored for you only, in a file readable by you alone, and never shown again. **Use
+a secret manager instead** reads it from a secret manager or an environment variable
+([secret-managers.md](secret-managers.md)). A failed test says why in plain words: wrong password,
+vault unreachable, or certificate not trusted.
 
-**Your connection.** The environment now shows *not connected*. Choose **Set up…** on its row and
-give:
+![The certificate pinned, and the sign-in fields](screenshots/tutorial/04-my-connection.png)
 
-- **Bind DN**: your account in the vault.
-- **Accept any certificate**: tick it only for a lab vault, or a tunnel, whose certificate your
-  machine does not trust. Leave it clear for anything real.
-- **Password**: type it into the password field, and keep "keep it in the environments file". The
-  file is readable by you alone, and the page never shows the password again. The other choices
-  read it from an environment variable or a secret manager ([secret-managers.md](secret-managers.md)).
+**3. Which driver set.** Once the test passes, the vault's driver sets are listed. Choose the one
+to work on. **Type a DN instead** is there if you'd rather type it.
 
-![Your own connection: bind DN, certificate trust and password](screenshots/tutorial/04-my-connection.png)
+**4. Name it.** A short **Name** such as `lab`; you type it later to confirm a deploy. The
+**Kind**: *dev* for a lab, *test*, or *production*.
 
-Choose **Test connection**, then **Save**. The row turns *connected*:
+**More settings** (deploy order, trace over SSH, the event store) is optional; leave it closed.
+Choose **Save vault**. The vault appears in the list, and its sign-in is checked:
 
-![The environment is connected](screenshots/tutorial/05-connected.png)
+![The vault in the list: connected](screenshots/tutorial/05-connected.png)
+
+Each vault in the list shows one status and one action. When a password is rotated, its row
+turns **password rejected** with an **Update password** button, and the top bar shows it too.
+Update password tests the new password before it replaces the old one.
+
+Go back to setup (**← back to setup**).
 
 ## 4. Read the driver set into a project
 
@@ -167,12 +176,16 @@ the writes, type the environment's name, then choose **Deploy to lab**:
 
 ![The plan, and the environment's name typed to allow the deploy](screenshots/tutorial/15-plan.png)
 
-The deploy does four things:
+The deploy does four things, and the page shows each one as it happens, with a running clock.
+It's slowest while it waits for the driver to restart:
 
 1. It takes a snapshot of what it is about to change.
 2. It writes the policy.
 3. It restarts the driver.
 4. It compares again to verify the vault matches the tree.
+
+You can leave the page while it runs. Coming back to **Compare & deploy** shows the deploy still
+running, or its result.
 
 ![Deployed: the vault matches the tree](screenshots/tutorial/16-deployed.png)
 

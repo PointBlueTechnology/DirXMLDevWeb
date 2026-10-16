@@ -126,8 +126,69 @@ Edit shows the environment's sections stacked, in this order:
 6. **Remove this vault** (deployers), at the bottom. It needs the name typed to confirm, as a
    deploy does.
 
-**Git tokens** leave this page. They belong to repositories, not vaults, so they move to the project
-picker's repository settings, with the page linking there.
+**Git tokens** leave this page. They belong to repositories, not vaults, so they move to the
+project's repository settings (next section), with this page linking there.
+
+## The project's repository
+
+**Why.** A project made on the page (by exporting from a vault, uploading a Designer project or
+export, or using a directory) gets a repository the server creates, `data/projects/<name>.git`.
+Every workspace pushes there. Jerry's PROD is one. Nothing on the page shows where a project pushes,
+and nothing moves it to GitHub or GitLab later. Today that takes a `push --mirror`, a hand-edited
+`hosted.properties`, a restart, and `git remote set-url` in every workspace.
+
+**Where.** Projects view → a project → **Repository**. The project picker links there with
+**Repository settings…**, and so does the Connections page. Deployers can change anything here;
+everyone else sees it read-only, apart from their own token.
+
+**What it shows**, required first:
+
+1. **Pushes to:** the remote, shown plainly: "A repository on this server" for one the server
+   made, otherwise the URL (`https://github.com/org/prod-idm`), with a link to open it on the
+   provider.
+2. **Base branch:** `main`. This is where new branches start from and what pull requests target.
+3. **Project token:** whether one is set (never its value), with **Replace**. It's the token the
+   server uses to push, and to open pull requests for people without their own.
+4. **Your Git token** (moved from Connections): yours for this provider host, so pull requests you
+   open are yours. It works the same way as before.
+5. **More settings** (optional, collapsed): pull-request provider and API when the host isn't
+   recognised; the tree and cases paths.
+
+**Push this project to a remote…** (deployers). This is for a project on a server-made repository,
+or one moving to a new remote.
+
+1. **Remote URL:** the new repository, which must be empty.
+2. **Token:** one that can push. It's stored as the project token, owner-only, never shown again.
+   Rotation follows *Rotated passwords*: a rejected token is shown as **token rejected**, with
+   **Replace token**.
+3. **Check:** reach the remote with the token and confirm it's empty, or that it already holds
+   exactly this history. A non-empty remote with other history is refused and named.
+4. **What moves:** a summary to confirm before anything happens.
+   - "N branches, N tags, from the server's repository."
+   - Any **work not yet pushed**: each workspace with unpushed commits or uncommitted files, by
+     person and branch (for example "jerry: ad-runbook, 1 commit not pushed").
+
+   Nothing in a workspace is lost. Each workspace's remote is switched as well, so unpushed commits
+   can still be pushed afterwards and uncommitted files stay where they are. They're listed so
+   people know where their work is.
+5. **Move:**
+   - mirror every branch and tag to the remote, then verify it holds every branch's commit;
+   - switch the project to the remote (`project.<name>.repo.url` and its token) without a restart;
+   - point every workspace's `origin` at it;
+   - keep the server-made repository as `data/projects/<name>.git.moved-<date>`, which is never
+     deleted by the page.
+
+   If any step fails, the project stays on the old repository and the page says which step failed.
+6. **Done:** "PROD now pushes to github.com/org/prod-idm", and every person's next page load says
+   the same.
+
+**Change remote…** (deployers) covers a repository that has moved, such as a renamed GitHub
+organization. It takes a new URL and an optional new token, checks that the new remote holds the
+project's base branch, then switches the project and its workspaces the same way. Nothing is
+mirrored.
+
+**Who sees what moved.** Each move is one audit line, naming the old and new remote. Nothing about
+the project's tree, deploy records or environments changes.
 
 ## Rotated passwords
 
@@ -257,7 +318,15 @@ keeps `trustAll` for tunnels and throwaway labs and documents pinning first.
    It uses the probe and the existing save calls.
 3. **Web, servers:** the server addresses in More settings and Edit (#134's web half), with the
    reachability check.
-4. **Git tokens** move to the repository settings.
+4. **Web, the project's repository:**
+   - the Repository section (what it pushes to, base branch, project token, your Git token, moved
+     from Connections);
+   - **Push this project to a remote…**: mirror, verify, switch the project and every workspace's
+     origin without a restart, keep the old repository;
+   - **Change remote…**.
+
+   Tests use a bare "remote" and workspaces with unpushed commits and uncommitted files, checking
+   nothing is lost and every origin is switched.
 
 Each step is its own PR, released when it lands.
 
@@ -276,5 +345,8 @@ Each step is its own PR, released when it lands.
   - a mistyped new password leaves the old one in place.
 - An account within 14 days of its password expiring shows **expires in N days**; one on grace
   logins shows **N grace logins left**.
+- A deployer moves PROD from the server's repository to an empty private GitHub repository from
+  the page. Every branch and tag arrives. Jerry's unpushed `ad-runbook` commit is listed before the
+  move and can be pushed after it. No restart is needed, and the old repository is kept.
 - Every control that can't be used yet says why, on the page.
 - Required fields come before optional ones in every form. Sign-in comes before the driver set.

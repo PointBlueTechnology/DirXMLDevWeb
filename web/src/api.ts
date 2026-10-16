@@ -1,4 +1,4 @@
-import type { CacheView, CaseFiles, CasePlan, EventDetail, EventRow, EventsDescribe, TraceFileEntry, VaultPolicies, PolicyMembers, AppQueryResult, DriverHealth, LogLevel, DriverRights, DriverSetAdmin, EngineMetrics, WorkOrders, EmailServer, EngineInfo, DriverDetail, TraceShow, TraceTailResult, NamedPasswords, OperateOutcome, PullResult, NewProjectFields, ProjectExportResult, PullRequestInfo, PullRequestCreated, GitTokenHost } from "./types";
+import type { CacheView, CaseFiles, CasePlan, EventDetail, EventRow, EventsDescribe, TraceFileEntry, VaultPolicies, PolicyMembers, AppQueryResult, DriverHealth, LogLevel, DriverRights, DriverSetAdmin, EngineMetrics, WorkOrders, EmailServer, EngineInfo, DriverDetail, TraceShow, TraceTailResult, NamedPasswords, OperateOutcome, PullResult, NewProjectFields, ProjectExportResult, PullRequestInfo, PullRequestCreated, GitTokenHost, MergePreview, MergeResult } from "./types";
 import type { TraceRec } from "./trace/model";
 import type { AppSchema, Architecture, DevNode, DeployChoices, DriverAssociations, ObjectInspection, PasswordSync, VaultJobs, VaultSnapshot, SchemaDiffResult, ProjectArchive, ProjectArchiveResult, Artifact, AuditEntry, BuildResult, ConfigView, Connections, DeployResult, EnvSecrets, FetchResult, FormData as FormDoc, GitDiff, GitStatus, ImportResult, LifecycleResult, OpCall, OpResult, OpSpec, Outline, OverridesData, PackagePrompts, PackagesData, PrdData, RoleCatalog, SchemaActionResult, SchemaClass, SchemaData, Session, SetupResult, SimCaseFiles, SimCases, SimDetail, SimRun, SiteListing, TreeFile, UpdateSites, Validation, VaultDiffResult, VaultEnvironments, VaultStatus, VaultTask, VaultCertificate, SignInCheck, ServerAddress, ProjectRepository, RepositoryCheck, WorkspacesInfo } from "./types";
 import type { FishboneModel } from "./fishbone/types";
@@ -152,6 +152,10 @@ export const api = {
     /** Commit the deploy record (deploy-log/) alone, the rest of the work left uncommitted (#128). */
     commitRecord: (message: string) => call<{ committed: boolean; hash?: string; message?: string }>("POST", "/api/git/commit", { message, push: false, record: true }),
     update: (base?: string) => call<{ merged: boolean; message: string; conflicts?: string[] }>("POST", "/api/git/update", base ? { base } : {}),
+    /** docs/git-workflow.md: what merging this branch into the base would carry. */
+    mergePreview: () => call<MergePreview>("GET", "/api/git/merge-into-base"),
+    /** Merge this branch into the base on the repository (pushed); a conflict merges nothing. */
+    mergeIntoBase: () => call<MergeResult>("POST", "/api/git/merge-into-base", {}),
     /** Merge a captured as-found/<env>/<time> branch (vault.deploy --capture-drift) into this branch. */
     mergeCaptured: (branch: string) => call<{ merged: boolean; message: string; conflicts?: string[] }>("POST", "/api/git/merge-captured", { branch }),
     /** #35: the branch's open request, or whether one can be created through the provider's API. */

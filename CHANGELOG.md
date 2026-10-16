@@ -7,6 +7,45 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+Needs DirXMLDev 0.44.0.
+
+### Added
+
+- **Merge into main** (docs/git-workflow.md). A branch of a repository with no GitHub or GitLab in
+  front of it (one the server made, or plain git) is merged into the project's base branch from the
+  bar.
+  - The dialog lists the commits and files the branch carries. It warns when the base branch has
+    commits the branch lacks, because then the merge holds content no environment has tested.
+  - The merge is made with your name and pushed. Your checkout stays on its branch, and **Open
+    main** takes you there.
+  - A conflict merges nothing and lists the files; Update from main on the branch resolves it.
+  - On GitHub or GitLab, branches are still merged there as pull requests, with their reviews.
+- **Get latest main.** On the base branch, the bar brings in what others merged since your copy
+  was taken.
+
+### Changed
+
+- **Production deploys come from the base branch, as the repository has it.** A deploy to a
+  production-kind vault is refused when:
+  - the open branch isn't the project's base branch (usually main);
+  - it has commits not pushed;
+  - the base has moved on since your copy was taken.
+
+  Test and dev deploys are unchanged: any branch.
+
+### Fixed
+
+- **"Requires a green test deploy" refused after "Commit the deploy record".** A production
+  deploy whose content was deployed to test now passes, even though committing the record made a
+  new commit (DirXMLDev 0.44.0).
+- **Deploy logs merge without conflicts.** Two branches that both deployed used to conflict in
+  `deploy-log/<env>.jsonl` when merged. Every checkout now merges them line by line, as a new
+  import's `.gitattributes` also says.
+- **Update from main** fetched the base branch into nothing the merge could see in a checkout
+  cloned for an existing branch. It now fetches it by name.
+- **The production tag on the Vault page was never red** (it checked for `prod`; the tier is
+  `prd`).
+
 ## [0.61.0] - 2026-10-16
 
 Needs DirXMLDev 0.43.0.

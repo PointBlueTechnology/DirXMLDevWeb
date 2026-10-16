@@ -880,6 +880,8 @@ public final class Api implements HttpHandler {
                     return credentials.secrets(required(query, "env"));
                 case "/api/credentials/problems":
                     return credentials.problems();
+                case "/api/credentials/servers":
+                    return credentials.servers(required(query, "env"));
                 default:
                     throw new TreeService.NotFound("no such endpoint: GET " + path);
             }

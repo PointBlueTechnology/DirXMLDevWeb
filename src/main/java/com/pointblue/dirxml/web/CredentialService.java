@@ -31,9 +31,9 @@ public final class CredentialService {
 
     private static final Pattern NAME = Pattern.compile("[A-Za-z0-9][A-Za-z0-9_.-]*");
     /** Properties of an environment the page may set, besides the password. */
-    private static final List<String> FIELDS = List.of("url", "bindDn", "driverSet", "tier", "trustAll", "certSha256", "requires", "sshHost", "sshUser", "secrets", "eventsUrl", "eventsUser", "eventsTable", "eventsPseudonymise", "eventsTree");
+    private static final List<String> FIELDS = List.of("url", "bindDn", "driverSet", "tier", "trustAll", "certSha256", "servers", "requires", "sshHost", "sshUser", "secrets", "eventsUrl", "eventsUser", "eventsTable", "eventsPseudonymise", "eventsTree");
     /** With two files (docs/multi-user.md): the project's definition holds these… */
-    private static final List<String> DEFINITION_FIELDS = List.of("url", "driverSet", "tier", "certSha256", "requires", "sshHost", "sshUser", "secrets", "eventsUrl", "eventsUser", "eventsTable", "eventsPseudonymise", "eventsTree");
+    private static final List<String> DEFINITION_FIELDS = List.of("url", "driverSet", "tier", "certSha256", "servers", "requires", "sshHost", "sshUser", "secrets", "eventsUrl", "eventsUser", "eventsTable", "eventsPseudonymise", "eventsTree");
     /** …and a person's credential holds these, plus the password. */
     private static final List<String> CREDENTIAL_FIELDS = List.of("bindDn", "trustAll");
     private static final String KEYCHAIN_PREFIX = "idm-";
@@ -356,9 +356,97 @@ public final class CredentialService {
         Vault.Config c = e.vaultConfig();
         m.putAll(scrubbed(com.pointblue.dirxml.dev.deploy.SignIn.check(c).json(), c.password));
         m.put("env", env);
+        if ("ok".equals(m.get("state"))) {
+            // a driver set on several servers: how many of the others this server can reach (#134)
+            try {
+                List<Map<String, Object>> servers = serverRows(e);
+                if (servers.size() > 1) {
+                    List<String> down = new ArrayList<>();
+                    for (Map<String, Object> r : servers) {
+                        if (!Boolean.TRUE.equals(r.get("reachable"))) {
+                            down.add(String.valueOf(r.get("name")));
+                        }
+                    }
+                    m.put("servers", servers.size());
+                    m.put("serversUnreachable", down);
+                }
+            } catch (RuntimeException ignored) {
+                // the summary is extra: the sign-in answer stands
+            }
+        }
         m.put("checkedAt", System.currentTimeMillis());
         CHECKS.put(key, m);
         return m;
+    }
+
+    /**
+     * The driver set's servers (#134, docs/connections-ui.md): each with the address it is reached at (the
+     * environment's {@code servers=} entry, else the one derived from its server object; the connection's own
+     * server is the environment's URL), and whether a connection to that address opens within three seconds.
+     */
+    public Map<String, Object> servers(String env) throws IOException {
+        Environments.Environment e = files.load().get(nameOk(env));
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("env", env);
+        m.put("servers", serverRows(e));
+        return m;
+    }
+
+    private static List<Map<String, Object>> serverRows(Environments.Environment e) {
+        Map<String, String> configured = com.pointblue.dirxml.dev.deploy.Servers.urls(e);
+        List<Map<String, Object>> rows = new ArrayList<>();
+        try (Vault v = Vault.connect(e.vaultConfig())) {
+            String primary = com.pointblue.dirxml.dev.deploy.Servers.primary(v);
+            for (String dn : com.pointblue.dirxml.dev.deploy.Servers.serverList(v, e.driverSetDn)) {
+                Map<String, Object> r = new LinkedHashMap<>();
+                boolean isPrimary = primary != null && primary.equalsIgnoreCase(dn);
+                String mine = null;
+                for (Map.Entry<String, String> c : configured.entrySet()) {
+                    if (c.getKey().equalsIgnoreCase(dn)) {
+                        mine = c.getValue();
+                    }
+                }
+                String derived = null;
+                try {
+                    derived = com.pointblue.dirxml.dev.deploy.Servers.deriveUrl(v, dn);
+                } catch (RuntimeException ignored) {
+                    // no address on the server object
+                }
+                String used = isPrimary ? e.url : mine != null ? mine : derived;
+                r.put("dn", dn);
+                r.put("name", dn.replaceFirst("^[^=]+=", "").replaceFirst(",.*$", ""));
+                r.put("primary", isPrimary);
+                r.put("configured", mine);
+                r.put("derived", derived);
+                r.put("url", used);
+                if (isPrimary) {
+                    r.put("reachable", true);
+                } else if (used == null) {
+                    r.put("reachable", false);
+                    r.put("message", "No address: give one.");
+                } else {
+                    String why = reach(used);
+                    r.put("reachable", why == null);
+                    r.put("message", why);
+                }
+                rows.add(r);
+            }
+        }
+        return rows;
+    }
+
+    /** Null when a TCP connection to the URL's host and port opens within three seconds, else why not. */
+    static String reach(String url) {
+        try {
+            java.net.URI u = java.net.URI.create(url.contains("://") ? url : "ldaps://" + url);
+            int port = u.getPort() > 0 ? u.getPort() : "ldap".equalsIgnoreCase(u.getScheme()) ? 389 : 636;
+            try (java.net.Socket s = new java.net.Socket()) {
+                s.connect(new java.net.InetSocketAddress(u.getHost(), port), 3000);
+            }
+            return null;
+        } catch (Exception ex) {
+            return "Can't reach " + url + ": " + (ex.getMessage() == null ? ex.getClass().getSimpleName() : ex.getMessage());
+        }
     }
 
     /** The person's environments whose sign-in needs them: rejected, certificate, unreachable, or expiring soon. */

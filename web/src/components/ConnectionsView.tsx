@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api";
-import type { ConnectionEnv, Connections, EnvSecrets, SignInCheck, VaultCertificate } from "../types";
+import type { ConnectionEnv, Connections, EnvSecrets, ServerAddress, SignInCheck, VaultCertificate } from "../types";
 import { ManagerPicker } from "./ManagerPicker";
 import { GitTokensPanel } from "./GitTokensPanel";
 
@@ -179,6 +179,11 @@ export function ConnectionsView({ initialEnv, deployer }: { initialEnv: string |
                     {e.url ?? <span className="muted">no address</span>}
                     {e.driverSet && <span className="muted"> · {e.driverSet.replace(/,.*$/, "").replace(/^cn=/i, "")}</span>}
                     {e.trustAll === "true" && <div className="warn-text small">accepts any certificate: pin it under Edit</div>}
+                    {c && c !== "checking" && (c.servers ?? 0) > 1 && (
+                      <div className={(c.serversUnreachable?.length ?? 0) > 0 ? "warn-text small" : "muted small"}>
+                        {c.servers} servers{(c.serversUnreachable?.length ?? 0) > 0 ? `, ${c.serversUnreachable!.length} unreachable (${c.serversUnreachable!.join(", ")})` : ""}
+                      </div>
+                    )}
                   </td>
                   <td>
                     <span className={pillClass(s.tone)} title={[s.detail, checkedAt ? `checked at ${checkedAt}` : null].filter(Boolean).join(" · ")} data-testid={"conn-status-" + e.name}>
@@ -731,6 +736,7 @@ function EditVault({
       </div>
       <SignInSection env={env} data={data} deployer={deployer} check={check} focusPassword={focus === "password"} onSaved={onSaved} />
       <div ref={vaultRef}>{canDefine && <VaultSection env={env} data={data} deployer={deployer} onSaved={onSaved} />}</div>
+      {canDefine && <ServersSection env={env} data={data} onSaved={onSaved} />}
       {canDefine && (deployer || !split) && <SecretsPanel key={"s" + env.name} env={env.name} keychain={data.keychain} helpers={data.helpers} />}
       {canDefine && <MoreSection env={env} data={data} onSaved={onSaved} />}
       <RemoveSection env={env} split={split} canDefine={canDefine} onRemoved={onRemoved} />
@@ -924,6 +930,98 @@ function VaultSection({ env, data, deployer, onSaved }: { env: ConnectionEnv; da
         {busy && <span className="muted">{busy}</span>}
       </div>
       {note && <p className={note.ok ? "ok-text small" : "err-text small"}>{note.text}</p>}
+    </div>
+  );
+}
+
+/**
+ * The driver set's servers (#134): the connection's own server is reached at the environment's address; each other
+ * at the address its server object names, which is often internal, unless one is given here (saved as servers=).
+ */
+function ServersSection({ env, data, onSaved }: { env: ConnectionEnv; data: Connections; onSaved: () => void }) {
+  const [rows, setRows] = useState<ServerAddress[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [given, setGiven] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState(false);
+  const load = () => {
+    setError(null);
+    api.connections
+      .servers(env.name)
+      .then((r) => {
+        setRows(r.servers);
+        const g: Record<string, string> = {};
+        for (const s of r.servers) {
+          if (s.configured) {
+            g[s.dn] = s.configured;
+          }
+        }
+        setGiven(g);
+      })
+      .catch((e: Error) => setError(e.message));
+  };
+  useEffect(load, [env.name, env.servers]);
+  if (error) {
+    return (
+      <div>
+        <h4>Servers</h4>
+        <p className="muted small">Sign in first to see the driver set's servers. ({error})</p>
+      </div>
+    );
+  }
+  if (!rows || rows.length < 2) {
+    return null;
+  }
+  const save = () => {
+    const value = rows
+      .filter((s) => !s.primary && (given[s.dn] ?? "").trim())
+      .map((s) => `${s.dn}=${given[s.dn]!.trim()}`)
+      .join(";");
+    setBusy(true);
+    const req = { name: env.name, servers: value };
+    (!data.split ? api.connections.save(req) : env.own ? api.connections.saveMine(req) : api.connections.save(req))
+      .then(() => (load(), onSaved()))
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setBusy(false));
+  };
+  return (
+    <div data-testid="conn-servers">
+      <h4>Servers</h4>
+      <p className="muted small">The driver set runs on {rows.length} servers. Each one is reached at its own address for the trace, an import and a deploy; give a reachable one where the address its server object names doesn't work from here.</p>
+      <table className="grid">
+        <thead>
+          <tr>
+            <th>Server</th>
+            <th>Address</th>
+            <th />
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((s) => (
+            <tr key={s.dn}>
+              <td>
+                {s.name}
+                {s.primary && <span className="muted small"> (this connection)</span>}
+              </td>
+              <td>
+                {s.primary ? (
+                  <code className="small">{s.url}</code>
+                ) : (
+                  <input className="wide" value={given[s.dn] ?? ""} onChange={(e) => setGiven({ ...given, [s.dn]: e.target.value })} placeholder={s.derived ?? "ldaps://host:636"} spellCheck={false} data-testid={"conn-server-" + s.name} />
+                )}
+              </td>
+              <td>{s.reachable ? <span className="pill ok">reachable</span> : <span className="pill warn" title={s.message ?? ""}>unreachable</span>}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div className="addrow">
+        <button onClick={save} disabled={busy} data-testid="conn-servers-save">
+          Save addresses
+        </button>
+        <button className="link" onClick={load}>
+          Check again
+        </button>
+      </div>
     </div>
   );
 }

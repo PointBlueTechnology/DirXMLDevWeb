@@ -38,6 +38,9 @@ public final class Git {
     private final Path sshKey;      // an SSH deploy key for a git@ remote, or null
     private final Path knownHosts;
 
+    /** For tests: environment for every git call (a git with no identity, as in the image). */
+    final Map<String, String> extraEnv = new java.util.HashMap<>();
+
     public Git(Path dataDir, String token) throws IOException {
         this(dataDir, token, null);
     }
@@ -68,6 +71,7 @@ public final class Git {
         Map<String, String> env = pb.environment();
         env.put("GIT_TERMINAL_PROMPT", "0");
         env.put("LC_ALL", "C");
+        env.putAll(extraEnv);
         if (askpass != null) {
             env.put("GIT_ASKPASS", askpass.toString());
             env.put("IDMWEB_GIT_TOKEN", token);
@@ -326,31 +330,39 @@ public final class Git {
 
     /** Bring the base branch's latest into this one; a conflict is reported with its files and left as is. */
     public Map<String, Object> update(Path dir, String base) throws IOException {
+        return update(dir, base, null, null);
+    }
+
+    /** As above, the merge commit by {@code authorName <authorEmail>} (git in a container has no identity of its own). */
+    public Map<String, Object> update(Path dir, String base, String authorName, String authorEmail) throws IOException {
         must(run(dir, "fetch", "origin", base), "fetch");
-        Result merge = run(dir, "merge", "--no-edit", "origin/" + base);
-        Map<String, Object> m = new LinkedHashMap<>();
-        if (merge.ok()) {
-            m.put("merged", true);
-            m.put("message", merge.out.trim().isEmpty() ? "up to date" : merge.out.trim().split("\n")[0]);
-            return m;
-        }
-        List<String> conflicts = new ArrayList<>();
-        for (String line : run(dir, "diff", "--name-only", "--diff-filter=U").out.split("\n")) {
-            if (!line.isBlank()) {
-                conflicts.add(line.trim());
-            }
-        }
-        run(dir, "merge", "--abort");
-        m.put("merged", false);
-        m.put("conflicts", conflicts);
-        m.put("message", "merging origin/" + base + " conflicts in " + conflicts.size() + " file(s); the merge was abandoned, resolve it in a checkout");
-        return m;
+        return merge(dir, "origin/" + base, null, authorName, authorEmail);
     }
 
     /** Merge a local branch (a captured as-found state) into the current one; on conflicts the merge is abandoned and they are listed. */
     public Map<String, Object> mergeLocal(Path dir, String branch) throws IOException {
+        return mergeLocal(dir, branch, null, null);
+    }
+
+    public Map<String, Object> mergeLocal(Path dir, String branch, String authorName, String authorEmail) throws IOException {
         must(run(dir, "rev-parse", "--verify", "--quiet", "refs/heads/" + branch), "find branch " + branch);
-        Result merge = run(dir, "merge", "--no-edit", "-m", "Take the vault's captured state (" + branch + ")", branch);
+        return merge(dir, branch, "Take the vault's captured state (" + branch + ")", authorName, authorEmail);
+    }
+
+    /**
+     * {@code git merge} with an identity for the merge commit: without one, git in the image refuses ("unable to
+     * auto-detect email address") and the merge looked like a conflict in no file. On a real conflict the merge is
+     * abandoned and the files are listed; any other failure says what git said.
+     */
+    private Map<String, Object> merge(Path dir, String ref, String message, String authorName, String authorEmail) throws IOException {
+        List<String> args = new ArrayList<>(List.of("-c", "user.name=" + (authorName == null ? "DirXMLDevWeb" : authorName),
+            "-c", "user.email=" + (authorEmail == null ? "idmweb@localhost" : authorEmail), "merge", "--no-edit"));
+        if (message != null) {
+            args.add("-m");
+            args.add(message);
+        }
+        args.add(ref);
+        Result merge = run(dir, args.toArray(new String[0]));
         Map<String, Object> m = new LinkedHashMap<>();
         if (merge.ok()) {
             m.put("merged", true);
@@ -366,7 +378,12 @@ public final class Git {
         run(dir, "merge", "--abort");
         m.put("merged", false);
         m.put("conflicts", conflicts);
-        m.put("message", "merging " + branch + " conflicts in " + conflicts.size() + " file(s); the merge was abandoned, resolve it in a checkout");
+        if (conflicts.isEmpty()) {
+            String why = (merge.err.isBlank() ? merge.out : merge.err).trim();
+            m.put("message", "merging " + ref + " failed: " + (why.isEmpty() ? "git gave no reason" : why));
+        } else {
+            m.put("message", "merging " + ref + " conflicts in " + conflicts.size() + " file(s); the merge was abandoned, resolve it in a checkout");
+        }
         return m;
     }
 

@@ -145,7 +145,7 @@ public final class TraceService {
         }
         for (String f : failed) {
             sink.accept(Map.of("error", "not streaming from " + f + " — the other servers stream on. A server is reached at the address its"
-                + " server object names; give a reachable one in the environment's servers= setting (dn=ldaps://host:636;…), or pick one server."));
+                + " server object names; give a reachable one under Connections → Edit → Servers (the environment's servers= setting), or pick one server."));
         }
         return started;
     }

@@ -153,6 +153,8 @@ export const api = {
     commitRecord: (message: string) => call<{ committed: boolean; hash?: string; message?: string }>("POST", "/api/git/commit", { message, push: false, record: true }),
     /** One uncommitted file back to the last commit, or removed when it is new. */
     discard: (file: string) => call<{ discarded: boolean; message: string }>("POST", "/api/git/discard", { file }),
+    /** Some of a file's uncommitted blocks back to the last commit: the file as the page settled on it. */
+    discardBlocks: (file: string, content: string) => call<{ discarded: boolean; message: string }>("POST", "/api/git/discard", { file, content }),
     update: (base?: string) => call<{ merged: boolean; message: string; conflicts?: string[] }>("POST", "/api/git/update", base ? { base } : {}),
     /** docs/git-workflow.md: what merging this branch into the base would carry. */
     mergePreview: () => call<MergePreview>("GET", "/api/git/merge-into-base"),

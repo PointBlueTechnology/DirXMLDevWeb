@@ -30,9 +30,14 @@ Needs DirXMLDev 0.46.0.
     - Lines wrap, so long values are readable.
   - **Deploys stay whole:** a deploy still covers its whole scope, so the vault always matches a
     commit.
-- **Discard one file's change.** In **Changes**, on *since the last commit*, **discard…** puts the
-  selected file back as the last commit has it, or removes it when it's new. You're asked once more
-  first, and a rename gets its old name back.
+- **Discard one file's change, or some of its blocks.** In **Changes**, on *since the last commit*:
+  - **discard…** puts the selected file back as the last commit has it, or removes it when it's new.
+    You're asked once more first, and a rename gets its old name back.
+  - **Block by block:** the right side is your working file. The arrow beside a block puts the last
+    commit's lines back there, and the right side can be edited. **Save** writes it, or **start
+    over** drops your choices. A result the tree can't read is refused, and nothing is written.
+- **Merge views stay side by side.** Both the update dialog and Changes used to switch to an inline
+  diff in narrow space; the arrows need side by side.
 
 ### Fixed
 

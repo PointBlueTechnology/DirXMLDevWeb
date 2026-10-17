@@ -396,6 +396,45 @@ public final class Git {
         return m;
     }
 
+    /**
+     * Some of a file's uncommitted blocks put back as the last commit has them: the file is written with the text the
+     * page settled on. It must be a file with an uncommitted change, inside the checkout, and the tree must still read
+     * with it (a trial copy is read first; nothing is written when it doesn't).
+     */
+    public Map<String, Object> discardBlocks(java.nio.file.Path root, java.nio.file.Path treeDir, String file, String content) throws IOException {
+        if (file == null || file.isBlank() || file.startsWith("/") || file.contains("..") || file.contains("\\")) {
+            throw new TreeService.BadRequest("which file? (a path inside the checkout)");
+        }
+        java.nio.file.Path target = root.resolve(file).normalize();
+        if (!target.startsWith(root.normalize()) || !java.nio.file.Files.isRegularFile(target)) {
+            throw new TreeService.BadRequest(file + ": not a file in the checkout");
+        }
+        if (run(root, "status", "--porcelain=v1", "--", file).out.isBlank()) {
+            throw new TreeService.BadRequest(file + " has no uncommitted change to discard");
+        }
+        String text = content == null ? "" : content;
+        java.nio.file.Path tree = treeDir.normalize();
+        if (target.startsWith(tree) && java.nio.file.Files.isRegularFile(tree.resolve(com.pointblue.dirxml.dev.ascode.AsCodeWriter.DRIVERSET_MANIFEST))) {
+            java.nio.file.Path trial = java.nio.file.Files.createTempDirectory("idmweb-discard-");
+            try {
+                TreeService.copyTree(tree, trial);
+                java.nio.file.Files.writeString(trial.resolve(tree.relativize(target).toString()), text, StandardCharsets.UTF_8);
+                com.pointblue.dirxml.dev.ascode.AsCodeReader.read(trial);
+            } catch (IOException | RuntimeException e) {
+                String why = String.valueOf(e.getMessage()).replace(trial.toString() + "/", "").replace(trial.toString(), "");
+                throw new TreeService.BadRequest("with those blocks discarded the tree can't be read (" + e.getClass().getSimpleName() + ": " + why + "); nothing was written");
+            } finally {
+                TreeService.deleteTree(trial);
+            }
+        }
+        java.nio.file.Files.writeString(target, text, StandardCharsets.UTF_8);
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("file", file);
+        m.put("discarded", true);
+        boolean clean = run(root, "status", "--porcelain=v1", "--", file).out.isBlank();
+        m.put("message", clean ? file + " is back to the last commit" : "the chosen blocks of " + file + " are back to the last commit; the rest of its change stays");
+        return m;
+    }
     /** Bring the base branch's latest into this one; a conflict is reported with its files and left as is. */
     public Map<String, Object> update(Path dir, String base) throws IOException {
         return update(dir, base, null, null);

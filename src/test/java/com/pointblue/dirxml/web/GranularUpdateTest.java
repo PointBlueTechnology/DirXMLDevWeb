@@ -116,6 +116,43 @@ public class GranularUpdateTest {
         }
     }
 
+    /** Some blocks of a file put back as the last commit has them, the rest of its change kept; a broken result is refused. */
+    @Test
+    public void someBlocksAreDiscardedAndTheRestStays() throws Exception {
+        Git git = new Git(tmp.newFolder("data3").toPath(), null);
+        Path repo = tmp.newFolder("repo3").toPath();
+        Path tree = repo.resolve("tree");
+        AsCodeWriter.write(model("a1", "b1"), tree);
+        assertTrue(git.run(repo, "init", "-q", "-b", "main").ok());
+        git.commit(repo, "seed", "me", "me@localhost", false);
+        String file = "tree/drivers/A/config-values.xml";
+        String committed = Files.readString(repo.resolve(file));
+        String working = committed.replace("a1", "a2").replace("display-name=\"v\"", "display-name=\"w\"");
+        Files.writeString(repo.resolve(file), working, StandardCharsets.UTF_8);
+
+        // keep the value change, put the display name back
+        String chosen = committed.replace("a1", "a2");
+        Map<String, Object> r = git.discardBlocks(repo, tree, file, chosen);
+        assertEquals(Boolean.TRUE, r.get("discarded"));
+        assertEquals(chosen, Files.readString(repo.resolve(file)));
+        assertTrue(String.valueOf(r.get("message")), String.valueOf(r.get("message")).contains("the rest of its change stays"));
+
+        try {
+            git.discardBlocks(repo, tree, file, "<configuration-values><definitions>");
+            throw new AssertionError("a broken result was written");
+        } catch (TreeService.BadRequest expected) {
+            assertTrue(expected.getMessage(), expected.getMessage().startsWith("with those blocks discarded the tree can't be read"));
+        }
+        assertEquals(chosen, Files.readString(repo.resolve(file)));
+        git.discardBlocks(repo, tree, file, committed);
+        try {
+            git.discardBlocks(repo, tree, file, committed);
+            throw new AssertionError("a file with no uncommitted change was accepted");
+        } catch (TreeService.BadRequest expected) {
+            // nothing to discard
+        }
+    }
+
     @Test
     public void aDiscardPutsOneFileBackOrRemovesANewOne() throws Exception {
         Git git = new Git(tmp.newFolder("data").toPath(), null);

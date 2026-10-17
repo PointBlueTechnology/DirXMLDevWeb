@@ -7,6 +7,43 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.66.0] - 2026-10-17
+
+Needs DirXMLDev 0.46.0.
+
+### Added
+
+- **A granular update from the vault.** **Update this branch from <env>…** gives each file a tick.
+  - **Untick** a file to leave it as the branch has it. **all** and **none** pick quickly.
+  - **Apply** says "Apply N of M files".
+  - **Manifests:** taking a manifest (`driverset.xml`, a driver's `driver.xml`) apart from the files
+    it lists is warned about. A choice that would leave the tree unreadable is refused, and nothing is
+    written.
+  - **Line-level merge within a file.** The left side is your branch, and the right side is what
+    Apply writes, starting as the vault's version.
+    - The arrow beside each changed block keeps your branch's lines there, and the right side can be
+      edited.
+    - A merged file is marked in the list. **take all of <env>'s** and **keep all of this branch**
+      start a file over.
+    - Apply writes the merged text. A merge that would leave the tree unreadable (for example, broken
+      XML) is refused.
+    - Lines wrap, so long values are readable.
+  - **Deploys stay whole:** a deploy still covers its whole scope, so the vault always matches a
+    commit.
+- **Discard one file's change, or some of its blocks.** In **Changes**, on *since the last commit*:
+  - **discard…** puts the selected file back as the last commit has it, or removes it when it's new.
+    You're asked once more first, and a rename gets its old name back.
+  - **Block by block:** the right side is your working file. The arrow beside a block puts the last
+    commit's lines back there, and the right side can be edited. **Save** writes it, or **start
+    over** drops your choices. A result the tree can't read is refused, and nothing is written.
+- **Merge views stay side by side.** Both the update dialog and Changes used to switch to an inline
+  diff in narrow space; the arrows need side by side.
+
+### Fixed
+
+- **The update dialog's title** still said "Take <env>'s state into this branch". It now says
+  "Update this branch from <env>", like its button.
+
 ## [0.65.0] - 2026-10-17
 
 Needs DirXMLDev 0.46.0.

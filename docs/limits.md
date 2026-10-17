@@ -16,6 +16,8 @@
 - *Update this branch from <environment>…* writes files only. A driver's empty policy folder
   (`publisher/`, `subscriber/`) that `idm import-live` creates is not made, since git does not keep
   empty folders. A partial pull rewrites only the named drivers' folders and the set's manifest.
+  Ticking files picks among those the review listed; it can't take part of one file. A deploy
+  always takes the whole scope (a driver or the set): the vault matches a commit, never part of one.
 - The trace view reads over the environment's LDAPS connection and keeps the last 5,000 lines.
 - The simulator view creates plain cases (a driver, a channel, an input document). A case's
   other keys (schema, a fake directory, assertions, a live query source) are honoured when run

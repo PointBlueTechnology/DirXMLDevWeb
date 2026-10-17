@@ -7,6 +7,29 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.66.0] - 2026-10-17
+
+Needs DirXMLDev 0.46.0.
+
+### Added
+
+- **A granular update from the vault.** **Update this branch from <env>…** gives each file a tick.
+  - **Untick** a file to leave it as the branch has it. **all** and **none** pick quickly.
+  - **Apply** says "Apply N of M files".
+  - **Manifests:** taking a manifest (`driverset.xml`, a driver's `driver.xml`) apart from the files
+    it lists is warned about. A choice that would leave the tree unreadable is refused, and nothing is
+    written.
+  - **Deploys stay whole:** a deploy still covers its whole scope, so the vault always matches a
+    commit.
+- **Discard one file's change.** In **Changes**, on *since the last commit*, **discard…** puts the
+  selected file back as the last commit has it, or removes it when it's new. You're asked once more
+  first, and a rename gets its old name back.
+
+### Fixed
+
+- **The update dialog's title** still said "Take <env>'s state into this branch". It now says
+  "Update this branch from <env>", like its button.
+
 ## [0.65.0] - 2026-10-17
 
 Needs DirXMLDev 0.46.0.

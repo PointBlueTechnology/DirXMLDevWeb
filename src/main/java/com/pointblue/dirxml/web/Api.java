@@ -730,7 +730,9 @@ public final class Api implements HttpHandler {
                         service.requireRevision(Json.asString(req.get("revision"))); // before minutes of reading the vault
                     }
                     com.pointblue.dirxml.dev.model.DriverSet live = vault.liveForPull(env, notes);
-                    return service.pull(live, vault.environmentName(env), stringList(req.get("drivers")), dryRun, Json.asString(req.get("revision")), notes);
+                    // "files": take only those of the reviewed files (a granular update), the rest of the tree as it is
+                    java.util.List<String> only = req.get("files") instanceof java.util.List<?> ? stringList(req.get("files")) : null;
+                    return service.pull(live, vault.environmentName(env), stringList(req.get("drivers")), dryRun, Json.asString(req.get("revision")), notes, only);
                 }
                 case "/api/vault/resync":
                     return vault.resync(env, Json.asString(req.get("driver")), Json.asString(req.get("since")), Json.asString(req.get("confirm")));
@@ -1383,6 +1385,13 @@ public final class Api implements HttpHandler {
                     }
                     Map<String, Object> r = git.mergeLocal(w.root, b, session.principal.name, session.principal.email);
                     audit.log(session, w, "merge-captured", Map.of("branch", b), Boolean.TRUE.equals(r.get("merged")) ? "ok" : "conflict");
+                    return r;
+                }
+                case "/api/git/discard": {
+                    // one uncommitted file back to the last commit (or gone, when the last commit hasn't it)
+                    String f = Json.asString(req.get("file"));
+                    Map<String, Object> r = git.discard(w.root, f);
+                    audit.log(session, w, "discard", Map.of("file", String.valueOf(f)), "ok");
                     return r;
                 }
                 case "/api/git/update": {

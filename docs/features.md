@@ -16,6 +16,9 @@ Every view of the page, by area, in every install; the items marked *local and s
   directory-abstraction entity; "New driver" from a base package with its features and their questions answered, a Designer
   export (a driver, or one driver of a driver-set export), a copy, or a shim class. Each
   is the core's `*.add` operation through the review.
+- **Changes**: what differs from the last commit, from the base branch, or from what was pushed,
+  file by file with both sides. On *since the last commit*, **discard…** puts one file back as the
+  last commit has it (a new file is removed), asked once more first.
 - **Driver set**: its DN, the servers it runs on (the primary marked), its drivers, the Library,
   what is linked at the driver-set level, the packages recorded on it, and its GCVs with the
   env-override columns. On a set with several servers, **Copy server-specific settings from one
@@ -111,7 +114,10 @@ Every view of the page, by area, in every install; the items marked *local and s
     written, then applied into the workspace's files. The stage's overrides are folded back (a
     value the vault holds for that stage stays in `overrides/<stage>.properties`, not in the base
     tree) and a secret shim authentication id stays out. Files the vault no longer has are
-    removed. The commit message is suggested; committing stays yours.
+    removed. Each file has a tick: untick one to leave it as the branch has it (a granular update),
+    and Apply says how many of them it takes. A manifest (`driverset.xml`, a driver's `driver.xml`)
+    taken apart from the files it lists is warned about, and a choice that would leave the tree
+    unreadable is refused. The commit message is suggested; committing stays yours.
   - *Deploy*: the plan step by step with nothing written, then the deploy itself (snapshot,
     write, restart, verify) once you type the environment's name; the secrets mode (leave alone,
     set the named passwords the vault lacks, re-set every provided secret), *allow missing

@@ -155,24 +155,29 @@ function RecordCommit({ message }: { message: string }) {
 
 /**
  * The vault's state into this branch (#67, `idm import-live --env`): read live, written into a copy of the tree, the
- * files that would change shown before and after; Apply writes exactly those, then the commit bar takes it from there.
+ * files that would change shown before and after; Apply writes the ones ticked (all, or a granular choice), then the
+ * commit bar takes it from there.
  */
 function PullDialog({ env, drivers, onClose, onApplied }: { env: string; drivers: string[]; onClose: () => void; onApplied: (r: PullResult) => void }) {
   const [result, setResult] = useState<PullResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(true);
   const [selected, setSelected] = useState(0);
+  // the files to take: every one, until some are unticked
+  const [take, setTake] = useState<Set<string>>(new Set());
   const run = async (dryRun: boolean) => {
     setBusy(true);
     setError(null);
     try {
       // the dry run plans against the tree as it is now; the apply must match the revision it reviewed
-      const r = await api.vault.pull(env, drivers, dryRun, dryRun ? "" : result?.revision ?? "");
+      const all = (result?.diffs ?? []).length;
+      const r = await api.vault.pull(env, drivers, dryRun, dryRun ? "" : result?.revision ?? "", !dryRun && take.size < all ? [...take] : undefined);
       if (!dryRun) {
         onApplied(r);
         return;
       }
       setResult(r);
+      setTake(new Set((r.diffs ?? []).map((d) => d.file)));
     } catch (e) {
       setError(e instanceof ApiError && e.status === 409 ? "The tree changed on disk while this was open. Close, let the page reload, and review again." : e instanceof Error ? e.message : String(e));
     } finally {
@@ -186,12 +191,33 @@ function PullDialog({ env, drivers, onClose, onApplied }: { env: string; drivers
   const diffs: FileDiff[] = result?.diffs ?? [];
   const diff = diffs[selected];
   const nothing = !!result && result.changedFiles.length === 0 && result.deletedFiles.length === 0;
+  // a manifest lists the files beside it (a driver's policies and settings; the set's drivers and library): taking a
+  // file without its changed manifest, or the manifest without its files, can leave a link to nothing
+  const manifests = diffs.map((d) => d.file).filter((f) => f === "driverset.xml" || /^drivers\/[^/]+\/driver\.xml$/.test(f));
+  const split = manifests.filter((m) => {
+    const dir = m === "driverset.xml" ? "" : m.slice(0, -"driver.xml".length);
+    // driverset.xml lists the drivers too: a driver added or removed whole goes with it
+    const wholeDrivers = diffs.filter((d) => /^drivers\/[^/]+\/driver\.xml$/.test(d.file) && d.status !== "changed").map((d) => d.file.slice(0, -"driver.xml".length));
+    const siblings = diffs
+      .map((d) => d.file)
+      .filter((f) => f !== m && f.startsWith(dir) && (dir !== "" || !f.startsWith("drivers/") || wholeDrivers.some((w) => f.startsWith(w))));
+    return siblings.length > 0 && siblings.some((f) => take.has(f) !== take.has(m));
+  });
+  const toggle = (f: string, on: boolean) => {
+    const next = new Set(take);
+    if (on) {
+      next.add(f);
+    } else {
+      next.delete(f);
+    }
+    setTake(next);
+  };
   return (
     <div className="modal-back" role="dialog" aria-modal="true">
       <div className="modal" data-testid="pull-dialog">
         <div className="modal-head">
-          <h3>Take {env}'s state into this branch{drivers.length ? `: ${drivers.join(", ")}` : ""}</h3>
-          <span className="muted small">Nothing is written until you apply.</span>
+          <h3>Update this branch from {env}{drivers.length ? `: ${drivers.join(", ")}` : ""}</h3>
+          <span className="muted small">Nothing is written until you apply. Untick a file to leave it as this branch has it.</span>
         </div>
         <div className="modal-body">
           <div className="modal-side">
@@ -199,16 +225,27 @@ function PullDialog({ env, drivers, onClose, onApplied }: { env: string; drivers
             {diffs.length === 0 ? (
               <p className="muted small">{busy ? "…" : "none"}</p>
             ) : (
-              <ul className="filelist">
-                {diffs.map((d, i) => (
-                  <li key={d.file}>
-                    <button className={i === selected ? "leaf active" : "leaf"} onClick={() => setSelected(i)} title={d.file}>
-                      <span className={"badge st-" + d.status}>{d.status === "changed" ? "M" : d.status === "added" ? "A" : "D"}</span>
-                      {d.file.split("/").slice(-2).join("/")}
-                    </button>
-                  </li>
-                ))}
-              </ul>
+              <>
+                <div className="addrow tight small">
+                  <button className="link" onClick={() => setTake(new Set(diffs.map((d) => d.file)))}>
+                    all
+                  </button>
+                  <button className="link" onClick={() => setTake(new Set())}>
+                    none
+                  </button>
+                </div>
+                <ul className="filelist pickable">
+                  {diffs.map((d, i) => (
+                    <li key={d.file}>
+                      <input type="checkbox" checked={take.has(d.file)} onChange={(e) => toggle(d.file, e.target.checked)} title={take.has(d.file) ? "Take this file from the vault" : "Leave this file as the branch has it"} data-testid={"pull-take-" + d.file} />
+                      <button className={i === selected ? "leaf active" : "leaf"} onClick={() => setSelected(i)} title={d.file}>
+                        <span className={"badge st-" + d.status}>{d.status === "changed" ? "M" : d.status === "added" ? "A" : "D"}</span>
+                        {d.file.split("/").slice(-2).join("/")}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </>
             )}
           </div>
           <div className="modal-diff">
@@ -223,8 +260,14 @@ function PullDialog({ env, drivers, onClose, onApplied }: { env: string; drivers
           {error && <p className="err-text">{error}</p>}
           {result && (
             <p className="small">
-              {result.changedFiles.length} file(s) would be written, {result.deletedFiles.length} removed.
+              {result.changedFiles.length} file(s) would be written, {result.deletedFiles.length} removed{take.size < diffs.length ? `; ${take.size} of ${diffs.length} ticked` : ""}.
               {result.unresolvedLinks > 0 ? ` ${result.unresolvedLinks} link(s) resolve to nothing in the result.` : ""}
+            </p>
+          )}
+          {split.length > 0 && (
+            <p className="warn-text small" data-testid="pull-split">
+              {split.map((m) => (m === "driverset.xml" ? "driverset.xml lists the drivers and the Library" : `${m} lists that driver's policies and settings`)).join("; ")}: take it together with the files
+              beside it, or links may point at nothing. Validation shows any after you apply.
             </p>
           )}
           {result && result.notes.length > 0 && (
@@ -250,8 +293,8 @@ function PullDialog({ env, drivers, onClose, onApplied }: { env: string; drivers
           <button onClick={onClose} disabled={busy}>
             Cancel
           </button>
-          <button className="primary" disabled={busy || !result || nothing} onClick={() => void run(false)} data-testid="pull-apply">
-            Apply
+          <button className="primary" disabled={busy || !result || nothing || take.size === 0} onClick={() => void run(false)} data-testid="pull-apply">
+            {take.size < diffs.length ? `Apply ${take.size} of ${diffs.length} files` : "Apply"}
           </button>
         </div>
       </div>

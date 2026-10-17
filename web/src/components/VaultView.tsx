@@ -229,7 +229,17 @@ function PullDialog({ env, drivers, onClose, onApplied }: { env: string; drivers
           {result && result.notes.length > 0 && (
             <ul className="plain small">
               {result.notes.map((n, i) => (
-                <li key={i}>{n}</li>
+                <li key={i}>
+                  {n}
+                  {/^server .*: not read/.test(n) && (
+                    <>
+                      {" "}
+                      <a className="link" href={`#type=connections&env=${encodeURIComponent(env)}`} data-testid="pull-servers-link">
+                        Give its address under Connections → {env} → Servers
+                      </a>
+                    </>
+                  )}
+                </li>
               ))}
             </ul>
           )}

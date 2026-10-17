@@ -833,6 +833,14 @@ public final class TreeService {
      * moved since {@code revision} (the one the dry run returned).
      */
     public synchronized Map<String, Object> pull(DriverSet live, String envName, List<String> drivers, boolean dryRun, String revision, List<String> notes) throws IOException {
+        return pull(live, envName, drivers, dryRun, revision, notes, null);
+    }
+
+    /**
+     * As above; an apply with {@code only} takes just those of the files the review listed (a granular update: the
+     * rest of the tree stays as it is). A name the read no longer changes is noted and skipped.
+     */
+    public synchronized Map<String, Object> pull(DriverSet live, String envName, List<String> drivers, boolean dryRun, String revision, List<String> notes, List<String> only) throws IOException {
         // a dry run plans against the tree as it is now and returns that revision; the apply must name it
         String current = dryRun ? watcher.refreshNow() : requireRevision(revision);
         Path copy = Files.createTempDirectory("idmweb-pull-");
@@ -940,6 +948,41 @@ public final class TreeService {
                 m.put("diffs", diffs);
                 m.put("revision", current);
                 return m;
+            }
+            if (only != null) {
+                java.util.Set<String> wanted = new java.util.HashSet<>(only);
+                for (String f : only) {
+                    if (!changed.contains(f) && !deleted.contains(f)) {
+                        notes.add(f + ": the vault no longer changes it; skipped");
+                    }
+                }
+                int all = changed.size() + deleted.size();
+                changed.removeIf(f -> !wanted.contains(f));
+                deleted.removeIf(f -> !wanted.contains(f));
+                m.put("changedFiles", changed);
+                m.put("deletedFiles", deleted);
+                m.put("left", all - changed.size() - deleted.size());
+                // a choice must leave a tree that reads: a manifest naming a file not taken, or a file its manifest
+                // no longer names, is refused here rather than written (the page would fail to read the tree)
+                Path trial = Files.createTempDirectory("idmweb-pull-choice-");
+                try {
+                    copyTree(tree, trial);
+                    for (String f : changed) {
+                        Path to = trial.resolve(f);
+                        Files.createDirectories(to.getParent());
+                        Files.copy(copy.resolve(f), to, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                    }
+                    for (String f : deleted) {
+                        Files.deleteIfExists(trial.resolve(f));
+                    }
+                    AsCodeReader.read(trial);
+                } catch (IOException | RuntimeException e) {
+                    String why = String.valueOf(e.getMessage()).replace(trial.toString() + "/", "").replace(trial.toString(), "");
+                    throw new BadRequest("with only those files the tree can't be read (" + e.getClass().getSimpleName() + ": " + why
+                        + "): take a manifest (driverset.xml, a driver's driver.xml) together with the files it lists");
+                } finally {
+                    deleteTree(trial);
+                }
             }
             for (String f : changed) {
                 Path to = tree.resolve(f);

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { DiffEditor } from "@monaco-editor/react";
-import { api } from "../api";
+import { GIT_CHANGED, api } from "../api";
 import { monacoTheme } from "../monaco";
 import type { GitDiff, GitStatus, Selection } from "../types";
 
@@ -18,6 +18,14 @@ export function ChangesView({ initial, revision, onSelect }: { initial: Against;
   const [diff, setDiff] = useState<GitDiff | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState(0);
+  // discarding one file's uncommitted change: asked once more inline, then done
+  const [discarding, setDiscarding] = useState<string | null>(null);
+  const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
+  const discard = (f: string) =>
+    api.git
+      .discard(f)
+      .then((r) => (setNote({ ok: true, text: r.message }), setDiscarding(null), window.dispatchEvent(new Event(GIT_CHANGED))))
+      .catch((e: Error) => setNote({ ok: false, text: e.message }));
 
   useEffect(() => {
     api.git.status().then(setStatus).catch(() => setStatus(null));
@@ -65,6 +73,7 @@ export function ChangesView({ initial, revision, onSelect }: { initial: Against;
         </div>
       </div>
       {error && <div className="banner error">{error}</div>}
+      {note && <div className={note.ok ? "banner" : "banner error"}>{note.text}</div>}
       {diff && (
         <div className="changesbody">
           <ul className="filelist changelist" data-testid="changes-files">
@@ -89,6 +98,31 @@ export function ChangesView({ initial, revision, onSelect }: { initial: Against;
                       open
                     </button>
                   ) : null}
+                  {against === "head" &&
+                    (discarding === file.file ? (
+                      <span className="small" data-testid="changes-discard-confirm">
+                        {" · "}
+                        {file.status === "added" ? "Remove this new file?" : "Put this file back as the last commit has it?"}{" "}
+                        <button className="danger" onClick={() =>
+                            void discard(file.file).then(() => {
+                              // a rename: its old name comes back too
+                              if (file.from) {
+                                void api.git.discard(file.from).catch(() => undefined);
+                              }
+                            })
+                          } data-testid="changes-discard-go">
+                          Discard
+                        </button>{" "}
+                        <button onClick={() => setDiscarding(null)}>Keep</button>
+                      </span>
+                    ) : (
+                      <>
+                        {" · "}
+                        <button className="link" onClick={() => (setDiscarding(file.file), setNote(null))} title="Throw away this file's uncommitted change" data-testid="changes-discard">
+                          discard…
+                        </button>
+                      </>
+                    ))}
                 </p>
                 <div className="stagediff">
                   <DiffEditor language={file.language ?? "plaintext"} original={file.before ?? ""} modified={file.after ?? ""} theme={monacoTheme()} options={{ readOnly: true, renderSideBySide: true, minimap: { enabled: false }, scrollBeyondLastLine: false }} />

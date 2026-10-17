@@ -151,6 +151,8 @@ export const api = {
     commit: (message: string, push: boolean) => call<{ committed: boolean; hash?: string; pushed?: boolean; message?: string }>("POST", "/api/git/commit", { message, push }),
     /** Commit the deploy record (deploy-log/) alone, the rest of the work left uncommitted (#128). */
     commitRecord: (message: string) => call<{ committed: boolean; hash?: string; message?: string }>("POST", "/api/git/commit", { message, push: false, record: true }),
+    /** One uncommitted file back to the last commit, or removed when it is new. */
+    discard: (file: string) => call<{ discarded: boolean; message: string }>("POST", "/api/git/discard", { file }),
     update: (base?: string) => call<{ merged: boolean; message: string; conflicts?: string[] }>("POST", "/api/git/update", base ? { base } : {}),
     /** docs/git-workflow.md: what merging this branch into the base would carry. */
     mergePreview: () => call<MergePreview>("GET", "/api/git/merge-into-base"),
@@ -314,7 +316,8 @@ export const api = {
     /** The driver's trace file over SSH (the environment's own host and user); kept as one of your trace files. */
     traceTail: (env: string, driver: string, req: { lines?: number; grep?: string; since?: number; confirm: string }) => call<TraceTailResult>("POST", "/api/vault/trace-tail", { env, driver, ...req }),
     /** The vault's state into this branch's tree (#67): a dry run returns the files that would change; `revision` guards the apply. */
-    pull: (env: string, drivers: string[], dryRun: boolean, revision: string) => call<PullResult>("POST", "/api/vault/pull", { env, drivers, dryRun, revision }),
+    /** `files`: on an apply, take only those of the reviewed files (a granular update); omitted, all of them. */
+    pull: (env: string, drivers: string[], dryRun: boolean, revision: string, files?: string[]) => call<PullResult>("POST", "/api/vault/pull", { env, drivers, dryRun, revision, ...(files ? { files } : {}) }),
     resync: (env: string, driver: string, since: string | undefined, confirm: string) => call<OperateOutcome>("POST", "/api/vault/resync", { env, driver, since, confirm }),
     migrate: (env: string, driver: string, xds: string, confirm: string) => call<OperateOutcome>("POST", "/api/vault/migrate", { env, driver, xds, confirm }),
     submit: (env: string, driver: string, xds: string, canary: boolean, confirm: string) => call<OperateOutcome>("POST", "/api/vault/submit", { env, driver, xds, canary, confirm }),

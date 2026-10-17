@@ -1449,3 +1449,13 @@ a.button { display: inline-block; padding: 5px 10px; border: 1px solid var(--bor
   background: var(--surface-2);
   color: var(--ok);
 }
+/* a file list with a tick per file (Update this branch from <env>: a granular choice) */
+.filelist.pickable li {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.filelist.pickable li .leaf {
+  flex: 1;
+  min-width: 0;
+}

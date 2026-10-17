@@ -370,6 +370,32 @@ public final class Git {
         return new String(b, StandardCharsets.UTF_8);
     }
 
+    /**
+     * Throw away one file's uncommitted change: back to the last commit, or removed when the last commit hasn't it
+     * (a new file). {@code file} is relative to the checkout, as {@link #diff} lists it.
+     */
+    public Map<String, Object> discard(Path dir, String file) throws IOException {
+        if (file == null || file.isBlank() || file.startsWith("/") || file.contains("..") || file.contains("\\")) {
+            throw new TreeService.BadRequest("which file? (a path inside the checkout)");
+        }
+        Path p = dir.resolve(file).normalize();
+        if (!p.startsWith(dir.normalize())) {
+            throw new TreeService.BadRequest("which file? (a path inside the checkout)");
+        }
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("file", file);
+        if (run(dir, "cat-file", "-e", "HEAD:" + file).ok()) {
+            must(run(dir, "checkout", "HEAD", "--", file), "restore " + file);
+            m.put("message", file + " is back to the last commit");
+        } else {
+            run(dir, "rm", "-q", "--cached", "--ignore-unmatch", "--", file);
+            Files.deleteIfExists(p);
+            m.put("message", file + " was new: removed");
+        }
+        m.put("discarded", true);
+        return m;
+    }
+
     /** Bring the base branch's latest into this one; a conflict is reported with its files and left as is. */
     public Map<String, Object> update(Path dir, String base) throws IOException {
         return update(dir, base, null, null);

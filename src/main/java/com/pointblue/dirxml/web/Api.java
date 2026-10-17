@@ -730,7 +730,17 @@ public final class Api implements HttpHandler {
                         service.requireRevision(Json.asString(req.get("revision"))); // before minutes of reading the vault
                     }
                     com.pointblue.dirxml.dev.model.DriverSet live = vault.liveForPull(env, notes);
-                    return service.pull(live, vault.environmentName(env), stringList(req.get("drivers")), dryRun, Json.asString(req.get("revision")), notes);
+                    // "files": take only those of the reviewed files (a granular update), the rest of the tree as it is
+                    java.util.List<String> only = req.get("files") instanceof java.util.List<?> ? stringList(req.get("files")) : null;
+                    // "contents": a line-level merge, the text to write for some of those files instead of the vault's
+                    java.util.Map<String, String> contents = null;
+                    if (req.get("contents") instanceof java.util.Map<?, ?> cm) {
+                        contents = new java.util.LinkedHashMap<>();
+                        for (java.util.Map.Entry<?, ?> e : cm.entrySet()) {
+                            contents.put(String.valueOf(e.getKey()), e.getValue() == null ? "" : String.valueOf(e.getValue()));
+                        }
+                    }
+                    return service.pull(live, vault.environmentName(env), stringList(req.get("drivers")), dryRun, Json.asString(req.get("revision")), notes, only, contents);
                 }
                 case "/api/vault/resync":
                     return vault.resync(env, Json.asString(req.get("driver")), Json.asString(req.get("since")), Json.asString(req.get("confirm")));
@@ -1385,6 +1395,19 @@ public final class Api implements HttpHandler {
                     audit.log(session, w, "merge-captured", Map.of("branch", b), Boolean.TRUE.equals(r.get("merged")) ? "ok" : "conflict");
                     return r;
                 }
+                case "/api/git/discard": {
+                    // one uncommitted file back to the last commit (or gone, when the last commit hasn't it); with
+                    // "content", only some of its blocks: the text the page settled on (the rest of the change kept)
+                    String f = Json.asString(req.get("file"));
+                    Map<String, Object> r;
+                    if (req.containsKey("content")) {
+                        r = git.discardBlocks(w.root, w.tree, f, Json.asString(req.get("content")));
+                    } else {
+                        r = git.discard(w.root, f);
+                    }
+                    audit.log(session, w, req.containsKey("content") ? "discard-blocks" : "discard", Map.of("file", String.valueOf(f)), "ok");
+                    return r;
+                }
                 case "/api/git/update": {
                     String b = base != null ? base : Json.asString(req.get("base"));
                     if (b == null || b.isBlank()) {
@@ -1400,6 +1423,8 @@ public final class Api implements HttpHandler {
         }
         throw new TreeService.NotFound("no such endpoint: " + method + " " + path);
     }
+
+
 
     /**
      * Null when this workspace's branch can be merged into the project's base on this page (docs/git-workflow.md):

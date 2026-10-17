@@ -155,24 +155,33 @@ function RecordCommit({ message }: { message: string }) {
 
 /**
  * The vault's state into this branch (#67, `idm import-live --env`): read live, written into a copy of the tree, the
- * files that would change shown before and after; Apply writes exactly those, then the commit bar takes it from there.
+ * files that would change shown before and after; Apply writes the ones ticked (all, or a granular choice), then the
+ * commit bar takes it from there.
  */
 function PullDialog({ env, drivers, onClose, onApplied }: { env: string; drivers: string[]; onClose: () => void; onApplied: (r: PullResult) => void }) {
   const [result, setResult] = useState<PullResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(true);
   const [selected, setSelected] = useState(0);
+  // the files to take: every one, until some are unticked
+  const [take, setTake] = useState<Set<string>>(new Set());
+  // a line-level merge: per file, the text Apply writes when it isn't the vault's (blocks of the branch kept, edits)
+  const [edits, setEdits] = useState<Record<string, string>>({});
+  const [resets, setResets] = useState(0);   // remounts the diff after "take all" / "keep all"
   const run = async (dryRun: boolean) => {
     setBusy(true);
     setError(null);
     try {
       // the dry run plans against the tree as it is now; the apply must match the revision it reviewed
-      const r = await api.vault.pull(env, drivers, dryRun, dryRun ? "" : result?.revision ?? "");
+      const all = (result?.diffs ?? []).length;
+      const merged = Object.fromEntries(Object.entries(edits).filter(([f, text]) => take.has(f) && text !== (result?.diffs ?? []).find((d) => d.file === f)?.after));
+      const r = await api.vault.pull(env, drivers, dryRun, dryRun ? "" : result?.revision ?? "", !dryRun && take.size < all ? [...take] : undefined, !dryRun && Object.keys(merged).length ? merged : undefined);
       if (!dryRun) {
         onApplied(r);
         return;
       }
       setResult(r);
+      setTake(new Set((r.diffs ?? []).map((d) => d.file)));
     } catch (e) {
       setError(e instanceof ApiError && e.status === 409 ? "The tree changed on disk while this was open. Close, let the page reload, and review again." : e instanceof Error ? e.message : String(e));
     } finally {
@@ -185,13 +194,36 @@ function PullDialog({ env, drivers, onClose, onApplied }: { env: string; drivers
   }, []);
   const diffs: FileDiff[] = result?.diffs ?? [];
   const diff = diffs[selected];
+  const isMerged = (d: FileDiff) => edits[d.file] !== undefined && edits[d.file] !== d.after;
+  const mergeable = !!diff && diff.status !== "deleted" && diff.before !== undefined && diff.after !== undefined;
   const nothing = !!result && result.changedFiles.length === 0 && result.deletedFiles.length === 0;
+  // a manifest lists the files beside it (a driver's policies and settings; the set's drivers and library): taking a
+  // file without its changed manifest, or the manifest without its files, can leave a link to nothing
+  const manifests = diffs.map((d) => d.file).filter((f) => f === "driverset.xml" || /^drivers\/[^/]+\/driver\.xml$/.test(f));
+  const split = manifests.filter((m) => {
+    const dir = m === "driverset.xml" ? "" : m.slice(0, -"driver.xml".length);
+    // driverset.xml lists the drivers too: a driver added or removed whole goes with it
+    const wholeDrivers = diffs.filter((d) => /^drivers\/[^/]+\/driver\.xml$/.test(d.file) && d.status !== "changed").map((d) => d.file.slice(0, -"driver.xml".length));
+    const siblings = diffs
+      .map((d) => d.file)
+      .filter((f) => f !== m && f.startsWith(dir) && (dir !== "" || !f.startsWith("drivers/") || wholeDrivers.some((w) => f.startsWith(w))));
+    return siblings.length > 0 && siblings.some((f) => take.has(f) !== take.has(m));
+  });
+  const toggle = (f: string, on: boolean) => {
+    const next = new Set(take);
+    if (on) {
+      next.add(f);
+    } else {
+      next.delete(f);
+    }
+    setTake(next);
+  };
   return (
     <div className="modal-back" role="dialog" aria-modal="true">
       <div className="modal" data-testid="pull-dialog">
         <div className="modal-head">
-          <h3>Take {env}'s state into this branch{drivers.length ? `: ${drivers.join(", ")}` : ""}</h3>
-          <span className="muted small">Nothing is written until you apply.</span>
+          <h3>Update this branch from {env}{drivers.length ? `: ${drivers.join(", ")}` : ""}</h3>
+          <span className="muted small">Nothing is written until you apply. Untick a file to leave it as this branch has it.</span>
         </div>
         <div className="modal-body">
           <div className="modal-side">
@@ -199,21 +231,67 @@ function PullDialog({ env, drivers, onClose, onApplied }: { env: string; drivers
             {diffs.length === 0 ? (
               <p className="muted small">{busy ? "…" : "none"}</p>
             ) : (
-              <ul className="filelist">
-                {diffs.map((d, i) => (
-                  <li key={d.file}>
-                    <button className={i === selected ? "leaf active" : "leaf"} onClick={() => setSelected(i)} title={d.file}>
-                      <span className={"badge st-" + d.status}>{d.status === "changed" ? "M" : d.status === "added" ? "A" : "D"}</span>
-                      {d.file.split("/").slice(-2).join("/")}
-                    </button>
-                  </li>
-                ))}
-              </ul>
+              <>
+                <div className="addrow tight small">
+                  <button className="link" onClick={() => setTake(new Set(diffs.map((d) => d.file)))}>
+                    all
+                  </button>
+                  <button className="link" onClick={() => setTake(new Set())}>
+                    none
+                  </button>
+                </div>
+                <ul className="filelist pickable">
+                  {diffs.map((d, i) => (
+                    <li key={d.file}>
+                      <input type="checkbox" checked={take.has(d.file)} onChange={(e) => toggle(d.file, e.target.checked)} title={take.has(d.file) ? "Take this file from the vault" : "Leave this file as the branch has it"} data-testid={"pull-take-" + d.file} />
+                      <button className={i === selected ? "leaf active" : "leaf"} onClick={() => setSelected(i)} title={d.file}>
+                        <span className={"badge st-" + d.status}>{d.status === "changed" ? "M" : d.status === "added" ? "A" : "D"}</span>
+                        {d.file.split("/").slice(-2).join("/")}
+                        {isMerged(d) && <span className="pill small" title="Some of this branch's lines kept, or edited: Apply writes the merged text"> merged</span>}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </>
             )}
           </div>
           <div className="modal-diff">
+            {diff && mergeable && (
+              <div className="addrow tight small mergebar" data-testid="pull-merge-bar">
+                <span className="muted">
+                  Left: this branch. Right: what Apply writes, {env}'s version to begin with. The arrow beside a block (point at it) keeps this branch's lines there; you
+                  can also edit the right side.
+                </span>
+                <span className="spacer" />
+                <button className="link" onClick={() => (setEdits(({ [diff.file]: _drop, ...rest }) => rest), setResets(resets + 1))} disabled={!isMerged(diff)}>
+                  take all of {env}'s
+                </button>
+                <button className="link" onClick={() => (setEdits({ ...edits, [diff.file]: diff.before ?? "" }), setResets(resets + 1))}>
+                  keep all of this branch
+                </button>
+              </div>
+            )}
             {diff && diff.before !== undefined && diff.after !== undefined ? (
-              <DiffEditor key={diff.file} language={diff.language} original={diff.before} modified={diff.after} theme={monacoTheme()} options={{ readOnly: true, renderSideBySide: true, minimap: { enabled: false }, scrollBeyondLastLine: false }} />
+              <DiffEditor
+                key={diff.file + ":" + resets}
+                height={mergeable ? "calc(100% - 50px)" : "100%"}
+                language={diff.language}
+                original={diff.before}
+                modified={edits[diff.file] ?? diff.after}
+                theme={monacoTheme()}
+                options={{ readOnly: !mergeable, originalEditable: false, renderMarginRevertIcon: mergeable, renderSideBySide: true, useInlineViewWhenSpaceIsLimited: !mergeable, wordWrap: "on", diffWordWrap: "on", minimap: { enabled: false }, scrollBeyondLastLine: false }}
+                onMount={(editor) => {
+                  if (!mergeable) {
+                    return;
+                  }
+                  const file = diff.file;
+                  const modified = editor.getModifiedEditor();
+                  modified.onDidChangeModelContent(() => {
+                    const text = modified.getValue();
+                    setEdits((cur) => ({ ...cur, [file]: text }));
+                  });
+                }}
+              />
             ) : (
               <p className="muted pad">{busy ? "Reading the vault and writing it into a copy of the tree…" : diff ? "This file is not shown as text." : "No file would change: the branch already holds the vault's state."}</p>
             )}
@@ -223,8 +301,20 @@ function PullDialog({ env, drivers, onClose, onApplied }: { env: string; drivers
           {error && <p className="err-text">{error}</p>}
           {result && (
             <p className="small">
-              {result.changedFiles.length} file(s) would be written, {result.deletedFiles.length} removed.
+              {result.changedFiles.length} file(s) would be written, {result.deletedFiles.length} removed{take.size < diffs.length ? `; ${take.size} of ${diffs.length} ticked` : ""}.
               {result.unresolvedLinks > 0 ? ` ${result.unresolvedLinks} link(s) resolve to nothing in the result.` : ""}
+            </p>
+          )}
+          {Object.keys(edits).filter((f) => take.has(f) && isMerged(diffs.find((d) => d.file === f) ?? ({ file: f } as FileDiff))).length > 0 && (
+            <p className="small" data-testid="pull-merged-count">
+              {Object.keys(edits).filter((f) => take.has(f) && isMerged(diffs.find((d) => d.file === f) ?? ({ file: f } as FileDiff))).length} file(s) merged line by line: Apply writes
+              them as merged.
+            </p>
+          )}
+          {split.length > 0 && (
+            <p className="warn-text small" data-testid="pull-split">
+              {split.map((m) => (m === "driverset.xml" ? "driverset.xml lists the drivers and the Library" : `${m} lists that driver's policies and settings`)).join("; ")}: take it together with the files
+              beside it, or links may point at nothing. Validation shows any after you apply.
             </p>
           )}
           {result && result.notes.length > 0 && (
@@ -250,8 +340,8 @@ function PullDialog({ env, drivers, onClose, onApplied }: { env: string; drivers
           <button onClick={onClose} disabled={busy}>
             Cancel
           </button>
-          <button className="primary" disabled={busy || !result || nothing} onClick={() => void run(false)} data-testid="pull-apply">
-            Apply
+          <button className="primary" disabled={busy || !result || nothing || take.size === 0} onClick={() => void run(false)} data-testid="pull-apply">
+            {take.size < diffs.length ? `Apply ${take.size} of ${diffs.length} files` : "Apply"}
           </button>
         </div>
       </div>

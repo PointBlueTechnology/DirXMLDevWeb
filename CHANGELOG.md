@@ -7,6 +7,31 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.64.0] - 2026-10-17
+
+Needs DirXMLDev 0.45.0.
+
+### Added
+
+- **Copy server-specific settings between servers (#134).** On a driver set with several servers,
+  the Driver set view's **Servers** row offers **Copy server-specific settings from one server to
+  another…**. Choose:
+  - the source and target servers;
+  - one driver, or every driver;
+  - which settings: GCV values, shim parameters, engine control values, the shim's server and
+    account.
+
+  The copy is reviewed like any edit, and a deploy writes it to the target server
+  (`driver.server.copy` in DirXMLDev 0.45.0).
+
+### Fixed
+
+- **GCVs held by another server showed as undefined (#134).** Validation now counts every server's
+  values (DirXMLDev 0.45.0), so a deploy of the whole driver set is no longer refused for them.
+- **A server an import couldn't read** now gets a link under the note in **Take the vault's state
+  into this branch…**, to that vault's Connections page, where its address is given. The trace's
+  "not streaming from" message names the same place.
+
 ## [0.63.0] - 2026-10-16
 
 Needs DirXMLDev 0.44.0.

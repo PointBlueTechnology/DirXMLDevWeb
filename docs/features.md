@@ -18,7 +18,11 @@ Every view of the page, by area, in every install; the items marked *local and s
   is the core's `*.add` operation through the review.
 - **Driver set**: its DN, the servers it runs on (the primary marked), its drivers, the Library,
   what is linked at the driver-set level, the packages recorded on it, and its GCVs with the
-  env-override columns.
+  env-override columns. On a set with several servers, **Copy server-specific settings from one
+  server to another…** gives the target server what the source holds for one driver or every
+  driver: GCV values, shim parameters, engine control values, the shim's server and account.
+  Each server keeps its own copy of these (#134). The copy is reviewed like any edit, and a deploy
+  writes it to that server.
 - **Designer** (a tab on the driver set): the round trip back to Designer, as `idm export` and
   `idm export-project` do it, byte for byte. *Download export XML* gives the driver set (or one
   driver) as a Designer export. A Designer project is updated to match the tree, or written new

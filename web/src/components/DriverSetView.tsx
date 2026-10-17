@@ -3,6 +3,7 @@ import type { ArtifactNode, Outline, Selection } from "../types";
 import { ConfigEditor } from "./ConfigEditor";
 import { SchemaView } from "./SchemaView";
 import { DesignerExportPanel } from "./DesignerExportPanel";
+import { ServerCopy } from "./ServerCopy";
 import { isUserApplication } from "../drivers";
 
 /**
@@ -65,6 +66,7 @@ export function DriverSetView({ outline, revision, canOverride, linkable, initia
                     ))
                   )}
                   <div className="muted small">Each server keeps its own trace and driver state; the Vault view's Trace tab picks one. Per-server shim settings are on each driver's Configuration.</div>
+                  {ds.servers.length > 1 && canOverride && <ServerCopy servers={ds.servers} drivers={outline.drivers.map((d) => d.name)} onSaved={onSaved} />}
                 </td>
               </tr>
               <tr>

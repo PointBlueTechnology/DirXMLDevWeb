@@ -160,8 +160,10 @@ merge it into `main`, and promote it from there; [git-workflow.md](git-workflow.
 
 ## 7. Deploy it
 
-Open **Vault** in the left-hand menu, then the **Compare & deploy** tab. Pick the environment and a
-**scope**: the whole driver set, or one driver. Choose **Compare**. The page reads the vault and
+Open **Vault** in the left-hand menu, then the **Compare & deploy** tab. It shows three numbered
+steps, **Compare**, **Plan** and **Deploy**, each with its state and its own result. Pick the
+environment and a **scope**: the whole driver set, or one driver. Each step names the scope it
+covers. Choose **Compare**. The page reads the vault and
 lists every difference between it and your tree. Here there is one, the changed policy:
 
 ![Compare: one difference, the changed policy](screenshots/tutorial/14-compare.png)
@@ -172,8 +174,11 @@ Leave the options as they are:
   starts, so the driver is restarted after the write.
 - **Secrets**: leave alone. A first deploy of a new driver would set them.
 
-Choose **Plan the deploy**. The plan lists each write, and nothing has been written yet. To allow
-the writes, type the environment's name, then choose **Deploy to lab**:
+Choose **Plan the deploy**. The plan lists each write, and nothing has been written yet. It also
+says when something stands in the way of the deploy, with a button for the way on (a production
+environment asks the most; see [git-workflow.md](git-workflow.md)). Changing an option afterwards
+marks the plan out of date instead of clearing it. To allow the writes, type the environment's name
+in step 3, then choose **Deploy to lab**:
 
 ![The plan, and the environment's name typed to allow the deploy](screenshots/tutorial/15-plan.png)
 
@@ -221,8 +226,8 @@ committed stays as it was. The bar then offers **Push**: choose it so that other
   before each deploy. Rolling one back puts it back on the vault, and takes a snapshot of the
   current state first.
 - **Undo an edit:** **Discard** in the editor, before you apply.
-- **The vault changed outside the tree** (someone used Designer or iManager): **Take the vault's
-  state into this branch…** on the Compare tab shows what would change in your tree, and Apply
+- **The vault changed outside the tree** (someone used Designer or iManager): **Update this branch
+  from lab…** in the Compare step shows what would change in your tree, and Apply
   writes it there for you to commit.
 
 ## Next: work with branches and environments

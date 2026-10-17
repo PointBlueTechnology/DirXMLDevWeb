@@ -160,6 +160,36 @@ public final class VaultService {
     public Map<String, Object> plan(String envName, List<String> drivers, DeployChoices choices) throws IOException {
         Deployer.Options o = options(envName, drivers, choices);
         o.dryRun = true;
+        boolean fromBase = o.env.tier == Environments.Tier.PRD && productionBase != null && !fromAnyBranch(o.env.name);
+        if (fromBase) {
+            o.baseBranch = productionBase;
+        }
+        Map<String, Object> m = result(new Deployer(o).run(), o.env);
+        if (fromBase && m.get("gate") == null && Boolean.TRUE.equals(m.get("ok"))) {
+            // the page's own production check (pushed, current), foreseen like the core's (#136)
+            try {
+                String source = productionSource.call();
+                if (source != null) {
+                    m.put("gate", source);
+                    m.put("gateKind", source.startsWith("push first") ? "push" : source.contains("lacks") ? "behind" : "branch");
+                }
+            } catch (IOException | RuntimeException e) {
+                throw e;
+            } catch (Exception e) {
+                throw new IOException(e);
+            }
+        }
+        return m;
+    }
+
+    /**
+     * Record production's current state when it isn't the known one (#136): reads the vault, and when it differs from
+     * the last deploy on record — or none is on record — commits it on an as-found branch of this checkout. Writes
+     * nothing to the vault.
+     */
+    public Map<String, Object> capture(String envName) throws IOException {
+        Deployer.Options o = options(envName, List.of(), new DeployChoices());
+        o.captureOnly = true;
         return result(new Deployer(o).run(), o.env);
     }
 
@@ -280,6 +310,9 @@ public final class VaultService {
             m.put("ok", false);
             m.put("refusal", refusal);
             m.put("environment", o.env.name);
+            m.put("tier", o.env.tier.name().toLowerCase());
+            m.put("gateKind", refusal.startsWith("refusing to write") ? "confirm" : refusal.startsWith("push first") ? "push"
+                : refusal.contains("lacks") ? "behind" : refusal.startsWith("a production deploy comes from") ? "branch" : null);
             return m;
         }
         o.yes = true;
@@ -320,14 +353,12 @@ public final class VaultService {
         m.put("verified", r.verified);
         m.put("verify", r.verifyText);
         m.put("text", r.text());
-        // the production gate: an unknown or drifted current state is refused until it is captured (#67)
-        String why = r.refusal == null ? "" : r.refusal;
-        if (why.contains("--capture-drift")) {
-            m.put("driftRefused", true);
-        }
-        java.util.regex.Matcher cap = java.util.regex.Pattern.compile("as branch (as-found/[^\\s]+)").matcher(why);
-        if (cap.find()) {
-            m.put("capturedBranch", cap.group(1));
+        // the production checks, by kind (#136): what stood in the way, or what a plan foresees
+        m.put("gateKind", r.gateKind);
+        m.put("gate", r.gate);
+        m.put("capturedBranch", r.capturedBranch);
+        if ("unknown-state".equals(r.gateKind) || "drift".equals(r.gateKind)) {
+            m.put("driftRefused", r.refusal != null);
         }
         return m;
     }

@@ -103,7 +103,10 @@ Every view of the page, by area, in every install; the items marked *local and s
 - **Vault**, against any environment the `idm` CLI knows:
   - *Compare*: the tree against the vault, for the driver set or one driver, with the stage's
     overrides applied; each difference opens its detail.
-  - *Take the vault's state into this branch…* (editors): what `idm import-live` writes, for the
+  - The tab is three numbered steps, *Compare*, *Plan* and *Deploy*, each with its state (not
+    yet, a difference count, ready, blocked, options changed, deployed) and its result beside it;
+    each names its scope (one driver, or the whole driver set and its own objects).
+  - *Update this branch from <environment>…* (editors): what `idm import-live` writes, for the
     driver set or the one driver in scope, reviewed file by file before and after with nothing
     written, then applied into the workspace's files. The stage's overrides are folded back (a
     value the vault holds for that stage stays in `overrides/<stage>.properties`, not in the base
@@ -113,11 +116,14 @@ Every view of the page, by area, in every install; the items marked *local and s
     write, restart, verify) once you type the environment's name; the secrets mode (leave alone,
     set the named passwords the vault lacks, re-set every provided secret), *allow missing
     secrets* for a first deploy, and *delete from the vault* for a driver the comparison reports
-    as only there (stopped first; the snapshot keeps it). A deploy refused because someone changed
-    the vault since the last deploy offers *Capture it first* (or tick *capture drift first*): the
-    vault's state is written to a local `as-found/<stage>/<time>` branch and nothing is deployed;
-    *Merge it into this branch* takes it under your change (a conflict is listed and the merge
-    undone), then deploy again.
+    as only there (stopped first; the snapshot keeps it). Against production the plan runs the
+    production checks too, before anything is typed, and says what stands in the way in plain
+    words with a button for the way on: *Push*, *Get latest main*, or *Capture <environment>'s
+    current state* when its state isn't on record or has changed outside the tree. A capture reads
+    the vault, records its state on a local `as-found/<stage>/<time>` branch (or, when the vault
+    matches a commit, records that commit) and writes nothing to the vault; it is followed by
+    *Merge it into this branch* (a conflict is listed and the merge undone), *Commit and push the
+    record* and *Compare again*.
   - *Snapshots*: every snapshot a deploy or a rollback took, with *Roll back…* — the typed name
     again; the current state is snapshotted first and the result verified.
   - *Jobs*: the engine's jobs (a driver's triggers and health checks, the set's statistics job)

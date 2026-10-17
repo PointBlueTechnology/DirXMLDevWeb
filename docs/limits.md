@@ -13,7 +13,7 @@
   rollback to any of the environment's snapshots, and drift capture. The interactive step-by-step
   deploy (`--step`, a question per change) stays with `idm vault.deploy`; the page's way to deploy
   in parts is the scope selector, one driver at a time.
-- *Take the vault's state into this branch* writes files only. A driver's empty policy folder
+- *Update this branch from <environment>…* writes files only. A driver's empty policy folder
   (`publisher/`, `subscriber/`) that `idm import-live` creates is not made, since git does not keep
   empty folders. A partial pull rewrites only the named drivers' folders and the set's manifest.
 - The trace view reads over the environment's LDAPS connection and keeps the last 5,000 lines.

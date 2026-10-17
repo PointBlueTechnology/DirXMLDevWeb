@@ -403,7 +403,16 @@ export interface DeployResult {
   /** The production gate refused for an unknown or drifted current state: capture-drift is the way on. */
   driftRefused?: boolean;
   /** The as-found branch a capture made, to merge under this branch's change. */
-  capturedBranch?: string;
+  capturedBranch?: string | null;
+  /**
+   * Which production check stood in the way (with refusal), or what a plan foresees (with gate) — #136: confirm,
+   * not-in-git, uncommitted, branch, push, behind, requires, unknown-state, drift; after a capture: captured,
+   * verified or known.
+   */
+  gateKind?: string | null;
+  /** A plan against production: what a deploy would be refused for, in the core's words. */
+  gate?: string | null;
+  tier?: string;
   /** Another deploy or rollback to the environment is running: this one was not started. */
   busy?: boolean;
 }

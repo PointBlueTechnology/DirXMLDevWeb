@@ -6,6 +6,7 @@ import { EnvPicker, useEnvironment } from "../env";
 import { CachePanel } from "./CachePanel";
 import { EventsView } from "./EventsView";
 import { TraceViewer } from "./TraceViewer";
+import { CaptureSteps, ProductionCheck } from "./ProductionCheck";
 import type { VaultTask, FileDiff, PullResult, DeployResult, Outline, Selection, VaultDiffResult, VaultStatus, VaultSnapshot, DriverAssociations, ObjectInspection, PasswordSync, VaultJobs, VaultPolicies, PolicyMembers, AppQueryResult, DriverHealth, LogLevel, DriverRights, DriverSetAdmin, EngineMetrics, WorkOrders, EmailServer, EngineInfo, DriverDetail, TraceShow, NamedPasswords, SimCase } from "../types";
 
 type Tab = "compare" | "drivers" | "set" | "jobs" | "policies" | "objects" | "trace" | "events";
@@ -341,21 +342,16 @@ function Compare({ env, drivers, revision, onOpen, onFix }: { env: string; drive
   const [restart, setRestart] = useState(true);
   const [secrets, setSecrets] = useState<"none" | "missing" | "all">("none");
   const [allowMissing, setAllowMissing] = useState(false);
-  const [captureDrift, setCaptureDrift] = useState(false);
   const [pulling, setPulling] = useState(false);
-  const [merged, setMerged] = useState<{ ok: boolean; text: string } | null>(null);
+  // #136: a capture of the environment's state, and the steps on from it
+  const [captured, setCaptured] = useState<DeployResult | null>(null);
   const [deleteDrivers, setDeleteDrivers] = useState<string[]>([]);
   const [snapshots, setSnapshots] = useState<VaultSnapshot[] | null>(null);
   const [showSnapshots, setShowSnapshots] = useState(false);
   const [rollbackOf, setRollbackOf] = useState<VaultSnapshot | null>(null);
   const [rollbackConfirm, setRollbackConfirm] = useState("");
   const [rollbackResult, setRollbackResult] = useState<DeployResult | null>(null);
-  const choices = { restart, secrets, allowMissingSecrets: allowMissing, deleteDrivers, captureDrift };
-  const mergeCaptured = (branch: string) =>
-    api.git
-      .mergeCaptured(branch)
-      .then((r) => setMerged({ ok: r.merged, text: r.message + (r.conflicts && r.conflicts.length ? "\n" + r.conflicts.join("\n") : "") }))
-      .catch((e: Error) => setMerged({ ok: false, text: e.message }));
+  const choices = { restart, secrets, allowMissingSecrets: allowMissing, deleteDrivers, captureDrift: false };
   const loadSnapshots = () =>
     api.vault
       .snapshots(env)
@@ -379,7 +375,12 @@ function Compare({ env, drivers, revision, onOpen, onFix }: { env: string; drive
   const [error, setError] = useState<string | null>(null);
   const [openRow, setOpenRow] = useState<number | null>(null);
   const scope = only ? [only] : [];
+  const scopeLabel = only ? `${only} only` : "the whole driver set";
   const stale = diff !== null && comparedAt !== revision;
+  // the plan answers for the options it was made with: changing one leaves it on screen, marked out of date
+  const choicesKey = JSON.stringify({ scope, ...choices });
+  const [plannedWith, setPlannedWith] = useState("");
+  const planOutdated = plan !== null && plannedWith !== choicesKey;
 
   const act = async (what: string, fn: () => Promise<void>) => {
     setBusy(what);
@@ -397,13 +398,20 @@ function Compare({ env, drivers, revision, onOpen, onFix }: { env: string; drive
     act("Comparing…", async () => {
       setPlan(null);
       setResult(null);
+      setCaptured(null);
       setDiff(await api.vault.diff(env, scope));
       setComparedAt(revision);
     });
   const makePlan = () =>
     act("Planning…", async () => {
       setResult(null);
+      setPlannedWith(choicesKey);
       setPlan(await api.vault.plan(env, scope, choices));
+    });
+  const captureState = () =>
+    act(`Reading ${env} and recording its state…`, async () => {
+      setResult(null);
+      setCaptured(await api.vault.capture(env));
     });
   const deploy = () =>
     act("Starting the deploy…", async () => {
@@ -496,8 +504,14 @@ function Compare({ env, drivers, revision, onOpen, onFix }: { env: string; drive
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [task]);
 
+  const gate = plan && !planOutdated ? plan.gate : null;
+  const deployBlocked = !plan || !plan.ok || !!plan.refusal || planOutdated || stale || !!gate;
+  const compareState = !diff ? "not yet" : stale ? "out of date" : diff.empty ? "matches" : `${diff.changes.length} difference${diff.changes.length === 1 ? "" : "s"}`;
+  const planState = !plan ? "not yet" : planOutdated ? "options changed" : plan.refusal ? "refused" : gate ? "blocked" : "ready";
+  const deployState = running ? "running" : result ? (result.ok ? "deployed" : result.refusal ? "refused" : "failed") : "not yet";
+  const pill = (state: string) => (["matches", "ready", "deployed"].includes(state) ? "pill ok" : ["out of date", "options changed", "blocked", "refused", "failed"].includes(state) ? "pill warn" : "pill");
   return (
-    <div className="pad">
+    <div className="pad deploysteps">
       {pulling && (
         <PullDialog
           env={env}
@@ -515,7 +529,7 @@ function Compare({ env, drivers, revision, onOpen, onFix }: { env: string; drive
       <div className="addrow">
         <label className="field">
           <em>Scope</em>
-          <select value={only} onChange={(e) => (setOnly(e.target.value), setDiff(null), setPlan(null), setResult(null))}>
+          <select value={only} onChange={(e) => (setOnly(e.target.value), setDiff(null), setPlan(null), setResult(null))} data-testid="vault-scope">
             <option value="">the whole driver set</option>
             {drivers.map((d) => (
               <option key={d} value={d}>
@@ -524,166 +538,211 @@ function Compare({ env, drivers, revision, onOpen, onFix }: { env: string; drive
             ))}
           </select>
         </label>
-        <button onClick={compare} disabled={busy !== null} data-testid="vault-compare">
-          Compare
-        </button>
-        <button onClick={() => setPulling(true)} disabled={busy !== null} title="Read the vault and write its state into this branch's tree (import-live), reviewed first; with overrides/, the environment's values go to its overrides file" data-testid="vault-pull">
-          Take the vault's state into this branch…
-        </button>
+        <span className="muted small">
+          Compare, plan and deploy cover <strong>{scopeLabel}</strong>
+          {only ? "; nothing outside it is written" : ", every driver and the driver set's own objects (jobs, RBE policies, templates)"}.
+        </span>
         {busy && <span className="muted">{busy}</span>}
       </div>
       {error && <VaultError message={error} onFix={onFix} />}
       {task && task.running && <TaskLine task={task} mine={followed.current === task.id} />}
-      {stale && <div className="banner warn">The tree changed since this comparison. Compare again before deploying.</div>}
-      {diff && (
-        <>
-          {diff.overrides && <p className="muted small">{diff.overrides}</p>}
-          {diff.empty ? (
-            <p className="ok-text" data-testid="vault-same">
-              The vault matches the tree. Nothing to deploy.
-            </p>
-          ) : (
-            <>
-              <p>
-                {diff.changes.length} difference{diff.changes.length === 1 ? "" : "s"}
-                {diff.affectedDrivers.length > 0 && <> · drivers affected: {diff.affectedDrivers.join(", ")}</>}
+
+      <section className="step" data-testid="step-compare">
+        <header>
+          <span className="stepnum">1</span>
+          <h4>
+            Compare {scopeLabel} with {env}
+          </h4>
+          <span className={pill(compareState)}>{compareState}</span>
+        </header>
+        <p className="muted small">Reads the vault and lists every difference from this branch's tree. Nothing is written.</p>
+        <div className="addrow">
+          <button className={diff ? "" : "primary"} onClick={compare} disabled={busy !== null} data-testid="vault-compare">
+            {diff ? "Compare again" : "Compare"}
+          </button>
+          <span className="spacer" />
+          <button onClick={() => setPulling(true)} disabled={busy !== null} title="import-live: reviewed first; with overrides/, the environment's values go to its overrides file" data-testid="vault-pull">
+            Update this branch from {env}…
+          </button>
+          <span className="muted small">the other way: write what {env} holds into this branch's files, for you to review and commit</span>
+        </div>
+        {stale && <div className="banner warn">The tree changed since this comparison. Compare again before deploying.</div>}
+        {diff && (
+          <>
+            {diff.overrides && <p className="muted small">{diff.overrides}</p>}
+            {diff.empty ? (
+              <p className="ok-text" data-testid="vault-same">
+                The vault matches the tree. Nothing to deploy.
               </p>
-              <table className="grid" data-testid="vault-changes">
-                <thead>
-                  <tr>
-                    <th>Change</th>
-                    <th>Driver</th>
-                    <th>Where</th>
-                    <th>What a deploy does</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {diff.changes.map((c, i) => (
-                    <Fragment key={i}>
-                      <tr className={c.detail ? "clickable" : ""} onClick={() => c.detail && setOpenRow(openRow === i ? null : i)}>
-                        <td>
-                          <span className={"badge st-" + badge(c.kind)}>{badge(c.kind)}</span> {subject(c.kind)}
-                          {c.what ? ` ${c.what}` : ""}
-                        </td>
-                        <td>{c.driver ?? "—"}</td>
-                        <td>
-                          <button
-                            className="link"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onOpen(c.path);
-                            }}
-                          >
-                            {c.path}
-                          </button>
-                        </td>
-                        <td>{c.summary}</td>
-                      </tr>
-                      {openRow === i && c.detail && (
-                        <tr>
-                          <td colSpan={4}>
-                            <DiffText text={c.detail} env={env} />
+            ) : (
+              <>
+                <p>
+                  {diff.changes.length} difference{diff.changes.length === 1 ? "" : "s"}
+                  {diff.affectedDrivers.length > 0 && <> · drivers affected: {diff.affectedDrivers.join(", ")}</>}
+                </p>
+                <table className="grid" data-testid="vault-changes">
+                  <thead>
+                    <tr>
+                      <th>Change</th>
+                      <th>Driver</th>
+                      <th>Where</th>
+                      <th>What a deploy does</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {diff.changes.map((c, i) => (
+                      <Fragment key={i}>
+                        <tr className={c.detail ? "clickable" : ""} onClick={() => c.detail && setOpenRow(openRow === i ? null : i)}>
+                          <td>
+                            <span className={"badge st-" + badge(c.kind)}>{badge(c.kind)}</span> {subject(c.kind)}
+                            {c.what ? ` ${c.what}` : ""}
                           </td>
+                          <td>{c.driver ?? "—"}</td>
+                          <td>
+                            <button
+                              className="link"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onOpen(c.path);
+                              }}
+                            >
+                              {c.path}
+                            </button>
+                          </td>
+                          <td>{c.summary}</td>
                         </tr>
-                      )}
-                    </Fragment>
-                  ))}
-                </tbody>
-              </table>
-              {diff.changes.some((c) => c.kind.toUpperCase() === "DRIVER_REMOVED" && c.driver) && (
-                <div className="block" data-testid="vault-delete-drivers">
-                  <h4>Drivers only in the vault</h4>
-                  <p className="muted small">A deploy leaves them alone unless asked. Tick one to delete its whole subtree from {env}; it must be stopped, the plan refuses otherwise; the snapshot captures it first, so a rollback brings it back.</p>
-                  {diff.changes
-                    .filter((c) => c.kind.toUpperCase() === "DRIVER_REMOVED" && c.driver)
-                    .map((c) => (
-                      <label key={c.driver} className="checkchip">
-                        <input type="checkbox" checked={deleteDrivers.includes(c.driver!)} onChange={(e) => (setDeleteDrivers(e.target.checked ? [...deleteDrivers, c.driver!] : deleteDrivers.filter((d) => d !== c.driver)), setPlan(null))} data-testid={"vault-delete-" + c.driver} /> delete {c.driver} from the vault
-                      </label>
+                        {openRow === i && c.detail && (
+                          <tr>
+                            <td colSpan={4}>
+                              <DiffText text={c.detail} env={env} />
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
                     ))}
-                </div>
-              )}
-              <div className="addrow">
-                <label className="checkchip">
-                  <input type="checkbox" checked={restart} onChange={(e) => (setRestart(e.target.checked), setPlan(null))} /> restart the drivers a change needs restarted
-                </label>
-                <label className="field">
-                  <em>Secrets</em>
-                  <select value={secrets} onChange={(e) => (setSecrets(e.target.value as "none" | "missing" | "all"), setPlan(null))} title="A driver's shim, Remote Loader and named passwords, from the environment's secrets file: left alone on an update unless asked" data-testid="vault-secrets">
-                    <option value="none">leave alone (set on a first deploy only)</option>
-                    <option value="missing">set named passwords the vault lacks</option>
-                    <option value="all">re-set every provided secret (a rotated password)</option>
-                  </select>
-                </label>
-                <label className="checkchip" title="A first deploy of a driver refuses when a secret it needs is not provided; allow it to create the driver stopped and list what to set">
-                  <input type="checkbox" checked={allowMissing} onChange={(e) => (setAllowMissing(e.target.checked), setPlan(null))} data-testid="vault-allow-missing" /> allow missing secrets on a first deploy
-                </label>
-                <label className="checkchip" title="A production deploy needs the vault's current state known. When it is unknown or has drifted, capture it first as an as-found branch (vault.deploy --capture-drift); the deploy then stops so your change can go on top of it">
-                  <input type="checkbox" checked={captureDrift} onChange={(e) => (setCaptureDrift(e.target.checked), setPlan(null))} data-testid="vault-capture-drift" /> capture drift first
-                </label>
-                <button onClick={makePlan} disabled={busy !== null || stale || running} data-testid="vault-plan">
-                  Plan the deploy
-                </button>
+                  </tbody>
+                </table>
+              </>
+            )}
+          </>
+        )}
+      </section>
+
+      <section className={diff && !diff.empty ? "step" : "step later"} data-testid="step-plan">
+        <header>
+          <span className="stepnum">2</span>
+          <h4>Plan the deploy of {scopeLabel}</h4>
+          <span className={pill(planState)}>{planState}</span>
+        </header>
+        {!diff || diff.empty ? (
+          <p className="muted small">{!diff ? "Compare first." : "Nothing to plan: the vault matches the tree."}</p>
+        ) : (
+          <>
+            <p className="muted small">Lists each write the deploy would make, and checks what a deploy to {env} needs. Nothing is written.</p>
+            {diff.changes.some((c) => c.kind.toUpperCase() === "DRIVER_REMOVED" && c.driver) && (
+              <div className="block" data-testid="vault-delete-drivers">
+                <h4>Drivers only in the vault</h4>
+                <p className="muted small">A deploy leaves them alone unless asked. Tick one to delete its whole subtree from {env}; it must be stopped, the plan refuses otherwise; the snapshot captures it first, so a rollback brings it back.</p>
+                {diff.changes
+                  .filter((c) => c.kind.toUpperCase() === "DRIVER_REMOVED" && c.driver)
+                  .map((c) => (
+                    <label key={c.driver} className="checkchip">
+                      <input type="checkbox" checked={deleteDrivers.includes(c.driver!)} onChange={(e) => setDeleteDrivers(e.target.checked ? [...deleteDrivers, c.driver!] : deleteDrivers.filter((d) => d !== c.driver))} data-testid={"vault-delete-" + c.driver} /> delete {c.driver} from the vault
+                    </label>
+                  ))}
               </div>
-            </>
-          )}
-        </>
-      )}
-      {plan && (
-        <div className="block">
-          <h4>Plan (nothing written yet)</h4>
-          {plan.refusal && <div className="banner error">{plan.refusal}</div>}
-          <pre className="outcome" data-testid="vault-plan-text">
-            {plan.plan ?? plan.text}
-          </pre>
-          {plan.ok && !plan.refusal && (
+            )}
+            <div className="addrow">
+              <label className="checkchip">
+                <input type="checkbox" checked={restart} onChange={(e) => setRestart(e.target.checked)} /> restart the drivers a change needs restarted
+              </label>
+              <label className="field">
+                <em>Secrets</em>
+                <select value={secrets} onChange={(e) => setSecrets(e.target.value as "none" | "missing" | "all")} title="A driver's shim, Remote Loader and named passwords, from the environment's secrets file: left alone on an update unless asked" data-testid="vault-secrets">
+                  <option value="none">leave alone (set on a first deploy only)</option>
+                  <option value="missing">set named passwords the vault lacks</option>
+                  <option value="all">re-set every provided secret (a rotated password)</option>
+                </select>
+              </label>
+              <label className="checkchip" title="A first deploy of a driver refuses when a secret it needs is not provided; allow it to create the driver stopped and list what to set">
+                <input type="checkbox" checked={allowMissing} onChange={(e) => setAllowMissing(e.target.checked)} data-testid="vault-allow-missing" /> allow missing secrets on a first deploy
+              </label>
+              <button className={plan && !planOutdated ? "" : "primary"} onClick={makePlan} disabled={busy !== null || stale || running} data-testid="vault-plan">
+                {plan ? "Plan again" : "Plan the deploy"}
+              </button>
+            </div>
+            {planOutdated && <div className="banner warn">The options changed since this plan. Plan again to deploy with them.</div>}
+            {plan && (
+              <div className={planOutdated ? "block faded" : "block"}>
+                {plan.refusal && <div className="banner error">{plan.refusal}</div>}
+                {gate && <ProductionCheck env={env} kind={plan.gateKind} message={gate} busy={busy !== null} onCapture={captureState} onDone={makePlan} />}
+                {captured && <CaptureSteps env={env} result={captured} onCompare={compare} />}
+                <details open={!gate} className="small">
+                  <summary>The plan: each write, nothing done yet</summary>
+                  <pre className="outcome" data-testid="vault-plan-text">
+                    {plan.plan ?? plan.text}
+                  </pre>
+                </details>
+              </div>
+            )}
+          </>
+        )}
+      </section>
+
+      <section className={plan ? "step" : "step later"} data-testid="step-deploy">
+        <header>
+          <span className="stepnum">3</span>
+          <h4>
+            Deploy {scopeLabel} to {env}
+          </h4>
+          <span className={pill(deployState)}>{deployState}</span>
+        </header>
+        {!result && !running && (
+          <>
+            <p className="muted small">A snapshot of what changes is taken first, then the writes, the restarts, and a comparison to verify. You can leave the page while it runs.</p>
             <div className="addrow">
               <Confirm env={env} value={confirm} onChange={setConfirm} />
-              <button className="danger" onClick={deploy} disabled={busy !== null || confirm !== env || stale || running} data-testid="vault-deploy">
+              <button className="danger" onClick={deploy} disabled={busy !== null || deployBlocked || confirm !== env || running} data-testid="vault-deploy">
                 Deploy to {env}
               </button>
-              <span className="muted small">A snapshot of the vault is taken first; the result is verified by comparing again.</span>
+              {deployBlocked && (
+                <span className="muted small">
+                  {!plan ? "Plan first." : planOutdated ? "Plan again: the options changed." : stale ? "Compare again: the tree changed." : gate ? "See what the plan found above." : plan.refusal ? "The plan was refused." : ""}
+                </span>
+              )}
             </div>
-          )}
-        </div>
-      )}
-      {task && task.kind === "deploy" && <TaskProgress task={task} />}
-      {result && (
-        <div className="block">
-          <h4 className={result.ok ? "ok-text" : "err-text"}>{result.ok ? "Deployed" : result.refusal ? "Refused" : "Failed"}</h4>
-          <pre className="outcome" data-testid="vault-result">
-            {result.refusal ?? result.text}
-          </pre>
-          {result.driftRefused && !result.capturedBranch && !captureDrift && (
-            <p className="small">
-              The vault's current state is unknown or has drifted.{" "}
-              <button className="link" onClick={() => setCaptureDrift(true)} data-testid="vault-offer-capture">
-                Capture it first
-              </button>{" "}
-              and deploy again.
-            </p>
-          )}
-          {result.capturedBranch && (
-            <p className="small">
-              Captured as <code>{result.capturedBranch}</code>.{" "}
-              <button className="link" onClick={() => mergeCaptured(result.capturedBranch!)} data-testid="vault-merge-captured">
-                Merge it into this branch
-              </button>{" "}
-              so your change sits on top of what the vault holds, then commit, compare and deploy again.
-            </p>
-          )}
-          {merged && <pre className={merged.ok ? "outcome" : "outcome err-text"}>{merged.text}</pre>}
-          {!result.refusal && (result.snapshot || result.capturedBranch) && <RecordCommit key={result.snapshot ?? result.text} message={`Deployed to ${env}${scope.length ? ` (${scope.join(", ")})` : ""}`} />}
-          {result.snapshot && (
-            <p className="muted small">
-              Snapshot: <code>{result.snapshot}</code>{" "}
-              <button className="link" onClick={() => (setRollbackOf({ file: result.snapshot!, name: result.snapshot!.replace(/^.*\//, ""), server: null, bytes: 0, ok: true }), setRollbackResult(null))} data-testid="vault-rollback-last">
-                Roll back to it…
+          </>
+        )}
+        {task && task.kind === "deploy" && <TaskProgress task={task} />}
+        {result && (
+          <div className="block">
+            <h4 className={result.ok ? "ok-text" : "err-text"}>{result.ok ? `Deployed to ${env}` : result.refusal ? "Not deployed: refused" : "Failed"}</h4>
+            {result.refusal && result.gateKind && result.gateKind !== "confirm" ? (
+              <ProductionCheck env={env} kind={result.gateKind} message={result.refusal} busy={busy !== null} onCapture={captureState} onDone={() => (setResult(null), void makePlan())} />
+            ) : (
+              <pre className="outcome" data-testid="vault-result">
+                {result.refusal ?? result.text}
+              </pre>
+            )}
+            {captured && !plan && <CaptureSteps env={env} result={captured} onCompare={compare} />}
+            {!result.refusal && result.snapshot && <RecordCommit key={result.snapshot ?? result.text} message={`Deployed to ${env}${scope.length ? ` (${scope.join(", ")})` : ""}`} />}
+            {result.snapshot && (
+              <p className="muted small">
+                Snapshot: <code>{result.snapshot}</code>{" "}
+                <button className="link" onClick={() => (setRollbackOf({ file: result.snapshot!, name: result.snapshot!.replace(/^.*\//, ""), server: null, bytes: 0, ok: true }), setRollbackResult(null))} data-testid="vault-rollback-last">
+                  Roll back to it…
+                </button>
+              </p>
+            )}
+            {!running && (
+              <button className="link" onClick={() => (setResult(null), setConfirm(""))}>
+                {result.ok ? "Done" : "Back to the deploy"}
               </button>
-            </p>
-          )}
-        </div>
-      )}
+            )}
+          </div>
+        )}
+      </section>
+
       <div className="block">
         <div className="addrow tight">
           <h4 style={{ margin: 0 }}>Snapshots</h4>

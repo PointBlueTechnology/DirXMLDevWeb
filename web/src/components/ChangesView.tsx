@@ -20,6 +20,14 @@ export function ChangesView({ initial, revision, onSelect }: { initial: Against;
   const [selected, setSelected] = useState(0);
   // discarding one file's uncommitted change: asked once more inline, then done
   const [discarding, setDiscarding] = useState<string | null>(null);
+  // block by block: the working file as edited here (some blocks put back as the last commit has them)
+  const [edited, setEdited] = useState<Record<string, string>>({});
+  const [resets, setResets] = useState(0);
+  const saveBlocks = (f: string, text: string) =>
+    api.git
+      .discardBlocks(f, text)
+      .then((r) => (setNote({ ok: true, text: r.message }), setEdited(({ [f]: _gone, ...rest }) => rest), setResets((n) => n + 1), window.dispatchEvent(new Event(GIT_CHANGED))))
+      .catch((e: Error) => setNote({ ok: false, text: e.message }));
   const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
   const discard = (f: string) =>
     api.git
@@ -49,6 +57,10 @@ export function ChangesView({ initial, revision, onSelect }: { initial: Against;
   }, [against, revision]);
 
   const file = diff?.files[selected];
+  const notText = (t?: string | null) => t === undefined || t === null || t === "(binary)" || t === "(too large to show)";
+  // the working file's blocks can be put back one by one: since the last commit, a file still there, shown as text
+  const blockwise = against === "head" && !!file && file.status !== "deleted" && file.status !== "" && !notText(file.before) && !notText(file.after);
+  const changedHere = !!file && edited[file.file] !== undefined && edited[file.file] !== file.after;
   return (
     <div className="view changes">
       <div className="viewhead">
@@ -124,8 +136,45 @@ export function ChangesView({ initial, revision, onSelect }: { initial: Against;
                       </>
                     ))}
                 </p>
+                {blockwise && (
+                  <div className="addrow tight small mergebar" data-testid="changes-blocks">
+                    <span className="muted">
+                      Left: the last commit. Right: your working file. The arrow beside a block (point at it) puts the last commit's lines back there; you can also edit the
+                      right side. Nothing is written until you save.
+                    </span>
+                    <span className="spacer" />
+                    {changedHere && (
+                      <>
+                        <button className="link" onClick={() => (setEdited(({ [file.file]: _gone, ...rest }) => rest), setResets(resets + 1))}>
+                          start over
+                        </button>
+                        <button className="primary" onClick={() => void saveBlocks(file.file, edited[file.file] ?? "")} data-testid="changes-blocks-save">
+                          Save
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
                 <div className="stagediff">
-                  <DiffEditor language={file.language ?? "plaintext"} original={file.before ?? ""} modified={file.after ?? ""} theme={monacoTheme()} options={{ readOnly: true, renderSideBySide: true, minimap: { enabled: false }, scrollBeyondLastLine: false }} />
+                  <DiffEditor
+                    key={file.file + ":" + resets + ":" + revision}
+                    language={file.language ?? "plaintext"}
+                    original={file.before ?? ""}
+                    modified={blockwise ? (edited[file.file] ?? file.after ?? "") : (file.after ?? "")}
+                    theme={monacoTheme()}
+                    options={{ readOnly: !blockwise, originalEditable: false, renderMarginRevertIcon: blockwise, renderSideBySide: true, useInlineViewWhenSpaceIsLimited: !blockwise, wordWrap: "on", diffWordWrap: "on", minimap: { enabled: false }, scrollBeyondLastLine: false }}
+                    onMount={(editor) => {
+                      if (!blockwise) {
+                        return;
+                      }
+                      const f = file.file;
+                      const modified = editor.getModifiedEditor();
+                      modified.onDidChangeModelContent(() => {
+                        const text = modified.getValue();
+                        setEdited((cur) => ({ ...cur, [f]: text }));
+                      });
+                    }}
+                  />
                 </div>
               </>
             )}

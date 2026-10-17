@@ -1396,10 +1396,16 @@ public final class Api implements HttpHandler {
                     return r;
                 }
                 case "/api/git/discard": {
-                    // one uncommitted file back to the last commit (or gone, when the last commit hasn't it)
+                    // one uncommitted file back to the last commit (or gone, when the last commit hasn't it); with
+                    // "content", only some of its blocks: the text the page settled on (the rest of the change kept)
                     String f = Json.asString(req.get("file"));
-                    Map<String, Object> r = git.discard(w.root, f);
-                    audit.log(session, w, "discard", Map.of("file", String.valueOf(f)), "ok");
+                    Map<String, Object> r;
+                    if (req.containsKey("content")) {
+                        r = git.discardBlocks(w.root, w.tree, f, Json.asString(req.get("content")));
+                    } else {
+                        r = git.discard(w.root, f);
+                    }
+                    audit.log(session, w, req.containsKey("content") ? "discard-blocks" : "discard", Map.of("file", String.valueOf(f)), "ok");
                     return r;
                 }
                 case "/api/git/update": {
@@ -1417,6 +1423,8 @@ public final class Api implements HttpHandler {
         }
         throw new TreeService.NotFound("no such endpoint: " + method + " " + path);
     }
+
+
 
     /**
      * Null when this workspace's branch can be merged into the project's base on this page (docs/git-workflow.md):

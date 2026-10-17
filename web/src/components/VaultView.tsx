@@ -279,7 +279,7 @@ function PullDialog({ env, drivers, onClose, onApplied }: { env: string; drivers
                 original={diff.before}
                 modified={edits[diff.file] ?? diff.after}
                 theme={monacoTheme()}
-                options={{ readOnly: !mergeable, originalEditable: false, renderMarginRevertIcon: mergeable, renderSideBySide: true, wordWrap: "on", diffWordWrap: "on", minimap: { enabled: false }, scrollBeyondLastLine: false }}
+                options={{ readOnly: !mergeable, originalEditable: false, renderMarginRevertIcon: mergeable, renderSideBySide: true, useInlineViewWhenSpaceIsLimited: !mergeable, wordWrap: "on", diffWordWrap: "on", minimap: { enabled: false }, scrollBeyondLastLine: false }}
                 onMount={(editor) => {
                   if (!mergeable) {
                     return;

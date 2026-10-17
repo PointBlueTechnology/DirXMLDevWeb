@@ -18,7 +18,10 @@ Every view of the page, by area, in every install; the items marked *local and s
   is the core's `*.add` operation through the review.
 - **Changes**: what differs from the last commit, from the base branch, or from what was pushed,
   file by file with both sides. On *since the last commit*, **discard…** puts one file back as the
-  last commit has it (a new file is removed), asked once more first.
+  last commit has it (a new file is removed), asked once more first; or block by block: the right
+  side is the working file, the arrow beside a block puts the last commit's lines back there, the
+  right side can be edited, and **Save** writes it (refused, with nothing written, when the tree
+  wouldn't read). Both sides stay side by side.
 - **Driver set**: its DN, the servers it runs on (the primary marked), its drivers, the Library,
   what is linked at the driver-set level, the packages recorded on it, and its GCVs with the
   env-override columns. On a set with several servers, **Copy server-specific settings from one

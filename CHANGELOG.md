@@ -7,6 +7,41 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.65.0] - 2026-10-17
+
+Needs DirXMLDev 0.46.0.
+
+### Changed
+
+- **Compare & deploy is three steps (#136).** **Compare**, **Plan** and **Deploy** each show
+  their state and keep their result beside them. Each step names its scope ("the whole driver set,
+  every driver and the driver set's own objects", or one driver).
+  - **Changing an option** marks the plan out of date instead of clearing it.
+  - **The deploy button** says why it's disabled.
+- **The plan foresees production's checks.** Against a production vault, the plan reports what a
+  deploy would be refused for, before you type the name. It says so in the page's words, with a
+  button for the way on:
+  - **Capture <env>'s current state**, when its state isn't on record or has changed outside the
+    tree;
+  - **Push**, or **Get latest main**;
+  - otherwise, what to do: merge into main, deploy to test first, or commit.
+
+  The check's own words are one click away. A deploy refused anyway gets the same panel.
+- **Capture is its own action.** The "capture drift first" checkbox is gone. The capture reads the
+  vault and records its state, writing nothing to the vault and needing no typed name. Its steps
+  follow as buttons: **Merge it into this branch**, **Commit and push the record**, **Compare
+  again**.
+- **"Take the vault's state into this branch…" is now "Update this branch from <env>…"**, with a
+  line saying what it does.
+
+### Fixed
+
+- **A capture wrote the vault's state at the repository's top, not into the tree's folder.**
+  Every page project keeps its tree in `tree/` (DirXMLDev 0.46.0). The as-found commit added the
+  whole driver set beside `tree/`, so it looked as if everything had changed. Merging it put a
+  second copy of the driver set in the repository. Captures made on earlier versions should be
+  thrown away, not merged.
+
 ## [0.64.0] - 2026-10-17
 
 Needs DirXMLDev 0.45.0.

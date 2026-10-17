@@ -137,7 +137,7 @@ On top of that:
 |---|---|---|
 | dev | any | — |
 | test | any (recommended: `main`) | — |
-| production | **`main`, as the repository has it**: all your commits pushed, and nothing merged since that your copy lacks. Any branch when the vault allows it ([only one environment](#only-one-environment)). | Everything committed. A green deploy to `test` of the same content. Production's current state known: the vault must match the last production deploy, or **capture drift** first. |
+| production | **`main`, as the repository has it**: all your commits pushed, and nothing merged since that your copy lacks. Any branch when the vault allows it ([only one environment](#only-one-environment)). | Everything committed. A green deploy to `test` of the same content. Production's current state known: the vault must match the last production deploy, or you capture its state first (the plan offers it). |
 
 "The same content" means the commit you deployed to test, or any commit that differs from it only in
 `deploy-log/` and `deploy-snapshots/`. So committing the test deploy's record does not make
@@ -200,17 +200,20 @@ See [section 5](#5-merging-back-into-main).
    choose **Get latest main**.
 2. Deploy to `test`, then choose **Commit the deploy record** and **Push**.
 3. Test it in the test environment.
-4. Deploy to `prod`, typing `prod`. The page checks what [section 2](#what-each-kind-asks-before-a-deploy)
-   lists. A refusal names what's missing, for example:
+4. Compare and plan against `prod`. The plan checks what [section 2](#what-each-kind-asks-before-a-deploy)
+   lists before you type anything. When something stands in the way, the plan says so, with the way on:
 
-   | It says | Do this |
+   ![The plan against production: its state isn't on record yet, and the button that captures it](screenshots/git-workflow/05-production-check.png)
+
+   | The plan says | Do this |
    |---|---|
-   | *a production deploy comes from main; this is feature/x* | Merge the branch, then open `main`. |
-   | *push first: N commit(s) here are not on the repository's main* | Choose **Push**. |
-   | *main has N commit(s) this copy lacks: Get latest main first* | Choose **Get latest main**. Production would otherwise get something other than what `main` holds. |
-   | *requires a green deploy of this commit … to 'test' first* | `main` changed since the test deploy. Deploy it to test again. |
-   | *the vault differs from the last deploy on record* | Someone changed production outside the tree. Plan again with **capture drift**, then **Merge it into this branch** under the result. |
-5. **Commit the deploy record** and **Push**, so the repository records what production runs.
+   | *Production deploys come from main* | Merge the branch, then open `main`. |
+   | *Push first* | Choose **Push** in the panel. |
+   | *Get the latest main first* | Choose **Get latest main** in the panel. Production would otherwise get something other than what `main` holds. |
+   | *prod takes only what test has had* | `main` changed since the test deploy. Deploy it to test again. |
+   | *prod's current state isn't on record* (a first deploy) or *prod changed since the last deploy on record* (someone changed it outside the tree) | Choose **Capture prod's current state**. It reads the vault and records what it holds; nothing is written to the vault. Then follow the steps it shows: **Merge it into this branch** (when it found changes), **Commit and push the record**, **Compare again**, and plan again. |
+5. Type `prod` and deploy.
+6. **Commit the deploy record** and **Push**, so the repository records what production runs.
 
 ## 4. When to start a branch
 

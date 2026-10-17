@@ -115,7 +115,10 @@ Every view of the page, by area, in every install; the items marked *local and s
     value the vault holds for that stage stays in `overrides/<stage>.properties`, not in the base
     tree) and a secret shim authentication id stays out. Files the vault no longer has are
     removed. Each file has a tick: untick one to leave it as the branch has it (a granular update),
-    and Apply says how many of them it takes. A manifest (`driverset.xml`, a driver's `driver.xml`)
+    and Apply says how many of them it takes. Within a file the merge is line by line: the left side
+    is the branch, the right side what Apply writes (the vault's version to begin with), the arrow
+    beside a block keeps the branch's lines there, and the right side can be edited; a merged file
+    is marked, and *take all of <env>'s* / *keep all of this branch* start it over. A manifest (`driverset.xml`, a driver's `driver.xml`)
     taken apart from the files it lists is warned about, and a choice that would leave the tree
     unreadable is refused. The commit message is suggested; committing stays yours.
   - *Deploy*: the plan step by step with nothing written, then the deploy itself (snapshot,

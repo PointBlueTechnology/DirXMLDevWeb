@@ -1459,3 +1459,8 @@ a.button { display: inline-block; padding: 5px 10px; border: 1px solid var(--bor
   flex: 1;
   min-width: 0;
 }
+/* the line-level merge in Update this branch from <env> */
+.modal-diff .mergebar {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border);
+}

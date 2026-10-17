@@ -62,6 +62,36 @@ public class GranularUpdateTest {
         }
     }
 
+    /** A line-level merge: the vault's change taken in one line, the branch's kept in another; a broken merge is refused. */
+    @Test
+    @SuppressWarnings("unchecked")
+    public void aMergedFileIsWrittenAsMerged() throws Exception {
+        Path tree = tmp.newFolder("tree3").toPath();
+        AsCodeWriter.write(model("a1", "b1"), tree);
+        try (Watcher w = new Watcher(tree, 10_000)) {
+            TreeService service = new TreeService(tree, w);
+            DriverSet live = model("a2", "b2");
+            Map<String, Object> plan = service.pull(live, "lab", List.of(), true, "", new ArrayList<>());
+            String file = "drivers/A/config-values.xml";
+            String theirs = Files.readString(tree.resolve(file)).replace("a1", "a2");
+            String merged = theirs.replace("display-name=\"v\"", "display-name=\"merged\"");
+            Map<String, Object> r = service.pull(live, "lab", List.of(), false, (String) plan.get("revision"), new ArrayList<>(),
+                List.of(file), Map.of(file, merged));
+            assertEquals(List.of(file), r.get("changedFiles"));
+            assertEquals(merged, Files.readString(tree.resolve(file)));
+
+            Map<String, Object> again = service.pull(live, "lab", List.of(), true, "", new ArrayList<>());
+            try {
+                service.pull(live, "lab", List.of(), false, (String) again.get("revision"), new ArrayList<>(), List.of("drivers/B/config-values.xml"),
+                    Map.of("drivers/B/config-values.xml", "<configuration-values><definitions>"));
+                throw new AssertionError("a broken merge was written");
+            } catch (TreeService.BadRequest expected) {
+                assertTrue(expected.getMessage(), expected.getMessage().startsWith("with that choice the tree can't be read"));
+            }
+            assertTrue(Files.readString(tree.resolve("drivers/B/config-values.xml")).contains("b1"));
+        }
+    }
+
     /** A choice that leaves the tree unreadable (a manifest naming a file not taken) is refused, and nothing is written. */
     @Test
     @SuppressWarnings("unchecked")
@@ -79,7 +109,7 @@ public class GranularUpdateTest {
                 service.pull(live, "lab", List.of(), false, (String) plan.get("revision"), new ArrayList<>(), List.of("drivers/B/config-values.xml"));
                 throw new AssertionError("a choice leaving driver.xml naming a missing file was written");
             } catch (TreeService.BadRequest expected) {
-                assertTrue(expected.getMessage(), expected.getMessage().startsWith("with only those files the tree can't be read"));
+                assertTrue(expected.getMessage(), expected.getMessage().startsWith("with that choice the tree can't be read"));
                 assertFalse(expected.getMessage(), expected.getMessage().contains(tmp.getRoot().getName()));
             }
             assertTrue("nothing written", Files.exists(tree.resolve("drivers/B/config-values.xml")));

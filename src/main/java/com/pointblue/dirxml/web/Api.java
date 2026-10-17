@@ -732,7 +732,15 @@ public final class Api implements HttpHandler {
                     com.pointblue.dirxml.dev.model.DriverSet live = vault.liveForPull(env, notes);
                     // "files": take only those of the reviewed files (a granular update), the rest of the tree as it is
                     java.util.List<String> only = req.get("files") instanceof java.util.List<?> ? stringList(req.get("files")) : null;
-                    return service.pull(live, vault.environmentName(env), stringList(req.get("drivers")), dryRun, Json.asString(req.get("revision")), notes, only);
+                    // "contents": a line-level merge, the text to write for some of those files instead of the vault's
+                    java.util.Map<String, String> contents = null;
+                    if (req.get("contents") instanceof java.util.Map<?, ?> cm) {
+                        contents = new java.util.LinkedHashMap<>();
+                        for (java.util.Map.Entry<?, ?> e : cm.entrySet()) {
+                            contents.put(String.valueOf(e.getKey()), e.getValue() == null ? "" : String.valueOf(e.getValue()));
+                        }
+                    }
+                    return service.pull(live, vault.environmentName(env), stringList(req.get("drivers")), dryRun, Json.asString(req.get("revision")), notes, only, contents);
                 }
                 case "/api/vault/resync":
                     return vault.resync(env, Json.asString(req.get("driver")), Json.asString(req.get("since")), Json.asString(req.get("confirm")));

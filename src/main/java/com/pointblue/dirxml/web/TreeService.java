@@ -841,6 +841,15 @@ public final class TreeService {
      * rest of the tree stays as it is). A name the read no longer changes is noted and skipped.
      */
     public synchronized Map<String, Object> pull(DriverSet live, String envName, List<String> drivers, boolean dryRun, String revision, List<String> notes, List<String> only) throws IOException {
+        return pull(live, envName, drivers, dryRun, revision, notes, only, null);
+    }
+
+    /**
+     * As above; {@code contents} gives, for files the review listed as written, the text to write instead of the
+     * vault's: a merge at the line level (some of the vault's changes taken, some of the branch's lines kept). The
+     * result must still read as a tree.
+     */
+    public synchronized Map<String, Object> pull(DriverSet live, String envName, List<String> drivers, boolean dryRun, String revision, List<String> notes, List<String> only, Map<String, String> contents) throws IOException {
         // a dry run plans against the tree as it is now and returns that revision; the apply must name it
         String current = dryRun ? watcher.refreshNow() : requireRevision(revision);
         Path copy = Files.createTempDirectory("idmweb-pull-");
@@ -949,11 +958,36 @@ public final class TreeService {
                 m.put("revision", current);
                 return m;
             }
-            if (only != null) {
-                java.util.Set<String> wanted = new java.util.HashSet<>(only);
-                for (String f : only) {
+            if (contents != null && !contents.isEmpty()) {
+                // a line-level merge: the text the reviewer settled on replaces the vault's in the copy
+                for (Map.Entry<String, String> c : contents.entrySet()) {
+                    if (!changed.contains(c.getKey())) {
+                        throw new BadRequest(c.getKey() + ": not a file this update writes, so it can't be merged");
+                    }
+                    Path to = copy.resolve(c.getKey()).normalize();
+                    if (!to.startsWith(copy)) {
+                        throw new BadRequest(c.getKey() + ": not inside the tree");
+                    }
+                    Files.writeString(to, c.getValue() == null ? "" : c.getValue(), StandardCharsets.UTF_8);
+                }
+                // a file merged back to exactly what the branch holds changes nothing
+                changed.removeIf(f -> {
+                    try {
+                        return contents.containsKey(f) && Files.isRegularFile(tree.resolve(f))
+                            && java.util.Arrays.equals(Files.readAllBytes(tree.resolve(f)), Files.readAllBytes(copy.resolve(f)));
+                    } catch (IOException e) {
+                        return false;
+                    }
+                });
+                m.put("changedFiles", changed);
+                m.put("merged", new ArrayList<>(contents.keySet()));
+            }
+            if (only != null || (contents != null && !contents.isEmpty())) {
+                java.util.Set<String> wanted = new java.util.HashSet<>(only != null ? only : new ArrayList<String>() {{ addAll(changed); addAll(deleted); }});
+                for (String f : only == null ? List.<String>of() : only) {
                     if (!changed.contains(f) && !deleted.contains(f)) {
-                        notes.add(f + ": the vault no longer changes it; skipped");
+                        notes.add(f + (contents != null && contents.containsKey(f) ? ": merged back to what the branch has; nothing to write"
+                            : ": the vault no longer changes it; skipped"));
                     }
                 }
                 int all = changed.size() + deleted.size();
@@ -978,8 +1012,8 @@ public final class TreeService {
                     AsCodeReader.read(trial);
                 } catch (IOException | RuntimeException e) {
                     String why = String.valueOf(e.getMessage()).replace(trial.toString() + "/", "").replace(trial.toString(), "");
-                    throw new BadRequest("with only those files the tree can't be read (" + e.getClass().getSimpleName() + ": " + why
-                        + "): take a manifest (driverset.xml, a driver's driver.xml) together with the files it lists");
+                    throw new BadRequest("with that choice the tree can't be read (" + e.getClass().getSimpleName() + ": " + why
+                        + "): take a manifest (driverset.xml, a driver's driver.xml) together with the files it lists, and keep each merged file well-formed");
                 } finally {
                     deleteTree(trial);
                 }

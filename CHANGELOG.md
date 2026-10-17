@@ -19,6 +19,15 @@ Needs DirXMLDev 0.46.0.
   - **Manifests:** taking a manifest (`driverset.xml`, a driver's `driver.xml`) apart from the files
     it lists is warned about. A choice that would leave the tree unreadable is refused, and nothing is
     written.
+  - **Line-level merge within a file.** The left side is your branch, and the right side is what
+    Apply writes, starting as the vault's version.
+    - The arrow beside each changed block keeps your branch's lines there, and the right side can be
+      edited.
+    - A merged file is marked in the list. **take all of <env>'s** and **keep all of this branch**
+      start a file over.
+    - Apply writes the merged text. A merge that would leave the tree unreadable (for example, broken
+      XML) is refused.
+    - Lines wrap, so long values are readable.
   - **Deploys stay whole:** a deploy still covers its whole scope, so the vault always matches a
     commit.
 - **Discard one file's change.** In **Changes**, on *since the last commit*, **discard…** puts the

@@ -27,7 +27,7 @@ public final class Api implements HttpHandler {
     public static final String COOKIE = "idmweb_session";
     public static final String CSRF_HEADER = "X-IDMWeb-CSRF";
     /** POST routes only a deployer may call: they reach a vault or hold its credentials. */
-    private static final java.util.List<String> DEPLOYER_ONLY = java.util.List.of("/api/vault/deploy", "/api/vault/driver", "/api/vault/trace-level", "/api/vault/cache-clear", "/api/vault/cache-delete", "/api/vault/deploy-schema", "/api/vault/rollback", "/api/vault/start-option", "/api/vault/job", "/api/vault/health-clear", "/api/vault/log-level", "/api/vault/email-server", "/api/vault/trace-reset", "/api/vault/trace-tail", "/api/vault/resync", "/api/vault/migrate", "/api/vault/submit", "/api/vault/named-password", "/api/export/project", "/api/credentials/environment", "/api/credentials/environment/remove", "/api/credentials/secret");
+    private static final java.util.List<String> DEPLOYER_ONLY = java.util.List.of("/api/vault/deploy", "/api/vault/capture", "/api/vault/driver", "/api/vault/trace-level", "/api/vault/cache-clear", "/api/vault/cache-delete", "/api/vault/deploy-schema", "/api/vault/rollback", "/api/vault/start-option", "/api/vault/job", "/api/vault/health-clear", "/api/vault/log-level", "/api/vault/email-server", "/api/vault/trace-reset", "/api/vault/trace-tail", "/api/vault/resync", "/api/vault/migrate", "/api/vault/submit", "/api/vault/named-password", "/api/export/project", "/api/credentials/environment", "/api/credentials/environment/remove", "/api/credentials/secret");
 
     private final Workspaces workspaces;
     private final Session.Store sessions;
@@ -637,6 +637,11 @@ public final class Api implements HttpHandler {
                     return w.events.saveCase(env, (long) Double.parseDouble(String.valueOf(req.get("id"))), Json.asString(req.get("name")), Json.asString(req.get("driver")), Json.asString(req.get("channel")), Boolean.TRUE.equals(req.get("replace")), Boolean.TRUE.equals(req.get("dryRun")));
                 case "/api/vault/plan":
                     return vault.plan(env, drivers, deployChoices(req, restart));
+                case "/api/vault/capture": {
+                    Map<String, Object> r = vault.capture(env);
+                    audit.log(session, w, "capture", Map.of("env", String.valueOf(env), "branch", String.valueOf(r.get("capturedBranch"))), Boolean.TRUE.equals(r.get("ok")) ? "ok" : "refused");
+                    return r;
+                }
                 case "/api/vault/deploy":
                     return task(session, w, path, env, Boolean.TRUE.equals(req.get("async")),
                         t -> vault.deploy(env, drivers, deployChoices(req, restart), Json.asString(req.get("confirm")), t::line));

@@ -287,6 +287,8 @@ export const api = {
     schemaDiff: (env: string, other?: string) => call<SchemaDiffResult>("GET", `/api/vault/schema-diff?env=${q(env)}${other ? `&other=${q(other)}` : ""}`),
     diff: (env: string, drivers: string[]) => call<VaultDiffResult>("GET", `/api/vault/diff?env=${q(env)}${drivers.map((d) => `&driver=${q(d)}`).join("")}`),
     plan: (env: string, drivers: string[], choices: DeployChoices) => call<DeployResult>("POST", "/api/vault/plan", { env, drivers, ...choices }),
+    /** #136: record the environment's current state on an as-found branch when it isn't the known one; writes nothing to the vault (deployers). */
+    capture: (env: string) => call<DeployResult>("POST", "/api/vault/capture", { env }),
     snapshots: (env: string) => call<{ environment: string; dir: string; snapshots: VaultSnapshot[] }>("GET", `/api/vault/snapshots?env=${q(env)}`),
     /** Put a snapshot back; the environment's name typed again (deployers). */
     rollback: (env: string, snapshot: string, confirm: string, server?: string | null) => call<DeployResult>("POST", "/api/vault/rollback", { env, snapshot, confirm, ...(server ? { server } : {}) }),

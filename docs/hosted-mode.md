@@ -49,6 +49,7 @@ none.users=alice:Alice:alice@example.com:idm-editors;bob:Bob:bob@example.com:idm
 roles.editor=idm-editors,idm-deployers
 roles.deployer=idm-deployers
 session.hours=8                         # 0: never (the one-person install); sessions survive a restart
+release.check=true                      # once a day: is a newer release out? (the top bar says so; false: never ask)
 setup.roots=/srv,/var/lib/idmweb      # where path-based setup may point (default: data.dir and /srv)
 ```
 

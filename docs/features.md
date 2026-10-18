@@ -16,6 +16,13 @@ Every view of the page, by area, in every install; the items marked *local and s
   directory-abstraction entity; "New driver" from a base package with its features and their questions answered, a Designer
   export (a driver, or one driver of a driver-set export), a copy, or a shim class. Each
   is the core's `*.add` operation through the review.
+- **Conflicts**: an *Update from main* (or a captured state being merged) that conflicts offers
+  **Resolve the conflicts…**: per file the incoming version beside the merge, each conflict settled
+  with *Keep this branch's*, *Take main's* or *Keep both*, the block arrows, or editing; *Commit
+  the merge* redoes the merge on the server and commits exactly that (refused when a side moved or
+  the tree wouldn't read). Nothing is left half-merged meanwhile.
+- **A newer release**: the top bar says when one is out (the server asks GitHub once a day;
+  `release.check=false` turns it off).
 - **Changes**: what differs from the last commit, from the base branch, or from what was pushed,
   file by file with both sides. On *since the last commit*, **discard…** puts one file back as the
   last commit has it (a new file is removed), asked once more first; or block by block: the right

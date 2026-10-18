@@ -34,6 +34,8 @@ public final class Api implements HttpHandler {
     private final Security security;
     private final Audit audit;
     private final String version;
+    /** #126: a newer release, for the page's top bar. */
+    private final WebReleaseCheck release;
     private final Map<String, Session.Principal> agents;
     private final Map<String, String> agentSessions = new java.util.concurrent.ConcurrentHashMap<>();
     private SetupService setup;              // hosted mode only
@@ -64,6 +66,7 @@ public final class Api implements HttpHandler {
         this.security = security;
         this.audit = audit;
         this.version = version;
+        this.release = WebReleaseCheck.of(workspaces, version);
         this.agents = agents;
     }
 
@@ -364,6 +367,7 @@ public final class Api implements HttpHandler {
         m.put("name", "DirXMLDevWeb");
         m.put("version", version);
         m.put("core", coreVersion());
+        m.put("newerRelease", release.newer());
         m.put("mode", security.hostedMode() ? "hosted" : "local");
         m.put("csrf", session.csrf);
         Map<String, Object> u = new LinkedHashMap<>();
@@ -1393,6 +1397,9 @@ public final class Api implements HttpHandler {
                     }
                     Map<String, Object> r = git.mergeLocal(w.root, b, session.principal.name, session.principal.email);
                     audit.log(session, w, "merge-captured", Map.of("branch", b), Boolean.TRUE.equals(r.get("merged")) ? "ok" : "conflict");
+                    if (!Boolean.TRUE.equals(r.get("merged")) && r.get("conflicts") instanceof List<?> cl && !cl.isEmpty()) {
+                        r.put("resolveWith", b);   // the page can settle them: POST /api/git/conflicts {with}
+                    }
                     return r;
                 }
                 case "/api/git/discard": {
@@ -1415,6 +1422,42 @@ public final class Api implements HttpHandler {
                     }
                     Map<String, Object> r = git.update(w.root, b, session.principal.name, session.principal.email);
                     audit.log(session, w, "update", Map.of("from", b), Boolean.TRUE.equals(r.get("merged")) ? "ok" : "conflict");
+                    if (!Boolean.TRUE.equals(r.get("merged")) && r.get("conflicts") instanceof List<?> cl && !cl.isEmpty()) {
+                        r.put("resolveWith", "base");
+                    }
+                    return r;
+                }
+                case "/api/git/conflicts":
+                case "/api/git/resolve": {
+                    // conflicts settled on the page: "with" is the base branch ("base") or a captured as-found branch
+                    String with = Json.asString(req.get("with"));
+                    String ref;
+                    if ("base".equals(with)) {
+                        String b = base != null ? base : Json.asString(req.get("base"));
+                        if (b == null || b.isBlank()) {
+                            throw new TreeService.BadRequest("which base branch?");
+                        }
+                        if (path.equals("/api/git/conflicts")) {
+                            git.fetchBranch(w.root, b);
+                        }
+                        ref = "origin/" + b;
+                    } else if (with != null && with.matches("as-found/[A-Za-z0-9._-]+/[A-Za-z0-9._:-]+")) {
+                        ref = with;
+                    } else {
+                        throw new TreeService.BadRequest("with is base, or a captured as-found/<env>/<time> branch");
+                    }
+                    if (path.equals("/api/git/conflicts")) {
+                        return git.conflicts(w.root, ref, session.principal.name, session.principal.email);
+                    }
+                    Map<String, String> files = new LinkedHashMap<>();
+                    if (req.get("files") instanceof Map<?, ?> fm) {
+                        for (Map.Entry<?, ?> e : fm.entrySet()) {
+                            files.put(String.valueOf(e.getKey()), e.getValue() == null ? null : String.valueOf(e.getValue()));
+                        }
+                    }
+                    Map<String, Object> r = git.resolve(w.root, w.tree, ref, Json.asString(req.get("head")), Json.asString(req.get("theirs")), files,
+                        Json.asString(req.get("message")), session.principal.name, session.principal.email);
+                    audit.log(session, w, "resolve", Map.of("with", ref, "files", String.valueOf(files.size())), "ok");
                     return r;
                 }
                 default:

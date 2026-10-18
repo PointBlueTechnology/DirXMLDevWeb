@@ -25,6 +25,8 @@ Status: **decided 2026-10-05 (Keycloak, GitHub, container, proxy TLS, the server
 >   base branch on the repository when it is not on GitHub or GitLab. **Get latest main**
 >   brings the base into a copy of it. §3's "the page does not merge" is out of date. **Update
 >   from main** still leaves a conflict to resolve with git.
+> - **Conflicts are settled on the page** (since 0.67.0): Update from main, or a captured state,
+>   that conflicts offers Resolve the conflicts… (docs/git-workflow.md).
 > - **Production deploys come from the base branch** as the repository holds it: pushed and
 >   current. A production vault can allow any branch with `<env>.fromAnyBranch=true`, for a
 >   project with one environment.

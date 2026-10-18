@@ -7,6 +7,34 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.67.0] - 2026-10-18
+
+Needs DirXMLDev 0.46.0.
+
+### Added
+
+- **Resolve conflicts in the page.** When **Update from main** conflicts, the bar offers **Resolve
+  the conflicts…**. So does merging a captured production state.
+  - **The dialog:** for each conflicting file, the incoming version is on the left and the merge is
+    on the right, with git's conflict marks where they clash.
+  - **Settling a conflict:** **Keep this branch's**, **Take main's** or **Keep both**. You can also
+    use the block arrows or edit the right side. A file deleted on one side is kept or deleted
+    whole.
+  - **Committing:** **Commit the merge**, with your message, redoes the merge on the server and
+    commits exactly what you settled. It refuses if either side moved meanwhile, if a conflict mark
+    remains, or if the tree wouldn't read.
+  - **Nothing is left half-merged** while the dialog is open.
+  - New routes: `POST /api/git/conflicts` and `POST /api/git/resolve`.
+- **Know when a newer release is out (#126).** The server asks GitHub once a day, in the background,
+  and keeps the answer in its data folder. The top bar shows "N is available ↗", linking the release
+  notes; **×** hides it until the next release. `release.check=false` in `hosted.properties`, or
+  `IDMWEB_NO_UPDATE_CHECK`, turns the check off.
+
+### Changed
+
+- **A successful Update from main** says "brought main into this branch" instead of git's "Merge
+  made by the 'ort' strategy".
+
 ## [0.66.0] - 2026-10-17
 
 Needs DirXMLDev 0.46.0.

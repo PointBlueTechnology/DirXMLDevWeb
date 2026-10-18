@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { GIT_CHANGED, api } from "../api";
 import type { DeployResult } from "../types";
+import { ConflictDialog } from "./ConflictDialog";
 
 /**
  * What stands between a plan and a production deploy (#136), in the page's words, with the way on as a button:
@@ -102,7 +103,8 @@ export function ProductionCheck({ env, kind, message, busy, onCapture, onDone }:
  * commit and push the record, compare again.
  */
 export function CaptureSteps({ env, result, onCompare }: { env: string; result: DeployResult; onCompare: () => void }) {
-  const [merged, setMerged] = useState<{ ok: boolean; text: string; conflicts?: string[] } | null>(null);
+  const [merged, setMerged] = useState<{ ok: boolean; text: string; conflicts?: string[]; resolveWith?: string } | null>(null);
+  const [resolving, setResolving] = useState(false);
   const [recorded, setRecorded] = useState<{ ok: boolean; text: string } | null>(null);
   const [working, setWorking] = useState<string | null>(null);
   const branch = result.capturedBranch;
@@ -113,7 +115,7 @@ export function CaptureSteps({ env, result, onCompare }: { env: string; result: 
     setWorking("Merging…");
     api.git
       .mergeCaptured(branch)
-      .then((r) => (setMerged({ ok: r.merged, text: r.message, conflicts: r.conflicts }), window.dispatchEvent(new Event(GIT_CHANGED))))
+      .then((r) => (setMerged({ ok: r.merged, text: r.message, conflicts: r.conflicts, resolveWith: r.resolveWith }), window.dispatchEvent(new Event(GIT_CHANGED))))
       .catch((e: Error) => setMerged({ ok: false, text: e.message }))
       .finally(() => setWorking(null));
   };
@@ -170,6 +172,19 @@ export function CaptureSteps({ env, result, onCompare }: { env: string; result: 
                     <code>{c}</code>
                   </div>
                 ))}
+                {!merged.ok && merged.resolveWith && (
+                  <button onClick={() => setResolving(true)} data-testid="capture-resolve">
+                    Resolve the conflicts…
+                  </button>
+                )}
+                {resolving && merged.resolveWith && (
+                  <ConflictDialog
+                    with={merged.resolveWith}
+                    theirsLabel={`${env}'s captured state`}
+                    onClose={() => setResolving(false)}
+                    onDone={(m) => (setResolving(false), setMerged({ ok: true, text: m }))}
+                  />
+                )}
               </div>
             )}
           </li>

@@ -435,6 +435,189 @@ public final class Git {
         m.put("message", clean ? file + " is back to the last commit" : "the chosen blocks of " + file + " are back to the last commit; the rest of its change stays");
         return m;
     }
+    /** Lines git writes around a conflict: a file still holding them is not resolved. */
+    static final java.util.regex.Pattern MARKERS = java.util.regex.Pattern.compile("(?m)^(<<<<<<<|>>>>>>>)( |$)|^=======$");
+
+    private List<String> identity(String authorName, String authorEmail) {
+        return List.of("-c", "user.name=" + (authorName == null ? "DirXMLDevWeb" : authorName),
+            "-c", "user.email=" + (authorEmail == null ? "idmweb@localhost" : authorEmail), "-c", "merge.conflictstyle=merge");
+    }
+
+    private Result mergeNoCommit(Path dir, String ref, String authorName, String authorEmail) throws IOException {
+        unionDeployLogs(dir);
+        List<String> args = new ArrayList<>(identity(authorName, authorEmail));
+        args.addAll(List.of("merge", "--no-commit", "--no-ff", ref));
+        return run(dir, args.toArray(new String[0]));
+    }
+
+    private List<String> unmerged(Path dir) throws IOException {
+        List<String> out = new ArrayList<>();
+        for (String line : run(dir, "diff", "--name-only", "--diff-filter=U").out.split("\n")) {
+            if (!line.isBlank()) {
+                out.add(line.trim());
+            }
+        }
+        return out;
+    }
+
+    private String stage(Path dir, int n, String file) throws IOException {
+        Result r = run(dir, "show", ":" + n + ":" + file);
+        return r.ok() ? r.out : null;
+    }
+
+    /**
+     * What merging {@code ref} into this checkout conflicts on, to resolve on the page: per conflicting file this
+     * branch's version, the incoming one, the common base and git's merge of the two (conflict marks where they
+     * clash), and the two commits the merge was between. The merge is undone before this returns: nothing is left
+     * half-merged between the page's requests ({@link #resolve} does the merge again).
+     */
+    public Map<String, Object> conflicts(Path dir, String ref, String authorName, String authorEmail) throws IOException {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("ref", ref);
+        m.put("head", run(dir, "rev-parse", "HEAD").out.trim());
+        Result theirs = run(dir, "rev-parse", "--verify", ref);
+        if (!theirs.ok()) {
+            throw new TreeService.BadRequest("nothing called " + ref + " to merge");
+        }
+        m.put("theirs", theirs.out.trim());
+        m.put("branch", run(dir, "rev-parse", "--abbrev-ref", "HEAD").out.trim());
+        Result merge = mergeNoCommit(dir, ref, authorName, authorEmail);
+        try {
+            List<String> files = unmerged(dir);
+            if (merge.ok() || files.isEmpty()) {
+                String why = (merge.err.isBlank() ? merge.out : merge.err).trim();
+                if (!merge.ok()) {
+                    throw new TreeService.BadRequest("merging " + ref + " failed: " + (why.isEmpty() ? "git gave no reason" : why));
+                }
+                m.put("files", List.of());
+                m.put("message", "no conflicts: " + ref + " merges cleanly");
+                return m;
+            }
+            Map<String, String> kinds = new LinkedHashMap<>();
+            for (String line : run(dir, "status", "--porcelain=v1").out.split("\n")) {
+                if (line.length() > 3) {
+                    kinds.put(line.substring(3).trim(), line.substring(0, 2));
+                }
+            }
+            List<Object> out = new ArrayList<>();
+            for (String f : files) {
+                Map<String, Object> c = new LinkedHashMap<>();
+                c.put("file", f);
+                String xy = kinds.getOrDefault(f, "UU");
+                c.put("kind", switch (xy) {
+                    case "DU" -> "deleted here";
+                    case "UD" -> "deleted there";
+                    case "AA" -> "added on both";
+                    case "AU", "UA" -> "added on one, changed on the other";
+                    case "DD" -> "deleted on both";
+                    default -> "changed on both";
+                });
+                c.put("base", stage(dir, 1, f));
+                c.put("ours", stage(dir, 2, f));
+                c.put("theirs", stage(dir, 3, f));
+                Path wf = dir.resolve(f);
+                c.put("merged", Files.isRegularFile(wf) ? Files.readString(wf, StandardCharsets.UTF_8) : null);
+                c.put("language", TreeService.language(f));
+                out.add(c);
+            }
+            m.put("files", out);
+            List<String> clean = new ArrayList<>();
+            for (String line : run(dir, "diff", "--cached", "--name-only").out.split("\n")) {
+                if (!line.isBlank() && !files.contains(line.trim())) {
+                    clean.add(line.trim());
+                }
+            }
+            m.put("mergedCleanly", clean);
+            m.put("message", files.size() + " file(s) conflict");
+            return m;
+        } finally {
+            run(dir, "merge", "--abort");
+        }
+    }
+
+    /**
+     * Commit the merge of {@code ref} with the conflicts resolved as the page settled them: {@code files} gives each
+     * conflicting file's text, or null to delete it. Refused, with nothing changed, when either side moved since
+     * {@link #conflicts} ({@code head}, {@code theirs}), when a conflicting file is not given, when a text still holds
+     * conflict marks, or when the tree at {@code treeDir} would not read.
+     */
+    public Map<String, Object> resolve(Path dir, Path treeDir, String ref, String head, String theirs, Map<String, String> files,
+                                       String message, String authorName, String authorEmail) throws IOException {
+        if (head == null || !head.equals(run(dir, "rev-parse", "HEAD").out.trim())) {
+            throw new TreeService.BadRequest("this branch moved since the conflicts were read: open them again");
+        }
+        Result t = run(dir, "rev-parse", "--verify", ref);
+        if (!t.ok() || theirs == null || !theirs.equals(t.out.trim())) {
+            throw new TreeService.BadRequest(ref + " moved since the conflicts were read: open them again");
+        }
+        for (Map.Entry<String, String> e : files.entrySet()) {
+            String f = e.getKey();
+            if (f == null || f.startsWith("/") || f.contains("..") || !dir.resolve(f).normalize().startsWith(dir.normalize())) {
+                throw new TreeService.BadRequest(f + ": not a file in the checkout");
+            }
+            if (e.getValue() != null && MARKERS.matcher(e.getValue()).find()) {
+                throw new TreeService.BadRequest(f + " still holds conflict marks (<<<<<<<, =======, >>>>>>>): settle each conflict first");
+            }
+        }
+        Result merge = mergeNoCommit(dir, ref, authorName, authorEmail);
+        boolean done = false;
+        try {
+            List<String> conflicting = unmerged(dir);
+            if (!merge.ok() && conflicting.isEmpty()) {
+                String why = (merge.err.isBlank() ? merge.out : merge.err).trim();
+                throw new TreeService.BadRequest("merging " + ref + " failed: " + (why.isEmpty() ? "git gave no reason" : why));
+            }
+            List<String> missing = new ArrayList<>();
+            for (String f : conflicting) {
+                if (!files.containsKey(f)) {
+                    missing.add(f);
+                }
+            }
+            if (!missing.isEmpty()) {
+                throw new TreeService.BadRequest("not resolved: " + String.join(", ", missing));
+            }
+            for (Map.Entry<String, String> e : files.entrySet()) {
+                if (!conflicting.contains(e.getKey())) {
+                    continue;   // only the conflicting files are the page's to settle
+                }
+                Path wf = dir.resolve(e.getKey());
+                if (e.getValue() == null) {
+                    must(run(dir, "rm", "-q", "--force", "--ignore-unmatch", "--", e.getKey()), "delete " + e.getKey());
+                } else {
+                    Files.createDirectories(wf.getParent());
+                    Files.writeString(wf, e.getValue(), StandardCharsets.UTF_8);
+                    must(run(dir, "add", "--", e.getKey()), "stage " + e.getKey());
+                }
+            }
+            if (treeDir != null && Files.isRegularFile(treeDir.resolve(com.pointblue.dirxml.dev.ascode.AsCodeWriter.DRIVERSET_MANIFEST))) {
+                try {
+                    com.pointblue.dirxml.dev.ascode.AsCodeReader.read(treeDir);
+                } catch (IOException | RuntimeException e) {
+                    throw new TreeService.BadRequest("with these resolutions the tree can't be read (" + e.getClass().getSimpleName() + ": "
+                        + String.valueOf(e.getMessage()).replace(dir.toString() + "/", "") + "); nothing was committed");
+                }
+            }
+            List<String> args = new ArrayList<>(identity(authorName, authorEmail));
+            args.add("commit");
+            if (message != null && !message.isBlank()) {
+                args.addAll(List.of("-m", message.trim()));
+            } else {
+                args.add("--no-edit");
+            }
+            must(run(dir, args.toArray(new String[0])), "commit the merge");
+            done = true;
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("merged", true);
+            m.put("commit", run(dir, "rev-parse", "--short", "HEAD").out.trim());
+            m.put("message", "merged " + ref + " with " + conflicting.size() + " conflict(s) resolved (" + m.get("commit") + ")");
+            return m;
+        } finally {
+            if (!done) {
+                run(dir, "merge", "--abort");
+            }
+        }
+    }
+
     /** Bring the base branch's latest into this one; a conflict is reported with its files and left as is. */
     public Map<String, Object> update(Path dir, String base) throws IOException {
         return update(dir, base, null, null);
@@ -634,7 +817,7 @@ public final class Git {
             String why = (merge.err.isBlank() ? merge.out : merge.err).trim();
             m.put("message", "merging " + ref + " failed: " + (why.isEmpty() ? "git gave no reason" : why));
         } else {
-            m.put("message", "merging " + ref + " conflicts in " + conflicts.size() + " file(s); the merge was abandoned, resolve it in a checkout");
+            m.put("message", "merging " + ref + " conflicts in " + conflicts.size() + " file(s); nothing was merged yet: Resolve the conflicts… settles them here");
         }
         return m;
     }

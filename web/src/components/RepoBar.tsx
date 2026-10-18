@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { GIT_CHANGED, api } from "../api";
 import type { GitStatus, PullRequestInfo, Selection, Session, WorkspacesInfo } from "../types";
+import { ConflictDialog } from "./ConflictDialog";
 import { MergeDialog } from "./MergeDialog";
 import { PullRequestDialog } from "./PullRequestDialog";
 
@@ -38,6 +39,9 @@ export function RepoBar({ session, revision, onWorkspaceChanged, onBusy, onAddPr
   const [prOpen, setPrOpen] = useState(false);
   // docs/git-workflow.md: a repository with no GitHub or GitLab in front of it is merged on this page
   const [mergeOpen, setMergeOpen] = useState(false);
+  // an update that conflicted: settled on the page
+  const [conflictWith, setConflictWith] = useState<string | null>(null);
+  const [resolving, setResolving] = useState(false);
   // hosted: the provider's API; a local install: gh or glab (P3)
   const prKey = status?.repository && status.base && status.branch !== status.base ? `${status.branch}|${status.upstream ?? ""}|${status.ahead ?? 0}` : "";
   useEffect(() => {
@@ -92,7 +96,8 @@ export function RepoBar({ session, revision, onWorkspaceChanged, onBusy, onAddPr
   const update = () =>
     run("Updating…", async () => {
       const r = await api.git.update(status?.base ?? undefined);
-      return { ok: r.merged, text: r.message };
+      setConflictWith(r.resolveWith ?? null);
+      return { ok: r.merged, text: r.merged ? r.message.replace(/^Merge made by the '[^']+' strategy\.?$/, `brought ${status?.base ?? "the base"} into this branch`) : r.message };
     });
   const openBase = (base: string) =>
     run("Opening…", async () => {
@@ -288,6 +293,19 @@ export function RepoBar({ session, revision, onWorkspaceChanged, onBusy, onAddPr
       )}
       {busy && <span className="muted small">{busy}</span>}
       {note && <span className={note.ok ? "ok-text small" : "err-text small"}>{note.text}</span>}
+      {conflictWith && !note?.ok && (
+        <button onClick={() => setResolving(true)} data-testid="repo-resolve">
+          Resolve the conflicts…
+        </button>
+      )}
+      {resolving && conflictWith && (
+        <ConflictDialog
+          with={conflictWith}
+          theirsLabel={status?.base ?? "the base branch"}
+          onClose={() => setResolving(false)}
+          onDone={(m) => (setResolving(false), setConflictWith(null), setNote({ ok: true, text: m }), load())}
+        />
+      )}
       <span className="spacer" />
       {hosted && (
         <span className="small">

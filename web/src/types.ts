@@ -4,6 +4,8 @@ export interface Session {
   name: string;
   version: string;
   core: string | null;
+  /** #126: a newer DirXMLDevWeb release, from the server's daily check; null when current, unknown or the check is off. */
+  newerRelease?: { version: string; url: string | null } | null;
   mode: "local" | "hosted";
   /** Hosted mode with no repository yet: the first-run setup is needed. */
   setup?: boolean;
@@ -54,6 +56,28 @@ export interface GitStatus {
   /** docs/git-workflow.md: this branch can be merged into the base on this page (no GitHub or GitLab), else why not. */
   mergeHere?: boolean;
   mergeReason?: string | null;
+}
+
+/** A conflicting file of a merge, to settle on the page: this branch's version, the incoming one, git's merge with its marks. */
+export interface ConflictFile {
+  file: string;
+  kind: string;
+  base: string | null;
+  ours: string | null;
+  theirs: string | null;
+  merged: string | null;
+  language?: string | null;
+}
+
+/** The conflicts of a merge (POST /api/git/conflicts): the two commits it was between, to resolve against. */
+export interface Conflicts {
+  ref: string;
+  head: string;
+  theirs: string;
+  branch: string;
+  files: ConflictFile[];
+  mergedCleanly: string[];
+  message: string;
 }
 
 /** What merging the open branch into the base would carry (GET /api/git/merge-into-base). */

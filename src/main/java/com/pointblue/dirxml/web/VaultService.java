@@ -122,6 +122,7 @@ public final class VaultService {
     public Map<String, Object> diff(String envName, List<String> drivers) throws IOException {
         Environments.Environment e = env(envName);
         ModelDiff diff;
+        List<String> notes = new ArrayList<>();
         try {
             // VaultDiff.of(tree, env, drivers), with the vault's side kept: Update this branch from <env> uses
             // what this comparison read instead of reading the vault again
@@ -130,7 +131,6 @@ public final class VaultService {
             com.pointblue.dirxml.dev.deploy.Secrets secrets = e.secretsFile == null ? com.pointblue.dirxml.dev.deploy.Secrets.none()
                 : com.pointblue.dirxml.dev.deploy.Secrets.load(e.secretsFile);
             Overrides.applySecretShimAuthIds(to, secrets);
-            List<String> notes = new ArrayList<>();
             DriverSet from = VaultDiff.readLive(e, notes::add);
             lastRead = new LastRead(e.name, System.currentTimeMillis(), from, notes);
             diff = VaultDiff.of(from, to, drivers);
@@ -142,6 +142,7 @@ public final class VaultService {
         m.put("tier", e.tier.name().toLowerCase());
         m.put("text", diff.text());
         m.put("overrides", overridesNote(e.name));
+        m.put("notes", notes);   // what the read could not take (a server, a value)
         return m;
     }
 

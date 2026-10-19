@@ -688,6 +688,16 @@ function Compare({ env, drivers, revision, onOpen, onFix }: { env: string; drive
         {diff && (
           <>
             {diff.overrides && <p className="muted small">{diff.overrides}</p>}
+            {(diff.notes ?? []).length > 0 && (
+              <div className="banner warn" data-testid="vault-read-notes">
+                <strong>What the read couldn't take</strong>
+                <ul className="plain small">
+                  {diff.notes!.map((n, i) => (
+                    <li key={i}>{n}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
             {diff.empty ? (
               <p className="ok-text" data-testid="vault-same">
                 The vault matches the tree. Nothing to deploy.

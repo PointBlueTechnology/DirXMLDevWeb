@@ -373,6 +373,8 @@ export interface VaultDiffResult {
   tier: string;
   text: string;
   overrides: string | null;
+  /** What the read could not take: another server unreachable, a value eDirectory can't return (-325). */
+  notes?: string[];
 }
 
 /** What a deploy asks for beyond its scope (#34). */

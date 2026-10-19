@@ -83,7 +83,8 @@ export function ConnectionsView({ initialEnv, deployer }: { initialEnv: string |
     setChecks((c) => ({ ...c, [name]: c[name] && c[name] !== "checking" ? c[name] : "checking" }));
     return api.connections
       .check(name, fresh)
-      .then((r) => setChecks((c) => ({ ...c, [name]: r })))
+      // the top bar hears of every check made here: a password found rejected shows there at once
+      .then((r) => (setChecks((c) => ({ ...c, [name]: r })), window.dispatchEvent(new Event("idmweb:signin-changed"))))
       .catch((e: Error) => setChecks((c) => ({ ...c, [name]: { state: "error", message: e.message } })));
   };
   const checkAll = (d: Connections | null, fresh: boolean) => {

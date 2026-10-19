@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.69.0] - 2026-10-19
+
+Needs DirXMLDev 0.46.0.
+
 ### Changed
 
 - **The notices are in the image.** `THIRD-PARTY.md` and `LICENSE` are now at `/opt/idmweb/` in the

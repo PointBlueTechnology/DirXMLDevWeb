@@ -1,4 +1,4 @@
-import type { CacheView, CaseFiles, CasePlan, EventDetail, EventRow, EventsDescribe, TraceFileEntry, VaultPolicies, PolicyMembers, AppQueryResult, DriverHealth, LogLevel, DriverRights, DriverSetAdmin, EngineMetrics, WorkOrders, EmailServer, EngineInfo, DriverDetail, TraceShow, TraceTailResult, NamedPasswords, OperateOutcome, PullResult, NewProjectFields, ProjectExportResult, PullRequestInfo, PullRequestCreated, GitTokenHost, MergePreview, MergeResult, Conflicts } from "./types";
+import type { CacheView, CaseFiles, CasePlan, EventDetail, EventRow, EventsDescribe, TraceFileEntry, VaultPolicies, PolicyMembers, AppQueryResult, DriverHealth, LogLevel, DriverRights, DriverSetAdmin, EngineMetrics, WorkOrders, EmailServer, EngineInfo, DriverDetail, TraceShow, TraceTailResult, NamedPasswords, OperateOutcome, PullResult, NewProjectFields, ProjectExportResult, PullRequestInfo, PullRequestCreated, GitTokenHost, MergePreview, MergeResult, Conflicts, MergedBranches } from "./types";
 import type { TraceRec } from "./trace/model";
 import type { AppSchema, Architecture, DevNode, DeployChoices, DriverAssociations, ObjectInspection, PasswordSync, VaultJobs, VaultSnapshot, SchemaDiffResult, ProjectArchive, ProjectArchiveResult, Artifact, AuditEntry, BuildResult, ConfigView, Connections, DeployResult, EnvSecrets, FetchResult, FormData as FormDoc, GitDiff, GitStatus, ImportResult, LifecycleResult, OpCall, OpResult, OpSpec, Outline, OverridesData, PackagePrompts, PackagesData, PrdData, RoleCatalog, SchemaActionResult, SchemaClass, SchemaData, Session, SetupResult, SimCaseFiles, SimCases, SimDetail, SimRun, SiteListing, TreeFile, UpdateSites, Validation, VaultDiffResult, VaultEnvironments, VaultStatus, VaultTask, VaultCertificate, SignInCheck, ServerAddress, ProjectRepository, RepositoryCheck, WorkspacesInfo } from "./types";
 import type { FishboneModel } from "./fishbone/types";
@@ -161,6 +161,10 @@ export const api = {
     /** Commit the merge with each conflicting file's settled text (null: delete it); refused when a side moved since. */
     resolve: (withRef: string, head: string, theirs: string, files: Record<string, string | null>, message: string) =>
       call<{ merged: boolean; message: string; commit?: string }>("POST", "/api/git/resolve", { with: withRef, head, theirs, files, message }),
+    /** Branches whose every commit is in the base: deleting one loses nothing. */
+    mergedBranches: () => call<MergedBranches>("GET", "/api/git/merged-branches"),
+    /** Delete merged branches from the repository (and your own copies of them); each result says what happened. */
+    deleteBranches: (branches: string[]) => call<{ results: { branch: string; deleted: boolean; note?: string | null }[] }>("POST", "/api/git/delete-branches", { branches }),
     /** docs/git-workflow.md: what merging this branch into the base would carry. */
     mergePreview: () => call<MergePreview>("GET", "/api/git/merge-into-base"),
     /** Merge this branch into the base on the repository (pushed); a conflict merges nothing. */

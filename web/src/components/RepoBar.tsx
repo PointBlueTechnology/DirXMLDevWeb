@@ -3,6 +3,7 @@ import { GIT_CHANGED, api } from "../api";
 import type { GitStatus, PullRequestInfo, Selection, Session, WorkspacesInfo } from "../types";
 import { ConflictDialog } from "./ConflictDialog";
 import { MergeDialog } from "./MergeDialog";
+import { MergedBranchesDialog } from "./MergedBranchesDialog";
 import { PullRequestDialog } from "./PullRequestDialog";
 
 /**
@@ -42,6 +43,7 @@ export function RepoBar({ session, revision, onWorkspaceChanged, onBusy, onAddPr
   // an update that conflicted: settled on the page
   const [conflictWith, setConflictWith] = useState<string | null>(null);
   const [resolving, setResolving] = useState(false);
+  const [cleanup, setCleanup] = useState(false);
   // hosted: the provider's API; a local install: gh or glab (P3)
   const prKey = status?.repository && status.base && status.branch !== status.base ? `${status.branch}|${status.upstream ?? ""}|${status.ahead ?? 0}` : "";
   useEffect(() => {
@@ -98,6 +100,22 @@ export function RepoBar({ session, revision, onWorkspaceChanged, onBusy, onAddPr
       const r = await api.git.update(status?.base ?? undefined);
       setConflictWith(r.resolveWith ?? null);
       return { ok: r.merged, text: r.merged ? r.message.replace(/^Merge made by the '[^']+' strategy\.?$/, `brought ${status?.base ?? "the base"} into this branch`) : r.message };
+    });
+  // after Merge into main: open the base, then delete the branch just merged (the open branch is never deleted)
+  const openBaseAndDelete = (base: string, merged: string) =>
+    run("Opening…", async () => {
+      setMergeOpen(false);
+      onBusy(`Opening ${base} — cloning it on the server the first time…`);
+      try {
+        await api.openWorkspace(base, project || undefined);
+      } catch (e) {
+        onBusy(null);
+        throw e;
+      }
+      const r = await api.git.deleteBranches([merged]);
+      onWorkspaceChanged();
+      const one = r.results[0];
+      return { ok: !!one?.deleted, text: one?.deleted ? `opened ${base}; deleted ${merged}${one.note ? ` (${one.note})` : ""}` : `opened ${base}; ${merged} kept: ${one?.note ?? "not deleted"}` };
     });
   const openBase = (base: string) =>
     run("Opening…", async () => {
@@ -203,6 +221,11 @@ export function RepoBar({ session, revision, onWorkspaceChanged, onBusy, onAddPr
               <button onClick={openBranch} disabled={(!branch.trim() && !info?.inPlace) || busy !== null} data-testid="repo-open">
                 Open
               </button>
+              {status?.branchCleanup && (
+                <button className="link small" onClick={() => setCleanup(true)} title="Delete branches whose every commit is already in the base branch" data-testid="repo-merged-branches">
+                  merged branches…
+                </button>
+              )}
             </span>
           )}
         </span>
@@ -272,12 +295,14 @@ export function RepoBar({ session, revision, onWorkspaceChanged, onBusy, onAddPr
           )}
         </>
       )}
+      {cleanup && <MergedBranchesDialog onClose={() => setCleanup(false)} onDeleted={load} />}
       {mergeOpen && (
         <MergeDialog
           userName={session.user.name}
           onClose={() => setMergeOpen(false)}
           onMerged={(r) => (setNote({ ok: true, text: r.message }), load())}
           onOpenBase={openBase}
+          onOpenBaseAndDelete={status?.branchCleanup && session.branch ? (base) => openBaseAndDelete(base, session.branch!) : undefined}
         />
       )}
       {prOpen && pr && (

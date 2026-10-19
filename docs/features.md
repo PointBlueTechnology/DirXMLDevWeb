@@ -21,6 +21,11 @@ Every view of the page, by area, in every install; the items marked *local and s
   with *Keep this branch's*, *Take main's* or *Keep both*, the block arrows, or editing; *Commit
   the merge* redoes the merge on the server and commits exactly that (refused when a side moved or
   the tree wouldn't read). Nothing is left half-merged meanwhile.
+- **Merged branches**: **merged branches…** next to *switch* lists the repository's branches whose
+  every commit is in the base, with when and by whom each last changed; ticked ones are deleted
+  (checked again first; never the open branch), with your own copy unless it holds unpushed work.
+  After *Merge into main…*, **Open main and delete <branch>** does it in one go. A repository with
+  no GitHub or GitLab in front of it.
 - **A newer release**: the top bar says when one is out (the server asks GitHub once a day;
   `release.check=false` turns it off).
 - **Changes**: what differs from the last commit, from the base branch, or from what was pushed,

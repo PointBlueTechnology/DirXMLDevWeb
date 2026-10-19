@@ -435,6 +435,51 @@ public final class Git {
         m.put("message", clean ? file + " is back to the last commit" : "the chosen blocks of " + file + " are back to the last commit; the rest of its change stays");
         return m;
     }
+    /**
+     * The repository's branches whose every commit is in {@code base} (merged, so deleting one loses nothing), each with
+     * when and by whom it last changed. Fetches every branch first, forgetting the ones the repository no longer has.
+     */
+    public List<Map<String, Object>> mergedBranches(Path dir, String base) throws IOException {
+        must(run(dir, "fetch", "-q", "--prune", "origin", "+refs/heads/*:refs/remotes/origin/*"), "fetch the branches");
+        List<Map<String, Object>> out = new ArrayList<>();
+        Result r = must(run(dir, "for-each-ref", "--merged", "origin/" + base, "--sort=-committerdate",
+            "--format=%(refname:short)%09%(committerdate:relative)%09%(authorname)%09%(objectname:short)", "refs/remotes/origin"), "list the branches");
+        for (String line : r.out.split("\n")) {
+            String[] p = line.split("\t", 4);
+            if (p.length < 4 || !p[0].startsWith("origin/")) {
+                continue;
+            }
+            String b = p[0].substring("origin/".length());
+            if (b.equals(base) || b.equals("HEAD")) {
+                continue;
+            }
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("branch", b);
+            m.put("when", p[1]);
+            m.put("author", p[2]);
+            m.put("commit", p[3]);
+            out.add(m);
+        }
+        return out;
+    }
+
+    /** Delete a branch from the repository, refused unless every commit of it is in {@code base} (checked again now). */
+    public void deleteMergedBranch(Path dir, String branch, String base) throws IOException {
+        if (branch == null || branch.isBlank() || branch.equals(base) || branch.startsWith("-") || branch.contains("..")) {
+            throw new TreeService.BadRequest("which branch?");
+        }
+        fetchBranch(dir, base);
+        Result have = run(dir, "fetch", "-q", "origin", "+refs/heads/" + branch + ":refs/remotes/origin/" + branch);
+        if (!have.ok()) {
+            throw new TreeService.BadRequest(branch + ": not on the repository");
+        }
+        if (!run(dir, "merge-base", "--is-ancestor", "origin/" + branch, "origin/" + base).ok()) {
+            throw new TreeService.BadRequest(branch + " has commits " + base + " lacks: merge it first, nothing was deleted");
+        }
+        must(run(dir, "push", "-q", "origin", "--delete", branch), "delete " + branch);
+        run(dir, "update-ref", "-d", "refs/remotes/origin/" + branch);
+    }
+
     /** Lines git writes around a conflict: a file still holding them is not resolved. */
     static final java.util.regex.Pattern MARKERS = java.util.regex.Pattern.compile("(?m)^(<<<<<<<|>>>>>>>)( |$)|^=======$");
 

@@ -276,6 +276,32 @@ public final class Workspaces {
         return out;
     }
 
+    /**
+     * After a branch is deleted from the repository: the person's own copy of it on this server goes too — unless it
+     * holds uncommitted work or commits the repository never had, then it is kept and said so. Null when removed or
+     * there was none; else why it was kept.
+     */
+    public synchronized String removeOwnCopy(Session.Principal who, Project p, String branch) throws IOException {
+        Path dir = hosted.dataDir.resolve("workspaces").resolve(safe(p.name)).resolve(safe(who.subject)).resolve(safe(branch));
+        if (!Files.isDirectory(dir.resolve(".git"))) {
+            return null;
+        }
+        Git git = gitFor(p);
+        if (!git.run(dir, "status", "--porcelain=v1").out.isBlank()) {
+            return "your copy of " + branch + " has uncommitted work: kept";
+        }
+        Git.Result ahead = git.run(dir, "rev-list", "--count", "HEAD", "--not", "--remotes=origin");
+        if (ahead.ok() && !ahead.out.trim().equals("0")) {
+            return "your copy of " + branch + " has commits the repository never had: kept";
+        }
+        Workspace w = open.remove(p.name + "/" + safe(who.subject) + "/" + safe(branch));
+        if (w != null) {
+            w.close();
+        }
+        TreeService.deleteTree(dir);
+        return null;
+    }
+
     public Hosted config() {
         return hosted;
     }

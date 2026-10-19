@@ -150,18 +150,21 @@ export function App() {
           setSession(s);
           return s;
         })
-        .catch(() => null),
-    [],
+        .catch((e) => {
+          // a hosted page with no session is sent to sign in by the call itself; a local page refused here has
+          // no token (the session cookie is HttpOnly, so the page can't tell beforehand, and must not guess)
+          if (e instanceof ApiError && e.status === 403 && !token) {
+            setError("No session token. Open the URL that `bin/idmweb serve` printed; it ends in #token=…");
+          }
+          return null;
+        }),
+    [token],
   );
 
   useEffect(() => {
-    // local mode needs the printed token; hosted mode has a cookie and no token at all
-    if (!token && !document.cookie.includes("idmweb_session") && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
-      // a hosted page: /api/session either works (cookie) or redirects to sign-in
-    } else if (!token && !document.cookie.includes("idmweb_session")) {
-      setError("No session token. Open the URL that `bin/idmweb serve` printed; it ends in #token=…");
-    }
-    void loadSession().then(() => reload());
+    // local mode needs the printed token; hosted mode (the local install included) has a session cookie the
+    // page can't read: /api/session answers which, and a page without a session reads nothing more
+    void loadSession().then((s) => (s ? reload() : undefined));
     api
       .catalog()
       .then((c) => setOpNames(new Set(c.operations.map((o) => o.name))))

@@ -7,6 +7,21 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Fixed
+
+- **A reload showed "No session token…" in red until the tree loaded,** on the local install and on any
+  page at `localhost`. The page guessed from the session cookie, which it can't read (it is HttpOnly).
+  It now goes by the server's answer, and keeps the message for a local-mode page that really has no
+  token.
+- **The top bar didn't show a rejected password after a reload or an upgrade.**
+  - **Waiting on every vault:** the sign-in checks ran one vault after another, so nothing showed
+    until the slowest had answered.
+  - **No retry:** a failed ask wasn't repeated for five minutes.
+  - **Connections:** that page's own checks never reached the top bar.
+
+  Now the checks run side by side, a failed ask is repeated after 20 seconds, and each check on the
+  Connections page updates the top bar.
+
 ## [0.70.0] - 2026-10-19
 
 Needs DirXMLDev 0.48.0.

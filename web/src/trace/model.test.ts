@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ALL, compact, displayed, findRanges, foldPlan, formatTimestamp, ingest, lineCount, markerRow, matches, parseTimeOfDay, rowAtTime, segments, withTimestamp, type TraceRec } from "./model";
+import { ALL, compact, displayed, findRanges, foldPlan, formatTimestamp, ingest, lineCount, markerRow, MARKERS, matches, parseTimeOfDay, rowAtTime, segments, withTimestamp, type TraceRec } from "./model";
 
 const rec = (x: string, extra: Partial<TraceRec> = {}): TraceRec => ({ s: "idm1", t: 0, d: "AD", c: "S", h: null, x, r: [], ...extra });
 
@@ -147,5 +147,11 @@ describe("folding (#3 of the trace viewer)", () => {
     expect(displayed(rec, new Set([0]), true).rec.x).toBe("head:\n<nds>\ntail\n");
     expect(displayed(rec, new Set(), true).rec.x).toBe(compact(rec).x);
     expect(displayed(r("a\n\n<x>\n<y/>\n</x>\n", { fx: [[2, 4]] }), new Set(), true).starts).toEqual([1]);
+  });
+});
+
+describe("MARKERS", () => {
+  it("offers trace-core 1.8.0's policy result as a jump", () => {
+    expect(MARKERS.map((m) => m.code)).toContain("POLICY_RESULT");
   });
 });

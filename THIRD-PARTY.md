@@ -2,7 +2,9 @@
 
 DirXMLDevWeb's own code is under its [LICENSE](LICENSE) (MIT). A release ships the server jar, the
 page, the single-user zip and a container image. These are the components they carry or load,
-each under its own license. Keep these notices wherever you redistribute them.
+each under its own license. Keep these notices wherever you redistribute them. This file and the
+license are in the container image at `/opt/idmweb/THIRD-PARTY.md` and `/opt/idmweb/LICENSE`, and the
+file is attached to every release.
 
 ## In the server (the container image's `/opt/idmweb/lib`, or `~/.m2` for a workstation)
 

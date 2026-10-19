@@ -36,6 +36,8 @@ cp "$HOME/.m2/repository/com/novell/ldap/jldap/4.3/jldap-4.3.jar" "$CTX/artifact
 AUTH_VER=$(sed -n 's#.*<console.version>\([^<]*\)</console.version>.*#\1#p' "$HERE/pom.xml" | head -1)
 cp "$HOME/.m2/repository/com/pointblue/console/console-auth/$AUTH_VER/console-auth-$AUTH_VER.jar" "$CTX/artifacts/console-auth.jar"
 cp -R "$HERE/web/dist" "$CTX/artifacts/dist"
+# the notices and the license go into the image, as the components' licenses ask of a redistribution
+cp "$HERE/THIRD-PARTY.md" "$HERE/LICENSE" "$CTX/artifacts/"
 cp -R "$IDM_HOME/bin/secrets" "$CTX/artifacts/secrets"
 cp -R "$IDM_HOME/terraform" "$CTX/artifacts/terraform"
 find "$CTX/artifacts/terraform" -name .terraform -prune -exec rm -rf {} + 2>/dev/null || true

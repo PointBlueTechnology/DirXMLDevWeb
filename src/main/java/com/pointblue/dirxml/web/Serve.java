@@ -14,7 +14,7 @@ import java.util.concurrent.Executors;
  */
 public final class Serve {
 
-    public static final String VERSION = "0.68.0";
+    public static final String VERSION = "0.69.0";
 
     private Serve() {
     }

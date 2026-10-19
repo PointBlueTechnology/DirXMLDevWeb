@@ -1214,7 +1214,7 @@ tr.newer td { background: color-mix(in srgb, var(--accent) 8%, transparent); }
 
 /* the wait while a branch is opened and the tree read: a bar under the repository bar, with a spinner */
 .loading { display: flex; align-items: center; gap: 10px; padding: 8px 16px; background: color-mix(in srgb, var(--accent) 10%, var(--surface)); border-bottom: 1px solid var(--border); font-size: 13px; }
-.spinner { width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; flex: 0 0 auto; }
+.spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; flex: 0 0 auto; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* package prompts: the questions an install asks */
@@ -1476,3 +1476,8 @@ a.button { display: inline-block; padding: 5px 10px; border: 1px solid var(--bor
   max-height: 64px;
   overflow: auto;
 }
+
+/* the update dialog while it reads, compares or applies: a spinner and the time so far, over the diff */
+.modal-diff { position: relative; }
+.busy-pane { position: absolute; inset: 0; z-index: 5; display: flex; align-items: center; justify-content: center; background: color-mix(in srgb, var(--surface) 85%, transparent); }
+.busy-line { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; }

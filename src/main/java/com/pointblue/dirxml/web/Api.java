@@ -733,7 +733,9 @@ public final class Api implements HttpHandler {
                     if (!dryRun) {
                         service.requireRevision(Json.asString(req.get("revision"))); // before minutes of reading the vault
                     }
-                    com.pointblue.dirxml.dev.model.DriverSet live = vault.liveForPull(env, notes);
+                    // what the last Compare of this environment read, when recent ("fresh": read the vault again)
+                    VaultService.Live read = vault.liveForPull(env, notes, Boolean.TRUE.equals(req.get("fresh")));
+                    com.pointblue.dirxml.dev.model.DriverSet live = read.live();
                     // "files": take only those of the reviewed files (a granular update), the rest of the tree as it is
                     java.util.List<String> only = req.get("files") instanceof java.util.List<?> ? stringList(req.get("files")) : null;
                     // "contents": a line-level merge, the text to write for some of those files instead of the vault's
@@ -744,7 +746,10 @@ public final class Api implements HttpHandler {
                             contents.put(String.valueOf(e.getKey()), e.getValue() == null ? "" : String.valueOf(e.getValue()));
                         }
                     }
-                    return service.pull(live, vault.environmentName(env), stringList(req.get("drivers")), dryRun, Json.asString(req.get("revision")), notes, only, contents);
+                    Map<String, Object> pulled = service.pull(live, vault.environmentName(env), stringList(req.get("drivers")), dryRun, Json.asString(req.get("revision")), notes, only, contents);
+                    pulled.put("readAt", read.readAt());
+                    pulled.put("reused", read.reused());
+                    return pulled;
                 }
                 case "/api/vault/resync":
                     return vault.resync(env, Json.asString(req.get("driver")), Json.asString(req.get("since")), Json.asString(req.get("confirm")));

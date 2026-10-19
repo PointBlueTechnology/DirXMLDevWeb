@@ -61,21 +61,22 @@ export function RepoBar({ session, revision, onWorkspaceChanged, onBusy, onAddPr
     };
   }, [prKey]);
 
-  const load = () => {
-    if (session.workspace) {
-      api.git
-        .status()
-        .then(setStatus)
-        .catch(() => setStatus(null));
-    }
-    if (hosted) {
-      api.workspaces(project || undefined).then(setInfo).catch(() => undefined);
-    }
-  };
-  useEffect(load, [session.workspace, revision, hosted, project]);
+  // resolves once the bar shows the new state, so a commit's spinner stays up until the count is right
+  const load = () =>
+    Promise.all([
+      session.workspace
+        ? api.git
+            .status()
+            .then(setStatus)
+            .catch(() => setStatus(null))
+        : undefined,
+      hosted ? api.workspaces(project || undefined).then(setInfo).catch(() => undefined) : undefined,
+    ]).then(() => undefined);
+  useEffect(() => void load(), [session.workspace, revision, hosted, project]);
   useEffect(() => {
-    window.addEventListener(GIT_CHANGED, load);
-    return () => window.removeEventListener(GIT_CHANGED, load);
+    const onChanged = () => void load();
+    window.addEventListener(GIT_CHANGED, onChanged);
+    return () => window.removeEventListener(GIT_CHANGED, onChanged);
   }, [session.workspace, hosted, project]);
   useEffect(() => setProject(session.project ?? ""), [session.project]);
 
@@ -83,7 +84,11 @@ export function RepoBar({ session, revision, onWorkspaceChanged, onBusy, onAddPr
     setBusy(what);
     setNote(null);
     fn()
-      .then((r) => (setNote(r), load()))
+      .then(async (r) => {
+        setBusy("Refreshing…");
+        await load();
+        setNote(r);
+      })
       .catch((e: Error) => setNote({ ok: false, text: e.message }))
       .finally(() => setBusy(null));
   };
@@ -234,9 +239,15 @@ export function RepoBar({ session, revision, onWorkspaceChanged, onBusy, onAddPr
         <>
           <span className="muted small" title={status.last ? `${status.last.hash} ${status.last.author}, ${status.last.when}: ${status.last.subject}` : ""}>
             {!hosted && <>on <strong>{status.branch}</strong> · </>}
-            <button className={changed === 0 ? "link" : "pill warn dirty"} onClick={() => onSelect({ type: "changes", against: "head" })} title="What differs from the last commit, file by file" data-testid="repo-changes">
-              {changed === 0 ? "nothing to commit" : `● ${changed} uncommitted file${changed === 1 ? "" : "s"}`}
-            </button>
+            {busy ? (
+              <span className="busy-line" data-testid="repo-busy">
+                <span className="spinner" /> {busy}
+              </span>
+            ) : (
+              <button className={changed === 0 ? "link" : "pill warn dirty"} onClick={() => onSelect({ type: "changes", against: "head" })} title="What differs from the last commit, file by file" data-testid="repo-changes">
+                {changed === 0 ? "nothing to commit" : `● ${changed} uncommitted file${changed === 1 ? "" : "s"}`}
+              </button>
+            )}
             {status.ahead ? (
               <>
                 {" "}
@@ -316,7 +327,7 @@ export function RepoBar({ session, revision, onWorkspaceChanged, onBusy, onAddPr
           }}
         />
       )}
-      {busy && <span className="muted small">{busy}</span>}
+      {busy && !status?.repository && <span className="muted small">{busy}</span>}
       {note && <span className={note.ok ? "ok-text small" : "err-text small"}>{note.text}</span>}
       {conflictWith && !note?.ok && (
         <button onClick={() => setResolving(true)} data-testid="repo-resolve">

@@ -1,6 +1,7 @@
 package com.pointblue.dirxml.web;
 
 import com.pointblue.dirxml.dev.ascode.AsCodeReader;
+import com.pointblue.dirxml.dev.ascode.AsCodeWriter;
 import com.pointblue.dirxml.dev.deploy.AgentWriteGate;
 import com.pointblue.dirxml.dev.deploy.Deployer;
 import com.pointblue.dirxml.dev.deploy.Environments;
@@ -122,7 +123,17 @@ public final class VaultService {
         Environments.Environment e = env(envName);
         ModelDiff diff;
         try {
-            diff = VaultDiff.of(tree, e, drivers);
+            // VaultDiff.of(tree, env, drivers), with the vault's side kept: Update this branch from <env> uses
+            // what this comparison read instead of reading the vault again
+            DriverSet to = AsCodeReader.read(tree);
+            Overrides.apply(to, e.name);
+            com.pointblue.dirxml.dev.deploy.Secrets secrets = e.secretsFile == null ? com.pointblue.dirxml.dev.deploy.Secrets.none()
+                : com.pointblue.dirxml.dev.deploy.Secrets.load(e.secretsFile);
+            Overrides.applySecretShimAuthIds(to, secrets);
+            List<String> notes = new ArrayList<>();
+            DriverSet from = VaultDiff.readLive(e, notes::add);
+            lastRead = new LastRead(e.name, System.currentTimeMillis(), from, notes);
+            diff = VaultDiff.of(from, to, drivers);
         } catch (IllegalArgumentException ex) {
             throw new TreeService.BadRequest(ex.getMessage());
         }
@@ -188,6 +199,7 @@ public final class VaultService {
      * nothing to the vault.
      */
     public Map<String, Object> capture(String envName) throws IOException {
+        vaultWritten(env(envName).name);
         Deployer.Options o = options(envName, List.of(), new DeployChoices());
         o.captureOnly = true;
         return result(new Deployer(o).run(), o.env);
@@ -253,6 +265,7 @@ public final class VaultService {
 
     /** As above; {@code progress} hears each step as the core takes it (a {@link VaultTasks.Task}). */
     public Map<String, Object> rollback(String envName, String snapshot, String confirm, String server, java.util.function.Consumer<String> progress) throws IOException {
+        vaultWritten(env(envName).name);
         Environments.Environment e = env(envName);
         Map<String, Object> m = new LinkedHashMap<>();
         String refusal = gate(e.name, confirm);
@@ -287,6 +300,7 @@ public final class VaultService {
 
     /** As above; {@code progress} hears each step as the core takes it (a {@link VaultTasks.Task}). */
     public Map<String, Object> deploy(String envName, List<String> drivers, DeployChoices choices, String confirm, java.util.function.Consumer<String> progress) throws IOException {
+        vaultWritten(env(envName).name);
         Deployer.Options o = options(envName, drivers, choices);
         o.progress = progress;
         String refusal = gate(o.env.name, confirm);
@@ -663,14 +677,74 @@ public final class VaultService {
      * settings, and a shim auth id the environment's secrets file supplies removed (it never lands in the tree).
      */
     public DriverSet liveForPull(String envName, List<String> notes) throws IOException {
+        return liveForPull(envName, notes, true).live;
+    }
+
+    /** What a comparison read of an environment's vault, kept for Update this branch from <env>. */
+    private record LastRead(String env, long at, DriverSet live, List<String> notes) {
+    }
+
+    /** The vault's side as read for a pull: when it was read, and whether it came from the last comparison. */
+    public record Live(DriverSet live, long readAt, boolean reused) {
+    }
+
+    /** How long a comparison's read stands in for reading the vault again. */
+    static final long REUSE_MS = 10 * 60 * 1000L;
+
+    private volatile LastRead lastRead;
+
+    /** The vault changed through this page (a deploy, rollback or capture): a kept read of it is out of date. */
+    private void vaultWritten(String envName) {
+        LastRead r = lastRead;
+        if (r != null && r.env().equals(envName)) {
+            lastRead = null;
+        }
+    }
+
+    /**
+     * The vault's side for Update this branch from <env>: what the last comparison of that environment read, when it
+     * is under ten minutes old and {@code fresh} is false (no second read of the vault; and the apply writes what the
+     * review showed); else read now. The kept model is copied (a pull changes the one it is given).
+     */
+    public Live liveForPull(String envName, List<String> notes, boolean fresh) throws IOException {
         Environments.Environment e = env(envName);
-        DriverSet live = com.pointblue.dirxml.dev.deploy.VaultDiff.readLive(e, notes::add);
+        LastRead kept = lastRead;
+        DriverSet live;
+        long at;
+        boolean reused = !fresh && kept != null && kept.env().equals(e.name) && System.currentTimeMillis() - kept.at() < REUSE_MS;
+        if (reused) {
+            java.nio.file.Path tmp = java.nio.file.Files.createTempDirectory("idmweb-kept-read-");
+            try {
+                AsCodeWriter.write(kept.live(), tmp);
+                live = AsCodeReader.read(tmp);
+                live.meta.putAll(kept.live().meta);
+            } finally {
+                TreeService.deleteTree(tmp);
+            }
+            notes.addAll(kept.notes());
+            at = kept.at();
+        } else {
+            List<String> read = new ArrayList<>();
+            live = com.pointblue.dirxml.dev.deploy.VaultDiff.readLive(e, read::add);
+            notes.addAll(read);
+            at = System.currentTimeMillis();
+            // keep an untouched copy: the pull below changes the model it is given
+            java.nio.file.Path tmp = java.nio.file.Files.createTempDirectory("idmweb-kept-read-");
+            try {
+                AsCodeWriter.write(live, tmp);
+                DriverSet copy = AsCodeReader.read(tmp);
+                copy.meta.putAll(live.meta);
+                lastRead = new LastRead(e.name, at, copy, new ArrayList<>(read));
+            } finally {
+                TreeService.deleteTree(tmp);
+            }
+        }
         if (e.secretsFile != null) {
             for (String d : com.pointblue.dirxml.dev.deploy.Overrides.stripSecretShimAuthIds(live, com.pointblue.dirxml.dev.deploy.Secrets.load(e.secretsFile))) {
                 notes.add("secret: '" + d + "'.shim-auth-id kept out of the tree (the secrets file supplies it)");
             }
         }
-        return live;
+        return new Live(live, at, reused);
     }
 
     /** The environment's name as the environments file has it (for the overrides file's name). */

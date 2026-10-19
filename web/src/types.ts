@@ -401,6 +401,9 @@ export interface PullResult {
   notes: string[];
   unresolvedLinks: number;
   revision: string;
+  /** When the vault's side was read (epoch ms), and whether it was the last Compare's read rather than a new one. */
+  readAt?: number;
+  reused?: boolean;
 }
 
 /** A snapshot a deploy (or a rollback) took before writing. */

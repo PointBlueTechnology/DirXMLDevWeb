@@ -155,3 +155,9 @@ the licenses.
 ## Security
 
 Report vulnerabilities privately: see [SECURITY.md](SECURITY.md).
+
+## Trademarks
+
+DirXMLDevWeb is made by [Point Blue Technology](https://pointbluetech.com). It is not affiliated with,
+endorsed by or supported by OpenText. NetIQ, eDirectory, Identity Manager and OpenText are trademarks of
+OpenText or its affiliates; other names belong to their owners.

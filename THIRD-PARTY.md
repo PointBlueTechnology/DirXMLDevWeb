@@ -41,3 +41,9 @@ The NetIQ/OpenText Identity Manager engine jars (`dirxml.jar`, `dirxml_misc.jar`
 `hosted/docker/build.sh` refuses to build an image that contains any of them. Validate's compile
 check and the simulator load them from a `lib/` the customer mounts; vault access needs none of
 them.
+
+## Not affiliated with OpenText
+
+DirXMLDevWeb is made by [Point Blue Technology](https://pointbluetech.com). It is not affiliated with,
+endorsed by or supported by OpenText. NetIQ, eDirectory, Identity Manager and OpenText are trademarks of
+OpenText or its affiliates; other names belong to their owners.

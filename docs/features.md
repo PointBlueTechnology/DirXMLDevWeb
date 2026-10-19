@@ -124,8 +124,13 @@ Every view of the page, by area, in every install; the items marked *local and s
   - The tab is three numbered steps, *Compare*, *Plan* and *Deploy*, each with its state (not
     yet, a difference count, ready, blocked, options changed, deployed) and its result beside it;
     each names its scope (one driver, or the whole driver set and its own objects).
+  - Under Compare's differences, the two ways to bring them together: *Deploy this branch to
+    <environment>* (the Plan step) and *Update this branch from <environment>…*.
   - *Update this branch from <environment>…* (editors): what `idm import-live` writes, for the
-    driver set or the one driver in scope, reviewed file by file before and after with nothing
+    driver set or the one driver in scope. It uses the vault state Compare just read (kept for ten
+    minutes, and dropped by a deploy, rollback or capture); the dialog says when that read was made,
+    and *Read again* reads the vault anew. A spinner and the time so far show while it reads and
+    compares. It is reviewed file by file before and after with nothing
     written, then applied into the workspace's files. The stage's overrides are folded back (a
     value the vault holds for that stage stays in `overrides/<stage>.properties`, not in the base
     tree) and a secret shim authentication id stays out. Files the vault no longer has are

@@ -228,9 +228,10 @@ committed stays as it was. The bar then offers **Push**: choose it so that other
 - **Undo an edit:** **Discard** in the editor, before you apply. After you apply, and before you
   commit: open the uncommitted files from the bar and pick the file. **discard…** undoes the whole
   file; the arrow beside one changed block undoes just that block, then **Save**.
-- **The vault changed outside the tree** (someone used Designer or iManager): **Update this branch
-  from lab…** in the Compare step shows what would change in your tree, and Apply
-  writes it there for you to commit.
+- **The vault changed outside the tree** (someone used Designer or iManager): choose **Compare**,
+  then **Update this branch from lab…** under the differences. It uses what Compare just read, so
+  it opens at once, and shows what would change in your tree. Apply writes it there for you to
+  commit.
 
 ## Next: work with branches and environments
 

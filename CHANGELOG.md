@@ -7,6 +7,24 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.68.0] - 2026-10-19
+
+Needs DirXMLDev 0.46.0.
+
+### Added
+
+- **Delete merged branches.** Next to **switch**, **merged branches…** lists every branch on the
+  repository whose every commit is already in the base branch.
+  - **The list:** each with when and by whom it last changed. Tick the ones to delete.
+  - **Checked again:** the server re-checks that each one is merged before deleting it, and never
+    deletes the branch you have open.
+  - **Your copy:** your own copy on the server goes too, unless it holds uncommitted work or commits
+    the repository never had.
+  - **After a merge:** **Merge into main…** offers **Open main and delete <branch>**.
+  - **Where:** for repositories with no GitHub or GitLab in front of them; a merged pull request has
+    its own button there.
+  - New routes: `GET /api/git/merged-branches` and `POST /api/git/delete-branches`.
+
 ## [0.67.0] - 2026-10-18
 
 Needs DirXMLDev 0.46.0.

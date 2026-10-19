@@ -283,6 +283,21 @@ production, which production requires regardless. The safer path is the one the 
 ![Merged and pushed; Open main to promote it](screenshots/git-workflow/03-merged.png)
 
 Your own copy stays on your branch. **Open main** takes you to `main` to promote the change.
+**Open main and delete <branch>** does the same and deletes the branch you merged: every commit of
+it is in `main` now, so nothing is lost.
+
+### Deleting merged branches
+
+Merged branches pile up. Next to **switch**, choose **merged branches…**.
+- **The list:** every branch on the repository whose every commit is already in `main`, with when and
+  by whom it last changed. Tick the ones to delete and choose **Delete**.
+- **Checked again:** the server re-checks that each one is merged before deleting it, and never
+  deletes the branch you have open.
+- **Your copy:** your copy of a deleted branch on the server goes with it, unless it holds
+  uncommitted work or commits the repository never had.
+- **Other people's copies:** they are kept, and show as not on the repository.
+
+On GitHub or GitLab, a merged pull request offers the same button, and the page leaves it to them.
 
 If the branch conflicts with `main`, nothing is merged, and the dialog lists the files. Resolve
 the conflicts on your branch (below), then merge again. If someone else merged in the same

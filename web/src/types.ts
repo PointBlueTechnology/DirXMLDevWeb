@@ -56,6 +56,16 @@ export interface GitStatus {
   /** docs/git-workflow.md: this branch can be merged into the base on this page (no GitHub or GitLab), else why not. */
   mergeHere?: boolean;
   mergeReason?: string | null;
+  /** Merged branches can be deleted on this page (a repository with no GitHub or GitLab in front of it). */
+  branchCleanup?: boolean;
+}
+
+/** Branches whole in the base (GET /api/git/merged-branches). */
+export interface MergedBranches {
+  base: string;
+  /** The branch this person has open: not deleted. */
+  open: string;
+  branches: { branch: string; when: string; author: string; commit: string; yourCopy: boolean }[];
 }
 
 /** A conflicting file of a merge, to settle on the page: this branch's version, the incoming one, git's merge with its marks. */

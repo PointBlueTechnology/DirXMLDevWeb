@@ -134,4 +134,36 @@ public class GitMergeIntoBaseTest {
         assertNull(git.productionSource(main, "main"));
         assertFalse(Files.readString(main.resolve("policy.xml")).contains("one"));
     }
+
+    /** A branch whole in main is listed and can be deleted; one with commits main lacks is neither. */
+    @Test
+    @SuppressWarnings("unchecked")
+    public void mergedBranchesAreListedAndOnlyThoseCanBeDeleted() throws Exception {
+        seed();
+        Path done = open("alice", "feature/done");
+        Files.writeString(done.resolve("policy.xml"), "<policy>done</policy>\n", StandardCharsets.UTF_8);
+        git.commit(done, "done", "Alice", null, true);
+        assertEquals(Boolean.TRUE, git.mergeInto(done, "main", "Alice", null).get("merged"));
+        Path wip = open("bob", "feature/wip");
+        Files.writeString(wip.resolve("driverset.xml"), "<driverset wip=\"1\"/>\n", StandardCharsets.UTF_8);
+        git.commit(wip, "wip", "Bob", null, true);
+
+        Path main = open("alice", "main");
+        List<Map<String, Object>> merged = git.mergedBranches(main, "main");
+        List<Object> names = merged.stream().map(m -> m.get("branch")).collect(java.util.stream.Collectors.toList());
+        assertTrue(names.toString(), names.contains("feature/done"));
+        assertFalse(names.toString(), names.contains("feature/wip") || names.contains("main"));
+
+        try {
+            git.deleteMergedBranch(main, "feature/wip", "main");
+            throw new AssertionError("an unmerged branch was deleted");
+        } catch (TreeService.BadRequest expected) {
+            assertTrue(expected.getMessage(), expected.getMessage().contains("has commits main lacks"));
+        }
+        assertTrue(git.run(Path.of(url), "rev-parse", "--verify", "--quiet", "refs/heads/feature/wip").ok());
+
+        git.deleteMergedBranch(main, "feature/done", "main");
+        assertFalse(git.run(Path.of(url), "rev-parse", "--verify", "--quiet", "refs/heads/feature/done").ok());
+        assertFalse(git.mergedBranches(main, "main").stream().anyMatch(m -> "feature/done".equals(m.get("branch"))));
+    }
 }

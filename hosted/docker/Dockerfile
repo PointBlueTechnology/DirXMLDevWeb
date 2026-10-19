@@ -16,6 +16,7 @@ COPY artifacts/console-auth.jar      /opt/idmweb/lib/console-auth.jar
 COPY artifacts/dist               /opt/idmweb/web/dist
 COPY artifacts/secrets            /opt/idmweb/bin/secrets
 COPY artifacts/terraform          /opt/idmweb/terraform
+COPY artifacts/THIRD-PARTY.md artifacts/LICENSE /opt/idmweb/
 COPY bin/idm bin/idmweb bin/entrypoint.sh /opt/idmweb/bin/
 RUN chmod +x /opt/idmweb/bin/* /opt/idmweb/bin/secrets/* && mkdir -p /var/lib/idmweb /etc/idmweb /opt/idm/lib \
     && chown -R idmweb:idmweb /var/lib/idmweb /etc/idmweb && ln -s /opt/idmweb/bin/idm /usr/local/bin/idm \

@@ -8,7 +8,7 @@ import type { MergePreview, MergeResult } from "../types";
  * then the merge — on the repository, pushed, this checkout left on its branch. A conflict merges nothing and lists
  * the files; the way on is Update from the base on the branch.
  */
-export function MergeDialog({ userName, onClose, onMerged, onOpenBase }: { userName: string; onClose: () => void; onMerged: (r: MergeResult) => void; onOpenBase: (base: string) => void }) {
+export function MergeDialog({ userName, onClose, onMerged, onOpenBase, onOpenBaseAndDelete }: { userName: string; onClose: () => void; onMerged: (r: MergeResult) => void; onOpenBase: (base: string) => void; onOpenBaseAndDelete?: (base: string) => void }) {
   const [preview, setPreview] = useState<MergePreview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -109,6 +109,11 @@ export function MergeDialog({ userName, onClose, onMerged, onOpenBase }: { userN
           {result?.merged ? (
             <>
               <button onClick={onClose}>Close</button>
+              {onOpenBaseAndDelete && (
+                <button onClick={() => onOpenBaseAndDelete(preview?.base ?? "main")} title={`Its every commit is in ${base} now: deleting it loses nothing`} data-testid="merge-open-base-delete">
+                  Open {base} and delete {preview?.branch ?? "this branch"}
+                </button>
+              )}
               <button className="primary" onClick={() => onOpenBase(preview?.base ?? "main")} data-testid="merge-open-base">
                 Open {base}
               </button>

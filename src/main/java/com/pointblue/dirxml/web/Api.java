@@ -1343,6 +1343,45 @@ public final class Api implements HttpHandler {
             m.put("files", git.diff(w.root, ref, 200));
             return m;
         }
+        if (path.equals("/api/git/merged-branches") || path.equals("/api/git/delete-branches")) {
+            // branches whole in the base, and deleting them (docs/git-workflow.md): a repository with no provider
+            String why = branchCleanupRefusal(project);
+            if (why != null) {
+                throw new TreeService.BadRequest(why);
+            }
+            if (method.equals("GET")) {
+                Map<String, Object> m = new LinkedHashMap<>();
+                m.put("base", base);
+                m.put("open", w.branch);
+                List<Map<String, Object>> list = git.mergedBranches(w.root, base);
+                for (Map<String, Object> b : list) {
+                    b.put("yourCopy", java.nio.file.Files.isDirectory(workspaces.config().dataDir.resolve("workspaces").resolve(Workspaces.safe(project.name))
+                        .resolve(Workspaces.safe(session.principal.subject)).resolve(Workspaces.safe((String) b.get("branch"))).resolve(".git")));
+                }
+                m.put("branches", list);
+                return m;
+            }
+            Map<String, Object> req = Json.asMap(Json.parse(new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8)));
+            List<Object> results = new java.util.ArrayList<>();
+            for (String b : stringList(req.get("branches"))) {
+                Map<String, Object> r = new LinkedHashMap<>();
+                r.put("branch", b);
+                try {
+                    if (b.equals(w.branch)) {
+                        throw new TreeService.BadRequest(b + " is the branch you have open: switch to " + base + " first");
+                    }
+                    git.deleteMergedBranch(w.root, b, base);
+                    r.put("deleted", true);
+                    r.put("note", workspaces.removeOwnCopy(session.principal, project, b));
+                    audit.log(session, w, "delete-branch", Map.of("branch", b), "ok");
+                } catch (TreeService.BadRequest e) {
+                    r.put("deleted", false);
+                    r.put("note", e.getMessage());
+                }
+                results.add(r);
+            }
+            return Map.of("results", results);
+        }
         if (path.equals("/api/git/merge-into-base")) {
             String why = mergeHereRefusal(w, project, git);
             if (why != null) {
@@ -1363,6 +1402,7 @@ public final class Api implements HttpHandler {
                 String why = mergeHereRefusal(w, project, git);
                 m.put("mergeHere", why == null);
                 m.put("mergeReason", why);
+                m.put("branchCleanup", branchCleanupRefusal(project) == null);
             }
             if (base == null && Boolean.TRUE.equals(m.get("repository"))) {
                 // local mode: the branch the tree sits on is compared with main or master, whichever exists
@@ -1468,6 +1508,29 @@ public final class Api implements HttpHandler {
     }
 
 
+
+    /**
+     * Null when merged branches can be deleted from the project's repository on this page: hosted mode, a repository
+     * of the project's own, no GitHub or GitLab in front of it (there, a merged pull request offers the same).
+     */
+    private String branchCleanupRefusal(Project project) {
+        if (project == null || !workspaces.hosted()) {
+            return "a checkout of your own: delete branches with git there";
+        }
+        if (project.inPlace != null) {
+            return "project '" + project.name + "' is a checkout in place: delete branches with git in it";
+        }
+        PullRequests.Target t;
+        try {
+            t = PullRequests.target(project.url, project.provider, project.apiUrl);
+        } catch (IllegalArgumentException e) {
+            t = null;
+        }
+        if (t != null) {
+            return "the repository is on " + t.provider().label + ": delete a merged branch there (its pull request offers it)";
+        }
+        return null;
+    }
 
     /**
      * Null when this workspace's branch can be merged into the project's base on this page (docs/git-workflow.md):

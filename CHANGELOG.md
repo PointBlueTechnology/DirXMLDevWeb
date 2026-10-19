@@ -7,6 +7,13 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- **The notices are in the image.** `THIRD-PARTY.md` and `LICENSE` are now at `/opt/idmweb/` in the
+  container image, as directory-console does. `THIRD-PARTY.md` is also attached to every release. It
+  now says that DirXMLDevWeb is made by Point Blue Technology and is not affiliated with, endorsed by
+  or supported by OpenText, and it carries the trademark notice.
+
 ## [0.68.0] - 2026-10-19
 
 Needs DirXMLDev 0.46.0.

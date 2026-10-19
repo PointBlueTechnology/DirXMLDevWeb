@@ -450,14 +450,41 @@ public final class CredentialService {
     }
 
     /** The person's environments whose sign-in needs them: rejected, certificate, unreachable, or expiring soon. */
+    /** The sign-in checks of {@link #problems}, side by side (daemon threads: they never hold the server up). */
+    private static final java.util.concurrent.ExecutorService CHECK_POOL = java.util.concurrent.Executors.newFixedThreadPool(8, r -> {
+        Thread t = new Thread(r, "sign-in-check");
+        t.setDaemon(true);
+        return t;
+    });
+
     public Map<String, Object> problems() throws IOException {
         List<Map<String, Object>> out = new ArrayList<>();
         Map<String, String> mine = files.isSplit() ? entries(files.credentials()) : entries(definitionsFile());
+        List<String> signedIn = new ArrayList<>();
         for (String n : namesOf(merged())) {
-            if (mine.get(n + ".bindDn") == null || sourceKind(mine, n + ".password") == null) {
-                continue;   // not signed in: the list says so; nothing to warn about
+            if (mine.get(n + ".bindDn") != null && sourceKind(mine, n + ".password") != null) {
+                signedIn.add(n);   // not signed in: the list says so; nothing to warn about
             }
-            Map<String, Object> c = check(n, false);
+        }
+        // every vault at once: after a restart nothing is cached, and one slow or unreachable vault must not
+        // hold back the answer about the others (the top bar waits for this)
+        List<java.util.concurrent.CompletableFuture<Map<String, Object>>> asks = new ArrayList<>();
+        for (String n : signedIn) {
+            asks.add(java.util.concurrent.CompletableFuture.supplyAsync(() -> {
+                try {
+                    return check(n, false);
+                } catch (IOException e) {
+                    throw new java.io.UncheckedIOException(e);
+                }
+            }, CHECK_POOL));
+        }
+        for (java.util.concurrent.CompletableFuture<Map<String, Object>> f : asks) {
+            Map<String, Object> c;
+            try {
+                c = f.join();
+            } catch (java.util.concurrent.CompletionException e) {
+                throw e.getCause() instanceof java.io.UncheckedIOException u ? u.getCause() : new IOException(e.getCause());
+            }
             String state = String.valueOf(c.get("state"));
             Object days = c.get("daysLeft");
             boolean expiring = days instanceof Number d && d.longValue() <= 14;

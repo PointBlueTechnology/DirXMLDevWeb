@@ -7,6 +7,23 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- **Update this branch from <env> follows Compare.** The button now sits under Compare's
+  differences, beside *Deploy this branch to <env>*, instead of beside Compare. It uses what Compare
+  just read rather than reading the vault again, so it opens at once. The dialog says when that read
+  was made and offers *Read again*. The read is kept for ten minutes and dropped by a deploy, a
+  rollback or a capture.
+- **Compare shows what the read couldn't take.** The read's notes now appear under Compare in a
+  warning box: another server that couldn't be read, or (with DirXMLDev 0.48.0 or later) a value
+  eDirectory can't return (-325, invalid attribute syntax), named by object and attribute.
+- **Spinners.** The update dialog shows a spinner and the time so far while it reads, compares or
+  applies. So does Compare.
+- **Commit shows its progress until the bar is right.** After Commit or Commit & push, the
+  repository bar shows a spinner where the uncommitted count was ("Committing…", then
+  "Refreshing…") until the count is read again. Before, the old count stayed for a few seconds on a
+  big change.
+
 ### Fixed
 
 - **A reload showed "No session token…" in red until the tree loaded,** on the local install and on any

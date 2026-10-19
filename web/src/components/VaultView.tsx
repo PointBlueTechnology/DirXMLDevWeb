@@ -161,21 +161,33 @@ function RecordCommit({ message }: { message: string }) {
 function PullDialog({ env, drivers, onClose, onApplied }: { env: string; drivers: string[]; onClose: () => void; onApplied: (r: PullResult) => void }) {
   const [result, setResult] = useState<PullResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(true);
+  // what the dialog is doing, shown with a spinner: reading and comparing can take a while on a big driver set
+  const [busy, setBusy] = useState<string | null>(`Comparing ${env} with this branch…`);
+  const [since, setSince] = useState(() => Date.now());
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!busy) {
+      return;
+    }
+    const t = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(t);
+  }, [busy]);
   const [selected, setSelected] = useState(0);
   // the files to take: every one, until some are unticked
   const [take, setTake] = useState<Set<string>>(new Set());
   // a line-level merge: per file, the text Apply writes when it isn't the vault's (blocks of the branch kept, edits)
   const [edits, setEdits] = useState<Record<string, string>>({});
   const [resets, setResets] = useState(0);   // remounts the diff after "take all" / "keep all"
-  const run = async (dryRun: boolean) => {
-    setBusy(true);
+  const run = async (dryRun: boolean, fresh = false) => {
+    setBusy(!dryRun ? "Writing the files into this branch's tree…" : fresh ? `Reading ${env} again and comparing it with this branch…` : `Comparing ${env} with this branch…`);
+    setSince(Date.now());
+    setNow(Date.now());
     setError(null);
     try {
       // the dry run plans against the tree as it is now; the apply must match the revision it reviewed
       const all = (result?.diffs ?? []).length;
       const merged = Object.fromEntries(Object.entries(edits).filter(([f, text]) => take.has(f) && text !== (result?.diffs ?? []).find((d) => d.file === f)?.after));
-      const r = await api.vault.pull(env, drivers, dryRun, dryRun ? "" : result?.revision ?? "", !dryRun && take.size < all ? [...take] : undefined, !dryRun && Object.keys(merged).length ? merged : undefined);
+      const r = await api.vault.pull(env, drivers, dryRun, dryRun ? "" : result?.revision ?? "", !dryRun && take.size < all ? [...take] : undefined, !dryRun && Object.keys(merged).length ? merged : undefined, fresh);
       if (!dryRun) {
         onApplied(r);
         return;
@@ -185,9 +197,14 @@ function PullDialog({ env, drivers, onClose, onApplied }: { env: string; drivers
     } catch (e) {
       setError(e instanceof ApiError && e.status === 409 ? "The tree changed on disk while this was open. Close, let the page reload, and review again." : e instanceof Error ? e.message : String(e));
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
   };
+  const working = busy && (
+    <span className="busy-line" data-testid="pull-busy">
+      <span className="spinner" /> {busy} {Math.max(0, Math.round((now - since) / 1000))}s
+    </span>
+  );
   useEffect(() => {
     void run(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -223,13 +240,24 @@ function PullDialog({ env, drivers, onClose, onApplied }: { env: string; drivers
       <div className="modal" data-testid="pull-dialog">
         <div className="modal-head">
           <h3>Update this branch from {env}{drivers.length ? `: ${drivers.join(", ")}` : ""}</h3>
-          <span className="muted small">Nothing is written until you apply. Untick a file to leave it as this branch has it.</span>
+          <span className="muted small">
+            Nothing is written until you apply. Untick a file to leave it as this branch has it.
+            {result?.readAt && (
+              <>
+                {" "}
+                {result.reused ? "Uses what Compare read" : "Read"} at {new Date(result.readAt).toLocaleTimeString()}.{" "}
+                <button className="link" onClick={() => void run(true, true)} disabled={busy !== null} title={`Read ${env} again now`} data-testid="pull-read-again">
+                  Read again
+                </button>
+              </>
+            )}
+          </span>
         </div>
         <div className="modal-body">
           <div className="modal-side">
             <h4>Files</h4>
             {diffs.length === 0 ? (
-              <p className="muted small">{busy ? "…" : "none"}</p>
+              <p className="muted small">{busy ? "" : "none"}</p>
             ) : (
               <>
                 <div className="addrow tight small">
@@ -256,6 +284,7 @@ function PullDialog({ env, drivers, onClose, onApplied }: { env: string; drivers
             )}
           </div>
           <div className="modal-diff">
+            {busy && <div className="busy-pane">{working}</div>}
             {diff && mergeable && (
               <div className="addrow tight small mergebar" data-testid="pull-merge-bar">
                 <span className="muted">
@@ -293,7 +322,7 @@ function PullDialog({ env, drivers, onClose, onApplied }: { env: string; drivers
                 }}
               />
             ) : (
-              <p className="muted pad">{busy ? "Reading the vault and writing it into a copy of the tree…" : diff ? "This file is not shown as text." : "No file would change: the branch already holds the vault's state."}</p>
+              !busy && <p className="muted pad">{diff ? "This file is not shown as text." : "No file would change: the branch already holds the vault's state."}</p>
             )}
           </div>
         </div>
@@ -336,11 +365,11 @@ function PullDialog({ env, drivers, onClose, onApplied }: { env: string; drivers
           )}
         </div>
         <div className="modal-foot">
-          <span className="muted small">Applying writes the files into this branch's tree; commit them from the bar at the top.</span>
-          <button onClick={onClose} disabled={busy}>
+          {<span className="muted small">Applying writes the files into this branch's tree; commit them from the bar at the top.</span>}
+          <button onClick={onClose} disabled={busy !== null}>
             Cancel
           </button>
-          <button className="primary" disabled={busy || !result || nothing || take.size === 0} onClick={() => void run(false)} data-testid="pull-apply">
+          <button className="primary" disabled={busy !== null || !result || nothing || take.size === 0} onClick={() => void run(false)} data-testid="pull-apply">
             {take.size < diffs.length ? `Apply ${take.size} of ${diffs.length} files` : "Apply"}
           </button>
         </div>
@@ -632,7 +661,11 @@ function Compare({ env, drivers, revision, onOpen, onFix }: { env: string; drive
           Compare, plan and deploy cover <strong>{scopeLabel}</strong>
           {only ? "; nothing outside it is written" : ", every driver and the driver set's own objects (jobs, RBE policies, templates)"}.
         </span>
-        {busy && <span className="muted">{busy}</span>}
+        {busy && (
+          <span className="busy-line muted">
+            <span className="spinner" /> {busy}
+          </span>
+        )}
       </div>
       {error && <VaultError message={error} onFix={onFix} />}
       {task && task.running && <TaskLine task={task} mine={followed.current === task.id} />}
@@ -650,16 +683,21 @@ function Compare({ env, drivers, revision, onOpen, onFix }: { env: string; drive
           <button className={diff ? "" : "primary"} onClick={compare} disabled={busy !== null} data-testid="vault-compare">
             {diff ? "Compare again" : "Compare"}
           </button>
-          <span className="spacer" />
-          <button onClick={() => setPulling(true)} disabled={busy !== null} title="import-live: reviewed first; with overrides/, the environment's values go to its overrides file" data-testid="vault-pull">
-            Update this branch from {env}…
-          </button>
-          <span className="muted small">the other way: write what {env} holds into this branch's files, for you to review and commit</span>
         </div>
         {stale && <div className="banner warn">The tree changed since this comparison. Compare again before deploying.</div>}
         {diff && (
           <>
             {diff.overrides && <p className="muted small">{diff.overrides}</p>}
+            {(diff.notes ?? []).length > 0 && (
+              <div className="banner warn" data-testid="vault-read-notes">
+                <strong>What the read couldn't take</strong>
+                <ul className="plain small">
+                  {diff.notes!.map((n, i) => (
+                    <li key={i}>{n}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
             {diff.empty ? (
               <p className="ok-text" data-testid="vault-same">
                 The vault matches the tree. Nothing to deploy.
@@ -670,6 +708,25 @@ function Compare({ env, drivers, revision, onOpen, onFix }: { env: string; drive
                   {diff.changes.length} difference{diff.changes.length === 1 ? "" : "s"}
                   {diff.affectedDrivers.length > 0 && <> · drivers affected: {diff.affectedDrivers.join(", ")}</>}
                 </p>
+                <div className="addrow directions" data-testid="vault-directions">
+                  <span className="muted small">Bring them together, either way:</span>
+                  <button
+                    onClick={() => document.querySelector("[data-testid=step-plan]")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                    disabled={busy !== null || stale}
+                    title={`Plan, then deploy: ${env} takes what this branch holds`}
+                    data-testid="vault-direction-deploy"
+                  >
+                    Deploy this branch to {env} ↓
+                  </button>
+                  <button
+                    onClick={() => setPulling(true)}
+                    disabled={busy !== null}
+                    title={`This branch takes what ${env} holds, reviewed file by file (and line by line) before anything is written; uses what Compare just read`}
+                    data-testid="vault-pull"
+                  >
+                    Update this branch from {env}…
+                  </button>
+                </div>
                 <table className="grid" data-testid="vault-changes">
                   <thead>
                     <tr>

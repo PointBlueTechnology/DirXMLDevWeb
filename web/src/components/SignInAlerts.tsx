@@ -11,11 +11,16 @@ export function SignInAlerts({ onOpen }: { onOpen: (env: string) => void }) {
   const [problems, setProblems] = useState<SignInCheck[]>([]);
   useEffect(() => {
     let live = true;
+    let retry: number | undefined;
     const load = () =>
       api.connections
         .problems()
         .then((r) => live && setProblems(r.problems))
-        .catch(() => undefined);
+        // a failed ask (the server restarting, a slow vault) is asked again soon, not in five minutes
+        .catch(() => {
+          window.clearTimeout(retry);
+          retry = window.setTimeout(() => live && void load(), 20_000);
+        });
     void load();
     const t = window.setInterval(load, 5 * 60 * 1000);
     const again = () => void load();
@@ -23,6 +28,7 @@ export function SignInAlerts({ onOpen }: { onOpen: (env: string) => void }) {
     return () => {
       live = false;
       window.clearInterval(t);
+      window.clearTimeout(retry);
       window.removeEventListener("idmweb:signin-changed", again);
     };
   }, []);

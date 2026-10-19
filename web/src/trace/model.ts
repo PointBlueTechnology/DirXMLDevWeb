@@ -185,6 +185,7 @@ export const MARKERS: { code: string; label: string }[] = [
   { code: "SUBSCRIBER_EVENT", label: "Subscriber event" },
   { code: "SUBSCRIBER_EXECUTE", label: "Subscriber shim" },
   { code: "POLICY", label: "Policy" },
+  { code: "POLICY_RESULT", label: "Policy result" },
   { code: "POLICY_SET", label: "Policy set" },
   { code: "END_TRANSACTION", label: "End transaction" },
   { code: "LOG_EVENT", label: "Log event" },

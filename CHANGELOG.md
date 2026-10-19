@@ -22,6 +22,16 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   Now the checks run side by side, a failed ask is repeated after 20 seconds, and each check on the
   Connections page updates the top bar.
 
+## [0.70.0] - 2026-10-19
+
+Needs DirXMLDev 0.48.0.
+
+### Changed
+
+- **dirxml-trace-core 1.8.0.** The trace's jump list offers **Policy result**, the engine's "Query from
+  policy result" line. With DirXMLDev 0.47.0, a policy's query result no longer ends that policy's
+  step in the trace's transactions.
+
 ## [0.69.0] - 2026-10-19
 
 Needs DirXMLDev 0.46.0.

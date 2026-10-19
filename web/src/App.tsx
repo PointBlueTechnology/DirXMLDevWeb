@@ -265,6 +265,7 @@ export function App() {
               web {session.version} · core {session.core ?? "?"}
             </span>
           )}
+          {session?.newerRelease && <NewerRelease release={session.newerRelease} />}
           <span className="rev" title="The tree's revision: it changes when anything edits the tree">
             rev {revision ? revision.slice(0, 8) : "…"}
           </span>
@@ -515,3 +516,40 @@ function Home({ outline, validation, onSelect }: { outline: Outline | null; vali
     </div>
   );
 }
+
+/**
+ * #126: a newer release is out. A quiet note in the top bar, linking its release notes; dismissed per version
+ * (this browser remembers which), so it comes back only for the next one.
+ */
+function NewerRelease({ release }: { release: { version: string; url: string | null } }) {
+  const key = "idmweb.dismissedRelease";
+  const [dismissed, setDismissed] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  });
+  if (dismissed === release.version) {
+    return null;
+  }
+  const dismiss = () => {
+    try {
+      localStorage.setItem(key, release.version);
+    } catch {
+      // no storage: hidden until the page reloads
+    }
+    setDismissed(release.version);
+  };
+  return (
+    <span className="pill newer" data-testid="newer-release" title="A newer DirXMLDevWeb is out: the release notes say what changed, docs/upgrading.md how to upgrade">
+      <a href={release.url ?? "https://github.com/PointBlueTechnology/DirXMLDevWeb/releases"} target="_blank" rel="noreferrer" className="link">
+        {release.version} is available ↗
+      </a>{" "}
+      <button className="link" onClick={dismiss} title="Hide this until the next release" aria-label="dismiss">
+        ×
+      </button>
+    </span>
+  );
+}
+

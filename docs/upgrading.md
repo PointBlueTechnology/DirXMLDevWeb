@@ -18,6 +18,13 @@ vault connections and the audit log all live outside it.
 
 Only the latest release gets security fixes ([SECURITY.md](../SECURITY.md)).
 
+**Knowing when there's one.** Since 0.67.0 the server asks GitHub once a day for the latest
+release, in the background, and keeps the answer in its data folder. When a newer one is out, the
+page's top bar says so ("0.68.0 is available ↗", linking its release notes). **×** hides the note
+until the next release. A server that can't reach GitHub simply never shows it. To turn the check
+off (an air-gapped server, CI), put `release.check=false` in `hosted.properties`, or set
+`IDMWEB_NO_UPDATE_CHECK` in the server's environment.
+
 ## The local install (one person, one container)
 
 Run setup again with the new version, then start it. The folder is kept: setup rewrites the

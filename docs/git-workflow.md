@@ -187,8 +187,8 @@ and is merged with it.
 When others merge into `main`, choose **Update from main**. Doing it before you merge means you
 test your change together with theirs.
 
-If the update conflicts, nothing changes in your copy, and the page lists the files. See
-[Resolving a conflict](#resolving-a-conflict).
+If the update conflicts, nothing changes in your copy until you settle the conflicts in the page:
+see [Resolving a conflict](#resolving-a-conflict).
 
 ### 5. Merge into main
 
@@ -300,35 +300,46 @@ copy, where it does apply.
 
 ### Resolving a conflict
 
-**Update from main** refuses to leave a half-merged copy. When your change and `main` touch the same
-lines, resolve it with git in your checkout:
+When your change and `main` touch the same lines, **Update from main** stops before merging anything
+and the bar offers **Resolve the conflicts…**:
 
-1. Open a shell in your checkout, in the server's container. On a local install:
+![Resolving a conflict: main's version on the left, the merge on the right, the conflict marked](screenshots/git-workflow/06-conflicts.png)
 
-   ```bash
-   docker exec -it -w /var/lib/idmweb/workspaces/PROJECT/YOU/BRANCH idmweb sh
-   ```
+1. **The files:** the dialog lists each conflicting file. Everything else `main` changed merges on its
+   own and comes along.
+2. **The two sides:** for a file, the left side is `main`'s version, and the right side is the merge as
+   it will be committed. Git marks each clash between `<<<<<<<` and `>>>>>>>`: your branch's lines
+   first, then `main`'s.
+3. **Settle each conflict:** use **Keep this branch's**, **Take main's** or **Keep both**. You can also
+   edit the right side, or use the arrow beside a block to take `main`'s lines there. A file deleted on
+   one side and changed on the other is kept or deleted whole.
+4. **Commit:** when no marks are left, choose **Commit the merge**, with a message of your choice. The
+   server redoes the merge and commits exactly what you settled.
+   - It refuses if your branch or `main` moved in the meantime; open the conflicts again.
+   - It refuses if the tree wouldn't read.
+5. **Check and push:** check the result with **vs main** and validation, then choose **Push**.
 
-   `BRANCH` is the branch name with `/` written as `_`. `ls /var/lib/idmweb/workspaces/PROJECT`
-   shows the `YOU` folders. On your machine the same folder is
-   `~/idmweb/data/workspaces/PROJECT/YOU/BRANCH`.
-2. Start the merge. It stops at the conflicts:
+Nothing is left half-merged while the dialog is open: until you commit, your copy is exactly as it
+was. A captured production state that conflicts with your branch (**Merge it into this branch**,
+after a capture) is resolved the same way.
 
-   ```bash
-   git fetch origin main && git merge FETCH_HEAD
-   ```
+**With git instead,** in a shell in your checkout:
 
-3. Edit each conflicted file. Any editor on your machine can open them in that folder. Keep the
-   lines you want, and remove the `<<<<<<<`, `=======` and `>>>>>>>` marks.
-4. Commit the merge:
+```bash
+docker exec -it -w /var/lib/idmweb/workspaces/PROJECT/YOU/BRANCH idmweb sh
+```
 
-   ```bash
-   git add -A && git -c user.name="Your Name" -c user.email=you@example.com commit --no-edit
-   ```
+`BRANCH` is the branch name with `/` written as `_`. Then:
 
-5. Back on the page, check the result with **vs main** and validation, then choose **Push**.
+```bash
+git fetch origin main && git merge FETCH_HEAD
+```
 
-Small changes are often quicker to redo: start a new branch from `main` and make the change again.
+Edit the conflicted files, then commit:
+
+```bash
+git add -A && git -c user.name="Your Name" -c user.email=you@example.com commit --no-edit
+```
 
 ## 6. Where the repository lives
 

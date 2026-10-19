@@ -1464,3 +1464,15 @@ a.button { display: inline-block; padding: 5px 10px; border: 1px solid var(--bor
   padding: 4px 8px;
   border-bottom: 1px solid var(--border);
 }
+/* #126: a newer release is out */
+.pill.newer {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+/* conflicts settled on the page */
+.modal-diff ol.conflicts {
+  margin: 4px 0 0;
+  padding-left: 20px;
+  max-height: 64px;
+  overflow: auto;
+}

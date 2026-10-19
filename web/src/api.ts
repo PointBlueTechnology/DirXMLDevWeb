@@ -1,4 +1,4 @@
-import type { CacheView, CaseFiles, CasePlan, EventDetail, EventRow, EventsDescribe, TraceFileEntry, VaultPolicies, PolicyMembers, AppQueryResult, DriverHealth, LogLevel, DriverRights, DriverSetAdmin, EngineMetrics, WorkOrders, EmailServer, EngineInfo, DriverDetail, TraceShow, TraceTailResult, NamedPasswords, OperateOutcome, PullResult, NewProjectFields, ProjectExportResult, PullRequestInfo, PullRequestCreated, GitTokenHost, MergePreview, MergeResult } from "./types";
+import type { CacheView, CaseFiles, CasePlan, EventDetail, EventRow, EventsDescribe, TraceFileEntry, VaultPolicies, PolicyMembers, AppQueryResult, DriverHealth, LogLevel, DriverRights, DriverSetAdmin, EngineMetrics, WorkOrders, EmailServer, EngineInfo, DriverDetail, TraceShow, TraceTailResult, NamedPasswords, OperateOutcome, PullResult, NewProjectFields, ProjectExportResult, PullRequestInfo, PullRequestCreated, GitTokenHost, MergePreview, MergeResult, Conflicts } from "./types";
 import type { TraceRec } from "./trace/model";
 import type { AppSchema, Architecture, DevNode, DeployChoices, DriverAssociations, ObjectInspection, PasswordSync, VaultJobs, VaultSnapshot, SchemaDiffResult, ProjectArchive, ProjectArchiveResult, Artifact, AuditEntry, BuildResult, ConfigView, Connections, DeployResult, EnvSecrets, FetchResult, FormData as FormDoc, GitDiff, GitStatus, ImportResult, LifecycleResult, OpCall, OpResult, OpSpec, Outline, OverridesData, PackagePrompts, PackagesData, PrdData, RoleCatalog, SchemaActionResult, SchemaClass, SchemaData, Session, SetupResult, SimCaseFiles, SimCases, SimDetail, SimRun, SiteListing, TreeFile, UpdateSites, Validation, VaultDiffResult, VaultEnvironments, VaultStatus, VaultTask, VaultCertificate, SignInCheck, ServerAddress, ProjectRepository, RepositoryCheck, WorkspacesInfo } from "./types";
 import type { FishboneModel } from "./fishbone/types";
@@ -155,13 +155,18 @@ export const api = {
     discard: (file: string) => call<{ discarded: boolean; message: string }>("POST", "/api/git/discard", { file }),
     /** Some of a file's uncommitted blocks back to the last commit: the file as the page settled on it. */
     discardBlocks: (file: string, content: string) => call<{ discarded: boolean; message: string }>("POST", "/api/git/discard", { file, content }),
-    update: (base?: string) => call<{ merged: boolean; message: string; conflicts?: string[] }>("POST", "/api/git/update", base ? { base } : {}),
+    update: (base?: string) => call<{ merged: boolean; message: string; conflicts?: string[]; resolveWith?: string }>("POST", "/api/git/update", base ? { base } : {}),
+    /** A merge's conflicts, to settle on the page: with "base" (Update from the base branch) or a captured as-found branch. */
+    conflicts: (withRef: string) => call<Conflicts>("POST", "/api/git/conflicts", { with: withRef }),
+    /** Commit the merge with each conflicting file's settled text (null: delete it); refused when a side moved since. */
+    resolve: (withRef: string, head: string, theirs: string, files: Record<string, string | null>, message: string) =>
+      call<{ merged: boolean; message: string; commit?: string }>("POST", "/api/git/resolve", { with: withRef, head, theirs, files, message }),
     /** docs/git-workflow.md: what merging this branch into the base would carry. */
     mergePreview: () => call<MergePreview>("GET", "/api/git/merge-into-base"),
     /** Merge this branch into the base on the repository (pushed); a conflict merges nothing. */
     mergeIntoBase: () => call<MergeResult>("POST", "/api/git/merge-into-base", {}),
     /** Merge a captured as-found/<env>/<time> branch (vault.deploy --capture-drift) into this branch. */
-    mergeCaptured: (branch: string) => call<{ merged: boolean; message: string; conflicts?: string[] }>("POST", "/api/git/merge-captured", { branch }),
+    mergeCaptured: (branch: string) => call<{ merged: boolean; message: string; conflicts?: string[]; resolveWith?: string }>("POST", "/api/git/merge-captured", { branch }),
     /** #35: the branch's open request, or whether one can be created through the provider's API. */
     pullRequest: () => call<PullRequestInfo>("GET", "/api/git/pull-request"),
     createPullRequest: (req: { title: string; body: string; draft: boolean }) => call<PullRequestCreated>("POST", "/api/git/pull-request", req),

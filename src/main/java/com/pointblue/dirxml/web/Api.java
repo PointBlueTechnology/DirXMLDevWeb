@@ -900,6 +900,15 @@ public final class Api implements HttpHandler {
             }
         }
         c.deleteDrivers = del;
+        java.util.Map<String, String> runsOn = new java.util.LinkedHashMap<>();
+        if (req.get("driverServers") instanceof java.util.Map<?, ?> m) {
+            for (java.util.Map.Entry<?, ?> e : m.entrySet()) {
+                if (e.getKey() != null && e.getValue() != null && !String.valueOf(e.getValue()).isBlank()) {
+                    runsOn.put(String.valueOf(e.getKey()), String.valueOf(e.getValue()));
+                }
+            }
+        }
+        c.driverServers = runsOn;
         c.captureDrift = Boolean.TRUE.equals(req.get("captureDrift"));
         return c;
     }

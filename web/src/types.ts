@@ -404,6 +404,9 @@ export interface VaultDiffResult {
   notDeployed?: string[];
   /** The tree's name → this environment's, for drivers its vault names differently. */
   renamed?: Record<string, string>;
+  /** The environment's servers, and the one a deploy connects through. */
+  servers?: string[];
+  primary?: string | null;
 }
 
 /** What a deploy asks for beyond its scope (#34). */
@@ -415,6 +418,8 @@ export interface DeployChoices {
   allowMissingSecrets: boolean;
   /** Drivers the diff reports as only in the vault, to delete (stopped ones only; the core refuses otherwise). */
   deleteDrivers: string[];
+  /** A driver new to the environment → the server it runs on (when not the one the deploy connects through). */
+  driverServers?: Record<string, string>;
   /** A production environment's unknown or drifted state captured first as an as-found branch (vault.deploy --capture-drift). */
   captureDrift?: boolean;
 }

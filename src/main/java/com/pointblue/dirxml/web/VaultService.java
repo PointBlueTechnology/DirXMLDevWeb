@@ -124,6 +124,8 @@ public final class VaultService {
         ModelDiff diff;
         List<String> notes = new ArrayList<>();
         Overrides.Applied applied;
+        List<String> liveServers = List.of();
+        String livePrimary = null;
         try {
             // VaultDiff.of(tree, env, drivers), with the vault's side kept: Update this branch from <env> uses
             // what this comparison read instead of reading the vault again
@@ -141,6 +143,8 @@ public final class VaultService {
             if (!applied.serverMap.isEmpty()) {
                 com.pointblue.dirxml.dev.deploy.Servers.foldPrimary(to, from.meta.get(com.pointblue.dirxml.dev.deploy.Servers.PRIMARY_META));
             }
+            liveServers = List.copyOf(from.servers);
+            livePrimary = from.meta.get(com.pointblue.dirxml.dev.deploy.Servers.PRIMARY_META);
             lastRead = new LastRead(e.name, System.currentTimeMillis(), from, notes);
             diff = VaultDiff.of(from, to, applied.vaultNames(drivers));
         } catch (IllegalArgumentException ex) {
@@ -153,6 +157,8 @@ public final class VaultService {
         m.put("overrides", overridesNote(e.name));
         m.put("notes", notes);   // what the read could not take (a server, a value)
         m.put("notDeployed", applied.notDeployed);   // drivers the tree doesn't deploy to this environment
+        m.put("servers", liveServers);                // the environment's servers, and the one a deploy connects through
+        m.put("primary", livePrimary);
         m.put("renamed", applied.renamed);           // the tree's name to this vault's, where they differ
         return m;
     }
@@ -193,6 +199,8 @@ public final class VaultService {
         public String secretsMode = "none";
         public boolean allowMissingSecrets;
         public List<String> deleteDrivers = List.of();
+        /** A driver new to the environment to the server it runs on, when not the one the deploy connects through (D6). */
+        public Map<String, String> driverServers = Map.of();
         /** {@code --capture-drift}: a production environment whose current state is unknown has it captured first (#67). */
         public boolean captureDrift;
     }
@@ -382,6 +390,7 @@ public final class VaultService {
         }
         o.allowMissingSecrets = c.allowMissingSecrets;
         o.deleteDrivers = c.deleteDrivers == null ? List.of() : c.deleteDrivers;
+        o.driverServers = c.driverServers == null ? Map.of() : c.driverServers;
         o.captureDrift = c.captureDrift;
         return o;
     }

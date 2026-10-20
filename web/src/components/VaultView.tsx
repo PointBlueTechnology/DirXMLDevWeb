@@ -7,9 +7,10 @@ import { CachePanel } from "./CachePanel";
 import { EventsView } from "./EventsView";
 import { TraceViewer } from "./TraceViewer";
 import { CaptureSteps, ProductionCheck } from "./ProductionCheck";
+import { EnvironmentsCompare } from "./EnvironmentsCompare";
 import type { VaultTask, FileDiff, PullResult, DeployResult, Outline, Selection, VaultDiffResult, VaultStatus, VaultSnapshot, DriverAssociations, ObjectInspection, PasswordSync, VaultJobs, VaultPolicies, PolicyMembers, AppQueryResult, DriverHealth, LogLevel, DriverRights, DriverSetAdmin, EngineMetrics, WorkOrders, EmailServer, EngineInfo, DriverDetail, TraceShow, NamedPasswords, SimCase } from "../types";
 
-type Tab = "compare" | "drivers" | "set" | "jobs" | "policies" | "objects" | "trace" | "events";
+type Tab = "compare" | "environments" | "drivers" | "set" | "jobs" | "policies" | "objects" | "trace" | "events";
 
 /**
  * The tree against a vault: what differs, a deploy planned and run, the drivers' state and
@@ -57,9 +58,9 @@ export function VaultView({ drivers, revision, outline, onOpen, onSelect, onSave
         </button>
         <span className="spacer" />
         <div className="tabs">
-          {(["compare", "drivers", "set", "jobs", "policies", "objects", "trace", "events"] as Tab[]).map((t) => (
+          {(["compare", "environments", "drivers", "set", "jobs", "policies", "objects", "trace", "events"] as Tab[]).map((t) => (
             <button key={t} className={tab === t ? "tab active" : "tab"} onClick={() => setTab(t)} data-testid={"vault-tab-" + t}>
-              {t === "compare" ? "Compare & deploy" : t === "drivers" ? "Drivers" : t === "set" ? "Driver set" : t === "jobs" ? "Jobs" : t === "policies" ? "Policies" : t === "objects" ? "Objects" : t === "trace" ? "Trace" : "Events"}
+              {t === "compare" ? "Compare & deploy" : t === "environments" ? "Environments" : t === "drivers" ? "Drivers" : t === "set" ? "Driver set" : t === "jobs" ? "Jobs" : t === "policies" ? "Policies" : t === "objects" ? "Objects" : t === "trace" ? "Trace" : "Events"}
             </button>
           ))}
         </div>
@@ -68,6 +69,8 @@ export function VaultView({ drivers, revision, outline, onOpen, onSelect, onSave
         <p className="muted pad">Choose an environment. Nothing is read from a vault until you ask.</p>
       ) : tab === "compare" ? (
         <Compare key={chosen.name} env={chosen.name} drivers={drivers} revision={revision} onOpen={onOpen} onFix={() => onSelect({ type: "connections", env: chosen.name })} />
+      ) : tab === "environments" ? (
+        <EnvironmentsCompare key={chosen.name} env={chosen.name} envs={envs.map((e) => e.name)} onOpen={onOpen} onSaved={onSaved} />
       ) : tab === "drivers" ? (
         <Drivers key={chosen.name} env={chosen.name} onFix={() => onSelect({ type: "connections", env: chosen.name })} onSelect={onSelect} onSaved={onSaved} />
       ) : tab === "objects" ? (
@@ -688,6 +691,11 @@ function Compare({ env, drivers, revision, onOpen, onFix }: { env: string; drive
         {diff && (
           <>
             {diff.overrides && <p className="muted small">{diff.overrides}</p>}
+            {Object.keys(diff.renamed ?? {}).length > 0 && (
+              <p className="muted small" data-testid="vault-renamed">
+                Named differently in {env}: {Object.entries(diff.renamed ?? {}).map(([tree, there]) => `${tree} → ${there}`).join(", ")}.
+              </p>
+            )}
             {(diff.notes ?? []).length > 0 && (
               <div className="banner warn" data-testid="vault-read-notes">
                 <strong>What the read couldn't take</strong>

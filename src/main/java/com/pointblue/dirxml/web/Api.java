@@ -491,6 +491,8 @@ public final class Api implements HttpHandler {
                     return vault.environments();
                 case "/api/vault/diff":
                     return vault.diff(required(query, "env"), list(query.get("driver")));
+                case "/api/vault/compare-envs":
+                    return vault.compareEnvironments(required(query, "env"), required(query, "with"));
                 case "/api/vault/snapshots":
                     return vault.snapshots(required(query, "env"));
                 case "/api/vault/jobs":
@@ -746,7 +748,7 @@ public final class Api implements HttpHandler {
                             contents.put(String.valueOf(e.getKey()), e.getValue() == null ? "" : String.valueOf(e.getValue()));
                         }
                     }
-                    Map<String, Object> pulled = service.pull(live, vault.environmentName(env), stringList(req.get("drivers")), dryRun, Json.asString(req.get("revision")), notes, only, contents);
+                    Map<String, Object> pulled = service.pull(live, vault.environmentName(env), stringList(req.get("drivers")), dryRun, Json.asString(req.get("revision")), notes, only, contents, vault.sharedTree());
                     pulled.put("readAt", read.readAt());
                     pulled.put("reused", read.reused());
                     return pulled;

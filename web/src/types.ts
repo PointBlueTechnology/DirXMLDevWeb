@@ -254,6 +254,10 @@ export interface ConfigView {
   shimClass?: string | null;
   shimAuthServer?: string | null;
   shimAuthId?: string | null;
+  /** The environments the driver is deployed to; empty = every environment. */
+  environments?: string[];
+  /** Environment → the name its vault gives the driver, where it differs (overrides/<env>.properties drivers/<d>.name). */
+  environmentNames?: Record<string, string>;
   params?: Definition[];
   ecvs?: Definition[];
   gcvs: Definition[];
@@ -365,6 +369,17 @@ export interface VaultChange {
   detail?: string | null;
 }
 
+/** Two environments' vaults side by side (`/api/vault/compare-envs`); "expected" = the tree already accounts for it. */
+export interface EnvCompareResult {
+  a: string;
+  b: string;
+  onlyIn: { driver: string; env: string; expected: boolean; notInTree: boolean }[];
+  values: { driver: string | null; key: string; a: string | null; b: string | null; expected: boolean }[];
+  drift: { empty: boolean; changes: VaultChange[] } | null;
+  notes: string[];
+  text: string;
+}
+
 export interface VaultDiffResult {
   empty: boolean;
   changes: VaultChange[];
@@ -375,6 +390,10 @@ export interface VaultDiffResult {
   overrides: string | null;
   /** What the read could not take: another server unreachable, a value eDirectory can't return (-325). */
   notes?: string[];
+  /** Drivers the tree doesn't deploy to this environment (driver.xml environments), left out of the comparison. */
+  notDeployed?: string[];
+  /** The tree's name → this environment's, for drivers its vault names differently. */
+  renamed?: Record<string, string>;
 }
 
 /** What a deploy asks for beyond its scope (#34). */

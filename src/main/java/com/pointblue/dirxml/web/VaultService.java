@@ -123,17 +123,23 @@ public final class VaultService {
         Environments.Environment e = env(envName);
         ModelDiff diff;
         List<String> notes = new ArrayList<>();
+        Overrides.Applied applied;
         try {
             // VaultDiff.of(tree, env, drivers), with the vault's side kept: Update this branch from <env> uses
             // what this comparison read instead of reading the vault again
             DriverSet to = AsCodeReader.read(tree);
-            Overrides.apply(to, e.name);
-            com.pointblue.dirxml.dev.deploy.Secrets secrets = e.secretsFile == null ? com.pointblue.dirxml.dev.deploy.Secrets.none()
-                : com.pointblue.dirxml.dev.deploy.Secrets.load(e.secretsFile);
+            applied = Overrides.apply(to, e.name);
+            // a driver the tree doesn't deploy here is refused by name; the rest go by the names this vault uses
+            String refusal = applied.refusalFor(drivers);
+            if (refusal != null) {
+                throw new TreeService.BadRequest(refusal);
+            }
+            com.pointblue.dirxml.dev.deploy.Secrets secrets = (e.secretsFile == null ? com.pointblue.dirxml.dev.deploy.Secrets.none()
+                : com.pointblue.dirxml.dev.deploy.Secrets.load(e.secretsFile)).withNames(applied.renamed);
             Overrides.applySecretShimAuthIds(to, secrets);
             DriverSet from = VaultDiff.readLive(e, notes::add);
             lastRead = new LastRead(e.name, System.currentTimeMillis(), from, notes);
-            diff = VaultDiff.of(from, to, drivers);
+            diff = VaultDiff.of(from, to, applied.vaultNames(drivers));
         } catch (IllegalArgumentException ex) {
             throw new TreeService.BadRequest(ex.getMessage());
         }
@@ -143,6 +149,32 @@ public final class VaultService {
         m.put("text", diff.text());
         m.put("overrides", overridesNote(e.name));
         m.put("notes", notes);   // what the read could not take (a server, a value)
+        m.put("notDeployed", applied.notDeployed);   // drivers the tree doesn't deploy to this environment
+        m.put("renamed", applied.renamed);           // the tree's name to this vault's, where they differ
+        return m;
+    }
+
+    /**
+     * Two environments' vaults side by side (the core's {@code vault.compare-envs}): drivers only one holds, values that
+     * differ, and what else differs once the values are set aside; each marked expected where the tree already accounts for
+     * it (a driver's environments, an environment's override). Both vaults are read; nothing is written.
+     */
+    public Map<String, Object> compareEnvironments(String envName, String withName) throws IOException {
+        Environments.Environment a = env(envName);
+        Environments.Environment b = env(withName);
+        if (a.name.equals(b.name)) {
+            throw new TreeService.BadRequest("pick two different environments");
+        }
+        List<String> notes = new ArrayList<>();
+        com.pointblue.dirxml.dev.deploy.EnvironmentCompare c = VaultDiff.compareEnvironments(a, b, tree, notes::add);
+        Map<String, Object> m = new LinkedHashMap<>(Json.asMap(Json.parse(c.json())));
+        List<Object> all = new ArrayList<>(notes);
+        Object own = m.get("notes");
+        if (own instanceof List<?> l) {
+            all.addAll(l);
+        }
+        m.put("notes", all);
+        m.put("text", c.text());
         return m;
     }
 
@@ -741,11 +773,30 @@ public final class VaultService {
             }
         }
         if (e.secretsFile != null) {
-            for (String d : com.pointblue.dirxml.dev.deploy.Overrides.stripSecretShimAuthIds(live, com.pointblue.dirxml.dev.deploy.Secrets.load(e.secretsFile))) {
+            // the secrets file may name a driver as the tree does or as this vault does
+            com.pointblue.dirxml.dev.deploy.Secrets secrets = com.pointblue.dirxml.dev.deploy.Secrets.load(e.secretsFile)
+                .withNames(Overrides.renames(Overrides.read(tree).get(e.name)));
+            for (String d : com.pointblue.dirxml.dev.deploy.Overrides.stripSecretShimAuthIds(live, secrets)) {
                 notes.add("secret: '" + d + "'.shim-auth-id kept out of the tree (the secrets file supplies it)");
             }
         }
         return new Live(live, at, reused);
+    }
+
+    /**
+     * True when this tree serves more than one environment (the project's list, or every environment of the file in
+     * local mode): a driver an update brings in from one environment is then marked as that environment's only, so it
+     * reaches the others only when someone adds them.
+     */
+    public boolean sharedTree() {
+        if (!environmentFilter.isEmpty()) {
+            return environmentFilter.size() > 1;
+        }
+        try {
+            return files.load().describe().size() > 1;
+        } catch (IOException e) {
+            return false;
+        }
     }
 
     /** The environment's name as the environments file has it (for the overrides file's name). */

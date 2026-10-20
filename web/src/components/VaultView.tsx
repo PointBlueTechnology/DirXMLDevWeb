@@ -468,12 +468,14 @@ function Compare({ env, drivers, revision, onOpen, onFix }: { env: string; drive
   // #136: a capture of the environment's state, and the steps on from it
   const [captured, setCaptured] = useState<DeployResult | null>(null);
   const [deleteDrivers, setDeleteDrivers] = useState<string[]>([]);
+  // D6: the server each new driver runs on, when the environment has several (default: the one the deploy connects through)
+  const [driverServers, setDriverServers] = useState<Record<string, string>>({});
   const [snapshots, setSnapshots] = useState<VaultSnapshot[] | null>(null);
   const [showSnapshots, setShowSnapshots] = useState(false);
   const [rollbackOf, setRollbackOf] = useState<VaultSnapshot | null>(null);
   const [rollbackConfirm, setRollbackConfirm] = useState("");
   const [rollbackResult, setRollbackResult] = useState<DeployResult | null>(null);
-  const choices = { restart, secrets, allowMissingSecrets: allowMissing, deleteDrivers, captureDrift: false };
+  const choices = { restart, secrets, allowMissingSecrets: allowMissing, deleteDrivers, driverServers, captureDrift: false };
   const loadSnapshots = () =>
     api.vault
       .snapshots(env)
@@ -803,6 +805,33 @@ function Compare({ env, drivers, revision, onOpen, onFix }: { env: string; drive
                   .map((c) => (
                     <label key={c.driver} className="checkchip">
                       <input type="checkbox" checked={deleteDrivers.includes(c.driver!)} onChange={(e) => setDeleteDrivers(e.target.checked ? [...deleteDrivers, c.driver!] : deleteDrivers.filter((d) => d !== c.driver))} data-testid={"vault-delete-" + c.driver} /> delete {c.driver} from the vault
+                    </label>
+                  ))}
+              </div>
+            )}
+            {(diff.servers ?? []).length > 1 && diff.changes.some((c) => c.kind.toUpperCase() === "DRIVER_ADDED" && c.driver) && (
+              <div className="block" data-testid="vault-runs-on">
+                <h4>New drivers: the server each runs on</h4>
+                <p className="muted small">
+                  {env} has {diff.servers!.length} servers. The server chosen gets the driver&apos;s start option (manual); every other server of the set gets it disabled.
+                </p>
+                {diff.changes
+                  .filter((c) => c.kind.toUpperCase() === "DRIVER_ADDED" && c.driver)
+                  .map((c) => (
+                    <label key={c.driver} className="field">
+                      <em>{c.driver}</em>
+                      <select
+                        value={driverServers[c.driver!] ?? diff.primary ?? ""}
+                        onChange={(e) => setDriverServers({ ...driverServers, [c.driver!]: e.target.value === diff.primary ? "" : e.target.value })}
+                        data-testid={"vault-runs-on-" + c.driver}
+                      >
+                        {diff.servers!.map((s) => (
+                          <option key={s} value={s}>
+                            {s}
+                            {s === diff.primary ? " (the one the deploy connects through)" : ""}
+                          </option>
+                        ))}
+                      </select>
                     </label>
                   ))}
               </div>

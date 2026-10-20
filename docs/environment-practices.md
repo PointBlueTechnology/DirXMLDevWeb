@@ -16,18 +16,18 @@ The design behind the tools named here: [existing environments](https://github.c
    outage at night), capture that environment's state right afterwards (*Capture current state* on the
    plan step) and merge it, the same day.
 2. **Fix production on a branch, and take the fix to QA in the same change.** The customer's production
-   had an extra rule vetoing every user event on one driver's subscriber channel, a stopgap that QA never
-   got. Six months later nobody could say whether it was still needed. Deploy a hot fix to production
-   from a branch, deploy the same commit to QA, then merge.
+   had an extra rule vetoing every user event on one driver's subscriber channel, which QA lacks, and
+   nothing in either tree says why. Deploy a hot fix to production from a branch, deploy the same commit
+   to QA, then merge, so the reason travels with the change.
 3. **Promote through QA.** Branch, deploy to QA, test, merge into `main`, deploy to production. Set
    *Deploy order* on production to QA, so production only takes what QA has had.
 
 ## Keep what differs out of the configuration
 
-4. **Put every environment-specific value in a GCV, never in a policy.** Host names, URLs, containers,
-   e-mail addresses and server names typed into policies made seven of the customer's differences
-   impossible to carry as values. A GCV can be overridden per environment; a literal in a rule makes the
-   two environments' policies differ forever.
+4. **Put every environment-specific value in a GCV, never in a policy.** In seven of the customer's
+   differences, a changed line inside a policy or job named an environment or one of its servers. A
+   GCV can be overridden per environment; a literal in a rule makes the two environments' policies
+   differ forever.
 5. **Record each environment's values as overrides.** The tree holds production's value; `overrides/QA.properties`
    holds QA's. The Environments tab records them from a comparison in one click.
 6. **Keep secrets out of the tree.** Each environment has its own secrets file or Keychain entries; a

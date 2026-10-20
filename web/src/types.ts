@@ -382,6 +382,8 @@ export interface EnvCompareResult {
   caseOnly?: { driver: string | null; path: string; summary: string }[];
   /** For each drift change, in order, its likely cause. */
   causes?: string[];
+  /** Each side's servers as its vault names them, the tree's, and each side's server map (tree server → its own). */
+  servers?: { a: string[]; b: string[]; tree: string[]; treeNames: string[]; mapA: Record<string, string>; mapB: Record<string, string> };
   notes: string[];
   text: string;
 }

@@ -7,6 +7,26 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+Needs DirXMLDev 0.49.0.
+
+### Added
+
+- **Setting up an environment against the tree** (*Vault → Environments*), for taking on existing
+  systems whose environments have grown apart (DirXMLDev docs/existing-environments.md): two
+  environments' vaults compared, with five steps to work through: names, servers, what only one
+  holds, values, and the remaining differences by driver with likely causes, each recordable or
+  acceptable as known. Verified against a customer's QA and production exports (827 raw differences
+  sorted into causes; renames proposed correctly; a production-to-QA feed flagged) and live on two lab
+  trees (a job's server difference resolved by mapping the servers; a known difference accepted).
+- **Environments on drivers:** a driver's settings say which environments get it, which it is planned
+  for, and its name in each. Compare and deploy follow them.
+- **A new driver's server**, chosen in the plan when the environment has several.
+- **Update this branch from an environment** keeps the tree's drivers it doesn't get, maps names and
+  servers back, and on a tree several environments share marks a driver new to the tree as that
+  environment's only.
+- **docs/environment-practices.md:** practices that keep environments comparable through the
+  development and deployment cycle, grounded in the customer data.
+
 ## [0.70.0] - 2026-10-19
 
 Needs DirXMLDev 0.48.0.

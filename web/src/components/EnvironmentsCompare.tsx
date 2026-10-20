@@ -20,6 +20,8 @@ export function EnvironmentsCompare({ env, envs, onOpen, onSaved }: { env: strin
   const [since, setSince] = useState(0);
   const [now, setNow] = useState(0);
   const pending = usePending();
+  // proposals someone said no to, for this comparison
+  const [dismissed, setDismissed] = useState<string[]>([]);
   useEffect(() => {
     if (!busy) {
       return;
@@ -148,6 +150,54 @@ export function EnvironmentsCompare({ env, envs, onOpen, onSaved }: { env: strin
             </section>
           ))}
 
+          {(result.matches ?? []).filter((m) => !dismissed.includes(m.a + "|" + m.b)).length > 0 && (
+            <section className="block" data-testid="env-compare-matches">
+              <h4>Likely the same driver under another name</h4>
+              <p className="muted small">
+                Same shim, a similar name, policies in common. Nothing is matched until you say so: <em>Same driver</em> records the other environment&apos;s name for the tree&apos;s
+                driver (<code>drivers/&lt;driver&gt;.name</code> in that environment&apos;s overrides).
+              </p>
+              <ul className="plain">
+                {(result.matches ?? [])
+                  .filter((m) => !dismissed.includes(m.a + "|" + m.b))
+                  .map((m) => {
+                    const inTree = (env: string, driver: string) => result.onlyIn.some((o) => o.kind === "driver" && o.env === env && o.driver === driver && !o.notInTree);
+                    // the tree holds one of the two names; the other environment's name is recorded for it
+                    const rec = inTree(result.a, m.a) ? { env: result.b, tree: m.a, there: m.b } : inTree(result.b, m.b) ? { env: result.a, tree: m.b, there: m.a } : null;
+                    const key = rec ? `ovr:${rec.env}:drivers/${rec.tree}.name` : "";
+                    return (
+                      <li key={m.a + "|" + m.b} className="match">
+                        {result.a}&apos;s <strong>{m.a}</strong> and {result.b}&apos;s <strong>{m.b}</strong>{" "}
+                        <span className="muted small">
+                          ({m.common} of {m.of} policies in common)
+                        </span>{" "}
+                        {m.feed && (
+                          <span className="small warn-text">
+                            Their names carry an environment&apos;s name: perhaps the two ends, or one role, of a feed between environments. One tree driver named per environment, or a
+                            driver of each environment&apos;s own?
+                          </span>
+                        )}{" "}
+                        {rec ? (
+                          <>
+                            <button
+                              onClick={() => pending.put(key, { name: "override.set", args: { env: rec.env, key: `drivers/${rec.tree}.name`, value: rec.there }, label: `${rec.env}: ${rec.tree} is called ${rec.there} there` })}
+                              disabled={pending.has(key)}
+                              data-testid={"env-match-" + m.a}
+                            >
+                              {m.feed ? "One driver, named per environment" : "Same driver"}
+                            </button>{" "}
+                            <button onClick={() => setDismissed([...dismissed, m.a + "|" + m.b])}>{m.feed ? "Different drivers" : "Not the same"}</button>
+                          </>
+                        ) : (
+                          <span className="muted small">Neither is in the tree yet: bring one in first (Update this branch from …).</span>
+                        )}
+                      </li>
+                    );
+                  })}
+              </ul>
+            </section>
+          )}
+
           {result.onlyIn.length > 0 && (
             <section className="block">
               <h4>Only one of them holds</h4>
@@ -215,6 +265,33 @@ export function EnvironmentsCompare({ env, envs, onOpen, onSaved }: { env: strin
                       <em>Update this branch from {g.env}…</em> brings the ones not in the tree in, marked as {g.env}&apos;s only.
                     </p>
                   )}
+                  {(() => {
+                    const open = g.items.filter((o) => !o.expected && !o.planned && !o.notInTree);
+                    if (open.length === 0) {
+                      return null;
+                    }
+                    const missing = g.env === result.a ? result.b : result.a;
+                    const others = envs.filter((e) => e !== missing).join(", ");
+                    const paths = open.map((o) => o.path).join("\n");
+                    const key = `envobj:${g.key}`;
+                    return (
+                      <p className="addrow tight">
+                        <button
+                          onClick={() => pending.put(key, { name: "environments.set", args: { paths, environments: others, "no-plan": "true" }, label: `${open.length} ${g.kind}(s): not in ${missing}, for good` })}
+                          disabled={pending.has(key)}
+                          data-testid={"env-objects-own-" + g.key}
+                        >
+                          {open.length === g.count ? "These" : `The ${open.length} in the tree`}: {g.env}&apos;s own
+                        </button>
+                        <button
+                          onClick={() => pending.put(key, { name: "environments.set", args: { paths, environments: others, planned: missing }, label: `${open.length} ${g.kind}(s): planned for ${missing}` })}
+                          disabled={pending.has(key)}
+                        >
+                          Planned for {missing}
+                        </button>
+                      </p>
+                    );
+                  })()}
                 </details>
               ))}
             </section>

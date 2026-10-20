@@ -375,6 +375,8 @@ export interface VaultChange {
 export interface EnvCompareResult {
   a: string;
   b: string;
+  /** Likely the same driver under another name in each (same shim, similar name, policies in common); feed = names carry an environment's name. */
+  matches?: { a: string; b: string; score: number; common: number; of: number; feed: boolean }[];
   /** Drivers, and entitlement policies, templates and jobs, one vault holds and the other doesn't. */
   onlyIn: { driver: string | null; path: string; kind: string; env: string; expected: boolean; planned: boolean; notInTree: boolean }[];
   values: { driver: string | null; key: string; a: string | null; b: string | null; expected: boolean }[];

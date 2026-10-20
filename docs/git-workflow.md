@@ -407,3 +407,9 @@ main ◀────────────────────────
   ├── Get latest main ──▶ deploy to test ──▶ commit the record, push
   └──────────────────────────────────────▶ deploy to prod ──▶ commit the record, push
 ```
+
+## Next: keep environments comparable
+
+[environment-practices.md](environment-practices.md) lists the habits that keep QA and production
+comparable across this cycle: where a fix goes, what belongs in a GCV, naming, what only some
+environments get, and how to take on an existing system.

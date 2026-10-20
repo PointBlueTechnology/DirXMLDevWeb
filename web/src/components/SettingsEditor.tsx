@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { api } from "../api";
 import type { Pending } from "../pending";
 import type { ConfigView, Definition } from "../types";
 import { DefinitionsTable } from "./DefinitionsTable";
@@ -85,6 +86,7 @@ export function SettingsEditor({ config, pending }: { config: ConfigView; pendin
   );
   return (
     <div className="pad">
+      <DriverEnvironments config={config} pending={pending} />
       <h3>Shim</h3>
       {field("shim-class", "Shim class", config.shimClass)}
       {field("shim-auth-server", "Authentication server / connection", config.shimAuthServer)}
@@ -101,6 +103,110 @@ export function SettingsEditor({ config, pending }: { config: ConfigView; pendin
         {table(config.ecvs, "engine", "No engine control values in the tree. The engine writes its defaults when the driver first starts; import-live adopts them.")}
         {adder("engine")}
       </details>
+    </div>
+  );
+}
+
+/**
+ * Which environments get this driver (`driver.set environments`; none ticked = every environment), and the name each
+ * environment's vault gives it where that differs (`override.set drivers/<d>.name`). A driver not yet in production, or
+ * one that never will be, names the others; one called differently in an environment needs no renaming there.
+ */
+function DriverEnvironments({ config, pending }: { config: ConfigView; pending: Pending }) {
+  const driver = config.driver ?? "";
+  const [known, setKnown] = useState<string[] | null>(null);
+  useEffect(() => {
+    api.vault
+      .environments()
+      .then((r) => setKnown(r.environments.map((e) => e.name)))
+      .catch(() => setKnown([]));
+  }, []);
+  const original = config.environments ?? [];
+  const staged = pending.ops.find((o) => o.key === "set:environments");
+  const current: string[] = staged ? (staged.args.clear ? [] : String(staged.args.value ?? "").split(",").map((s) => s.trim()).filter(Boolean)) : original;
+  const every = current.length === 0;
+  const stage = (list: string[]) => {
+    const same = list.length === original.length && list.every((e) => original.some((o) => o.toLowerCase() === e.toLowerCase()));
+    if (same) {
+      pending.put("set:environments", null);
+      return;
+    }
+    pending.put(
+      "set:environments",
+      list.length === 0
+        ? { name: "driver.set", args: { driver, key: "environments", clear: "true" }, label: `${driver}: deployed to every environment` }
+        : { name: "driver.set", args: { driver, key: "environments", value: list.join(", ") }, label: `${driver}: deployed to ${list.join(", ")} only` }
+    );
+  };
+  const names = config.environmentNames ?? {};
+  const nameKey = (env: string) => `ovr:${env}:drivers/${driver}.name`;
+  const stagedName = (env: string) => {
+    const op = pending.ops.find((o) => o.key === nameKey(env));
+    return op ? (op.name === "override.remove" ? "" : String(op.args.value ?? "")) : undefined;
+  };
+  const setName = (env: string, value: string) => {
+    const was = names[env] ?? "";
+    const v = value.trim();
+    if (v === was) {
+      pending.put(nameKey(env), null);
+    } else if (v === "" || v === driver) {
+      pending.put(nameKey(env), was ? { name: "override.remove", args: { env, key: `drivers/${driver}.name` }, label: `${env}: ${driver} under its own name` } : null);
+    } else {
+      pending.put(nameKey(env), { name: "override.set", args: { env, key: `drivers/${driver}.name`, value: v }, label: `${env}: ${driver} is called ${v} there` });
+    }
+  };
+  const envs = [...new Set([...(known ?? []), ...current, ...Object.keys(names)])];
+  const unknown = current.filter((e) => known !== null && !known.some((k) => k.toLowerCase() === e.toLowerCase()));
+  return (
+    <div data-testid="driver-environments">
+      <h3>Environments</h3>
+      <p className="muted small">
+        Which environments get this driver. Compare and deploy to any other leave it out: a driver not yet in production, or one that never will be. The name is what
+        that environment&apos;s vault calls it, when not <code>{driver}</code>.
+      </p>
+      <label className="check">
+        <input type="checkbox" checked={every} onChange={(e) => stage(e.target.checked ? [] : (known ?? []).slice(0, 1))} data-testid="env-every" /> every environment
+      </label>
+      <table className="grid small">
+        <thead>
+          <tr>
+            <th>Environment</th>
+            <th>Gets it</th>
+            <th>Name there</th>
+          </tr>
+        </thead>
+        <tbody>
+          {envs.map((env) => {
+            const on = every || current.some((c) => c.toLowerCase() === env.toLowerCase());
+            return (
+              <tr key={env}>
+                <td>{env}</td>
+                <td>
+                  <input
+                    type="checkbox"
+                    checked={on}
+                    disabled={every}
+                    onChange={(e) => stage(e.target.checked ? [...current, env] : current.filter((c) => c.toLowerCase() !== env.toLowerCase()))}
+                    data-testid={"env-gets-" + env}
+                  />
+                </td>
+                <td>
+                  <input
+                    value={stagedName(env) ?? names[env] ?? ""}
+                    placeholder={driver}
+                    disabled={!on}
+                    onChange={(e) => setName(env, e.target.value)}
+                    spellCheck={false}
+                    className={stagedName(env) !== undefined ? "changed" : ""}
+                    data-testid={"env-name-" + env}
+                  />
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      {unknown.length > 0 && <p className="warn-text small">Not an environment of this project: {unknown.join(", ")}.</p>}
     </div>
   );
 }

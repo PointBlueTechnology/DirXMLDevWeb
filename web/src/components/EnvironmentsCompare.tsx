@@ -97,6 +97,57 @@ export function EnvironmentsCompare({ env, envs, onOpen, onSaved }: { env: strin
               : `${unexpected} difference${unexpected === 1 ? "" : "s"} the tree doesn't account for yet.`}
           </p>
 
+          {serverSides(result).map((side) => (
+            <section className="block" key={side.env} data-testid={"env-servers-" + side.env}>
+              <h4>{side.env}&apos;s servers</h4>
+              <p className="muted small">
+                Server names are unique to a tree, so {side.env} runs the tree&apos;s drivers on servers of its own. Pick the {side.env} server each tree server stands for (several onto
+                one where {side.env} has fewer). Recorded in <code>overrides/{side.env}.properties</code>; compare, plan and deploy then use them.
+              </p>
+              <table className="grid small">
+                <thead>
+                  <tr>
+                    <th>The tree&apos;s server</th>
+                    <th>{side.env}&apos;s server</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {side.tree.map((t, i) => {
+                    // the file splits a line at its first "=", so a key names the server by its name, never its DN
+                    const name = side.names[i];
+                    const key = `ovr:${side.env}:servers.${name}`;
+                    const staged = pending.ops.find((o) => o.key === key);
+                    const current = staged ? String(staged.args.value ?? "") : side.map[t] ?? "";
+                    return (
+                      <tr key={t}>
+                        <td>
+                          <code>{t}</code>
+                        </td>
+                        <td>
+                          <select
+                            value={current}
+                            onChange={(e) =>
+                              pending.put(key, e.target.value === (side.map[t] ?? "") ? null : { name: "override.set", args: { env: side.env, key: `servers.${name}`, value: e.target.value }, label: `${side.env}: ${name} → ${e.target.value}` })
+                            }
+                            className={staged ? "changed" : ""}
+                            data-testid={`env-server-${side.env}-${i}`}
+                          >
+                            <option value="">(not mapped)</option>
+                            {side.own.map((o) => (
+                              <option key={o} value={o}>
+                                {o}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </section>
+          ))}
+
           {result.onlyIn.length > 0 && (
             <section className="block">
               <h4>Only one of them holds</h4>
@@ -215,8 +266,8 @@ export function EnvironmentsCompare({ env, envs, onOpen, onSaved }: { env: strin
               <h4>Other differences, which no value explains</h4>
               <p className="muted small">
                 Policies, filters, linkage, packages. An override can&apos;t carry these. Each has a likely cause, worked out from the change; open a driver to see its changes and
-                decide. When {result.b} is right, nothing to record in the tree: a deploy to {result.a} brings it in line. When {result.a} has the newer work, bring it into a branch
-                with <em>Update this branch from {result.a}…</em>, ticking those files.
+                decide. Where the tree is right, nothing to record: a deploy to the other environment brings it in line. Where an environment has newer work, bring it into a branch
+                with <em>Update this branch from …</em> on Compare &amp; deploy, ticking those files.
               </p>
               {byDriver(result).map((g) => (
                 <details key={g.driver} className="drift-driver">
@@ -302,6 +353,9 @@ function suggest(cause: string, a: string, b: string): string {
   if (cause === `only in ${a}` || cause === `lines only ${a} has`) {
     return `${b} lacks it: promote it to ${b}, drop it from ${a}, or keep it as intended`;
   }
+  if (cause === "servers differ") {
+    return "map the environment's servers (above)";
+  }
   if (cause === "package versions differ") {
     return "the newer package wins; check which side has it";
   }
@@ -312,4 +366,21 @@ function suggest(cause: string, a: string, b: string): string {
     return "a name typed into content: move it into a GCV, then override it";
   }
   return "both sides changed: review";
+}
+
+/** The environments whose servers aren't the tree's: each needs its tree servers mapped to its own. */
+function serverSides(result: EnvCompareResult) {
+  const sv = result.servers;
+  if (!sv || sv.tree.length === 0) {
+    return [];
+  }
+  const same = (x: string[], y: string[]) => x.length === y.length && x.every((s) => y.some((t) => t.toLowerCase() === s.toLowerCase()));
+  const out: { env: string; own: string[]; tree: string[]; names: string[]; map: Record<string, string> }[] = [];
+  if (!same(sv.a, sv.tree)) {
+    out.push({ env: result.a, own: sv.a, tree: sv.tree, names: sv.treeNames, map: sv.mapA });
+  }
+  if (!same(sv.b, sv.tree)) {
+    out.push({ env: result.b, own: sv.b, tree: sv.tree, names: sv.treeNames, map: sv.mapB });
+  }
+  return out;
 }

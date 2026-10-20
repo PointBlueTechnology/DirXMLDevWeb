@@ -7,7 +7,7 @@ two, 81 values that differed, 52 differences of letter case alone, and several h
 policies, filters and packages in between. The page assumes one repository per driver set, with
 production as `main` ([git-workflow.md](git-workflow.md)).
 
-Items marked *(coming)* describe parts still being built ([existing environments design](https://github.com/PointBlueTechnology/DirXMLDev/blob/master/docs/existing-environments.md)).
+The design behind the tools named here: [existing environments](https://github.com/PointBlueTechnology/DirXMLDev/blob/master/docs/existing-environments.md).
 
 ## Change things in one place
 
@@ -42,9 +42,9 @@ Items marked *(coming)* describe parts still being built ([existing environments
    same, but 52 of the customer's differences were nothing else; they hide the real ones. The comparison
    sets them aside, but consistent case avoids them.
 9. **Map every environment's servers.** Server names are unique to a tree, so every environment but
-   production maps production's servers to its own, several to one where it has fewer
-   *(coming)*. When a new driver first reaches an environment with several servers, choose the one that
-   runs it in the plan *(coming)*.
+   production maps production's servers to its own, several to one where it has fewer (*Vault →
+   Environments*, step 2). When a new driver first reaches an environment with several servers, choose
+   the one that runs it in the plan.
 
 ## Say what is meant to differ
 
@@ -58,16 +58,16 @@ Items marked *(coming)* describe parts still being built ([existing environments
     each end. Mark each end as its environment's, or keep one tree driver per role with a name per
     environment; either way the remote tree's address is an override in each environment, so a feed
     never points at the wrong tree.
-13. **Accept known differences consciously** *(coming)*. When a difference is intended and no value can
-    carry it, record it with a reason, so comparisons show only new ones; review the list each quarter
-    and keep it short.
+13. **Accept known differences consciously.** When a difference is intended and no value can carry it,
+    accept it with a reason (*on purpose*), or park it (*later*), so comparisons show only new ones. A
+    known difference that changes shows again. Review the list each quarter and keep it short.
 
 ## Keep the parts in step
 
 14. **Upgrade packages in QA first, then promote the same versions.** Thirteen of the customer's drivers
     ran different package versions in the two environments, which makes every policy the package owns
     look different.
-15. **Keep job definitions identical; let only schedules and enablement differ** *(coming as overrides)*.
+15. **Keep job definitions identical; let only schedules, enablement and trace differ**, as overrides.
     Production runs scheduled jobs that QA leaves unscheduled; that should be the only difference.
 
 ## Look regularly
@@ -84,9 +84,9 @@ The usual start is the opposite of all this: environments changed by hand for ye
 works:
 
 1. Import production into `main`.
-2. Connect each other environment, compare it with production (*Vault → Environments*), and record what
-   the comparison shows: names, which drivers each environment gets (for now or for good), servers, and
-   values as overrides. *A guided Set up flow is coming.*
+2. Connect each other environment and compare it with production (*Vault → Environments*). Work through
+   the steps it shows: confirm or reject the likely renames, map the servers, say what only one of them
+   holds (for now or for good), and record the values as overrides. Commit.
 3. Work through the remaining differences by likely cause, driver by driver: bring an environment in line,
    promote its newer work through a branch, fix what's wrong (a literal that belongs in a GCV), or accept
    it as known.

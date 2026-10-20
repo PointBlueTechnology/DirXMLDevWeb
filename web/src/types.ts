@@ -379,7 +379,7 @@ export interface EnvCompareResult {
   matches?: { a: string; b: string; score: number; common: number; of: number; feed: boolean }[];
   /** Drivers, and entitlement policies, templates and jobs, one vault holds and the other doesn't. */
   onlyIn: { driver: string | null; path: string; kind: string; env: string; expected: boolean; planned: boolean; notInTree: boolean }[];
-  values: { driver: string | null; key: string; a: string | null; b: string | null; expected: boolean }[];
+  values: { driver: string | null; key: string; a: string | null; b: string | null; expected: boolean; tree: string | null; inTree: boolean }[];
   drift: { empty: boolean; changes: VaultChange[] } | null;
   caseOnly?: { driver: string | null; path: string; summary: string }[];
   /** For each drift change, in order, its likely cause. */

@@ -99,8 +99,59 @@ export function EnvironmentsCompare({ env, envs, onOpen, onSaved }: { env: strin
               : `${unexpected} difference${unexpected === 1 ? "" : "s"} the tree doesn't account for yet.`}
           </p>
 
+          <StepBar result={result} dismissed={dismissed} />
+
+
+          {(result.matches ?? []).filter((m) => !dismissed.includes(m.a + "|" + m.b)).length > 0 && (
+            <section className="block" data-testid="env-compare-matches" id="env-step-names">
+              <h4>Likely the same driver under another name</h4>
+              <p className="muted small">
+                Same shim, a similar name, policies in common. Nothing is matched until you say so: <em>Same driver</em> records the other environment&apos;s name for the tree&apos;s
+                driver (<code>drivers/&lt;driver&gt;.name</code> in that environment&apos;s overrides).
+              </p>
+              <ul className="plain">
+                {(result.matches ?? [])
+                  .filter((m) => !dismissed.includes(m.a + "|" + m.b))
+                  .map((m) => {
+                    const inTree = (env: string, driver: string) => result.onlyIn.some((o) => o.kind === "driver" && o.env === env && o.driver === driver && !o.notInTree);
+                    // the tree holds one of the two names; the other environment's name is recorded for it
+                    const rec = inTree(result.a, m.a) ? { env: result.b, tree: m.a, there: m.b } : inTree(result.b, m.b) ? { env: result.a, tree: m.b, there: m.a } : null;
+                    const key = rec ? `ovr:${rec.env}:drivers/${rec.tree}.name` : "";
+                    return (
+                      <li key={m.a + "|" + m.b} className="match">
+                        {result.a}&apos;s <strong>{m.a}</strong> and {result.b}&apos;s <strong>{m.b}</strong>{" "}
+                        <span className="muted small">
+                          ({m.common} of {m.of} policies in common)
+                        </span>{" "}
+                        {m.feed && (
+                          <span className="small warn-text">
+                            Their names carry an environment&apos;s name: perhaps the two ends, or one role, of a feed between environments. One tree driver named per environment, or a
+                            driver of each environment&apos;s own?
+                          </span>
+                        )}{" "}
+                        {rec ? (
+                          <>
+                            <button
+                              onClick={() => pending.put(key, { name: "override.set", args: { env: rec.env, key: `drivers/${rec.tree}.name`, value: rec.there }, label: `${rec.env}: ${rec.tree} is called ${rec.there} there` })}
+                              disabled={pending.has(key)}
+                              data-testid={"env-match-" + m.a}
+                            >
+                              {m.feed ? "One driver, named per environment" : "Same driver"}
+                            </button>{" "}
+                            <button onClick={() => setDismissed([...dismissed, m.a + "|" + m.b])}>{m.feed ? "Different drivers" : "Not the same"}</button>
+                          </>
+                        ) : (
+                          <span className="muted small">Neither is in the tree yet: bring one in first (Update this branch from …).</span>
+                        )}
+                      </li>
+                    );
+                  })}
+              </ul>
+            </section>
+          )}
+
           {serverSides(result).map((side) => (
-            <section className="block" key={side.env} data-testid={"env-servers-" + side.env}>
+            <section className="block env-step-servers" key={side.env} data-testid={"env-servers-" + side.env}>
               <h4>{side.env}&apos;s servers</h4>
               <p className="muted small">
                 Server names are unique to a tree, so {side.env} runs the tree&apos;s drivers on servers of its own. Pick the {side.env} server each tree server stands for (several onto
@@ -150,56 +201,8 @@ export function EnvironmentsCompare({ env, envs, onOpen, onSaved }: { env: strin
             </section>
           ))}
 
-          {(result.matches ?? []).filter((m) => !dismissed.includes(m.a + "|" + m.b)).length > 0 && (
-            <section className="block" data-testid="env-compare-matches">
-              <h4>Likely the same driver under another name</h4>
-              <p className="muted small">
-                Same shim, a similar name, policies in common. Nothing is matched until you say so: <em>Same driver</em> records the other environment&apos;s name for the tree&apos;s
-                driver (<code>drivers/&lt;driver&gt;.name</code> in that environment&apos;s overrides).
-              </p>
-              <ul className="plain">
-                {(result.matches ?? [])
-                  .filter((m) => !dismissed.includes(m.a + "|" + m.b))
-                  .map((m) => {
-                    const inTree = (env: string, driver: string) => result.onlyIn.some((o) => o.kind === "driver" && o.env === env && o.driver === driver && !o.notInTree);
-                    // the tree holds one of the two names; the other environment's name is recorded for it
-                    const rec = inTree(result.a, m.a) ? { env: result.b, tree: m.a, there: m.b } : inTree(result.b, m.b) ? { env: result.a, tree: m.b, there: m.a } : null;
-                    const key = rec ? `ovr:${rec.env}:drivers/${rec.tree}.name` : "";
-                    return (
-                      <li key={m.a + "|" + m.b} className="match">
-                        {result.a}&apos;s <strong>{m.a}</strong> and {result.b}&apos;s <strong>{m.b}</strong>{" "}
-                        <span className="muted small">
-                          ({m.common} of {m.of} policies in common)
-                        </span>{" "}
-                        {m.feed && (
-                          <span className="small warn-text">
-                            Their names carry an environment&apos;s name: perhaps the two ends, or one role, of a feed between environments. One tree driver named per environment, or a
-                            driver of each environment&apos;s own?
-                          </span>
-                        )}{" "}
-                        {rec ? (
-                          <>
-                            <button
-                              onClick={() => pending.put(key, { name: "override.set", args: { env: rec.env, key: `drivers/${rec.tree}.name`, value: rec.there }, label: `${rec.env}: ${rec.tree} is called ${rec.there} there` })}
-                              disabled={pending.has(key)}
-                              data-testid={"env-match-" + m.a}
-                            >
-                              {m.feed ? "One driver, named per environment" : "Same driver"}
-                            </button>{" "}
-                            <button onClick={() => setDismissed([...dismissed, m.a + "|" + m.b])}>{m.feed ? "Different drivers" : "Not the same"}</button>
-                          </>
-                        ) : (
-                          <span className="muted small">Neither is in the tree yet: bring one in first (Update this branch from …).</span>
-                        )}
-                      </li>
-                    );
-                  })}
-              </ul>
-            </section>
-          )}
-
           {result.onlyIn.length > 0 && (
-            <section className="block">
+            <section className="block" id="env-step-only">
               <h4>Only one of them holds</h4>
               <table className="grid" data-testid="env-compare-only">
                 <thead>
@@ -298,8 +301,31 @@ export function EnvironmentsCompare({ env, envs, onOpen, onSaved }: { env: strin
           )}
 
           {result.values.length > 0 && (
-            <section className="block">
+            <section className="block" id="env-step-values">
               <h4>Values that differ</h4>
+              {(() => {
+                // the environment whose value isn't the tree's gets the override; where neither is, a person picks
+                const open = result.values.filter((v) => !v.expected && v.inTree && (v.a === v.tree) !== (v.b === v.tree));
+                if (open.length === 0) {
+                  return null;
+                }
+                return (
+                  <p className="addrow tight small">
+                    <button
+                      onClick={() => {
+                        for (const v of open) {
+                          const forEnv = v.a === v.tree ? result.b : result.a;
+                          record(forEnv, v.key, forEnv === result.a ? v.a : v.b);
+                        }
+                      }}
+                      data-testid="env-values-record-all"
+                    >
+                      Record all {open.length} as overrides
+                    </button>
+                    <span className="muted">each for the environment whose value isn&apos;t the tree&apos;s</span>
+                  </p>
+                );
+              })()}
               <table className="grid" data-testid="env-compare-values">
                 <thead>
                   <tr>
@@ -339,7 +365,7 @@ export function EnvironmentsCompare({ env, envs, onOpen, onSaved }: { env: strin
           )}
 
           {result.drift && result.drift.changes.length > 0 && (
-            <section className="block" data-testid="env-compare-drift">
+            <section className="block" data-testid="env-compare-drift" id="env-step-drift">
               <h4>Other differences, which no value explains</h4>
               <p className="muted small">
                 Policies, filters, linkage, packages. An override can&apos;t carry these. Each has a likely cause, worked out from the change; open a driver to see its changes and
@@ -518,4 +544,37 @@ function serverSides(result: EnvCompareResult) {
     out.push({ env: result.b, own: sv.b, tree: sv.tree, names: sv.treeNames, map: sv.mapB });
   }
   return out;
+}
+
+/**
+ * Setting an environment up, step by step: what each part of the comparison still asks of a person. Each step jumps to
+ * its section; a step with nothing left shows a tick.
+ */
+function StepBar({ result, dismissed }: { result: EnvCompareResult; dismissed: string[] }) {
+  const names = (result.matches ?? []).filter((m) => !dismissed.includes(m.a + "|" + m.b)).length;
+  const sides = serverSides(result);
+  const unmapped = sides.reduce((n, s) => n + s.tree.filter((t) => !s.map[t]).length, 0);
+  const only = result.onlyIn.filter((o) => !o.expected && !o.planned).length;
+  const values = result.values.filter((v) => !v.expected).length;
+  const drift = result.drift?.changes.length ?? 0;
+  const steps = [
+    { id: "env-step-names", label: "Names", left: names, what: names === 1 ? "proposal" : "proposals" },
+    { id: "env-step-servers", label: "Servers", left: unmapped, what: "unmapped" },
+    { id: "env-step-only", label: "Only one holds", left: only, what: "to decide" },
+    { id: "env-step-values", label: "Values", left: values, what: "to record" },
+    { id: "env-step-drift", label: "Other differences", left: drift, what: "to resolve or accept" },
+  ];
+  const go = (id: string) => (document.getElementById(id) ?? document.querySelector("." + id))?.scrollIntoView({ behavior: "smooth", block: "start" });
+  return (
+    <ol className="steps env-steps" data-testid="env-steps">
+      {steps.map((s) => (
+        <li key={s.id} className={s.left === 0 ? "done" : ""}>
+          <button className="link" onClick={() => go(s.id)} disabled={s.left === 0}>
+            {s.label}
+          </button>{" "}
+          <span className="muted small">{s.left === 0 ? "✓" : `${s.left} ${s.what}`}</span>
+        </li>
+      ))}
+    </ol>
+  );
 }

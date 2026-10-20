@@ -384,6 +384,12 @@ export interface EnvCompareResult {
   caseOnly?: { driver: string | null; path: string; summary: string }[];
   /** For each drift change, in order, its likely cause. */
   causes?: string[];
+  /** For each drift change, in order, its fingerprint (what accepting it records). */
+  fingerprints?: string[];
+  /** Drift accepted as known for this pair, unchanged since. */
+  accepted?: { path: string; with: string; decision: string; summary: string; note: string | null; by: string; at: string }[];
+  /** Paths accepted once that have changed since: shown again. */
+  changedSinceAccepted?: string[];
   /** Each side's servers as its vault names them, the tree's, and each side's server map (tree server → its own). */
   servers?: { a: string[]; b: string[]; tree: string[]; treeNames: string[]; mapA: Record<string, string>; mapB: Record<string, string> };
   notes: string[];

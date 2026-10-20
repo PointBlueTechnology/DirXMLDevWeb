@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
 import { usePending } from "../pending";
-import type { EnvCompareResult } from "../types";
+import type { EnvCompareResult, VaultChange } from "../types";
 import { PendingBar } from "./PendingBar";
 
 /**
@@ -357,25 +357,82 @@ export function EnvironmentsCompare({ env, envs, onOpen, onSaved }: { env: strin
                         <th>Change</th>
                         <th>Likely cause</th>
                         <th>Suggests</th>
+                        <th>Accept as it is</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {g.changes.map(({ change, cause }, i) => (
-                        <tr key={i}>
-                          <td>
-                            <button className="link" onClick={() => onOpen(change.path)} title={change.path}>
-                              {change.summary}
-                            </button>
-                          </td>
-                          <td>{cause}</td>
-                          <td className="muted">{suggest(cause, result.a, result.b)}</td>
-                        </tr>
-                      ))}
+                      {g.changes.map(({ change, cause, fingerprint }, i) => {
+                        const key = `known:${change.path}`;
+                        const accept = (decision: "intended" | "later") => {
+                          const note = window.prompt(decision === "intended" ? "Why is it different on purpose? (optional)" : "What needs deciding? (optional)") ?? "";
+                          pending.put(key, {
+                            name: "known.accept",
+                            args: { env: result.a, with: result.b, path: change.path, fingerprint, decision, summary: change.summary, ...(note.trim() ? { note: note.trim() } : {}) },
+                            label: `${decision === "intended" ? "accepted" : "to decide"}: ${change.summary}`,
+                          });
+                        };
+                        return (
+                          <tr key={i}>
+                            <td>
+                              <button className="link" onClick={() => onOpen(change.path)} title={change.path}>
+                                {change.summary}
+                              </button>
+                              {(result.changedSinceAccepted ?? []).includes(change.path) && <span className="pill small warn"> changed since accepted</span>}
+                            </td>
+                            <td>{cause}</td>
+                            <td className="muted">{suggest(cause, result.a, result.b)}</td>
+                            <td className="nowrap">
+                              {pending.has(key) ? (
+                                <span className="pill small">staged</span>
+                              ) : (
+                                <>
+                                  <button className="link small" onClick={() => accept("intended")} title="Different on purpose: comparisons leave it out while it stays the same">
+                                    on purpose
+                                  </button>{" "}
+                                  <button className="link small" onClick={() => accept("later")} title="To decide: comparisons leave it out, listed under accepted">
+                                    later
+                                  </button>
+                                </>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </details>
               ))}
             </section>
+          )}
+          {(result.accepted ?? []).length > 0 && (
+            <details className="block small" data-testid="env-compare-accepted">
+              <summary>
+                {result.accepted!.length} accepted as known ({result.accepted!.filter((k) => k.decision === "later").length} to decide), unchanged since
+              </summary>
+              <table className="grid small">
+                <tbody>
+                  {result.accepted!.map((k) => (
+                    <tr key={k.path + k.with}>
+                      <td>{k.summary}</td>
+                      <td>{k.decision === "later" ? "to decide" : "on purpose"}</td>
+                      <td className="muted">{k.note ?? ""}</td>
+                      <td className="muted">
+                        {k.by} {k.at?.slice(0, 10)}
+                      </td>
+                      <td>
+                        <button
+                          className="link"
+                          onClick={() => pending.put(`forget:${k.path}`, { name: "known.forget", args: { env: result.a, with: result.b, path: k.path }, label: `no longer accepted: ${k.summary}` })}
+                          disabled={pending.has(`forget:${k.path}`)}
+                        >
+                          forget
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </details>
           )}
           {(result.caseOnly ?? []).length > 0 && (
             <p className="muted small">{result.caseOnly!.length} more differ only in letter case (eDirectory reads those DNs as the same); left out.</p>
@@ -407,16 +464,17 @@ function groups(result: EnvCompareResult) {
 
 /** The drift by driver (the driver set's own under "driver set"), most differences first, with counts by likely cause. */
 function byDriver(result: EnvCompareResult) {
-  const out = new Map<string, { driver: string; changes: { change: EnvCompareResult["drift"] extends infer D ? (D extends { changes: (infer C)[] } ? C : never) : never; cause: string }[]; causes: Record<string, number> }>();
+  const out = new Map<string, { driver: string; changes: { change: VaultChange; cause: string; fingerprint: string }[]; causes: Record<string, number> }>();
   (result.drift?.changes ?? []).forEach((change, i) => {
     const driver = change.driver ?? "driver set";
     const cause = result.causes?.[i] ?? "both changed";
+    const fingerprint = result.fingerprints?.[i] ?? "";
     let g = out.get(driver);
     if (!g) {
       g = { driver, changes: [], causes: {} };
       out.set(driver, g);
     }
-    g.changes.push({ change, cause });
+    g.changes.push({ change, cause, fingerprint });
     g.causes[cause] = (g.causes[cause] ?? 0) + 1;
   });
   return [...out.values()].sort((x, y) => y.changes.length - x.changes.length);

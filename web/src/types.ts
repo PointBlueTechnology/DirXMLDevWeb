@@ -258,6 +258,8 @@ export interface ConfigView {
   environments?: string[];
   /** Environment → the name its vault gives the driver, where it differs (overrides/<env>.properties drivers/<d>.name). */
   environmentNames?: Record<string, string>;
+  /** Environments it is meant to reach but isn't promoted to yet (driver.xml planned). */
+  planned?: string[];
   params?: Definition[];
   ecvs?: Definition[];
   gcvs: Definition[];
@@ -373,9 +375,13 @@ export interface VaultChange {
 export interface EnvCompareResult {
   a: string;
   b: string;
-  onlyIn: { driver: string; env: string; expected: boolean; notInTree: boolean }[];
+  /** Drivers, and entitlement policies, templates and jobs, one vault holds and the other doesn't. */
+  onlyIn: { driver: string | null; path: string; kind: string; env: string; expected: boolean; planned: boolean; notInTree: boolean }[];
   values: { driver: string | null; key: string; a: string | null; b: string | null; expected: boolean }[];
   drift: { empty: boolean; changes: VaultChange[] } | null;
+  caseOnly?: { driver: string | null; path: string; summary: string }[];
+  /** For each drift change, in order, its likely cause. */
+  causes?: string[];
   notes: string[];
   text: string;
 }

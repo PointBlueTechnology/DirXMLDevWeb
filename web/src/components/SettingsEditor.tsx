@@ -138,6 +138,20 @@ function DriverEnvironments({ config, pending }: { config: ConfigView; pending: 
         : { name: "driver.set", args: { driver, key: "environments", value: list.join(", ") }, label: `${driver}: deployed to ${list.join(", ")} only` }
     );
   };
+  const plannedOriginal = config.planned ?? [];
+  const plannedStaged = pending.ops.find((o) => o.key === "set:planned");
+  const planned: string[] = plannedStaged ? (plannedStaged.args.clear ? [] : String(plannedStaged.args.value ?? "").split(",").map((x) => x.trim()).filter(Boolean)) : plannedOriginal;
+  const stagePlanned = (list: string[]) => {
+    const same = list.length === plannedOriginal.length && list.every((e) => plannedOriginal.some((o) => o.toLowerCase() === e.toLowerCase()));
+    pending.put(
+      "set:planned",
+      same
+        ? null
+        : list.length === 0
+          ? { name: "driver.set", args: { driver, key: "planned", clear: "true" }, label: `${driver}: nothing planned` }
+          : { name: "driver.set", args: { driver, key: "planned", value: list.join(", ") }, label: `${driver}: planned for ${list.join(", ")}` }
+    );
+  };
   const names = config.environmentNames ?? {};
   const nameKey = (env: string) => `ovr:${env}:drivers/${driver}.name`;
   const stagedName = (env: string) => {
@@ -161,8 +175,8 @@ function DriverEnvironments({ config, pending }: { config: ConfigView; pending: 
     <div data-testid="driver-environments">
       <h3>Environments</h3>
       <p className="muted small">
-        Which environments get this driver. Compare and deploy to any other leave it out: a driver not yet in production, or one that never will be. The name is what
-        that environment&apos;s vault calls it, when not <code>{driver}</code>.
+        Which environments get this driver. Compare and deploy to any other leave it out. Tick <em>Later</em> for one it is meant to reach once promoted (a driver not
+        yet in production); leave it unticked for one that never gets it. The name is what that environment&apos;s vault calls it, when not <code>{driver}</code>.
       </p>
       <label className="check">
         <input type="checkbox" checked={every} onChange={(e) => stage(e.target.checked ? [] : (known ?? []).slice(0, 1))} data-testid="env-every" /> every environment
@@ -172,6 +186,7 @@ function DriverEnvironments({ config, pending }: { config: ConfigView; pending: 
           <tr>
             <th>Environment</th>
             <th>Gets it</th>
+            <th title="Not yet: it is meant to reach this environment later">Later</th>
             <th>Name there</th>
           </tr>
         </thead>
@@ -188,6 +203,16 @@ function DriverEnvironments({ config, pending }: { config: ConfigView; pending: 
                     disabled={every}
                     onChange={(e) => stage(e.target.checked ? [...current, env] : current.filter((c) => c.toLowerCase() !== env.toLowerCase()))}
                     data-testid={"env-gets-" + env}
+                  />
+                </td>
+                <td>
+                  <input
+                    type="checkbox"
+                    checked={!on && planned.some((x) => x.toLowerCase() === env.toLowerCase())}
+                    disabled={on}
+                    onChange={(e) => stagePlanned(e.target.checked ? [...planned, env] : planned.filter((x) => x.toLowerCase() !== env.toLowerCase()))}
+                    title="Not yet: planned for this environment, waiting for promotion"
+                    data-testid={"env-later-" + env}
                   />
                 </td>
                 <td>

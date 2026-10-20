@@ -869,6 +869,7 @@ public final class TreeService {
             DriverSet base = hasTree ? AsCodeReader.read(copy) : null;
             if (base != null) {
                 notes.addAll(com.pointblue.dirxml.dev.deploy.Overrides.toTreeNames(live, base.overrides.get(envName)));
+                notes.addAll(com.pointblue.dirxml.dev.deploy.ServerMap.toTree(live, base.overrides.get(envName), base));
             }
             DriverSet result = live;
             if (drivers != null && !drivers.isEmpty()) {

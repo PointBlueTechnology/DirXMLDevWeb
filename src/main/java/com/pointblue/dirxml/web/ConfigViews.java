@@ -39,6 +39,7 @@ final class ConfigViews {
         m.put("shimAuthId", d.shimAuthId);
         // the environments it is deployed to (empty = every one), and what each environment's vault calls it where that differs
         m.put("environments", d.environments);
+        m.put("planned", d.planned);
         Map<String, String> names = new LinkedHashMap<>();
         for (Map.Entry<String, Map<String, String>> e : ds.overrides.entrySet()) {
             String n = com.pointblue.dirxml.dev.deploy.Overrides.renames(e.getValue()).get(d.name);

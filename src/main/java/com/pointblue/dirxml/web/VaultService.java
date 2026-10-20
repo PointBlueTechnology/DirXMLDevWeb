@@ -138,6 +138,9 @@ public final class VaultService {
                 : com.pointblue.dirxml.dev.deploy.Secrets.load(e.secretsFile)).withNames(applied.renamed);
             Overrides.applySecretShimAuthIds(to, secrets);
             DriverSet from = VaultDiff.readLive(e, notes::add);
+            if (!applied.serverMap.isEmpty()) {
+                com.pointblue.dirxml.dev.deploy.Servers.foldPrimary(to, from.meta.get(com.pointblue.dirxml.dev.deploy.Servers.PRIMARY_META));
+            }
             lastRead = new LastRead(e.name, System.currentTimeMillis(), from, notes);
             diff = VaultDiff.of(from, to, applied.vaultNames(drivers));
         } catch (IllegalArgumentException ex) {

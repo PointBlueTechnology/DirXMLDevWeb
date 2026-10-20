@@ -44,13 +44,16 @@ export function EnvironmentsCompare({ env, envs, onOpen, onSaved }: { env: strin
   const record = (forEnv: string, key: string, value: string | null) =>
     pending.put(`ovr:${forEnv}:${key}`, { name: "override.set", args: { env: forEnv, key, value: value ?? "" }, label: `${forEnv}: ${key} = ${value ?? ""}` });
   const staged = (forEnv: string, key: string) => pending.has(`ovr:${forEnv}:${key}`);
-  const notDeployedTo = (driver: string, missing: string) =>
+  // "not yet": deployed to the others, planned for the missing one; "never": that environment doesn't get it, for good
+  const notDeployedTo = (driver: string, missing: string, later: boolean) => {
     pending.put(`env:${driver}`, {
       name: "driver.set",
       args: { driver, key: "environments", value: envs.filter((e) => e !== missing).join(", ") },
-      label: `${driver}: not deployed to ${missing}`,
+      label: later ? `${driver}: not yet in ${missing}` : `${driver}: never in ${missing}`,
     });
-  const unexpected = result ? result.onlyIn.filter((o) => !o.expected).length + result.values.filter((v) => !v.expected).length + (result.drift?.changes.length ?? 0) : 0;
+    pending.put(`planned:${driver}`, later ? { name: "driver.set", args: { driver, key: "planned", value: missing }, label: `${driver}: planned for ${missing}` } : null);
+  };
+  const unexpected = result ? result.onlyIn.filter((o) => !o.expected && !o.planned).length + result.values.filter((v) => !v.expected).length + (result.drift?.changes.length ?? 0) : 0;
   return (
     <div className="pad" data-testid="env-compare">
       <PendingBar pending={pending} title={`Record what comparing ${env} with ${result?.b ?? other} found`} onSaved={onSaved} />
@@ -96,7 +99,7 @@ export function EnvironmentsCompare({ env, envs, onOpen, onSaved }: { env: strin
 
           {result.onlyIn.length > 0 && (
             <section className="block">
-              <h4>Drivers only one of them holds</h4>
+              <h4>Only one of them holds</h4>
               <table className="grid" data-testid="env-compare-only">
                 <thead>
                   <tr>
@@ -106,30 +109,63 @@ export function EnvironmentsCompare({ env, envs, onOpen, onSaved }: { env: strin
                   </tr>
                 </thead>
                 <tbody>
-                  {result.onlyIn.map((o) => {
-                    const missing = o.env === result.a ? result.b : result.a;
-                    return (
-                      <tr key={o.env + ":" + o.driver}>
-                        <td>{o.driver}</td>
-                        <td>{o.env}</td>
-                        <td>
-                          {o.expected ? (
-                            <span className="pill small">expected</span>
-                          ) : o.notInTree ? (
-                            <span className="small">
-                              not in the tree. Bring it in with <em>Update this branch from {o.env}…</em> on Compare &amp; deploy; it comes marked as {o.env}&apos;s only.
-                            </span>
-                          ) : (
-                            <button onClick={() => notDeployedTo(o.driver, missing)} disabled={pending.has(`env:${o.driver}`)} data-testid={"env-not-deployed-" + o.driver}>
-                              Not deployed to {missing}
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  {result.onlyIn
+                    .filter((o) => o.kind === "driver")
+                    .map((o) => {
+                      const missing = o.env === result.a ? result.b : result.a;
+                      const driver = o.driver ?? "";
+                      return (
+                        <tr key={o.env + ":" + o.path}>
+                          <td>{driver}</td>
+                          <td>{o.env}</td>
+                          <td>
+                            {o.planned ? (
+                              <span className="pill small">planned for {missing}</span>
+                            ) : o.expected ? (
+                              <span className="pill small">expected</span>
+                            ) : o.notInTree ? (
+                              <span className="small">
+                                not in the tree. Bring it in with <em>Update this branch from {o.env}…</em> on Compare &amp; deploy; it comes marked as {o.env}&apos;s only.
+                              </span>
+                            ) : (
+                              <span className="addrow tight">
+                                <button onClick={() => notDeployedTo(driver, missing, true)} disabled={pending.has(`env:${driver}`)} title={`Promote to ${missing} later`} data-testid={"env-not-yet-" + driver}>
+                                  Not yet in {missing}
+                                </button>
+                                <button onClick={() => notDeployedTo(driver, missing, false)} disabled={pending.has(`env:${driver}`)} title={`${o.env}'s own, for good`} data-testid={"env-never-" + driver}>
+                                  Never in {missing}
+                                </button>
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                 </tbody>
               </table>
+              {groups(result).map((g) => (
+                <details key={g.key} className="small">
+                  <summary>
+                    {g.count} {g.kind}
+                    {g.count === 1 ? "" : g.kind.endsWith("y") ? "" : "s"} only in {g.env}
+                    {g.expected > 0 && ` · ${g.expected} expected`}
+                    {g.planned > 0 && ` · ${g.planned} planned`}
+                    {g.notInTree > 0 && ` · ${g.notInTree} not in the tree`}
+                  </summary>
+                  <ul className="plain">
+                    {g.items.map((o) => (
+                      <li key={o.path}>
+                        <code>{o.path}</code> {o.planned ? <span className="pill small">planned</span> : o.expected ? <span className="pill small">expected</span> : o.notInTree ? <span className="muted">not in the tree</span> : null}
+                      </li>
+                    ))}
+                  </ul>
+                  {g.notInTree > 0 && (
+                    <p className="muted">
+                      <em>Update this branch from {g.env}…</em> brings the ones not in the tree in, marked as {g.env}&apos;s only.
+                    </p>
+                  )}
+                </details>
+              ))}
             </section>
           )}
 
@@ -175,38 +211,105 @@ export function EnvironmentsCompare({ env, envs, onOpen, onSaved }: { env: strin
           )}
 
           {result.drift && result.drift.changes.length > 0 && (
-            <section className="block">
+            <section className="block" data-testid="env-compare-drift">
               <h4>Other differences, which no value explains</h4>
               <p className="muted small">
-                Policies, filters, linkage, definitions one side lacks. An override can&apos;t carry these: one of the two environments has work the other hasn&apos;t had, or has drifted.
-                Bring {result.b}&apos;s into a branch with <em>Update this branch from {result.b}…</em>, ticking the files you want.
+                Policies, filters, linkage, packages. An override can&apos;t carry these. Each has a likely cause, worked out from the change; open a driver to see its changes and
+                decide. When {result.b} is right, nothing to record in the tree: a deploy to {result.a} brings it in line. When {result.a} has the newer work, bring it into a branch
+                with <em>Update this branch from {result.a}…</em>, ticking those files.
               </p>
-              <table className="grid" data-testid="env-compare-drift">
-                <thead>
-                  <tr>
-                    <th>Change</th>
-                    <th>Driver</th>
-                    <th>Where</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {result.drift.changes.map((c, i) => (
-                    <tr key={i}>
-                      <td>{c.summary}</td>
-                      <td>{c.driver ?? "driver set"}</td>
-                      <td>
-                        <button className="link" onClick={() => onOpen(c.path)}>
-                          {c.path}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              {byDriver(result).map((g) => (
+                <details key={g.driver} className="drift-driver">
+                  <summary>
+                    <strong>{g.driver}</strong> <span className="muted small">{g.changes.length} difference{g.changes.length === 1 ? "" : "s"}: {Object.entries(g.causes).map(([c, n]) => `${n} ${c}`).join(", ")}</span>
+                  </summary>
+                  <table className="grid small">
+                    <thead>
+                      <tr>
+                        <th>Change</th>
+                        <th>Likely cause</th>
+                        <th>Suggests</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {g.changes.map(({ change, cause }, i) => (
+                        <tr key={i}>
+                          <td>
+                            <button className="link" onClick={() => onOpen(change.path)} title={change.path}>
+                              {change.summary}
+                            </button>
+                          </td>
+                          <td>{cause}</td>
+                          <td className="muted">{suggest(cause, result.a, result.b)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </details>
+              ))}
             </section>
+          )}
+          {(result.caseOnly ?? []).length > 0 && (
+            <p className="muted small">{result.caseOnly!.length} more differ only in letter case (eDirectory reads those DNs as the same); left out.</p>
           )}
         </>
       )}
     </div>
   );
+}
+
+/** The one-sided entitlement policies, templates and jobs, by kind and environment. */
+function groups(result: EnvCompareResult) {
+  const out: { key: string; kind: string; env: string; count: number; expected: number; planned: number; notInTree: number; items: EnvCompareResult["onlyIn"] }[] = [];
+  for (const o of result.onlyIn.filter((x) => x.kind !== "driver")) {
+    const key = o.kind + ":" + o.env;
+    let g = out.find((x) => x.key === key);
+    if (!g) {
+      g = { key, kind: o.kind, env: o.env, count: 0, expected: 0, planned: 0, notInTree: 0, items: [] };
+      out.push(g);
+    }
+    g.count++;
+    g.expected += o.expected && !o.planned ? 1 : 0;
+    g.planned += o.planned ? 1 : 0;
+    g.notInTree += o.notInTree ? 1 : 0;
+    g.items.push(o);
+  }
+  return out;
+}
+
+/** The drift by driver (the driver set's own under "driver set"), most differences first, with counts by likely cause. */
+function byDriver(result: EnvCompareResult) {
+  const out = new Map<string, { driver: string; changes: { change: EnvCompareResult["drift"] extends infer D ? (D extends { changes: (infer C)[] } ? C : never) : never; cause: string }[]; causes: Record<string, number> }>();
+  (result.drift?.changes ?? []).forEach((change, i) => {
+    const driver = change.driver ?? "driver set";
+    const cause = result.causes?.[i] ?? "both changed";
+    let g = out.get(driver);
+    if (!g) {
+      g = { driver, changes: [], causes: {} };
+      out.set(driver, g);
+    }
+    g.changes.push({ change, cause });
+    g.causes[cause] = (g.causes[cause] ?? 0) + 1;
+  });
+  return [...out.values()].sort((x, y) => y.changes.length - x.changes.length);
+}
+
+/** What a likely cause suggests doing, in a few words. */
+function suggest(cause: string, a: string, b: string): string {
+  if (cause === `only in ${b}` || cause === `lines only ${b} has`) {
+    return `${a} lacks it: bring ${a} in line, or keep it as intended`;
+  }
+  if (cause === `only in ${a}` || cause === `lines only ${a} has`) {
+    return `${b} lacks it: promote it to ${b}, drop it from ${a}, or keep it as intended`;
+  }
+  if (cause === "package versions differ") {
+    return "the newer package wins; check which side has it";
+  }
+  if (cause === "cosmetic") {
+    return "align either way";
+  }
+  if (cause === "environment-specific text") {
+    return "a name typed into content: move it into a GCV, then override it";
+  }
+  return "both sides changed: review";
 }

@@ -1481,3 +1481,13 @@ a.button { display: inline-block; padding: 5px 10px; border: 1px solid var(--bor
 .modal-diff { position: relative; }
 .busy-pane { position: absolute; inset: 0; z-index: 5; display: flex; align-items: center; justify-content: center; background: color-mix(in srgb, var(--surface) 85%, transparent); }
 .busy-line { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; }
+
+/* the Environments tab: setting an environment up, step by step */
+.env-steps { display: flex; flex-wrap: wrap; gap: 6px 22px; list-style: none; padding: 0; margin: 8px 0 14px; counter-reset: envstep; }
+.env-steps li { counter-increment: envstep; }
+.env-steps li::before { content: counter(envstep) ". "; color: var(--muted, #888); }
+.env-steps li.done button { color: inherit; opacity: 0.6; }
+.drift-driver { margin: 4px 0; }
+.drift-driver > summary { cursor: pointer; padding: 3px 0; }
+.nowrap { white-space: nowrap; }
+.match { margin: 6px 0; }

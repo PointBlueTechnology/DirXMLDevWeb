@@ -119,6 +119,20 @@ Every view of the page, by area, in every install; the items marked *local and s
 - **Operations**: every edit operation the core registers with a form generated from its
   declared arguments, through the same review.
 - **Vault**, against any environment the `idm` CLI knows:
+  - *Environments* (the setup of an environment against the tree; docs/environment-practices.md):
+    two environments' vaults side by side, nothing written to either, as five steps with what each
+    still asks: likely renames (*Same driver* records the other environment's name; feeds between
+    environments flagged, never matched on their own), the environment's servers mapped onto the
+    tree's (several onto one), what only one holds (drivers one by one with *Not yet in* / *Never in*,
+    policies, templates and jobs by kind with *… own* / *Planned for*), values that differ (each
+    recordable as either environment's override, or all at once for the environment that differs from
+    the tree; job schedules and trace included), and the rest grouped by driver with a likely cause
+    and a suggestion per change, each acceptable as known (*on purpose* / *later*), which keeps it out
+    until it changes. DN differences of letter case alone are set aside. Everything is recorded as
+    reviewed changes to the tree.
+  - A driver's settings have an *Environments* section: which environments get it, which it is
+    planned for, and its name in each.
+  - The plan step asks which server runs each new driver when the environment has several.
   - *Compare*: the tree against the vault, for the driver set or one driver, with the stage's
     overrides applied; each difference opens its detail.
   - The tab is three numbered steps, *Compare*, *Plan* and *Deploy*, each with its state (not

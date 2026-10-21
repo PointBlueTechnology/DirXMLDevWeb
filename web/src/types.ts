@@ -254,6 +254,12 @@ export interface ConfigView {
   shimClass?: string | null;
   shimAuthServer?: string | null;
   shimAuthId?: string | null;
+  /** The environments the driver is deployed to; empty = every environment. */
+  environments?: string[];
+  /** Environment → the name its vault gives the driver, where it differs (overrides/<env>.properties drivers/<d>.name). */
+  environmentNames?: Record<string, string>;
+  /** Environments it is meant to reach but isn't promoted to yet (driver.xml planned). */
+  planned?: string[];
   params?: Definition[];
   ecvs?: Definition[];
   gcvs: Definition[];
@@ -365,6 +371,31 @@ export interface VaultChange {
   detail?: string | null;
 }
 
+/** Two environments' vaults side by side (`/api/vault/compare-envs`); "expected" = the tree already accounts for it. */
+export interface EnvCompareResult {
+  a: string;
+  b: string;
+  /** Likely the same driver under another name in each (same shim, similar name, policies in common); feed = names carry an environment's name. */
+  matches?: { a: string; b: string; score: number; common: number; of: number; feed: boolean }[];
+  /** Drivers, and entitlement policies, templates and jobs, one vault holds and the other doesn't. */
+  onlyIn: { driver: string | null; path: string; kind: string; env: string; expected: boolean; planned: boolean; notInTree: boolean }[];
+  values: { driver: string | null; key: string; a: string | null; b: string | null; expected: boolean; tree: string | null; inTree: boolean }[];
+  drift: { empty: boolean; changes: VaultChange[] } | null;
+  caseOnly?: { driver: string | null; path: string; summary: string }[];
+  /** For each drift change, in order, its likely cause. */
+  causes?: string[];
+  /** For each drift change, in order, its fingerprint (what accepting it records). */
+  fingerprints?: string[];
+  /** Drift accepted as known for this pair, unchanged since. */
+  accepted?: { path: string; with: string; decision: string; summary: string; note: string | null; by: string; at: string }[];
+  /** Paths accepted once that have changed since: shown again. */
+  changedSinceAccepted?: string[];
+  /** Each side's servers as its vault names them, the tree's, and each side's server map (tree server → its own). */
+  servers?: { a: string[]; b: string[]; tree: string[]; treeNames: string[]; mapA: Record<string, string>; mapB: Record<string, string> };
+  notes: string[];
+  text: string;
+}
+
 export interface VaultDiffResult {
   empty: boolean;
   changes: VaultChange[];
@@ -375,6 +406,13 @@ export interface VaultDiffResult {
   overrides: string | null;
   /** What the read could not take: another server unreachable, a value eDirectory can't return (-325). */
   notes?: string[];
+  /** Drivers the tree doesn't deploy to this environment (driver.xml environments), left out of the comparison. */
+  notDeployed?: string[];
+  /** The tree's name → this environment's, for drivers its vault names differently. */
+  renamed?: Record<string, string>;
+  /** The environment's servers, and the one a deploy connects through. */
+  servers?: string[];
+  primary?: string | null;
 }
 
 /** What a deploy asks for beyond its scope (#34). */
@@ -386,6 +424,8 @@ export interface DeployChoices {
   allowMissingSecrets: boolean;
   /** Drivers the diff reports as only in the vault, to delete (stopped ones only; the core refuses otherwise). */
   deleteDrivers: string[];
+  /** A driver new to the environment → the server it runs on (when not the one the deploy connects through). */
+  driverServers?: Record<string, string>;
   /** A production environment's unknown or drifted state captured first as an as-found branch (vault.deploy --capture-drift). */
   captureDrift?: boolean;
 }

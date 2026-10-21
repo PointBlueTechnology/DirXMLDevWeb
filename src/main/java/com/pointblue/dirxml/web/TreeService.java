@@ -850,6 +850,16 @@ public final class TreeService {
      * result must still read as a tree.
      */
     public synchronized Map<String, Object> pull(DriverSet live, String envName, List<String> drivers, boolean dryRun, String revision, List<String> notes, List<String> only, Map<String, String> contents) throws IOException {
+        return pull(live, envName, drivers, dryRun, revision, notes, only, contents, false);
+    }
+
+    /**
+     * {@code markNew}: the tree serves several environments, so a driver only {@code envName}'s vault has is marked as
+     * that environment's only ({@code driver.xml} environments). Either way, drivers the vault names differently take
+     * the tree's names ({@code drivers/<d>.name} in its overrides file) and the tree's drivers {@code envName} doesn't
+     * get stay as they are.
+     */
+    public synchronized Map<String, Object> pull(DriverSet live, String envName, List<String> drivers, boolean dryRun, String revision, List<String> notes, List<String> only, Map<String, String> contents, boolean markNew) throws IOException {
         // a dry run plans against the tree as it is now and returns that revision; the apply must name it
         String current = dryRun ? watcher.refreshNow() : requireRevision(revision);
         Path copy = Files.createTempDirectory("idmweb-pull-");
@@ -857,10 +867,21 @@ public final class TreeService {
             copyTree(tree, copy);
             boolean hasTree = Files.isRegularFile(copy.resolve(AsCodeWriter.DRIVERSET_MANIFEST));
             DriverSet base = hasTree ? AsCodeReader.read(copy) : null;
+            if (base != null) {
+                notes.addAll(com.pointblue.dirxml.dev.deploy.Overrides.toTreeNames(live, base.overrides.get(envName)));
+                notes.addAll(com.pointblue.dirxml.dev.deploy.ServerMap.toTree(live, base.overrides.get(envName), base));
+            }
             DriverSet result = live;
             if (drivers != null && !drivers.isEmpty()) {
                 if (base == null) {
                     throw new BadRequest("the workspace has no tree yet: take the whole driver set");
+                }
+                for (String name : drivers) {
+                    com.pointblue.dirxml.dev.model.Driver mine = base.driver(name);
+                    if (mine != null && !mine.deploysTo(envName)) {
+                        throw new BadRequest("'" + name + "' is not deployed to " + envName + " (driver.xml environments=\"" + String.join(", ", mine.environments)
+                            + "\"): there is nothing to update it from");
+                    }
                 }
                 result = AsCodeReader.read(copy);
                 for (String name : drivers) {
@@ -880,6 +901,8 @@ public final class TreeService {
                 }
                 result.overrides.clear();
             }
+            notes.addAll(com.pointblue.dirxml.dev.deploy.DriverEnvironments.keepOnImport(result, envName, base, markNew,
+                drivers != null && !drivers.isEmpty() ? drivers : null));
             if (Files.isDirectory(copy.resolve(com.pointblue.dirxml.dev.deploy.Overrides.DIR))) {
                 result.overrides.putAll(com.pointblue.dirxml.dev.deploy.Overrides.read(copy));
                 for (String n : com.pointblue.dirxml.dev.deploy.Overrides.foldBack(result, envName, base)) {

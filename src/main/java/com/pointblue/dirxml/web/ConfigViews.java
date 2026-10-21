@@ -37,6 +37,17 @@ final class ConfigViews {
         m.put("shimClass", d.shimClass);
         m.put("shimAuthServer", d.shimAuthServer);
         m.put("shimAuthId", d.shimAuthId);
+        // the environments it is deployed to (empty = every one), and what each environment's vault calls it where that differs
+        m.put("environments", d.environments);
+        m.put("planned", d.planned);
+        Map<String, String> names = new LinkedHashMap<>();
+        for (Map.Entry<String, Map<String, String>> e : ds.overrides.entrySet()) {
+            String n = com.pointblue.dirxml.dev.deploy.Overrides.renames(e.getValue()).get(d.name);
+            if (n != null) {
+                names.put(e.getKey(), n);
+            }
+        }
+        m.put("environmentNames", names);
         m.put("params", definitions(d.config.get(Driver.SHIM_CONFIG_INFO), null));
         m.put("ecvs", definitions(d.config.get(Driver.ENGINE_CONTROL_VALUES), null));
         m.put("gcvs", gcvs(ds, d));

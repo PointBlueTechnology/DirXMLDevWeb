@@ -491,6 +491,8 @@ public final class Api implements HttpHandler {
                     return vault.environments();
                 case "/api/vault/diff":
                     return vault.diff(required(query, "env"), list(query.get("driver")));
+                case "/api/vault/compare-envs":
+                    return vault.compareEnvironments(required(query, "env"), required(query, "with"));
                 case "/api/vault/snapshots":
                     return vault.snapshots(required(query, "env"));
                 case "/api/vault/jobs":
@@ -579,6 +581,12 @@ public final class Api implements HttpHandler {
                 }
             } else {
                 calls.add(new TreeService.Call(path.substring("/api/op/".length()), strings(req.get("args")), strings(req.get("files"))));
+            }
+            // who accepted a known difference is the signed-in person, never what the page says
+            for (TreeService.Call call : calls) {
+                if ("known.accept".equals(call.name) && session != null && session.principal != null) {
+                    call.args.put("by", session.principal.name != null && !session.principal.name.isBlank() ? session.principal.name : session.principal.subject);
+                }
             }
             return service.run(calls, Boolean.TRUE.equals(req.get("dryRun")), Boolean.TRUE.equals(req.get("force")), Json.asString(req.get("revision")));
         }
@@ -746,7 +754,7 @@ public final class Api implements HttpHandler {
                             contents.put(String.valueOf(e.getKey()), e.getValue() == null ? "" : String.valueOf(e.getValue()));
                         }
                     }
-                    Map<String, Object> pulled = service.pull(live, vault.environmentName(env), stringList(req.get("drivers")), dryRun, Json.asString(req.get("revision")), notes, only, contents);
+                    Map<String, Object> pulled = service.pull(live, vault.environmentName(env), stringList(req.get("drivers")), dryRun, Json.asString(req.get("revision")), notes, only, contents, vault.sharedTree());
                     pulled.put("readAt", read.readAt());
                     pulled.put("reused", read.reused());
                     return pulled;
@@ -898,6 +906,15 @@ public final class Api implements HttpHandler {
             }
         }
         c.deleteDrivers = del;
+        java.util.Map<String, String> runsOn = new java.util.LinkedHashMap<>();
+        if (req.get("driverServers") instanceof java.util.Map<?, ?> m) {
+            for (java.util.Map.Entry<?, ?> e : m.entrySet()) {
+                if (e.getKey() != null && e.getValue() != null && !String.valueOf(e.getValue()).isBlank()) {
+                    runsOn.put(String.valueOf(e.getKey()), String.valueOf(e.getValue()));
+                }
+            }
+        }
+        c.driverServers = runsOn;
         c.captureDrift = Boolean.TRUE.equals(req.get("captureDrift"));
         return c;
     }

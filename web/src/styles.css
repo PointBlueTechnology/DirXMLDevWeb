@@ -625,6 +625,11 @@ textarea {
   margin-top: 14px;
   max-width: 720px;
 }
+/* a token, a command or a prompt to copy: every character visible, no sideways scroll */
+pre.wrapped {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
 
 /* review dialog */
 .modal-back {

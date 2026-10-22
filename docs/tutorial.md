@@ -2,7 +2,9 @@
 
 This walk-through starts with nothing but Docker and an Identity Vault you can reach. It installs
 DirXMLDevWeb on your machine, reads a driver set from the vault into a git repository, changes one
-policy, commits the change and deploys it back to the vault. It takes about fifteen minutes.
+policy, commits the change and deploys it back to the vault. It takes about fifteen minutes. A last,
+optional section does it again with an agent, Claude Code, which works through the same server as
+you.
 
 Use a **lab or development vault** for this, never production: the last step writes to it. Pick a
 policy whose change cannot hurt anything. The screenshots use a lab vault with a scratch Loopback
@@ -209,6 +211,93 @@ Under the deploy's result, choose **Commit the deploy record**:
 It commits that file alone, as *Deployed to lab (Tutorial Loopback)*. Anything else you have not
 committed stays as it was. The bar then offers **Push**: choose it so that others see the record.
 
+## 9. Do it again with an agent
+
+An agent can do what you just did: change a policy, check it, commit it and deploy it. It acts as
+you, under your roles, and goes by the same rules as the page: it shows you each change before
+applying it, and it writes to the vault only after you have seen the plan and typed the
+environment's name. This section uses [Claude Code](https://claude.com/claude-code), installed on
+the same machine. Any agent that speaks MCP works the same way ([agents.md](agents.md)).
+
+### Make a token
+
+Choose **agent tokens…** beside your name, at the top right. Give the token a label,
+`claude-laptop`, keep **90 days**, and choose **Make the token**:
+
+![The agent tokens dialog: one token, claude-laptop, and how to set up your agent](screenshots/tutorial/18-agent-tokens.png)
+
+The token is shown once, above the list, with the command that connects Claude Code. Choose
+**Copy the command**. Treat the token like a password: whoever has it acts as you.
+
+### Connect Claude Code
+
+Paste the command into a terminal (PowerShell on Windows). It looks like this, with your token in
+it; `--scope user` makes the server available wherever you start Claude Code:
+
+```bash
+claude mcp add --scope user --transport http dirxmldev http://localhost:8080/mcp --header "Authorization: Bearer <your token>"
+```
+
+`claude mcp list` should show `dirxmldev` as connected.
+
+### Set it up
+
+Start `claude` and type:
+
+```
+/mcp__dirxmldev__setup
+```
+
+The server gives Claude Code its rules and two skills, one for editing and deploying a driver set
+and one for testing policies with the simulator. Claude Code installs the skills in
+`~/.claude/skills`, asking before it replaces one that's already there. It then tells you who it
+acts as (you, with your roles), the branch (`main`, the one you have open), the drivers, and what
+validation says. It changes nothing.
+
+Claude Code asks your permission the first time it uses each of the server's tools. Allow them as
+they come, or for the session.
+
+### Ask for the change
+
+This time, do the work on a branch of its own, as real work goes. Type:
+
+> On a new branch called tutorial/agent, change the Tutorial Loopback greeting to "Hello from my
+> agent". Show me the change before you apply it. Then validate, commit and push.
+
+The agent:
+
+1. opens a new branch, `tutorial/agent`, from `main`. The page stays on `main`: the agent's branch
+   is its own;
+2. reads the policy and shows you the change. Nothing is written yet: the server checked it as a
+   preview, the way **Review changes** does;
+3. applies it when you say yes, validates the tree, then commits and pushes.
+
+To see the agent's work on the page, choose **switch** beside the branch name and open
+`tutorial/agent`. The commit is there, under your name.
+
+### Deploy it
+
+Type:
+
+> Compare tutorial/agent with lab and plan the deploy.
+
+The agent shows the one difference, the changed policy, and the plan, as steps 1 and 2 of
+**Compare & deploy** do. To deploy, it needs the environment's name from you: type `lab` when it
+asks. It then deploys, with the same snapshot, write, driver restart and check as on the page, and
+tells you the result. Finish with:
+
+> Commit the deploy record and push.
+
+On `lab` a branch may be deployed. A production environment takes deploys from `main` only,
+pushed and current, and the server refuses anything else, from an agent as from you
+([git-workflow.md](git-workflow.md)).
+
+### What it did, as you
+
+Every call the agent made is in the audit log (`~/idmweb/data/audit.log`) as yours, marked
+`"via":"claude-laptop"`. When you no longer need the token, choose **revoke** beside it in the
+dialog; the agent is then refused at once.
+
 ## Where things are
 
 | What | Where |
@@ -218,7 +307,8 @@ committed stays as it was. The bar then offers **Push**: choose it so that other
 | Deploy snapshots | the workspace's `tree/deploy-snapshots/<environment>/`, never committed |
 | The deploy record | `tree/deploy-log/<environment>.jsonl`, committed |
 | The environments | `~/idmweb/config/environments.properties`; your bind DN and password in `~/idmweb/data/users/<you>/environments.properties` |
-| Who did what | `~/idmweb/data/audit.log` |
+| Who did what | `~/idmweb/data/audit.log`; an agent's lines say `via` its token |
+| Your agent tokens | `~/idmweb/data/users/<you>/agent-tokens.json`, a hash of each, never the token |
 
 ## If something went wrong
 
@@ -228,6 +318,8 @@ committed stays as it was. The bar then offers **Push**: choose it so that other
 - **Undo an edit:** **Discard** in the editor, before you apply. After you apply, and before you
   commit: open the uncommitted files from the bar and pick the file. **discard…** undoes the whole
   file; the arrow beside one changed block undoes just that block, then **Save**.
+- **The agent can't connect, or is refused with 401:** the token was mistyped, has expired or was
+  revoked. Make a new one, then `claude mcp remove dirxmldev` and add it again with the new command.
 - **The vault changed outside the tree** (someone used Designer or iManager): choose **Compare**,
   then **Update this branch from lab…** under the differences. It uses what Compare just read, so
   it opens at once, and shows what would change in your tree. Apply writes it there for you to
@@ -235,7 +327,7 @@ committed stays as it was. The bar then offers **Push**: choose it so that other
 
 ## Next: work with branches and environments
 
-You changed `main` directly and deployed to one vault. Real work goes differently: each change on
+In steps 5 to 8 you changed `main` directly and deployed to one vault. Real work goes differently: each change on
 a branch of its own, deployed to dev, merged into `main`, then promoted to test and production.
 [git-workflow.md](git-workflow.md) walks through that, and through setting up the environments of
 one driver set. Read it next.
@@ -247,8 +339,7 @@ Also:
   `docker exec idmweb idm vault.deploy tree --env lab --dry-run` plans a deploy.
 - Add the engine jars to the folder's `lib/` for the compile checks and the simulator
   ([quickstart.md](quickstart.md#4-optional-the-engine-jars)).
-- Bring your agent: make a token (your name at the top right → *agent tokens…*), connect Claude
-  Code with the command it shows, and run `/mcp__dirxmldev__setup`. It can then do what you did
-  here, asking you before it writes to the vault ([agents.md](agents.md#quick-start)).
+- [agents.md](agents.md) lists every tool an agent has, with its arguments, and how to connect
+  other agents.
 - [features.md](features.md) lists every view.
 - [hosted-install.md](hosted-install.md) is the same server for a team.

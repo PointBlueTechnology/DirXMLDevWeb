@@ -86,7 +86,7 @@ pop-out window, and recording to a file.
 
 ## What it is, and is not
 
-It is a third client of the DirXMLDev core, next to the `idm` CLI and the MCP server. The page
+It is a third client of the DirXMLDev core, next to the `idm` CLI and DirXMLDev's MCP server. The page
 calls the same typed operations they call, so anything the core can do, it can do, with the
 same validation and the same refusals. It is not a port of Designer and contains no OpenText
 code. The tree on disk (in git) is the only state: edit here, with the CLI or with an agent, and
@@ -102,6 +102,12 @@ update sites; connections and secret managers; and in hosted mode, projects, bra
 and pull requests, sign-in and audit. Every write goes through one review (a dry run on a copy
 of the tree, file by file) and is applied as one transaction, or not at all. The whole list,
 view by view: [docs/features.md](docs/features.md).
+
+**Your agents too.** The server is an MCP server (`/mcp`). Make a token on the page, connect Claude
+Code, Cursor or a script, and run the `setup` prompt: the agent gets this version's rules, skills
+and docs from the server and acts as you, under your roles, with the same previews, plan and
+typed confirmation before a vault write as the page. The `idm`, `sim` and `apps` CLIs are in the
+image too. [docs/agents.md](docs/agents.md).
 
 ## Three ways to run it
 
@@ -129,6 +135,7 @@ for developing it or for a quick look at a tree. Upgrading an install is running
 | [docs/tutorial.md](docs/tutorial.md) | a new install to a first deploy: read a vault, change a policy, commit, deploy |
 | [docs/git-workflow.md](docs/git-workflow.md) | working with git: branches, dev/test/production of one driver set, promotion, merging into main, remotes |
 | [docs/features.md](docs/features.md) | every view, by area |
+| [docs/agents.md](docs/agents.md) | agents: tokens, connecting Claude Code or Cursor, the setup prompt, every MCP tool and its arguments, the CLIs, the agent kit |
 | [docs/data-model.md](docs/data-model.md) | projects, workspaces, trees, environments and vaults: the entity relationship diagram |
 | [docs/multi-user.md](docs/multi-user.md) | design note: per-user connections, data and traces on a hosted server |
 | [docs/architecture-view.md](docs/architecture-view.md) | design note: the Architecture (Designer Modeler) and Developer views |

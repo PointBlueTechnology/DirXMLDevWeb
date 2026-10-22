@@ -53,6 +53,18 @@ The rest holds in both modes unless it names one.
 - Nothing is read from a vault until you choose an environment and ask. Every write to a vault
   (deploy, driver start, stop, restart) needs that environment's name typed into the page; the
   server checks it, and `IDM_AGENT_ALLOW_WRITE` does not stand in for it here.
+- **Agents** (hosted mode, docs/agents.md). A person's agent token (`idmw_` and 32 random bytes) is
+  shown once; only its SHA-256 is kept, in the person's owner-only `users/<subject>/agent-tokens.json`.
+  It expires (90 days by default, at most `agent.tokens.maxDays`), the person can revoke it at once,
+  and it carries the person's roles as of their last use of the page: a role taken away reaches
+  their agents the next time they use the page. Someone who leaves keeps working tokens until they
+  expire, so when you remove a person from the identity provider, also delete their
+  `users/<subject>/agent-tokens.json` (or set `agent.tokens=false`) and restart. A token's session cannot make or revoke tokens. The MCP endpoint (`/mcp`)
+  holds no rules of its own: each tool is a call to the API with the caller's own headers, so the
+  sign-in, Host and Origin checks, roles, revision check, write lock, production gate and audit line
+  are the page's. A vault write over MCP needs `confirm`, the environment's name, which the agent is
+  told to take from the person in chat; the server checks it as for the page. Tool output never
+  holds a secret or the page's CSRF value. `agent.tokens=false` turns personal tokens off.
 
 ## Older TLS suites
 

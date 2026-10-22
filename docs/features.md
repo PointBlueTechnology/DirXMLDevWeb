@@ -278,6 +278,13 @@ Every view of the page, by area, in every install; the items marked *local and s
   (Connections, *My Git provider tokens*) the request is yours on the provider. A workstation
   install (`serve <tree>`) creates it through `gh` or `glab`, signed in as you already; the local
   container is a hosted server and uses the API.
+- **Agent tokens** (local and server installs): your name at the top right → *agent tokens…*.
+  Make a token for an agent (a label, 7 to 365 days), shown once with the command that connects
+  Claude Code; your tokens with when each was made, expires and was last used, and *revoke*.
+  *Set up your agent* names the MCP `setup` prompt and gives its text to paste into other agents;
+  *Download the agent kit* gives this version's rules, skills and docs. An agent with your token
+  acts as you through the MCP server at `/mcp` (docs/agents.md), marked `via` the token in the
+  audit log.
 - **Navigation**: every view is an address (`#type=…`), so the browser's Back and Forward move
   between views, a reload keeps the place, and a link to a policy, a PRD or a file can be shared.
 - **Live follow**: any change to the tree, by anything, reloads the page within a second.

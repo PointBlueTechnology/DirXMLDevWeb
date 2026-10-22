@@ -16,6 +16,10 @@ claude mcp add --transport http dirxmldev {{MCP_URL}} --header "Authorization: B
 
 Keep the token out of chats and files you commit: put it in an environment variable and refer to it.
 
+Then run the server's `setup` prompt (`/mcp__dirxmldev__setup` in Claude Code): it installs the
+skills below from the server's resources (`dirxmldev://kit/…`) and orients the agent. An agent
+without MCP prompts can be given the same text from *Agent tokens…* → *Set up your agent*.
+
 **The CLIs, on the machine that runs the container:** `docker exec idmweb idm …` (DirXMLDev),
 `docker exec idmweb sim …` (the policy simulator), `docker exec idmweb apps …` (Identity
 Applications). They run in your workspace of the first project's branch `main`;

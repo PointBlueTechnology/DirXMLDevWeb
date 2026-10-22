@@ -42,7 +42,7 @@ agents=ci:idm-deployers;reader:
 agent.ci.token=ci-agent-token-0123456789
 agent.reader.token=reader-agent-token-0123456789
 ENV
-IDM_ENVIRONMENTS="$WORK/data/environments.properties" "$HERE/bin/idmweb" serve --hosted "$WORK/hosted.properties" > "$WORK/log" 2>&1 &
+IDMWEB_AGENT_KIT="$HERE/hosted/agent-kit" IDM_ENVIRONMENTS="$WORK/data/environments.properties" "$HERE/bin/idmweb" serve --hosted "$WORK/hosted.properties" > "$WORK/log" 2>&1 &
 PID=$!
 i=0
 while ! grep -q 'hosted:' "$WORK/log" 2>/dev/null; do
@@ -287,6 +287,20 @@ check("MCP: another host is refused", s == 403)
 s, _, _ = anon.call("POST", "/mcp", {"jsonrpc": "2.0", "id": 7, "method": "tools/list"}, csrf=False)
 check("MCP: without a token it says to sign in", s == 401)
 check("MCP: GET has no stream (405)", ci.call("GET", "/mcp", headers=mine)[0] == 405)
+s, rl, _ = mcp({"jsonrpc": "2.0", "id": 8, "method": "resources/list"})
+uris = [x["uri"] for x in rl["result"]["resources"]]
+check("MCP: the agent kit is listed as resources", s == 200 and "dirxmldev://kit/AGENTS.md" in uris)
+s, rr, _ = mcp({"jsonrpc": "2.0", "id": 9, "method": "resources/read", "params": {"uri": "dirxmldev://kit/AGENTS.md"}})
+check("MCP: a resource reads with this server's MCP address filled in", s == 200 and (base + "/mcp") in rr["result"]["contents"][0]["text"] and "{{" not in rr["result"]["contents"][0]["text"])
+s, bad, _ = mcp({"jsonrpc": "2.0", "id": 10, "method": "resources/read", "params": {"uri": "dirxmldev://kit/../../hosted.properties"}})
+check("MCP: a resource outside the kit is refused", s == 200 and "error" in bad)
+s, pl, _ = mcp({"jsonrpc": "2.0", "id": 11, "method": "prompts/list"})
+check("MCP: the setup and orient prompts are listed", s == 200 and [p["name"] for p in pl["result"]["prompts"]] == ["setup", "orient"])
+s, pg, _ = mcp({"jsonrpc": "2.0", "id": 12, "method": "prompts/get", "params": {"name": "setup", "arguments": {"skills_dir": ".claude/skills"}}})
+st = pg["result"]["messages"][0]["content"]["text"]
+check("MCP: the setup prompt reads the rules, installs the skills where asked, then orients", s == 200 and "dirxmldev://kit/AGENTS.md" in st and ".claude/skills/<the path" in st and "validate" in st)
+s, lst, _ = alice.call("GET", "/api/agent-tokens")
+check("the page's setup prompt is the MCP prompt's, without a secret", s == 200 and lst["setupPrompt"].startswith("Set yourself up") and "idmw_" not in lst["setupPrompt"])
 s, _, _ = alice.call("POST", "/api/agent-tokens/revoke", {"id": made["id"]})
 check("she revokes the token", s == 200)
 check("a revoked token no longer signs in", ci.call("GET", "/api/session", headers=mine)[0] == 401)

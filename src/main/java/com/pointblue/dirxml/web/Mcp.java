@@ -41,7 +41,44 @@ final class Mcp implements HttpHandler {
         "3. Before any vault write, run plan_deploy and show the person the plan. deploy, rollback and driver_lifecycle need confirm = the environment's name, typed by the person in chat. Never fill it in yourself.",
         "4. Production deploys come from main, pushed and current; the server refuses otherwise. Never work around a refusal: report it.",
         "5. Never print a secret; tools never return one.",
-        "The agent kit (docs and skills for this version) is at /api/agent-kit.");
+        "This server's resources are the agent kit: the rules (dirxmldev://kit/AGENTS.md), the skills and the docs of this version. The prompt 'setup' installs them.");
+
+    static final String KIT_URI = "dirxmldev://kit/";
+
+    private static final String ORIENT = String.join("\n",
+        "Look at this DirXMLDevWeb project and don't change anything:",
+        "1. Call session: who you act as, your roles, the project and branch open.",
+        "2. Call outline: the driver set and its drivers.",
+        "3. Call validate and git_status.",
+        "Tell me, in a few lines: who you act as and what you may do, the branch and whether it has uncommitted work, the drivers, and any validation errors.");
+
+    /** The prompt that sets an agent up: the rules, the skills installed, then a look around. Shared with the page's dialog. */
+    static String setupPrompt(String skillsDir) {
+        return String.join("\n",
+            "Set yourself up for DirXMLDevWeb, through the dirxmldev MCP server:",
+            "1. Read the resource " + KIT_URI + "AGENTS.md and follow its rules from now on.",
+            "2. Install the skills: write each resource under " + KIT_URI + ".claude/skills/ to " + skillsDir + "/<the path after .claude/skills/>, creating folders. Ask me before overwriting a skill that is already there.",
+            "3. Read " + KIT_URI + "docs/agent-guide.md and " + KIT_URI + "docs/agents.md.",
+            "4. Then orient: call session, outline, validate and git_status, and tell me who you act as and what you may do, the branch, the drivers, and any validation errors.",
+            "Don't change the tree or any vault yet.");
+    }
+
+    private static String describe(String rel) {
+        if (rel.equals("AGENTS.md")) {
+            return "The rules for agents on this server, and how to connect: read first";
+        }
+        if (rel.endsWith("SKILL.md")) {
+            return "A skill: " + rel.substring(".claude/skills/".length(), rel.length() - "/SKILL.md".length());
+        }
+        return null;
+    }
+
+    /** This server's MCP address as the caller reaches it. */
+    private static String mcpUrl(HttpExchange ex) {
+        String host = ex.getRequestHeaders().getFirst("Host");
+        String proto = ex.getRequestHeaders().getFirst("X-Forwarded-Proto");
+        return (proto == null ? "http" : proto) + "://" + (host == null ? "localhost:8080" : host) + "/mcp";
+    }
 
     private final HttpHandler api;
     private final String version;
@@ -123,13 +160,66 @@ final class Mcp implements HttpHandler {
                     String asked = Json.asString(params.get("protocolVersion"));
                     Map<String, Object> r = new LinkedHashMap<>();
                     r.put("protocolVersion", asked != null && PROTOCOLS.contains(asked) ? asked : PROTOCOLS.get(0));
-                    r.put("capabilities", Map.of("tools", Map.of("listChanged", false)));
+                    r.put("capabilities", Map.of("tools", Map.of("listChanged", false), "resources", Map.of("listChanged", false),
+                        "prompts", Map.of("listChanged", false)));
                     r.put("serverInfo", Map.of("name", "dirxmldevweb", "version", version));
                     r.put("instructions", INSTRUCTIONS);
                     return result(id, r);
                 }
                 case "ping":
                     return result(id, Map.of());
+                case "resources/list": {
+                    // the agent kit: this version's rules, skills and docs (docs/agents.md)
+                    List<Object> list = new ArrayList<>();
+                    java.nio.file.Path kit = AgentKit.locate();
+                    if (kit != null) {
+                        for (java.nio.file.Path f : AgentKit.files(kit)) {
+                            String rel = kit.relativize(f).toString().replace('\\', '/');
+                            Map<String, Object> d = new LinkedHashMap<>();
+                            d.put("uri", KIT_URI + rel);
+                            d.put("name", rel);
+                            d.put("mimeType", rel.endsWith(".md") ? "text/markdown" : "text/plain");
+                            if (describe(rel) != null) {
+                                d.put("description", describe(rel));
+                            }
+                            list.add(d);
+                        }
+                    }
+                    return result(id, Map.of("resources", list));
+                }
+                case "resources/read": {
+                    String uri = Json.asString(params.get("uri"));
+                    java.nio.file.Path kit = AgentKit.locate();
+                    if (uri == null || !uri.startsWith(KIT_URI) || kit == null) {
+                        return error(id, -32002, "no resource " + uri);
+                    }
+                    java.nio.file.Path f = kit.resolve(uri.substring(KIT_URI.length())).normalize();
+                    if (!f.startsWith(kit) || !java.nio.file.Files.isRegularFile(f)) {
+                        return error(id, -32002, "no resource " + uri);
+                    }
+                    String text = new String(AgentKit.content(f, version, mcpUrl(ex)), StandardCharsets.UTF_8);
+                    return result(id, Map.of("contents", List.of(Map.of("uri", uri, "mimeType", uri.endsWith(".md") ? "text/markdown" : "text/plain", "text", text))));
+                }
+                case "prompts/list":
+                    return result(id, Map.of("prompts", List.of(
+                        Map.of("name", "setup", "description", "Set this agent up for DirXMLDevWeb: read the rules, install the skills, then look at the project",
+                            "arguments", List.of(Map.of("name", "skills_dir", "description", "where to install the skills (default ~/.claude/skills)", "required", false))),
+                        Map.of("name", "orient", "description", "Look at the project: who you act as, the branch, the tree, what validation says"))));
+                case "prompts/get": {
+                    String name = Json.asString(params.get("name"));
+                    Map<String, Object> pargs = params.get("arguments") instanceof Map<?, ?> a ? Json.asMap(a) : Map.of();
+                    String text;
+                    if ("setup".equals(name)) {
+                        String dir = Json.asString(pargs.get("skills_dir"));
+                        text = setupPrompt(dir == null || dir.isBlank() ? "~/.claude/skills" : dir);
+                    } else if ("orient".equals(name)) {
+                        text = ORIENT;
+                    } else {
+                        return error(id, -32602, "no prompt '" + name + "'");
+                    }
+                    return result(id, Map.of("description", "DirXMLDevWeb " + name,
+                        "messages", List.of(Map.of("role", "user", "content", Map.of("type", "text", "text", text)))));
+                }
                 case "tools/list": {
                     List<Object> list = new ArrayList<>();
                     for (Tool t : tools) {

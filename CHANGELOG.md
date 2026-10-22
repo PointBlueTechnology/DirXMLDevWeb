@@ -5,7 +5,7 @@ All notable changes to DirXMLDevWeb are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.72.0] - 2026-10-22
 
 Needs DirXMLDev 0.50.0.
 
@@ -20,6 +20,10 @@ Needs DirXMLDev 0.50.0.
     token acts as you (your roles, connections, workspace), marked `via` the token in the audit log.
     Only a hash is kept; roles follow you; an agent cannot make tokens. The dialog shows the command
     that connects Claude Code. `agent.tokens` / `agent.tokens.maxDays` in `hosted.properties`.
+  - **Discoverable over MCP:** the agent kit is served as MCP resources (`dirxmldev://kit/…`), and
+    two prompts: `setup` (read the rules, install the skills, orient; `/mcp__dirxmldev__setup` in
+    Claude Code) and `orient`. The token dialog's *Set up your agent* gives the same text to paste
+    into agents without MCP prompts; it holds no token.
   - **The agent kit:** this version's `AGENTS.md`, `CLAUDE.md`, the `dirxml-dev` and
     `dirxml-policy-testing` skills and the agent docs. In the image; the local install's `setup`
     writes it to `agent/`; *Download the agent kit* gives it with the server's MCP address.

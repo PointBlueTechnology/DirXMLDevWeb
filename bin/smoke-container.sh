@@ -89,6 +89,10 @@ apps = subprocess.run(["docker", "exec", name, "apps", "--help"], capture_output
 check("the Identity Applications helper is in the image", apps.returncode == 0 and "--env" in apps.stdout)
 s, init = call("POST", "/mcp", {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"protocolVersion": "2025-06-18", "capabilities": {}, "clientInfo": {"name": "smoke", "version": "1"}}})
 check("the container answers MCP at /mcp", s == 200 and init["result"]["serverInfo"]["name"] == "dirxmldevweb")
+s, rl = call("POST", "/mcp", {"jsonrpc": "2.0", "id": 2, "method": "resources/list"})
+uris = [x["uri"] for x in rl["result"]["resources"]]
+check("its MCP resources are the kit: the rules and both skills", "dirxmldev://kit/AGENTS.md" in uris and "dirxmldev://kit/.claude/skills/dirxml-dev/SKILL.md" in uris
+      and "dirxmldev://kit/.claude/skills/dirxml-policy-testing/SKILL.md" in uris)
 req = urllib.request.Request(base + "/api/agent-kit", headers={"Authorization": "Bearer " + TOKEN})
 with urllib.request.urlopen(req) as r:
     import io, zipfile

@@ -20,6 +20,11 @@ Then run the server's `setup` prompt (`/mcp__dirxmldev__setup` in Claude Code): 
 skills below from the server's resources (`dirxmldev://kit/…`) and orients the agent. An agent
 without MCP prompts can be given the same text from *Agent tokens…* → *Set up your agent*.
 
+Over MCP you work in the person's own workspace, on the project and branch they last had open on
+the page (`session` says which); the person sees your applied edits there at once. There is no
+tool to switch branches: if the branch is wrong, tell the person (docs/agents.md, *What the agent
+works on*).
+
 **The CLIs, on the machine that runs the container:** `docker exec idmweb idm …` (DirXMLDev),
 `docker exec idmweb sim …` (the policy simulator), `docker exec idmweb apps …` (Identity
 Applications). They run in your workspace of the first project's branch `main`;

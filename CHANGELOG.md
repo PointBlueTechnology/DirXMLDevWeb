@@ -5,6 +5,17 @@ All notable changes to DirXMLDevWeb are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **Docs and help for agents.** docs/agents.md now starts with a four-step quick start for Claude
+  Code, lists every MCP tool with its required and optional arguments and accepted values, the
+  resources and prompts, Cursor's and a script's connection, which branch an agent works on, and
+  what to do when it is refused. The agent tokens dialog says what the agent does next and links
+  there; `setup`'s summary names `/mcp__dirxmldev__setup`. The README, quickstart, tutorial,
+  features, upgrading, team-server install and security docs cover agents and their tokens.
+
 ## [0.72.0] - 2026-10-22
 
 Needs DirXMLDev 0.50.0.

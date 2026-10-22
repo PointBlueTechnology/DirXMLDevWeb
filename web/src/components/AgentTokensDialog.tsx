@@ -138,6 +138,13 @@ export function AgentTokensDialog({ onClose }: { onClose: () => void }) {
             </li>
           </ol>
           <p className="muted small">It reads the rules, installs the skills from the server, then looks around without changing anything.</p>
+          <p className="small">
+            Then ask it in your own words. It works on the project and branch you last had open here (<code>session</code> says which), previews every edit before
+            applying it, and shows you the plan before a deploy; a deploy, rollback or driver start or stop needs you to type the environment&apos;s name in the chat.{" "}
+            <a href="https://github.com/PointBlueTechnology/DirXMLDevWeb/blob/main/docs/agents.md" target="_blank" rel="noreferrer" className="link">
+              How agents work with this server
+            </a>
+          </p>
           <h4>The agent kit</h4>
           <p className="small">
             This version&apos;s rules (<code>AGENTS.md</code>), skills and docs, with this server&apos;s MCP address (<code>{mcpUrl}</code>). Unzip it where you start your

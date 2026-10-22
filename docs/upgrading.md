@@ -54,6 +54,10 @@ changes. Name a version (`:0.59.0`) to take exactly that one; then no `--pull` i
 gave `--port`, `--user` or `--podman` the first time, give them again. Your browser session
 survives the upgrade, and the page comes back to the branch and view you were on.
 
+Setup also refreshes the agent kit in the folder's `agent/`. If you use an agent, run its setup
+again (`/mcp__dirxmldev__setup` in Claude Code) so its skills are the new version's
+([agents.md](agents.md)). Agent tokens survive the upgrade.
+
 ### Check that it worked
 
 The top bar shows `web … · core …`, and it should name the new release. `setup` also prints the
@@ -93,7 +97,8 @@ sed -i 's#^IDMWEB_IMAGE=.*#IDMWEB_IMAGE=ghcr.io/pointbluetechnology/dirxml-dev-w
 docker compose pull idmweb && docker compose up -d idmweb
 ```
 
-People signed in are asked to sign in again only if the release notes say so. Check the new
+People signed in are asked to sign in again only if the release notes say so. Agent tokens are
+kept; people's agents get the new version's skills by running the `setup` prompt again. Check the new
 version in `/api/session` or the page's top bar. Keycloak and Caddy are upgraded on their own
 schedule; nothing in a DirXMLDevWeb release requires a newer one unless its notes say so.
 

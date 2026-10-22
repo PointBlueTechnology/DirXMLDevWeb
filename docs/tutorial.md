@@ -247,5 +247,8 @@ Also:
   `docker exec idmweb idm vault.deploy tree --env lab --dry-run` plans a deploy.
 - Add the engine jars to the folder's `lib/` for the compile checks and the simulator
   ([quickstart.md](quickstart.md#4-optional-the-engine-jars)).
+- Bring your agent: make a token (your name at the top right → *agent tokens…*), connect Claude
+  Code with the command it shows, and run `/mcp__dirxmldev__setup`. It can then do what you did
+  here, asking you before it writes to the vault ([agents.md](agents.md#quick-start)).
 - [features.md](features.md) lists every view.
 - [hosted-install.md](hosted-install.md) is the same server for a team.

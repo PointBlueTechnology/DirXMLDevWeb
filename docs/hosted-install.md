@@ -107,8 +107,13 @@ workbench with "open a branch".
 
 ## 5. Agents and the CLI
 
-An agent (CI, an MCP server, a coding agent) does not install anything:
+An agent (CI, a coding agent, a script) does not install anything:
 
+- **A person's agent** (Claude Code, Cursor): the person makes a token on the page (*agent
+  tokens…*) and connects the agent to `https://<PUBLIC_HOST>/mcp`; the agent acts as that person
+  ([agents.md](agents.md)). `agent.tokens=false` turns personal tokens off, `agent.tokens.maxDays`
+  (default 365) caps their life. Nothing to set up on the server: `/mcp` and the agent kit are in
+  the image.
 - **API**: `Authorization: Bearer <token>` with a token from `agents=` gives it a session with its
   roles; every endpoint the page uses. Its name is on every audit line.
 - **CLI**: `docker exec idmweb idm validate /var/lib/idmweb/workspaces/<project>/<user>/<branch>/tree`,

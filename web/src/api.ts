@@ -103,7 +103,7 @@ export interface AgentToken {
 
 export const api = {
   agentTokens: {
-    list: () => call<{ maxDays: number; defaultDays: number; tokens: AgentToken[]; mcp: string }>("GET", "/api/agent-tokens"),
+    list: () => call<{ maxDays: number; defaultDays: number; tokens: AgentToken[]; mcp: string; setupPrompt: string }>("GET", "/api/agent-tokens"),
     create: (label: string, days: number) => call<AgentToken>("POST", "/api/agent-tokens", { label, days }),
     revoke: (id: string) => call<{ revoked: boolean }>("POST", "/api/agent-tokens/revoke", { id }),
     /** The agent kit: this version's rules, skills and docs, with this server's MCP address. */

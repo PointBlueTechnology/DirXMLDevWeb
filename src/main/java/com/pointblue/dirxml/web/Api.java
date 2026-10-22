@@ -961,6 +961,8 @@ public final class Api implements HttpHandler {
             m.put("defaultDays", Math.min(AgentTokens.DEFAULT_DAYS, tokens.maxDays()));
             m.put("tokens", tokens.list(session.principal));
             m.put("mcp", "/mcp");
+            // what a person pastes into their agent once it is connected (the MCP prompt 'setup' says the same)
+            m.put("setupPrompt", Mcp.setupPrompt("~/.claude/skills"));
             return m;
         }
         Map<String, Object> req = Json.asMap(Json.parse(new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8)));

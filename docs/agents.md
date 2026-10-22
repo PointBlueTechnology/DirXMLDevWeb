@@ -61,6 +61,26 @@ roles, audit, per-environment write lock and production gate as the page.
 The server tells the agent the rules when it connects: preview before applying, the plan before any
 vault write, the person types the environment's name, production only from `main`, never a secret.
 
+It also serves this version's [agent kit](#4-the-agent-kit) as MCP **resources**
+(`dirxmldev://kit/AGENTS.md`, `dirxmldev://kit/.claude/skills/…`, `dirxmldev://kit/docs/…`), and two
+**prompts**:
+
+- `setup`: read the rules, install the skills (into `~/.claude/skills` unless you give `skills_dir`;
+  it asks before overwriting), read the agent docs, then orient. Nothing is changed in the tree or a
+  vault.
+- `orient`: who you act as, the project and branch, what `validate` says, what is uncommitted.
+
+### Set up your agent
+
+After `claude mcp add`, in Claude Code:
+
+```
+/mcp__dirxmldev__setup
+```
+
+Agents that don't offer MCP prompts can be given the same text: *agent tokens…* → *Set up your
+agent* → *Copy*, and paste it into the chat. It holds no token.
+
 ## 3. The CLIs
 
 On the machine that runs the container (the local install), the CLIs run in your workspace of the

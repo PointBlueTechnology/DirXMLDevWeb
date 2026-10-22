@@ -14,11 +14,12 @@ export function AgentTokensDialog({ onClose }: { onClose: () => void }) {
   const [made, setMade] = useState<AgentToken | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [setupPrompt, setSetupPrompt] = useState("");
   const mcpUrl = `${window.location.origin}/mcp`;
   const load = () =>
     api.agentTokens
       .list()
-      .then((r) => (setTokens(r.tokens), setLimits({ maxDays: r.maxDays, defaultDays: r.defaultDays }), setDays((d) => Math.min(d, r.maxDays))))
+      .then((r) => (setTokens(r.tokens), setSetupPrompt(r.setupPrompt), setLimits({ maxDays: r.maxDays, defaultDays: r.defaultDays }), setDays((d) => Math.min(d, r.maxDays))))
       .catch((e: Error) => setError(e.message));
   useEffect(() => {
     void load();
@@ -123,6 +124,20 @@ export function AgentTokensDialog({ onClose }: { onClose: () => void }) {
               </tbody>
             </table>
           )}
+          <h4>Set up your agent</h4>
+          <ol className="small">
+            <li>
+              Connect it with a token (above): for Claude Code, the <code>claude mcp add …</code> command shown when you make one, with <code>{mcpUrl}</code>.
+            </li>
+            <li>
+              In Claude Code, run <code>/mcp__dirxmldev__setup</code>. In another agent, paste this; it holds no secret:
+              <pre className="outcome small" data-testid="agent-setup-prompt">{setupPrompt}</pre>
+              <button onClick={() => void navigator.clipboard.writeText(setupPrompt)} disabled={!setupPrompt}>
+                Copy the prompt
+              </button>
+            </li>
+          </ol>
+          <p className="muted small">It reads the rules, installs the skills from the server, then looks around without changing anything.</p>
           <h4>The agent kit</h4>
           <p className="small">
             This version&apos;s rules (<code>AGENTS.md</code>), skills and docs, with this server&apos;s MCP address (<code>{mcpUrl}</code>). Unzip it where you start your

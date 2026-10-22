@@ -40,6 +40,12 @@ jobs:
           repository: PointBlueTechnology/DirXMLDev
           ref: v${{ steps.v.outputs.core }}
           path: DirXMLDev
+      - name: DirXMLSimulator (its policy-testing skill, for the agent kit)
+        uses: actions/checkout@v4
+        with:
+          repository: PointBlueTechnology/DirXMLSimulator
+          ref: v${{ steps.v.outputs.sim }}
+          path: DirXMLSimulator
       - name: DirXMLDev and simulator jars
         env:
           GH_TOKEN: ${{ github.token }}
@@ -70,6 +76,7 @@ jobs:
       - name: Build and push
         env:
           IDM_HOME: ${{ github.workspace }}/DirXMLDev
+          SIM_HOME: ${{ github.workspace }}/DirXMLSimulator
           IDM_SIM_VERSION: ${{ steps.v.outputs.sim }}
           PUSH: "1"
           ALSO_TAG: latest

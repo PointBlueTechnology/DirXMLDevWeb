@@ -132,10 +132,18 @@ docker exec idmweb idm validate tree
 docker exec idmweb idm simulate tree --cases cases
 ```
 
-An agent on the same machine (Claude Code, a script, an MCP server) uses the same two doors:
-`docker exec idmweb idm …` as a command, or the API at `http://localhost:8080/api/…` with
-`Authorization: Bearer <IDMWEB_AGENT_TOKEN>` (the second line of `idmweb.env`). That is every
-endpoint the page uses, with the agent's name on each audit line.
+The simulator's CLI is `docker exec idmweb sim …` and the Identity Applications helper
+`docker exec idmweb apps …`, in the same workspace.
+
+**Agents** (Claude Code, Cursor, a script) get everything a DirXMLDev install gives them
+([agents.md](agents.md)):
+
+- **MCP:** the server is an MCP server at `http://localhost:8080/mcp`. Make a token on the page
+  (your name at the top right → *agent tokens…*), which shows the command that connects Claude
+  Code. The agent acts as you, under your roles.
+- **The kit:** `setup` writes this version's rules, skills and docs to `agent/` in the folder: start
+  Claude Code there, or copy `agent/.claude/skills` into your own.
+- **The CLIs** above, and the API at `http://localhost:8080/api/…` with the same token.
 
 ## 6. Vaults
 

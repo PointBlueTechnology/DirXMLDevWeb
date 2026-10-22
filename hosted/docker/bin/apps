@@ -1,0 +1,6 @@
+#!/bin/sh
+# The Identity Applications helper inside the container (bin/apps on a workstation): DirXMLDev's
+# bin/apps, with the project's environments and your own credentials. `docker exec idmweb apps …`.
+set -e
+. /opt/idmweb/bin/inworkspace
+exec python3 /opt/idmweb/bin/apps.py "$@"

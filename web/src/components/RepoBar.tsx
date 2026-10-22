@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { GIT_CHANGED, api } from "../api";
+import { AgentTokensDialog } from "./AgentTokensDialog";
 import type { GitStatus, PullRequestInfo, Selection, Session, WorkspacesInfo } from "../types";
 import { ConflictDialog } from "./ConflictDialog";
 import { MergeDialog } from "./MergeDialog";
@@ -28,6 +29,7 @@ export function RepoBar({ session, revision, onWorkspaceChanged, onBusy, onAddPr
     return () => window.removeEventListener("idmweb:suggest-commit", on);
   }, []);
   const [busy, setBusy] = useState<string | null>(null);
+  const [tokensOpen, setTokensOpen] = useState(false);
   const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
   const [branch, setBranch] = useState("");
   const [open, setOpen] = useState(false);
@@ -343,10 +345,15 @@ export function RepoBar({ session, revision, onWorkspaceChanged, onBusy, onAddPr
         />
       )}
       <span className="spacer" />
+      {tokensOpen && <AgentTokensDialog onClose={() => setTokensOpen(false)} />}
       {hosted && (
         <span className="small">
           {session.user.name}
           <span className="muted"> · {session.user.deployer ? "deployer" : session.user.editor ? "editor" : "read-only"}</span> ·{" "}
+          <button className="link" onClick={() => setTokensOpen(true)} title="Tokens for your agents (Claude Code, Cursor, scripts), and the agent kit" data-testid="agent-tokens-open">
+            agent tokens…
+          </button>{" "}
+          ·{" "}
           <a href="/auth/logout" className="link">
             sign out
           </a>

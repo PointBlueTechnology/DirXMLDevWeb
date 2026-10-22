@@ -17,9 +17,12 @@ COPY artifacts/dist               /opt/idmweb/web/dist
 COPY artifacts/secrets            /opt/idmweb/bin/secrets
 COPY artifacts/terraform          /opt/idmweb/terraform
 COPY artifacts/THIRD-PARTY.md artifacts/LICENSE /opt/idmweb/
-COPY bin/idm bin/idmweb bin/entrypoint.sh /opt/idmweb/bin/
+COPY artifacts/apps.py /opt/idmweb/bin/apps.py
+COPY artifacts/agent-kit /opt/idmweb/agent-kit
+COPY bin/idm bin/sim bin/apps bin/inworkspace bin/idmweb bin/entrypoint.sh /opt/idmweb/bin/
 RUN chmod +x /opt/idmweb/bin/* /opt/idmweb/bin/secrets/* && mkdir -p /var/lib/idmweb /etc/idmweb /opt/idm/lib \
     && chown -R idmweb:idmweb /var/lib/idmweb /etc/idmweb && ln -s /opt/idmweb/bin/idm /usr/local/bin/idm \
+    && ln -s /opt/idmweb/bin/sim /usr/local/bin/sim && ln -s /opt/idmweb/bin/apps /usr/local/bin/apps \
     # a repository mounted into the container is owned by another uid, and the container may run as
     # the host's user (the single-user layout): git's rules live in the system config, not a home
     && git config --system --add safe.directory '*' && git config --system init.defaultBranch main

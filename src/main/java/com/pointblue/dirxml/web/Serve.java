@@ -66,7 +66,9 @@ public final class Serve {
         Session.Store sessions = new Session.Store(365L * 24 * 3600);   // local mode: the token lives as long as the server
         Session session = sessions.createWithId(security.token(), Session.Principal.local());
         session.workspace = local.id;
-        server.createContext("/api/", new Api(workspaces, sessions, security, Audit.none(), VERSION));
+        Api api = new Api(workspaces, sessions, security, Audit.none(), VERSION);
+        server.createContext("/api/", api);
+        server.createContext("/mcp", new Mcp(api, VERSION));   // agents: the same API as MCP tools (docs/agents.md)
         server.createContext("/", new StaticFiles(web));
         start(server);
         String url = "http://127.0.0.1:" + bound + "/#token=" + security.token();
@@ -118,7 +120,11 @@ public final class Serve {
         Map<String, Session.Principal> agents = h.agents();
         Api api = new Api(workspaces, sessions, security, audit, VERSION, agents).withSetup(new SetupService(h, workspaces, audit), new ArchiveService(h, workspaces, audit))
             .withRepository(new RepositoryService(h, workspaces, audit));
+        if (h.agentTokens) {
+            api.withAgentTokens(new AgentTokens(h.users, h.dataDir, h.agentTokensMaxDays));
+        }
         server.createContext("/api/", api);
+        server.createContext("/mcp", new Mcp(api, VERSION));   // agents: the same API as MCP tools (docs/agents.md)
         server.createContext("/auth/", new Auth(identity, sessions, security, audit, h.publicUrl));
         server.createContext("/", new StaticFiles(web));
         start(server);

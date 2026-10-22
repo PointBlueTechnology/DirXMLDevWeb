@@ -217,7 +217,8 @@ public final class LocalSetup {
         out.println("The CLI:        docker exec idmweb idm validate tree     (also: sim, apps)");
         if (kitFiles > 0) {
             out.println("Agents:         agent/ holds the rules, skills and docs (start Claude Code there, or copy agent/.claude/skills to your own);");
-            out.println("                MCP at http://localhost:" + o.port + "/mcp with a token from the page (your name at the top right > Agent tokens...)");
+            out.println("                MCP at http://localhost:" + o.port + "/mcp with a token from the page (your name at the top right > Agent tokens...);");
+            out.println("                then, in Claude Code, /mcp__dirxmldev__setup installs the skills and looks around (docs/agents.md)");
         }
         out.println("Engine jars:    optional (validate's compile check and the simulator): copy them into lib/, then docker restart idmweb");
         out.println("Your vault password goes in " + dir.relativize(mine) + " (the page's Connections view writes it).");

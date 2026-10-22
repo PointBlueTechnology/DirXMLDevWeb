@@ -36,7 +36,7 @@ final class Mcp implements HttpHandler {
     private static final String INSTRUCTIONS = String.join("\n",
         "DirXMLDevWeb: an IDM driver set as code (a git workspace of the branch the person has open) and its Identity Vaults.",
         "Rules, the same as the page's:",
-        "1. Orient with session, outline, validate. Edit the tree with run_operations: preview (dryRun, the default) before applying; list_operations names every operation and its arguments.",
+        "1. Orient with session, outline, validate; open_branch moves you to the branch the person names (list_branches lists them). Edit the tree with run_operations: preview (dryRun, the default) before applying; list_operations names every operation and its arguments.",
         "2. Validate after edits; commit with a message. Never commit secrets.",
         "3. Before any vault write, run plan_deploy and show the person the plan. deploy, rollback and driver_lifecycle need confirm = the environment's name, typed by the person in chat. Never fill it in yourself.",
         "4. Production deploys come from main, pushed and current; the server refuses otherwise. Never work around a refusal: report it.",
@@ -413,6 +413,22 @@ final class Mcp implements HttpHandler {
         tool("git_diff", "What differs from the last commit (against=head, the default) or from the base branch (against=base).",
             props("against", str("head (default) or base")), List.of(), false,
             a -> new Request("GET", "/api/git/diff?against=" + (a.s("against") == null ? "head" : URLEncoder.encode(a.s("against"), StandardCharsets.UTF_8)), null));
+
+        // branches: the agent's own session, so it moves without the page
+        tool("list_branches", "The projects, the open one's branches and its base branch, and which branches you have open.",
+            props("project", str("another project (optional)")), List.of(), false,
+            a -> new Request("GET", "/api/workspaces" + (a.s("project") == null ? "" : "?" + a.q("project").substring(1)), null));
+        edit("open_branch", "Work on another branch from now on: your workspace of it, cloned for you the first time; a new name branches from the base branch. "
+                + "Changes nothing in the repository until you commit and push. The page keeps its own branch.",
+            props("branch", str("the branch (letters, digits, '.', '_', '-' and '/')"), "project", str("another project (optional)")), List.of("branch"),
+            a -> {
+                Map<String, Object> body = new LinkedHashMap<>();
+                body.put("branch", a.s("branch"));
+                if (a.s("project") != null) {
+                    body.put("project", a.s("project"));
+                }
+                return new Request("POST", "/api/workspaces/open", body);
+            });
 
         // editing the tree
         tool("list_operations", "Every edit operation the tree takes (policy.add, gcv.set, driver.set, override.set, environments.set, …) with its arguments.",

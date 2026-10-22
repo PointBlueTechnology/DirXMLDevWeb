@@ -120,7 +120,7 @@ It needs `dirxml.jar`, `dirxml_misc.jar`, `nxsl.jar`, `xp.jar`, `CommonDriverShi
 
 ## 5. The CLI, the simulator, your agents
 
-The `idm` CLI runs inside the container, in your workspace of the branch you opened
+The `idm` CLI runs inside the container, in your workspace of the first project's branch `main`
 (`docker exec -e IDMWEB_BRANCH=feature/x idmweb idm …` for another branch, `IDMWEB_PROJECT` for
 another project):
 
@@ -141,9 +141,15 @@ The simulator's CLI is `docker exec idmweb sim …` and the Identity Application
 - **MCP:** the server is an MCP server at `http://localhost:8080/mcp`. Make a token on the page
   (your name at the top right → *agent tokens…*), which shows the command that connects Claude
   Code. The agent acts as you, under your roles.
-- **The kit:** `setup` writes this version's rules, skills and docs to `agent/` in the folder: start
-  Claude Code there, or copy `agent/.claude/skills` into your own.
+- **Set it up:** in Claude Code, run `/mcp__dirxmldev__setup`. It reads the rules, installs the
+  skills from the server and looks around, changing nothing. For another agent, the dialog's
+  *Set up your agent* has the same text to paste.
+- **The kit:** `setup` also writes this version's rules, skills and docs to `agent/` in the folder:
+  start Claude Code there, or copy `agent/.claude/skills` into your own.
 - **The CLIs** above, and the API at `http://localhost:8080/api/…` with the same token.
+
+[agents.md](agents.md#quick-start) has the four steps for Claude Code, every MCP tool with its
+arguments, and what to do when the agent is refused.
 
 ## 6. Vaults
 

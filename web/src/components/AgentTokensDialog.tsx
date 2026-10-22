@@ -65,9 +65,9 @@ export function AgentTokensDialog({ onClose }: { onClose: () => void }) {
           {made?.token && (
             <div className="banner ok" data-testid="agent-token-made">
               <strong>&quot;{made.label}&quot; is made. Copy it now: it is not shown again.</strong>
-              <pre className="outcome small">{made.token}</pre>
+              <pre className="outcome small wrapped">{made.token}</pre>
               <p className="small">Connect Claude Code (keep the token out of files you commit):</p>
-              <pre className="outcome small">{command}</pre>
+              <pre className="outcome small wrapped">{command}</pre>
               <button onClick={() => void navigator.clipboard.writeText(command)}>Copy the command</button>
             </div>
           )}
@@ -131,7 +131,7 @@ export function AgentTokensDialog({ onClose }: { onClose: () => void }) {
             </li>
             <li>
               In Claude Code, run <code>/mcp__dirxmldev__setup</code>. In another agent, paste this; it holds no secret:
-              <pre className="outcome small" data-testid="agent-setup-prompt">{setupPrompt}</pre>
+              <pre className="outcome small wrapped" data-testid="agent-setup-prompt">{setupPrompt}</pre>
               <button onClick={() => void navigator.clipboard.writeText(setupPrompt)} disabled={!setupPrompt}>
                 Copy the prompt
               </button>

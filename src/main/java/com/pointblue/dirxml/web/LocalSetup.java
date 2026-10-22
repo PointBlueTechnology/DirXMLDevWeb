@@ -198,6 +198,9 @@ public final class LocalSetup {
         }
         Files.writeString(dir.resolve(".env"), dotEnv.toString(), StandardCharsets.UTF_8);
         String proj = projectOf(Files.readString(hostedProps, StandardCharsets.UTF_8));
+        // the agent kit (docs/agents.md): this version's rules, skills and docs, refreshed by every setup
+        Path kit = AgentKit.locate();
+        int kitFiles = kit == null ? 0 : AgentKit.write(kit, dir.resolve("agent"), Serve.VERSION, "http://localhost:" + o.port + "/mcp");
 
         out.println();
         out.println("DirXMLDevWeb is set up in the folder you mounted at " + dir + " (image " + image(o) + ", port " + o.port + ").");
@@ -211,7 +214,11 @@ public final class LocalSetup {
         } else {
             out.println("No tree yet: the page asks where it comes from (a vault, a Designer project or export, a repository, a remote).");
         }
-        out.println("The CLI:        docker exec idmweb idm validate tree");
+        out.println("The CLI:        docker exec idmweb idm validate tree     (also: sim, apps)");
+        if (kitFiles > 0) {
+            out.println("Agents:         agent/ holds the rules, skills and docs (start Claude Code there, or copy agent/.claude/skills to your own);");
+            out.println("                MCP at http://localhost:" + o.port + "/mcp with a token from the page (your name at the top right > Agent tokens...)");
+        }
         out.println("Engine jars:    optional (validate's compile check and the simulator): copy them into lib/, then docker restart idmweb");
         out.println("Your vault password goes in " + dir.relativize(mine) + " (the page's Connections view writes it).");
         out.println("Stop:           docker compose -f <that folder>/compose.yml down");

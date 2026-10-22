@@ -7,6 +7,25 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+Needs DirXMLDev 0.50.0.
+
+### Added
+
+- **Agents get everything a DirXMLDev install gives them** (docs/agents.md).
+  - **MCP:** the server is an MCP server at `/mcp`, with 22 tools: orientation, edit operations
+    (preview, then apply), commit, compare, compare environments, plan, deploy, rollback, driver
+    control, simulate, trace. Each tool is a call to the server's own API with the caller's token:
+    the same sign-in, roles, audit, write lock and production gate as the page.
+  - **Personal agent tokens:** your name at the top right → *agent tokens…*. An agent with your
+    token acts as you (your roles, connections, workspace), marked `via` the token in the audit log.
+    Only a hash is kept; roles follow you; an agent cannot make tokens. The dialog shows the command
+    that connects Claude Code. `agent.tokens` / `agent.tokens.maxDays` in `hosted.properties`.
+  - **The agent kit:** this version's `AGENTS.md`, `CLAUDE.md`, the `dirxml-dev` and
+    `dirxml-policy-testing` skills and the agent docs. In the image; the local install's `setup`
+    writes it to `agent/`; *Download the agent kit* gives it with the server's MCP address.
+  - **`sim` and `apps` in the image**, beside `idm`: `docker exec idmweb sim …` (the policy
+    simulator's CLI), `docker exec idmweb apps …` (Identity Applications), in your workspace.
+
 ## [0.71.0] - 2026-10-20
 
 Needs DirXMLDev 0.49.0.

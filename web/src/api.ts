@@ -90,7 +90,38 @@ export const GIT_CHANGED = "idmweb:git-changed";
 
 const q = encodeURIComponent;
 
+/** A person's token for an agent (docs/agents.md): the value only ever in the answer that made it. */
+export interface AgentToken {
+  id: string;
+  label: string;
+  created: string;
+  expires: string;
+  lastUsed: string | null;
+  expired: boolean;
+  token?: string;
+}
+
 export const api = {
+  agentTokens: {
+    list: () => call<{ maxDays: number; defaultDays: number; tokens: AgentToken[]; mcp: string }>("GET", "/api/agent-tokens"),
+    create: (label: string, days: number) => call<AgentToken>("POST", "/api/agent-tokens", { label, days }),
+    revoke: (id: string) => call<{ revoked: boolean }>("POST", "/api/agent-tokens/revoke", { id }),
+    /** The agent kit: this version's rules, skills and docs, with this server's MCP address. */
+    kit: async (): Promise<{ blob: Blob; fileName: string }> => {
+      const res = await fetch("/api/agent-kit", { headers: { "X-IDMWeb-Token": token() } });
+      if (!res.ok) {
+        let message = res.statusText;
+        try {
+          message = ((await res.json()) as { error?: string }).error ?? message;
+        } catch {
+          // not JSON
+        }
+        throw new Error(message);
+      }
+      const m = /filename="([^"]+)"/.exec(res.headers.get("Content-Disposition") ?? "");
+      return { blob: await res.blob(), fileName: m ? m[1]! : "agent-kit.zip" };
+    },
+  },
   session: () => call<Session>("GET", "/api/session"),
   authHeaders,
   outline: () => call<Outline>("GET", "/api/outline"),

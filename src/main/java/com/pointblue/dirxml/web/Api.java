@@ -204,6 +204,25 @@ public final class Api implements HttpHandler {
                     return;
                 }
             }
+            if (path.equals("/api/agent-kit") && method.equals("GET")) {
+                // the agent kit: this version's rules, skills and docs, with this server's MCP address
+                java.nio.file.Path kit = AgentKit.locate();
+                if (kit == null) {
+                    throw new TreeService.NotFound("this server has no agent kit (the image carries it; IDMWEB_AGENT_KIT names a folder)");
+                }
+                String host = ex.getRequestHeaders().getFirst("Host");
+                String proto = ex.getRequestHeaders().getFirst("X-Forwarded-Proto");
+                String mcpUrl = (proto == null ? "http" : proto) + "://" + (host == null ? "localhost:8080" : host) + "/mcp";
+                java.io.ByteArrayOutputStream bytes = new java.io.ByteArrayOutputStream();
+                AgentKit.zip(kit, version, mcpUrl, bytes);
+                ex.getResponseHeaders().set("Content-Type", "application/zip");
+                ex.getResponseHeaders().set("Content-Disposition", "attachment; filename=\"dirxmldevweb-agent-kit-" + version + ".zip\"");
+                ex.sendResponseHeaders(200, bytes.size());
+                try (OutputStream out = ex.getResponseBody()) {
+                    bytes.writeTo(out);
+                }
+                return;
+            }
             if (path.startsWith("/api/agent-tokens")) {
                 // anyone signed in may make tokens: an agent does no more than its person may
                 send(ex, 200, agentTokensRoute(session, method, path, ex));

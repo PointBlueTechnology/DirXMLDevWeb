@@ -3,28 +3,8 @@
 # customer mounted at $IDM_LIB. `docker exec idmweb idm …` is the same command an agent runs
 # on a workstation.
 set -e
-# The local install (docs/simple-install.md): `docker exec idmweb idm validate tree` runs in your
-# workspace of the first project's branch main (IDMWEB_PROJECT and IDMWEB_BRANCH pick another), with
-# your own credentials file, when it starts in the image's working directory. Anywhere else (a
-# `-w` into a tree, a team server) it runs where it is.
-H=/etc/idmweb/hosted.properties
-if [ -f "$H" ] && [ "$(pwd)" = /opt/idmweb ]; then
-  san() { printf '%s' "$1" | sed 's#[^A-Za-z0-9._-]#_#g'; }
-  U=$(sed -n 's/^token\.user=//p' "$H" | head -1)
-  if [ -n "$U" ]; then
-    S=$(san "$U")
-    MINE="/var/lib/idmweb/users/$S/environments.properties"
-    if [ -z "${IDM_CREDENTIALS:-}" ] && [ -f "$MINE" ]; then export IDM_CREDENTIALS="$MINE"; fi
-    P=${IDMWEB_PROJECT:-$(sed -n 's/^projects=//p' "$H" | head -1 | cut -d, -f1)}
-    B=${IDMWEB_BRANCH:-main}
-    if [ -n "$P" ]; then
-      W="/var/lib/idmweb/workspaces/$(san "$P")/$S/$(san "$B")"
-      if [ -d "$W" ]; then cd "$W"; else echo "note: no workspace for $P/$B yet (open the branch on the page); running outside one" >&2; cd /var/lib/idmweb; fi
-    else
-      cd /var/lib/idmweb
-    fi
-  fi
-fi
+# In your workspace (inworkspace says how), then the CLI.
+. /opt/idmweb/bin/inworkspace
 IDM_HOME=${IDM_HOME:-/opt/idmweb}
 IDM_LIB=${IDM_LIB:-/opt/idm/lib}
 CP="$IDM_HOME/lib/dirxml-dev.jar:$IDM_HOME/lib/dirxml-simulator.jar:$IDM_HOME/lib/jldap.jar:$IDM_HOME/lib/dirxml-trace-core.jar:$IDM_HOME/lib/postgresql.jar"

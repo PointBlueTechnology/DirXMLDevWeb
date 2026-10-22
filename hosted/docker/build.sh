@@ -42,6 +42,38 @@ cp -R "$IDM_HOME/bin/secrets" "$CTX/artifacts/secrets"
 cp -R "$IDM_HOME/terraform" "$CTX/artifacts/terraform"
 find "$CTX/artifacts/terraform" -name .terraform -prune -exec rm -rf {} + 2>/dev/null || true
 find "$CTX/artifacts/terraform" \( -name '*.tfstate*' -o -name '.terraform.lock.hcl' \) -delete 2>/dev/null || true
+# bin/apps (the Identity Applications helper), behind the image's apps launcher
+cp "$IDM_HOME/bin/apps" "$CTX/artifacts/apps.py"
+# the agent kit (docs/agents.md): this version's rules, skills and docs for an agent working with the server
+SIM_HOME=${SIM_HOME:-"$HERE/../DirXMLSimulator"}
+KIT="$CTX/artifacts/agent-kit"
+mkdir -p "$KIT/.claude/skills" "$KIT/docs"
+cp "$HERE/hosted/agent-kit/AGENTS.md" "$HERE/hosted/agent-kit/CLAUDE.md" "$KIT/"
+cp -R "$IDM_HOME/.claude/skills/dirxml-dev" "$KIT/.claude/skills/"
+if [ -d "$SIM_HOME/.claude/skills/dirxml-policy-testing" ]; then
+  cp -R "$SIM_HOME/.claude/skills/dirxml-policy-testing" "$KIT/.claude/skills/"
+else
+  echo "note: no DirXMLSimulator checkout at $SIM_HOME: the agent kit has no simulator skill" >&2
+fi
+cp "$IDM_HOME/docs/agent-guide.md" "$KIT/docs/"
+cp "$HERE/docs/agents.md" "$HERE/docs/environment-practices.md" "$HERE/docs/git-workflow.md" "$KIT/docs/"
+# each skill says, under its front matter, where its commands are in this install
+for s in "$KIT"/.claude/skills/*/SKILL.md; do
+  python3 - "$s" <<'PY'
+import sys
+p = sys.argv[1]
+t = open(p, encoding="utf-8").read()
+note = ("\n> **In a DirXMLDevWeb install:** on the machine that runs the container, `bin/idm` is `docker exec idmweb idm`, "
+        "`bin/sim` is `docker exec idmweb sim` and `bin/apps` is `docker exec idmweb apps`, run in your workspace; "
+        "or use the `dirxmldev` MCP tools. The kit's AGENTS.md has the rules and how to connect.\n")
+if t.startswith("---"):
+    end = t.index("\n---", 3) + 4
+    t = t[:end] + "\n" + note + t[end:]
+else:
+    t = note + "\n" + t
+open(p, "w", encoding="utf-8").write(t)
+PY
+done
 # the engine's jars are NetIQ's: refuse to build if any reached the context (a class from one would be
 # com/novell/nds/dirxml/… or com/netiq/…; DirXMLDev's own jar is com/pointblue/…)
 for j in "$CTX"/artifacts/*.jar; do

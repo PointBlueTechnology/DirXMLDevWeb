@@ -74,6 +74,9 @@ public final class Audit {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("time", Instant.now().toString());
         m.put("user", session == null ? null : session.principal.subject);
+        if (session != null && session.via != null) {
+            m.put("via", session.via);   // an agent acting for the person, by its token's label
+        }
         m.put("workspace", ws == null ? null : ws.id);
         m.put("project", ws == null || ws.id.indexOf('/') < 0 ? null : ws.id.substring(0, ws.id.indexOf('/')));
         m.put("branch", ws == null ? null : ws.branch);

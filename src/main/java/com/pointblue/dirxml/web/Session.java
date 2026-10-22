@@ -47,6 +47,8 @@ public final class Session {
     public volatile String workspace;
     /** An agent's session, made for its bearer token: no cookie, so the CSRF check does not apply. */
     public volatile boolean bearer;
+    /** A personal agent token's label when an agent acts for the person (docs/agents.md); null otherwise. */
+    public volatile String via;
     /** Whether the last workspace was already looked for (a failed reopen is not retried on every request). */
     volatile boolean restoreTried;
 

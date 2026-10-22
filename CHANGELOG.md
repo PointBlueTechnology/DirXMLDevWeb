@@ -5,6 +5,21 @@ All notable changes to DirXMLDevWeb are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.74.0] - 2026-10-22
+
+Needs DirXMLDev 0.50.0.
+
+### Changed
+
+- **Tutorial: do it again with an agent** (docs/tutorial.md §9): make a token, connect Claude Code,
+  run the setup prompt, then have the agent make the change on a branch, plan and deploy it with
+  the environment's name typed by you, and find its lines in the audit log.
+
+### Fixed
+
+- The agent tokens dialog wraps the token, the command and the setup prompt instead of cutting
+  their long lines off.
+
 ## [0.73.0] - 2026-10-22
 
 Needs DirXMLDev 0.50.0.

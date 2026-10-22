@@ -82,6 +82,25 @@ s, c = call("POST", "/api/git/commit", {"message": "From the container", "push":
 check("commit and push reach the host's repository", s == 200 and c["pushed"] and "From the container" in subprocess.run(["git", "--git-dir", os.path.join(work, "repo.git"), "log", "feature/container", "-1", "--format=%s"], capture_output=True, text=True).stdout)
 cli = subprocess.run(["docker", "exec", name, "idm", "validate", "/var/lib/idmweb/workspaces/repo/agent_ci/feature_container/tree", "--json"], capture_output=True, text=True)
 check("the idm CLI inside the container validates the same workspace", cli.returncode == 0 and '"ok":true' in cli.stdout.replace(" ", ""))
+# agents (docs/agents.md): the simulator's and the Identity Applications' CLIs, the MCP endpoint, the agent kit
+sim = subprocess.run(["docker", "exec", name, "sim"], capture_output=True, text=True)
+check("the simulator's CLI is in the image", "run" in sim.stdout + sim.stderr and "usage" in (sim.stdout + sim.stderr).lower())
+apps = subprocess.run(["docker", "exec", name, "apps", "--help"], capture_output=True, text=True)
+check("the Identity Applications helper is in the image", apps.returncode == 0 and "--env" in apps.stdout)
+s, init = call("POST", "/mcp", {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"protocolVersion": "2025-06-18", "capabilities": {}, "clientInfo": {"name": "smoke", "version": "1"}}})
+check("the container answers MCP at /mcp", s == 200 and init["result"]["serverInfo"]["name"] == "dirxmldevweb")
+s, rl = call("POST", "/mcp", {"jsonrpc": "2.0", "id": 2, "method": "resources/list"})
+uris = [x["uri"] for x in rl["result"]["resources"]]
+check("its MCP resources are the kit: the rules and both skills", "dirxmldev://kit/AGENTS.md" in uris and "dirxmldev://kit/.claude/skills/dirxml-dev/SKILL.md" in uris
+      and "dirxmldev://kit/.claude/skills/dirxml-policy-testing/SKILL.md" in uris)
+req = urllib.request.Request(base + "/api/agent-kit", headers={"Authorization": "Bearer " + TOKEN})
+with urllib.request.urlopen(req) as r:
+    import io, zipfile
+    z = zipfile.ZipFile(io.BytesIO(r.read()))
+names = z.namelist()
+check("the agent kit carries the rules, both skills and the docs, with this server's MCP address",
+      "agent-kit/AGENTS.md" in names and "agent-kit/.claude/skills/dirxml-dev/SKILL.md" in names and "agent-kit/.claude/skills/dirxml-policy-testing/SKILL.md" in names
+      and "agent-kit/docs/agent-guide.md" in names and (base + "/mcp") in z.read("agent-kit/AGENTS.md").decode())
 with open(os.path.join(work, "data", "audit.log")) as f:
     lines = [json.loads(l) for l in f if l.strip()]
 check("the audit log names the agent", any(l["user"] == "agent:ci" and l["event"] == "commit+push" for l in lines))

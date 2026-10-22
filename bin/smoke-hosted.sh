@@ -42,7 +42,7 @@ agents=ci:idm-deployers;reader:
 agent.ci.token=ci-agent-token-0123456789
 agent.reader.token=reader-agent-token-0123456789
 ENV
-IDM_ENVIRONMENTS="$WORK/data/environments.properties" "$HERE/bin/idmweb" serve --hosted "$WORK/hosted.properties" > "$WORK/log" 2>&1 &
+IDMWEB_AGENT_KIT="$HERE/hosted/agent-kit" IDM_ENVIRONMENTS="$WORK/data/environments.properties" "$HERE/bin/idmweb" serve --hosted "$WORK/hosted.properties" > "$WORK/log" 2>&1 &
 PID=$!
 i=0
 while ! grep -q 'hosted:' "$WORK/log" 2>/dev/null; do
@@ -256,6 +256,55 @@ check("a wrong token is refused", ci.call("GET", "/api/session", headers={"Autho
 s, _, _ = ci.call("POST", "/api/workspaces/open", {"branch": "feature/x"}, headers={"Authorization": "Bearer reader-agent-token-0123456789"}, csrf=False)
 check("an agent without a role reads only", s == 403)
 
+# personal agent tokens and the MCP endpoint (docs/agents.md): alice's agent acts as alice
+s, made, _ = alice.call("POST", "/api/agent-tokens", {"label": "claude", "days": 30})
+check("a person makes a token for her agent; it is shown once", s == 200 and str(made.get("token", "")).startswith("idmw_") and made["label"] == "claude")
+mine = {"Authorization": "Bearer " + made["token"]}
+s, sess, _ = ci.call("GET", "/api/session", headers=mine)
+check("her agent signs in as her, with her roles", s == 200 and sess["user"]["subject"] == "alice" and sess["user"]["editor"] and not sess["user"]["deployer"])
+check("an agent cannot make tokens", ci.call("POST", "/api/agent-tokens", {"label": "x"}, headers=mine, csrf=False)[0] == 403)
+s, lst, _ = alice.call("GET", "/api/agent-tokens")
+check("her token list shows the label, never the token", s == 200 and [t["label"] for t in lst["tokens"]] == ["claude"] and made["token"] not in json.dumps(lst))
+def mcp(body, headers=None):
+    h = dict(mine)
+    h.update(headers or {})
+    return ci.call("POST", "/mcp", body, headers=h, csrf=False)
+s, init, _ = mcp({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"protocolVersion": "2025-06-18", "capabilities": {}, "clientInfo": {"name": "smoke", "version": "1"}}})
+check("MCP: initialize answers with the protocol and the rules", s == 200 and init["result"]["protocolVersion"] == "2025-06-18" and "plan_deploy" in init["result"]["instructions"])
+s, tl, _ = mcp({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
+names = [t["name"] for t in tl["result"]["tools"]]
+check("MCP: the tools are listed, the vault writes marked destructive", s == 200 and "run_operations" in names and "deploy" in names
+      and [t for t in tl["result"]["tools"] if t["name"] == "deploy"][0]["annotations"]["destructiveHint"])
+s, r, _ = mcp({"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": {"name": "session", "arguments": {}}})
+text = r["result"]["content"][0]["text"]
+check("MCP: a tool call acts as her, and the page's CSRF token stays out", s == 200 and not r["result"]["isError"] and '"subject":"alice"' in text and "csrf" not in text)
+s, r, _ = mcp({"jsonrpc": "2.0", "id": 4, "method": "tools/call", "params": {"name": "outline", "arguments": {}}})
+check("MCP: her branch's tree is read through the API", s == 200 and not r["result"]["isError"] and "Loop" in r["result"]["content"][0]["text"])
+s, r, _ = mcp({"jsonrpc": "2.0", "id": 5, "method": "tools/call", "params": {"name": "deploy", "arguments": {"env": "lab", "confirm": "lab"}}})
+check("MCP: a vault write is the API's to refuse (an editor, not a deployer)", s == 200 and r["result"]["isError"] and "deployer" in r["result"]["content"][0]["text"])
+s, _, _ = mcp({"jsonrpc": "2.0", "id": 6, "method": "tools/list"}, headers={"Host": "evil.example"})
+check("MCP: another host is refused", s == 403)
+s, _, _ = anon.call("POST", "/mcp", {"jsonrpc": "2.0", "id": 7, "method": "tools/list"}, csrf=False)
+check("MCP: without a token it says to sign in", s == 401)
+check("MCP: GET has no stream (405)", ci.call("GET", "/mcp", headers=mine)[0] == 405)
+s, rl, _ = mcp({"jsonrpc": "2.0", "id": 8, "method": "resources/list"})
+uris = [x["uri"] for x in rl["result"]["resources"]]
+check("MCP: the agent kit is listed as resources", s == 200 and "dirxmldev://kit/AGENTS.md" in uris)
+s, rr, _ = mcp({"jsonrpc": "2.0", "id": 9, "method": "resources/read", "params": {"uri": "dirxmldev://kit/AGENTS.md"}})
+check("MCP: a resource reads with this server's MCP address filled in", s == 200 and (base + "/mcp") in rr["result"]["contents"][0]["text"] and "{{" not in rr["result"]["contents"][0]["text"])
+s, bad, _ = mcp({"jsonrpc": "2.0", "id": 10, "method": "resources/read", "params": {"uri": "dirxmldev://kit/../../hosted.properties"}})
+check("MCP: a resource outside the kit is refused", s == 200 and "error" in bad)
+s, pl, _ = mcp({"jsonrpc": "2.0", "id": 11, "method": "prompts/list"})
+check("MCP: the setup and orient prompts are listed", s == 200 and [p["name"] for p in pl["result"]["prompts"]] == ["setup", "orient"])
+s, pg, _ = mcp({"jsonrpc": "2.0", "id": 12, "method": "prompts/get", "params": {"name": "setup", "arguments": {"skills_dir": ".claude/skills"}}})
+st = pg["result"]["messages"][0]["content"]["text"]
+check("MCP: the setup prompt reads the rules, installs the skills where asked, then orients", s == 200 and "dirxmldev://kit/AGENTS.md" in st and ".claude/skills/<the path" in st and "validate" in st)
+s, lst, _ = alice.call("GET", "/api/agent-tokens")
+check("the page's setup prompt is the MCP prompt's, without a secret", s == 200 and lst["setupPrompt"].startswith("Set yourself up") and "idmw_" not in lst["setupPrompt"])
+s, _, _ = alice.call("POST", "/api/agent-tokens/revoke", {"id": made["id"]})
+check("she revokes the token", s == 200)
+check("a revoked token no longer signs in", ci.call("GET", "/api/session", headers=mine)[0] == 401)
+
 s, _, h = alice.call("GET", "/auth/logout")
 check("sign-out clears the cookie", s == 303 and "Max-Age=0" in h.get("set-cookie", ""))
 check("and the session is gone", alice.call("GET", "/api/session")[0] == 401)
@@ -365,6 +414,8 @@ events = [(l["user"], l["event"], l["outcome"]) for l in lines]
 check("the audit log has sign-ins, the workspace, the edit, the commit and the sign-out, per user",
       ("alice", "sign-in", "ok") in events and ("alice", "workspace.open", "ok") in events and ("alice", "op/gcv.set", "ok") in events and ("alice", "commit+push", "ok") in events and ("bob", "workspace.open", "ok") in events and ("alice", "sign-out", "ok") in events and ("agent:ci", "workspace.open", "ok") in events)
 check("and no line carries a file's contents", all("Hosted Corp" not in json.dumps(l["details"]) for l in lines))
+check("her agent's calls are hers, marked via its token", any(l["user"] == "alice" and l.get("via") == "claude" for l in lines)
+      and any(l["user"] == "alice" and l["event"] == "agent-token-create" for l in lines) and all(made["token"] not in json.dumps(l) for l in lines))
 print("smoke-hosted: all passed")
 PY
 # the local install's `setup` (docs/simple-install.md), written into a temporary folder

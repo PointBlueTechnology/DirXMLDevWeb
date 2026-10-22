@@ -38,6 +38,9 @@ public final class Api implements HttpHandler {
     private final WebReleaseCheck release;
     private final Map<String, Session.Principal> agents;
     private final Map<String, String> agentSessions = new java.util.concurrent.ConcurrentHashMap<>();
+    /** Personal agent tokens (hosted mode; null when off), and the session each one signs in to, by the token's hash. */
+    private AgentTokens tokens;
+    private final Map<String, String> tokenSessions = new java.util.concurrent.ConcurrentHashMap<>();
     private SetupService setup;              // hosted mode only
 
     private ArchiveService archive;          // hosted mode only (#76)
@@ -48,6 +51,12 @@ public final class Api implements HttpHandler {
     public Api withSetup(SetupService setup, ArchiveService archive) {
         this.setup = setup;
         this.archive = archive;
+        return this;
+    }
+
+    /** Hosted mode: people make tokens for their agents, which then act as them. */
+    public Api withAgentTokens(AgentTokens tokens) {
+        this.tokens = tokens;
         return this;
     }
 
@@ -86,6 +95,24 @@ public final class Api implements HttpHandler {
             }
         }
         return null;
+    }
+
+    /** An agent with a person's own token: a session as that person, marked with the token's label. */
+    private Session personalSession(String token) {
+        AgentTokens.Entry e = tokens == null ? null : tokens.find(token);
+        if (e == null) {
+            return null;
+        }
+        String id = tokenSessions.get(e.hash());
+        Session s = id == null ? null : sessions.get(id);
+        if (s == null || s.principal != e.who()) {
+            s = sessions.create(e.who());
+            s.bearer = true;
+            s.via = e.label();
+            tokenSessions.put(e.hash(), s.id);
+            audit.log(s, null, "sign-in", Map.of("provider", "agent-token"), "ok");
+        }
+        return s;
     }
 
     /**
@@ -129,7 +156,9 @@ public final class Api implements HttpHandler {
         if (security.hostedMode()) {
             String auth = ex.getRequestHeaders().getFirst("Authorization");
             if (auth != null && auth.regionMatches(true, 0, "Bearer ", 0, 7)) {
-                return restored(agentSession(auth.substring(7).trim()));
+                String token = auth.substring(7).trim();
+                Session s = agentSession(token);
+                return restored(s != null ? s : personalSession(token));
             }
             return restored(sessions.get(cookie(ex, COOKIE)));
         }
@@ -165,12 +194,39 @@ public final class Api implements HttpHandler {
             }
             String path = ex.getRequestURI().getPath();
             String method = ex.getRequestMethod();
+            if (tokens != null && !session.bearer) {
+                tokens.refresh(session.principal);   // their agents act with who they are now
+            }
             if (security.hostedMode() && !method.equals("GET") && !session.bearer) {
                 String csrf = ex.getRequestHeaders().getFirst(CSRF_HEADER);
                 if (csrf == null || !java.security.MessageDigest.isEqual(csrf.getBytes(StandardCharsets.UTF_8), session.csrf.getBytes(StandardCharsets.UTF_8))) {
                     send(ex, 403, error("missing or wrong CSRF token"));
                     return;
                 }
+            }
+            if (path.equals("/api/agent-kit") && method.equals("GET")) {
+                // the agent kit: this version's rules, skills and docs, with this server's MCP address
+                java.nio.file.Path kit = AgentKit.locate();
+                if (kit == null) {
+                    throw new TreeService.NotFound("this server has no agent kit (the image carries it; IDMWEB_AGENT_KIT names a folder)");
+                }
+                String host = ex.getRequestHeaders().getFirst("Host");
+                String proto = ex.getRequestHeaders().getFirst("X-Forwarded-Proto");
+                String mcpUrl = (proto == null ? "http" : proto) + "://" + (host == null ? "localhost:8080" : host) + "/mcp";
+                java.io.ByteArrayOutputStream bytes = new java.io.ByteArrayOutputStream();
+                AgentKit.zip(kit, version, mcpUrl, bytes);
+                ex.getResponseHeaders().set("Content-Type", "application/zip");
+                ex.getResponseHeaders().set("Content-Disposition", "attachment; filename=\"dirxmldevweb-agent-kit-" + version + ".zip\"");
+                ex.sendResponseHeaders(200, bytes.size());
+                try (OutputStream out = ex.getResponseBody()) {
+                    bytes.writeTo(out);
+                }
+                return;
+            }
+            if (path.startsWith("/api/agent-tokens")) {
+                // anyone signed in may make tokens: an agent does no more than its person may
+                send(ex, 200, agentTokensRoute(session, method, path, ex));
+                return;
             }
             if (!method.equals("GET") && !session.principal.editor) {
                 send(ex, 403, error("your account may read but not change anything"));
@@ -891,6 +947,42 @@ public final class Api implements HttpHandler {
     }
 
     /** A deploy's choices beyond its scope (#34): secrets mode, first-deploy leniency, drivers to delete. */
+    /** {@code /api/agent-tokens}: the person's own tokens for their agents (docs/agents.md). */
+    private Object agentTokensRoute(Session session, String method, String path, HttpExchange ex) throws IOException {
+        if (tokens == null) {
+            throw new TreeService.NotFound(security.hostedMode() ? "personal agent tokens are off on this server (agent.tokens=false)" : "local mode has no agent tokens: the session token is the key");
+        }
+        if (session.bearer) {
+            throw new Forbidden("an agent cannot manage agent tokens; sign in to the page");
+        }
+        if (method.equals("GET") && path.equals("/api/agent-tokens")) {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("maxDays", tokens.maxDays());
+            m.put("defaultDays", Math.min(AgentTokens.DEFAULT_DAYS, tokens.maxDays()));
+            m.put("tokens", tokens.list(session.principal));
+            m.put("mcp", "/mcp");
+            // what a person pastes into their agent once it is connected (the MCP prompt 'setup' says the same)
+            m.put("setupPrompt", Mcp.setupPrompt("~/.claude/skills"));
+            return m;
+        }
+        Map<String, Object> req = Json.asMap(Json.parse(new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8)));
+        if (method.equals("POST") && path.equals("/api/agent-tokens")) {
+            int days = req.get("days") == null ? 0 : (int) Double.parseDouble(String.valueOf(req.get("days")));
+            Map<String, Object> made = tokens.create(session.principal, Json.asString(req.get("label")), days);
+            audit.log(session, null, "agent-token-create", Map.of("label", String.valueOf(made.get("label")), "expires", String.valueOf(made.get("expires"))), "ok");
+            return made;
+        }
+        if (method.equals("POST") && path.equals("/api/agent-tokens/revoke")) {
+            String id = Json.asString(req.get("id"));
+            if (!tokens.revoke(session.principal, id)) {
+                throw new TreeService.NotFound("no token " + id + " of yours");
+            }
+            audit.log(session, null, "agent-token-revoke", Map.of("id", String.valueOf(id)), "ok");
+            return Map.of("revoked", true);
+        }
+        throw new TreeService.NotFound(method + " " + path);
+    }
+
     private static VaultService.DeployChoices deployChoices(Map<String, Object> req, boolean restart) {
         VaultService.DeployChoices c = new VaultService.DeployChoices();
         c.restart = restart;

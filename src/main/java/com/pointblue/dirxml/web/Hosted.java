@@ -68,6 +68,9 @@ public final class Hosted {
     public final Path environmentsFile;
     /** Each person's own directory: credentials, profile. */
     public final UserData users;
+    /** Personal agent tokens ({@code agent.tokens}, default on) and their longest life ({@code agent.tokens.maxDays}, default 365). */
+    public final boolean agentTokens;
+    public final int agentTokensMaxDays;
 
     /**
      * Where a person's environments come from: the definitions merged with their own credentials
@@ -96,6 +99,8 @@ public final class Hosted {
         this.bind = p.getProperty("bind", "127.0.0.1").trim();
         this.port = Integer.parseInt(p.getProperty("port", "8080").trim());
         this.dataDir = Path.of(p.getProperty("data.dir", "data").trim()).toAbsolutePath().normalize();
+        this.agentTokens = !"false".equalsIgnoreCase(p.getProperty("agent.tokens", "true").trim());
+        this.agentTokensMaxDays = Integer.parseInt(p.getProperty("agent.tokens.maxDays", "365").trim());
         // projects=a,b with project.<name>.repo.*; the older single repo.* keys are the project named by repo.name
         for (String n : list(p.getProperty("projects", ""))) {
             Project pr = project(p, "project." + n + ".", n);

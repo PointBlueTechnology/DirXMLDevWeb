@@ -98,6 +98,10 @@ are mounted, never shipped. `hosted/docker/compose.yml` runs it behind Caddy (TL
 **Agents** (CI, an MCP server) use the same server with `Authorization: Bearer <token>` from
 `agents=`, or the CLI with `docker exec idmweb idm …`; `bin/smoke-container.sh` proves the image.
 
+**People's agents** (Claude Code, Cursor) use a token the person makes on the page and act as that
+person ([agents.md](agents.md)): the server's MCP endpoint is `/mcp`. `agent.tokens=false` turns
+personal tokens off; `agent.tokens.maxDays` (default 365) caps how long one may last.
+
 ## A project's repository: moving it to GitHub or GitLab
 
 A project made on the page pushes to a repository this server created, `data/projects/<name>.git`.

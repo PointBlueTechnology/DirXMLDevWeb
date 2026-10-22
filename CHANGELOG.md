@@ -5,7 +5,17 @@ All notable changes to DirXMLDevWeb are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.73.0] - 2026-10-22
+
+Needs DirXMLDev 0.50.0.
+
+### Added
+
+- **An agent moves between branches on its own:** MCP tools `open_branch` (work on another branch;
+  a new name branches from the base branch, nothing reaches the repository until a commit and push)
+  and `list_branches` (the projects, branches and base branch, and which you have open). Before,
+  an agent stayed on the branch its token's session first opened. The page and the agent each keep
+  their own branch.
 
 ### Changed
 

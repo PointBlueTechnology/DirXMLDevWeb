@@ -76,14 +76,13 @@ page. Nothing in the MCP layer decides what an agent may do; the API does.
 
 ### What the agent works on
 
-The agent works in **your workspace**: the same files the page shows you. Its first call opens the
-project and branch you last had open on the page, and it stays on that branch while the server
-runs; `session` says which. Edits it applies show on the page at once when you have that branch
-open, and yours show to it.
-
-To move the agent to another branch, open that branch on the page, then either make a new token
-for the agent or restart the server (`docker restart idmweb` on the local install). Reconnecting
-the agent with the same token keeps it where it was.
+The agent works in **your workspaces**: the same files the page shows you. Its first call opens the
+project and branch you last had open on the page; `session` says which. Ask it to work on another
+("work on feature/hr-url") and it calls `open_branch`: a branch you have open already is the same
+folder the page uses, one you haven't is cloned for you, and a new name branches from the base
+branch (nothing reaches the repository until it commits and pushes). The page and the agent each
+keep their own branch: moving one doesn't move the other. When both are on the same branch, the
+agent's applied edits show on the page at once, and yours show to it.
 
 ### Tools
 
@@ -103,6 +102,7 @@ with a note: narrow the request (one driver, one path).
 | `fishbone` | **`driver`**: the driver's name | a driver's policy flow, policy set by policy set |
 | `git_status` | | the branch, uncommitted files, unpushed commits, where it stands against the base branch |
 | `git_diff` | `against`: `head` (default, the last commit) or `base` (the base branch) | what differs |
+| `list_branches` | `project`: another project | the projects, the project's branches and base branch, and which you have open |
 
 **Editing** (editor role):
 
@@ -110,6 +110,7 @@ with a note: narrow the request (one driver, one path).
 |---|---|---|
 | `list_operations` | | every edit operation (`policy.add`, `gcv.set`, `driver.set`, `override.set`, …) and its arguments |
 | `run_operations` | **`operations`**: a list of `{name, args, files}`, names and args as `list_operations` gives them; `files` maps an argument to file content, inline. `dryRun`: `true` (default) previews, `false` applies | one or more edits, applied together or not at all |
+| `open_branch` | **`branch`**: letters, digits, `.`, `_`, `-` and `/`; `project`: another project | works on that branch from now on (a new name branches from the base branch) |
 | `commit` | **`message`**; `push`: `true` to push too | commits the workspace's changes |
 
 `run_operations` fetches the tree's revision itself, so an edit planned against an older tree is
@@ -234,7 +235,7 @@ Three ways to get it, all the same files:
 |---|---|
 | `claude mcp list` shows `dirxmldev` failed, or every call answers 401 | the token is wrong, expired or revoked (the dialog shows an expired one). Make a new one, then `claude mcp remove dirxmldev` and add it again |
 | `sign in first` | the request carried no token: check the `--header` part of the command |
-| the agent is on the wrong branch | it opened the one you last had open: see [What the agent works on](#what-the-agent-works-on) |
+| the agent is on the wrong branch | it starts on the one you last had open on the page: tell it which to work on, and it calls `open_branch` |
 | an edit is refused because the tree moved | the tree changed after the agent read it (you on the page, perhaps): the agent reads it again and repeats the preview |
 | `deploy` is refused | the reason names the rule: no deployer role, `confirm` isn't the environment's name, validation errors, a production deploy that isn't from `main` pushed and current, or another write to that environment running. Fix the cause; the agent must not route around it |
 | a compare or plan says you aren't connected | your sign-in for that vault is missing or needs a new password: *Connections* on the page |

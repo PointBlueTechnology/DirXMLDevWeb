@@ -146,7 +146,6 @@ for developing it or for a quick look at a tree. Upgrading an install is running
 | [docs/development.md](docs/development.md) | running from a checkout, layout, tests, releasing |
 | [docs/limits.md](docs/limits.md) | what still goes through Operations or the CLI |
 | [docs/design.md](docs/design.md) | the assessment and the phases |
-| [docs/hosted.md](docs/hosted.md) | the hosted-mode design and its decisions |
 | [docs/event-logger.md](docs/event-logger.md) | design note: the Event Logger integration: events as simulator cases, an Events view, the logger as a package |
 | [docs/connections-ui.md](docs/connections-ui.md) | design note: the Connections page: one flow per vault (address, certificate, sign-in, driver set), required before optional, certificate pinning, rotated passwords made obvious and easy |
 | [docs/trace-viewer.md](docs/trace-viewer.md) | design note: the DirXML Trace Viewer in the workbench: a shared trace library, live and file trace with colours, filters, find and links into the tree |

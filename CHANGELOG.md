@@ -9,6 +9,13 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Changed
 
+- **The audit log is rotated by size (#161); a change in default behaviour.** Before a line would
+  take `audit.log` past `audit.maxBytes` (default `10MB`), it moves to `audit.log.1` and the older
+  ones up by one; past `audit.keep` (default 10) the oldest is deleted, so the log takes at most
+  about 110 MB. `audit.keep=0` deletes nothing, `audit.maxBytes=0` never rotates (the old
+  behaviour). An existing `audit.log` larger than the limit is rotated on the first line after the
+  upgrade; nothing is deleted then. The Audit view reads the files newest first, from their ends,
+  and stops as soon as it has its lines, instead of reading the whole log for every request.
 - **Docs brought up to date.**
   - pull-requests.md and multi-user.md are user references now, not design notes, each with its
     API fields.
@@ -19,6 +26,12 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   - limits.md gives the trace view's real buffer (50,000 records, 15,000 shown, adjustable), and
     development.md the release steps as they are.
   - hosted-install.md no longer describes Point Blue's own lab.
+
+### Fixed
+
+- The Audit view's *since* compares times as times. Times are written with 3, 6 or 9 fraction
+  digits, and compared as text a later line could sort before an earlier one and end the list too
+  soon. A partly typed time (`2026-10-07`, `2026-10-07T09:30`) is the start of that period, in UTC.
 
 ### Removed
 

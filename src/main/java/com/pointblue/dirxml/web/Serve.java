@@ -101,7 +101,7 @@ public final class Serve {
         // kept in the data directory: a restart signs nobody out, and everyone gets their last branch back
         Session.Store sessions = Session.Store.persistent(h.sessionHours <= 0 ? Session.Store.NEVER : h.sessionHours * 3600, h.dataDir.resolve("sessions.json"));
         Security security = Security.hosted(h.publicUrl);
-        Audit audit = new Audit(h.dataDir.resolve("audit.log"));
+        Audit audit = new Audit(h.dataDir.resolve("audit.log"), h.auditMaxBytes, h.auditKeep);
         Identity identity;
         switch (h.identity) {
             case "none":

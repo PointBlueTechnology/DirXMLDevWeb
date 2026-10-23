@@ -26,7 +26,7 @@ export function AuditView() {
         <input value={f.user} onChange={(e) => setF({ ...f, user: e.target.value })} placeholder="user" spellCheck={false} />
         <input value={f.project} onChange={(e) => setF({ ...f, project: e.target.value })} placeholder="project" spellCheck={false} />
         <input value={f.event} onChange={(e) => setF({ ...f, event: e.target.value })} placeholder="event (sign-in, write, deploy, commit…)" spellCheck={false} />
-        <input value={f.since} onChange={(e) => setF({ ...f, since: e.target.value })} placeholder="since (2026-10-07T00:00)" spellCheck={false} />
+        <input value={f.since} onChange={(e) => setF({ ...f, since: e.target.value })} placeholder="since, UTC (2026-10-07T00:00)" spellCheck={false} />
         <button onClick={load}>Refresh</button>
       </div>
       {error && <div className="banner error">{error}</div>}

@@ -1,5 +1,10 @@
 # Design note: the Connections page
 
+Status: **built** in DirXMLDevWeb 0.61.0 with DirXMLDev 0.43.0 (the page, certificate pinning,
+rotated passwords, servers, the project's repository); #131 closed. The rules in *Rules the layout
+follows* and *Words* still hold for any form added to the page. What the page does now is in
+[features.md](features.md) (Connections, Projects) and [multi-user.md](multi-user.md).
+
 Issue #131. This note covers how the Connections page should look and behave, and the one core
 change it needs: trusting a vault's certificate by its fingerprint instead of accepting any
 certificate. What stays the same:

@@ -16,7 +16,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-/** {@code idmweb setup}, the local install written from inside the image (docs/simple-install.md). */
+/** {@code idmweb setup}, the local install written from inside the image (docs/quickstart.md). */
 public class LocalSetupTest {
 
     @Rule

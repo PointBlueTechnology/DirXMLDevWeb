@@ -86,4 +86,4 @@ bin/smoke.sh           # every endpoint, the security gates and the write path, 
 
 ## Releasing
 
-A release bumps `pom.xml`, `Serve.VERSION` (a test pins the two together) and the CHANGELOG heading, merges `--no-ff`, tags `vX.Y.Z` and publishes the jar and the page zip on GitHub. Publishing the release runs `.github/workflows/image.yml`, which builds the image for amd64 and arm64 from the released jars, pushes it to GHCR. The lab pulls its image from Harbor (see hosted-install.md).
+A release bumps `pom.xml`, `Serve.VERSION` (a test pins the two together) and the CHANGELOG heading, merges `--no-ff`, tags `vX.Y.Z` and publishes the jar, the page zip and `THIRD-PARTY.md` on GitHub. Before tagging, run `bin/smoke.sh`, `bin/smoke-hosted.sh` and `bin/smoke-container.sh` from `main`. Publishing the release runs `.github/workflows/image.yml`, which builds the image for amd64 and arm64 from the released jars and pushes it to GHCR. The image build also checks out DirXMLSimulator at the release the pom names, for the `sim` CLI and the `dirxml-policy-testing` skill in the agent kit (`hosted/agent-kit`, assembled by `hosted/docker/build.sh`).

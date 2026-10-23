@@ -320,7 +320,7 @@ public final class TreeService {
     }
 
     /**
-     * The driver set as Designer's Modeler draws it (#32, docs/architecture-view.md): the set with
+     * The driver set as Designer's Modeler draws it (#32): the set with
      * its servers and counts, and one application per driver — its Designer application type and
      * display name, whether it serves the vault itself, whether it carries an icon, its counts.
      */
@@ -380,7 +380,7 @@ public final class TreeService {
 
     /**
      * The whole driver set as one tree, the way Designer's outline reads in the Developer
-     * perspective (#32 A2, docs/architecture-view.md §3): the set's configuration and library,
+     * perspective (#32): the set's configuration and library,
      * then each driver's configuration, channels with their policy sets in engine order and
      * policies in linkage order (the fishbone's model), resources, entitlements, forms, PRDs.
      * Every node says what the page opens when clicked.

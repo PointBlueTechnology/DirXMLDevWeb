@@ -137,18 +137,16 @@ for developing it or for a quick look at a tree. Upgrading an install is running
 | [docs/features.md](docs/features.md) | every view, by area |
 | [docs/agents.md](docs/agents.md) | agents: tokens, connecting Claude Code or Cursor, the setup prompt, every MCP tool and its arguments, the CLIs, the agent kit |
 | [docs/data-model.md](docs/data-model.md) | projects, workspaces, trees, environments and vaults: the entity relationship diagram |
-| [docs/multi-user.md](docs/multi-user.md) | design note: per-user connections, data and traces on a hosted server |
-| [docs/architecture-view.md](docs/architecture-view.md) | design note: the Architecture (Designer Modeler) and Developer views |
+| [docs/multi-user.md](docs/multi-user.md) | what's yours and what's shared on a hosted server: vault sign-ins, tokens, traces, the files they live in |
+| [docs/pull-requests.md](docs/pull-requests.md) | pull requests from the page: providers, whose account, the workstation's `gh` / `glab`, the API |
 | [docs/hosted-install.md](docs/hosted-install.md) | the container for a team: image, host layout, proxy, Keycloak, the lab |
 | [docs/hosted-mode.md](docs/hosted-mode.md) | hosted configuration: projects, repositories, identity (`token`, `oidc`, `none`), roles, agents |
 | [docs/security.md](docs/security.md) | what the server refuses, where credentials live, what never leaves it; how the workstation and hosted modes differ |
 | [docs/secret-managers.md](docs/secret-managers.md) | AWS, Azure, GCP, CyberArk, BeyondTrust, Bitwarden, Terraform: a credential as a command |
 | [docs/development.md](docs/development.md) | running from a checkout, layout, tests, releasing |
 | [docs/limits.md](docs/limits.md) | what still goes through Operations or the CLI |
-| [docs/design.md](docs/design.md) | the assessment and the phases |
-| [docs/event-logger.md](docs/event-logger.md) | design note: the Event Logger integration: events as simulator cases, an Events view, the logger as a package |
-| [docs/connections-ui.md](docs/connections-ui.md) | design note: the Connections page: one flow per vault (address, certificate, sign-in, driver set), required before optional, certificate pinning, rotated passwords made obvious and easy |
-| [docs/trace-viewer.md](docs/trace-viewer.md) | design note: the DirXML Trace Viewer in the workbench: a shared trace library, live and file trace with colours, filters, find and links into the tree |
+| [docs/design.md](docs/design.md) | historical: the assessment and phases from before it was built, and why it is built this way |
+| [docs/connections-ui.md](docs/connections-ui.md) | design note (built in 0.61.0): the Connections page, and the layout rules every form follows: required before optional, one status and one action per row, rotated passwords made obvious |
 | [CHANGELOG.md](CHANGELOG.md) | every release |
 
 ## License

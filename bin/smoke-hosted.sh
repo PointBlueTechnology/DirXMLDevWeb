@@ -445,7 +445,7 @@ check("her agent's calls are hers, marked via its token", any(l["user"] == "alic
       and any(l["user"] == "alice" and l["event"] == "agent-token-create" for l in lines) and all(made["token"] not in json.dumps(l) for l in lines))
 print("smoke-hosted: all passed")
 PY
-# the local install's `setup` (docs/simple-install.md), written into a temporary folder
+# the local install's `setup` (docs/quickstart.md), written into a temporary folder
 mkdir -p "$WORK/setup"
 "$HERE/bin/idmweb" setup --dir "$WORK/setup" --port 18099 --user smoke > "$WORK/setup.out" 2>&1 || { cat "$WORK/setup.out"; echo "FAIL setup"; exit 1; }
 if grep -q "container_name: idmweb" "$WORK/setup/compose.yml" && grep -q "^IDMWEB_TOKEN=" "$WORK/setup/idmweb.env" \

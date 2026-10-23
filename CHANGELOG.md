@@ -5,7 +5,9 @@ All notable changes to DirXMLDevWeb are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.75.0] - 2026-10-23
+
+Needs DirXMLDev 0.50.0.
 
 ### Changed
 
@@ -16,6 +18,16 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   behaviour). An existing `audit.log` larger than the limit is rotated on the first line after the
   upgrade; nothing is deleted then. The Audit view reads the files newest first, from their ends,
   and stops as soon as it has its lines, instead of reading the whole log for every request.
+- **Docs brought up to date.**
+  - pull-requests.md and multi-user.md are user references now, not design notes, each with its
+    API fields.
+  - data-model.md has people's own connections, Git and agent tokens, sessions, the overrides
+    file's names, servers and jobs, and known differences.
+  - design.md is marked historical (W7 built; rollback, secrets and driver deletion are on the
+    page), and connections-ui.md says it is built.
+  - limits.md gives the trace view's real buffer (50,000 records, 15,000 shown, adjustable), and
+    development.md the release steps as they are.
+  - hosted-install.md no longer describes Point Blue's own lab.
 
 ### Fixed
 
@@ -25,6 +37,11 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Removed
 
+- **Design notes for features that are built:** docs/architecture-view.md, docs/trace-viewer.md,
+  docs/simple-install.md and docs/event-logger.md. What they describe is in features.md,
+  quickstart.md and upgrading.md; the two event-logger steps still to build are issues #164 (the
+  logger as a catalog package) and #165 (`pbt-eventlog.js`, capture samples at a stage). Git
+  history keeps the notes.
 - docs/hosted.md, the hosted-mode design note of 2026-10-05: its body described the design before it
   was built (one shared vault bind, compare-page pull requests, no merging on the page, decisions
   still open), and hosted-mode.md, hosted-install.md, security.md, multi-user.md,

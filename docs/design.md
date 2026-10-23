@@ -1,11 +1,19 @@
 # DirXMLDevWeb: assessment and design
 
-Status: **decided 2026-10-05; W0–W6 built** (this repository). The note was written in DirXMLDev as `docs/web-designer.md`; this is its home now.
+Status: **decided 2026-10-05; W0–W7 built** (this repository). The note was written in DirXMLDev as `docs/web-designer.md`; this is its home now.
 
-> This note describes the workstation install (local mode: loopback, one token, the macOS
-> Keychain, `idm serve`). The hosted server came later and differs on sign-in, binding,
-> credentials and roles: see [hosted-mode.md](hosted-mode.md) and the table in
-> [security.md](security.md).
+> **Historical: why the product is built this way.** This is the assessment and plan from before
+> it was built, kept for its reasoning: why not port Designer, why not WebAssembly, why a server
+> over the DirXMLDev core. It is not a description of the product today:
+> - **The server's name:** it is `bin/idmweb serve`, not `idm serve`.
+> - **The hosted server** came later and differs on sign-in, binding, credentials and roles
+>   ([hosted-mode.md](hosted-mode.md), the table in [security.md](security.md)).
+> - **Vault access per person:** each person signs in to each vault for themselves
+>   ([multi-user.md](multi-user.md)).
+> - **Agents** work through the server's MCP endpoint, with tokens people make
+>   ([agents.md](agents.md)).
+>
+> What it does now is in [features.md](features.md); what it doesn't, in [limits.md](limits.md).
 
 The question: build a web version of Designer, perhaps with WebAssembly.
 The answer in one paragraph: **yes to a web workbench, no to porting Designer,
@@ -192,7 +200,7 @@ Each is usable on its own and stops cleanly.
 | **W0 spike** | `idm serve` and a read-only explorer: outline, artifact view, fishbone, validation panel, references. Proves the catalog-as-API, the watcher and the token model |
 | **W1 configuration editing** | GCVs, filter, schema map, mapping tables, link order by drag, stage overrides; raw XML editing with validate-on-save; every write previewed as a diff |
 | **W2 policy builder** | Rules, conditions, actions and tokens as structured editors over the DirXML Script grammar, with the engine's compile check live |
-| **W3 compare, deploy, operate** | Vault diff per stage, plan review, confirm, verify; driver state and control; live trace. Built; rollback, secrets and driver deletion stay with the CLI |
+| **W3 compare, deploy, operate** | Vault diff per stage, plan review, confirm, verify; driver state and control; live trace. Built, with rollback, the secrets modes and deleting a driver only in the vault on the page too; the step-by-step deploy stays with the CLI ([limits.md](limits.md)) |
 | **W4 simulator** | Cases, run, stage-by-stage output, comparison against another tree or stage |
 | **W5 provisioning** | PRD flow diagram (read, then edit through `flow.*`), form builder embedded, roles and resources |
 | **W6 packages** | Status, install, upgrade, build |

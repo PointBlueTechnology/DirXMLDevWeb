@@ -7,7 +7,7 @@ install (`serve <tree>`, local mode) has none of this; docs/security.md sets the
 side. This page is the configuration
 reference for both; [quickstart.md](quickstart.md) sets it up for one person on localhost
 (`identity=token`), [hosted-install.md](hosted-install.md) for a team on a host
-(`identity=oidc`), [hosted.md](hosted.md) is the design.
+(`identity=oidc`).
 
 `bin/idmweb serve --hosted hosted.properties` runs the same server for a team: people sign in,
 each opens a **branch** of the team's git repository as a workspace of their own (a checkout
@@ -19,7 +19,7 @@ deploys come from the base branch only, as the repository holds it. The server h
 definitions (`environments.file`, no secrets) with the driver secrets beside them, and each
 person's bind DN and password in their own file under `data.dir/users/<subject>/`
 (docs/multi-user.md); it writes an audit line per sign-in, write, deploy, driver action, trace
-change, commit and push. Roles come from groups: *readers* look; *editors* read, edit and commit;
+change, commit and push (`data.dir/audit.log`, not rotated yet: issue #161). Roles come from groups: *readers* look; *editors* read, edit and commit;
 *deployers* also deploy, control drivers, set trace levels and read the engine's trace file, and
 change the shared environments and driver secrets. Watching a live trace is open to anyone
 signed in.

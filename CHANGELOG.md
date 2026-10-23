@@ -5,6 +5,16 @@ All notable changes to DirXMLDevWeb are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Removed
+
+- docs/hosted.md, the hosted-mode design note of 2026-10-05: its body described the design before it
+  was built (one shared vault bind, compare-page pull requests, no merging on the page, decisions
+  still open), and hosted-mode.md, hosted-install.md, security.md, multi-user.md,
+  git-workflow.md and pull-requests.md cover what was built. Git history keeps it. The audit log's
+  rotation, which it promised and which wasn't built, is issue #161.
+
 ## [0.74.0] - 2026-10-22
 
 Needs DirXMLDev 0.50.0.

@@ -5,6 +5,21 @@ All notable changes to DirXMLDevWeb are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.76.0] - 2026-10-23
+
+Needs DirXMLDev 0.50.0. Uses DirXML Trace Viewer's `dirxml-trace-core` 1.10.0 (was 1.8.0).
+
+### Fixed
+
+- **Live trace lines carry the vault's time.** Each line of the Trace view is stamped with the time
+  eDirectory reports for the event, not the time it reached the server, so it lines up with the
+  engine's own trace files. With several servers, each line carries its own server's clock. A server
+  that sends no time falls back to ours. (trace-core 1.10.0, from @klasen's PR there.)
+- **Server and driver names with escaped commas.** A name such as `cn=Smith\, John`, or one with an
+  escaped equals sign, plus sign or UTF-8 escape, showed wrongly in the trace's server and driver
+  lists, and the check for which server a connection reaches could miss it. DNs are read the LDAP way
+  now (trace-core 1.10.0).
+
 ## [0.75.0] - 2026-10-23
 
 Needs DirXMLDev 0.50.0.

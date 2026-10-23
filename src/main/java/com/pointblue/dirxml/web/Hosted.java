@@ -47,6 +47,8 @@ import java.util.Properties;
  *   session.hours=8
  *   agents=ci:idm-deployers;claude:idm-editors   # non-browser callers: name:group1|group2
  *   agent.ci.tokenKeychain=idmweb/ci             # each agent's token (or .token, .tokenEnv, .tokenCommand)
+ *   audit.maxBytes=10MB                       # audit.log moves to audit.log.1 before it would pass this (0: never)
+ *   audit.keep=10                             # rotated files kept, oldest deleted (0: keep them all)
  * </pre>
  * An agent sends {@code Authorization: Bearer <token>} and gets a session of its own, with the
  * roles its groups give and its name on every audit line; no cookie, so no CSRF token either.
@@ -71,6 +73,9 @@ public final class Hosted {
     /** Personal agent tokens ({@code agent.tokens}, default on) and their longest life ({@code agent.tokens.maxDays}, default 365). */
     public final boolean agentTokens;
     public final int agentTokensMaxDays;
+    /** The audit log's rotation (#161): {@code audit.maxBytes} (default 10MB; 0 never rotates) and {@code audit.keep} (default 10; 0 keeps all). */
+    public final long auditMaxBytes;
+    public final int auditKeep;
 
     /**
      * Where a person's environments come from: the definitions merged with their own credentials
@@ -101,6 +106,11 @@ public final class Hosted {
         this.dataDir = Path.of(p.getProperty("data.dir", "data").trim()).toAbsolutePath().normalize();
         this.agentTokens = !"false".equalsIgnoreCase(p.getProperty("agent.tokens", "true").trim());
         this.agentTokensMaxDays = Integer.parseInt(p.getProperty("agent.tokens.maxDays", "365").trim());
+        this.auditMaxBytes = bytes("audit.maxBytes", p.getProperty("audit.maxBytes", String.valueOf(Audit.DEFAULT_MAX_BYTES)));
+        this.auditKeep = Integer.parseInt(p.getProperty("audit.keep", String.valueOf(Audit.DEFAULT_KEEP)).trim());
+        if (auditKeep < 0) {
+            throw new IllegalArgumentException("audit.keep is a number of files, 0 or more");
+        }
         // projects=a,b with project.<name>.repo.*; the older single repo.* keys are the project named by repo.name
         for (String n : list(p.getProperty("projects", ""))) {
             Project pr = project(p, "project." + n + ".", n);
@@ -354,5 +364,21 @@ public final class Hosted {
             out.add(principal(p[0], p.length > 1 ? p[1] : p[0], p.length > 2 ? p[2] : null, groups));
         }
         return out;
+    }
+
+    /** A size: a number of bytes, or with KB, MB or GB (1024s), e.g. {@code 10MB}. */
+    static long bytes(String key, String value) {
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("(?i)\\s*(\\d+)\\s*(KB|MB|GB|K|M|G|B)?\\s*").matcher(value);
+        if (!m.matches()) {
+            throw new IllegalArgumentException(key + " is a size: bytes, or a number with KB, MB or GB (got '" + value + "')");
+        }
+        long n = Long.parseLong(m.group(1));
+        String unit = m.group(2) == null ? "B" : m.group(2).toUpperCase();
+        return switch (unit.charAt(0)) {
+            case 'K' -> n * 1024;
+            case 'M' -> n * 1024 * 1024;
+            case 'G' -> n * 1024 * 1024 * 1024;
+            default -> n;
+        };
     }
 }

@@ -1215,7 +1215,7 @@ export interface GitDiff {
   files: { file: string; status: string; from?: string | null; language?: string; before?: string; after?: string }[];
 }
 
-/** The Event Logger's store, per environment (docs/event-logger.md). */
+/** The Event Logger's store, per environment (DirXMLDev docs/event-store.md). */
 export interface EventsDescribe {
   environment: string;
   configured: boolean;

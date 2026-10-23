@@ -27,17 +27,17 @@ the image holds nothing proprietary and must stay that way, so it can live in an
 
 ```bash
 # publish: both architectures, pushed (needs a buildx builder and a login to the registry)
-PUSH=1 ALSO_TAG=latest hosted/docker/build.sh REGISTRY/PROJECT/dirxml-dev-web:0.11.0
+PUSH=1 ALSO_TAG=latest hosted/docker/build.sh REGISTRY/PROJECT/dirxml-dev-web:<version>
 
 # or a local image for one machine
-hosted/docker/build.sh dirxml-dev-web:0.11.0            # PLATFORM=linux/amd64 for an x86 host from a Mac
-docker save dirxml-dev-web:0.11.0 | gzip > dirxml-dev-web-0.11.0.tar.gz   # then docker load on the host
+hosted/docker/build.sh dirxml-dev-web:<version>          # PLATFORM=linux/amd64 for an x86 host from a Mac
+docker save dirxml-dev-web:<version> | gzip > dirxml-dev-web-<version>.tar.gz   # then docker load on the host
 ```
 
 A registry with a self-signed certificate valid longer than 825 days cannot be pushed to from a
 Mac (macOS refuses the certificate; the buildx client checks it, not only the builder). Push
 from a Linux host that trusts it instead — ship the gathered context and run
-`hosted/docker/push-on-host.sh CONTEXT REGISTRY/PROJECT/dirxml-dev-web:0.11.0 latest` there;
+`hosted/docker/push-on-host.sh CONTEXT REGISTRY/PROJECT/dirxml-dev-web:<version> latest` there;
 it makes a buildx builder that knows the certificate and installs binfmt for arm64 once.
 
 The hosts then run `docker compose pull && docker compose up -d` with `IDMWEB_IMAGE` naming the
@@ -48,9 +48,8 @@ registry image.
 the page from the releases (this repo's, DirXMLDev's, the simulator's), checks out DirXMLDev at
 its tag for the helpers and the Terraform module, and runs the same `build.sh` — the engine-jar
 check included. Nothing is built from source there, so the image is reproducible from the tags.
-The package is public (since 2026-10-14), so `docker compose pull` needs no credentials, while
-the repository itself stays private. To build one by hand:
-`gh workflow run image.yml -f version=0.12.0`.
+The package is public, so `docker compose pull` needs no credentials. To build one by hand:
+`gh workflow run image.yml -f version=<version>`.
 
 ## 2. Lay out the host
 
@@ -70,7 +69,7 @@ the repository itself stays private. To build one by hand:
 token, the OIDC client secret, agent tokens. Under `config/`, only the driver secrets hold values.
 Each person's vault password and Git provider token are in their own owner-only file in the data
 volume (`users/<subject>/`), and a token typed to clone a project is in `secrets/<project>.repo.token`
-there; see §7 for what the volume holds. `environments.properties` must hold no password: the
+there; see §6 for what the volume holds. `environments.properties` must hold no password: the
 server will not start with one (docs/multi-user.md).
 
 - `.env`: `PUBLIC_HOST` (the DNS name), `ACME_EMAIL`, the Keycloak admin credentials.
@@ -124,29 +123,7 @@ An agent (CI, a coding agent, a script) does not install anything:
   idmweb idm vault.status --env stg` (`ls /var/lib/idmweb/users` lists the subjects; that person's
   password goes to the vault). An agent reaches a vault through the API, with its own connection.
 
-## 6. The lab (Point Blue)
-
-`https://idmweb.pointbluetech.com:8443` on DockerHost1 (`192.168.103.99`, `~/idmweb/`): Caddy on
-8443 with an internal certificate (443 is Harbor's; the name is private), Keycloak under
-`/idp` with the example realm, the server on the `edir-test3_default` network so `edir3` is
-`ldaps://edir-test3-engine:636`, the engine jars from that container, the repository
-`PointBlueTechnology/idm-lab-config` (synthetic tree) through a deploy key. The generated
-secrets are in Jerry's Keychain under service `idmweb-lab`. Deployed 2026-10-06.
-
-The image comes from the host's Harbor: `harbor.pointbluetech.com/dirxmldev/dirxml-dev-web:<version>`
-(multi-arch), pushed by the robot account `robot$dirxmldev+ci` (token in the same Keychain
-service, item `harbor-robot`). Harbor's certificate is self-signed for ten years, which macOS
-rejects, so the push runs on DockerHost1 itself:
-
-```bash
-hosted/docker/build.sh x 2>/dev/null || true     # gather the context (the tag is unused here)
-tar -C hosted/docker -czf - . | ssh debian@192.168.103.99 'rm -rf ~/idmweb/build && mkdir -p ~/idmweb/build && tar -C ~/idmweb/build -xzf -'
-scp hosted/docker/push-on-host.sh debian@192.168.103.99:~/idmweb/
-ssh debian@192.168.103.99 '~/idmweb/push-on-host.sh ~/idmweb/build harbor.pointbluetech.com/dirxmldev/dirxml-dev-web:0.11.0 latest'
-ssh debian@192.168.103.99 'cd ~/idmweb && sed -i "s#^IDMWEB_IMAGE=.*#IDMWEB_IMAGE=harbor.pointbluetech.com/dirxmldev/dirxml-dev-web:0.11.0#" .env && docker compose pull -q idmweb && docker compose up -d idmweb'
-```
-
-## 7. Operate
+## 6. Operate
 
 - Upgrade: set `IDMWEB_IMAGE` in `.env` to the new version, then `docker compose pull idmweb && docker compose up -d idmweb` ([upgrading.md](upgrading.md): before you upgrade, rolling back).
 - The `idmweb-data` volume holds the workspaces, `audit.log`, `sessions.json`, each person's

@@ -250,7 +250,7 @@ Every view of the page, by area, in every install; the items marked *local and s
   its application type, the driver as a badge on the connector, the drivers that serve the vault
   itself at the foot of each column; hover for facts, click for the flow or the configuration, filter, zoom; *show
   state* colours each driver by its state in the chosen environment; *Download SVG / PNG* for a
-  slide or a document (docs/architecture-view.md).
+  slide or a document.
 - **Developer**: the whole driver set as one tree, as Designer's outline reads in the Developer
   perspective — each driver's configuration, its Subscriber and Publisher policy sets in engine
   order with the policies in linkage order, schema mapping, resources, entitlements, forms and

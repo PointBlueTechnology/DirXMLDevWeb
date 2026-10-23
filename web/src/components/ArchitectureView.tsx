@@ -4,7 +4,7 @@ import { EnvPicker, useEnvironment } from "../env";
 import type { ArchApplication, Architecture, DriverState, Selection } from "../types";
 
 /**
- * The driver set as Designer's Modeler draws it in Architect mode (#32, docs/architecture-view.md):
+ * The driver set as Designer's Modeler draws it in Architect mode (#32):
  * the Identity Vault in the centre with its driver set, one application per driver in two
  * columns with the driver's own icon and its application type's name, the driver drawn as a
  * badge on the connector, the drivers that serve the vault itself at the foot of each column. Hover for the

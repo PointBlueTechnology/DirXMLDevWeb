@@ -24,7 +24,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 /**
- * Trace files of one workspace (docs/trace-viewer.md, T3): recordings the live stream writes and
+ * Trace files of one workspace (features.md, Trace files): recordings the live stream writes and
  * files people upload, kept per project under the data directory. A file is parsed once with the
  * viewer library's reader into an index the page reads in pages, filtered on the server, so a
  * large file never travels whole. One parsed file is kept in memory at a time.

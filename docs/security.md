@@ -14,7 +14,7 @@ configured for one person and one for a team.
 | Roles | none: the one person may do everything | reader, editor, deployer (`roles.*`, docs/hosted-mode.md) |
 | Vault credentials | the `idm` CLI's environments file (`IDM_ENVIRONMENTS`, `./environments.properties`, `~/.idm/environments.properties`), secrets included | the project's definitions in `environments.file` (no secrets; the server will not start with any), each person's bind DN and password in their own `data.dir/users/<subject>/environments.properties` |
 | Where a typed password is kept | the macOS Keychain, the owner-only file, or a variable, command or secret-manager reference | the person's own owner-only file; a deployer may also keep a reference (below). The Keychain is macOS only, so never in the container |
-| Audit log | none | `data.dir/audit.log`, readable by deployers |
+| Audit log | none | `data.dir/audit.log` (owner-only), readable by deployers; rotated by size to `audit.log.1` …, the oldest past `audit.keep` deleted (`audit.keep=0` keeps all) |
 | Typed secrets cross | the loopback connection | the connection to the server: TLS only when `public.url` is https (a team server behind its proxy; the local container stays on the host's loopback) |
 
 The rest holds in both modes unless it names one.

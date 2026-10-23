@@ -152,7 +152,9 @@ ssh debian@192.168.103.99 'cd ~/idmweb && sed -i "s#^IDMWEB_IMAGE=.*#IDMWEB_IMAG
 - The `idmweb-data` volume holds the workspaces, `audit.log`, `sessions.json`, each person's
   files (`users/<subject>/`: vault credentials, Git tokens, traces), clone tokens (`secrets/`) and
   archived projects (`archive/`); the configuration is in `./config`. Back up both.
-- `audit.log` is one JSON line per event; ship it where the customer keeps logs.
+- `audit.log` is one JSON line per event, rotated by size to `audit.log.1` … (`audit.maxBytes`,
+  `audit.keep`: [hosted-mode.md](hosted-mode.md#the-audit-log)). Ship the numbered files where the
+  customer keeps logs; set `audit.keep=0` if nothing may be deleted.
 - Sessions are kept in `<data.dir>/sessions.json` (owner-only): a restart signs nobody out, and
   each person gets their last project and branch back on their next session.
 - `bin/smoke-container.sh` runs the image end to end on a workstation with Docker.

@@ -19,7 +19,7 @@ deploys come from the base branch only, as the repository holds it. The server h
 definitions (`environments.file`, no secrets) with the driver secrets beside them, and each
 person's bind DN and password in their own file under `data.dir/users/<subject>/`
 (docs/multi-user.md); it writes an audit line per sign-in, write, deploy, driver action, trace
-change, commit and push (`data.dir/audit.log`, not rotated yet: issue #161). Roles come from groups: *readers* look; *editors* read, edit and commit;
+change, commit and push (`data.dir/audit.log`, rotated by size: [the audit log](#the-audit-log)). Roles come from groups: *readers* look; *editors* read, edit and commit;
 *deployers* also deploy, control drivers, set trace levels and read the engine's trace file, and
 change the shared environments and driver secrets. Watching a live trace is open to anyone
 signed in.
@@ -51,7 +51,17 @@ roles.deployer=idm-deployers
 session.hours=8                         # 0: never (the one-person install); sessions survive a restart
 release.check=true                      # once a day: is a newer release out? (the top bar says so; false: never ask)
 setup.roots=/srv,/var/lib/idmweb      # where path-based setup may point (default: data.dir and /srv)
+audit.maxBytes=10MB                     # audit.log moves to audit.log.1 before a line would take it past this (KB, MB, GB; 0: never)
+audit.keep=10                           # rotated files kept (audit.log.1 … .10), the oldest deleted (0: keep them all)
 ```
+
+**The audit log.** One JSON line per sign-in, write, deploy, driver action, trace change, commit
+and push, in `data.dir/audit.log`. Before a line would take it past `audit.maxBytes`, the file
+moves to `audit.log.1` and the older ones up by one (`.1` to `.2` …); the ones past `audit.keep`
+are deleted. With the defaults that is at most about 110 MB: the current file and ten 10 MB
+ones. A line is never split between files. The Audit view (deployers) reads them newest first, and
+stops as soon as it has the lines it shows. To keep everything, set `audit.keep=0` and ship the
+rotated files to where your logs are kept; each one is complete once it has a number.
 
 **Roles and the host.** An *editor* reads, edits, commits and pushes, and adds a project by
 uploading a Designer project or export, exporting from a vault, or cloning a remote. Attaching a

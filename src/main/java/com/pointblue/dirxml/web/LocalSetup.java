@@ -20,7 +20,7 @@ import java.util.stream.Stream;
 
 /**
  * {@code idmweb setup}: the local install, one person and one container, written from inside the
- * image so the host needs only Docker (docs/simple-install.md). On {@code /idmweb} (the host's
+ * image so the host needs only Docker (docs/quickstart.md). On {@code /idmweb} (the host's
  * folder, mounted) it writes what {@code setup.sh} writes from a checkout: {@code compose.yml} and
  * {@code .env}, {@code config/hosted.properties}, the tokens in {@code idmweb.env}, the
  * environments split into definitions and your own credentials, and {@code repo.git} seeded with

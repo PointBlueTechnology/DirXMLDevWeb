@@ -19,7 +19,9 @@
   Ticking files picks among those the review listed, and within a file the merge is line by line;
   a deleted file is taken or left whole. A deploy
   always takes the whole scope (a driver or the set): the vault matches a commit, never part of one.
-- The trace view reads over the environment's LDAPS connection and keeps the last 5,000 lines.
+- The trace view reads over the environment's LDAPS connection. It keeps the last 50,000 records
+  and shows the last 15,000 by default; both can be changed in its settings. Longer captures go to
+  a file (*record to a file*), opened from *Trace files*.
 - The simulator view creates plain cases (a driver, a channel, an input document). A case's
   other keys (schema, a fake directory, assertions, a live query source) are honoured when run
   but are edited in its files; comparing with another tree stays with `idm simulate --against`.

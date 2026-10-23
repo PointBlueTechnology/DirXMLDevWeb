@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * The Event Logger's store for the page (docs/event-logger.md): the rows an environment's store
+ * The Event Logger's store for the page (features.md, Events; DirXMLDev docs/event-store.md): the rows an environment's store
  * holds, one row with its modify diff and the other rows of the same engine event, and a row
  * saved as a simulator case in the tree's {@code cases/}. Reads go through the core's read-only
  * {@code EventStore}; the only write is the case directory. A store flagged

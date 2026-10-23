@@ -5,7 +5,7 @@ import type { DevNode, DriverState, Selection } from "../types";
 
 /**
  * The whole driver set as one tree, the way Designer's outline reads in the Developer
- * perspective (#32 A2, docs/architecture-view.md §3): the set's configuration and library, each
+ * perspective (#32): the set's configuration and library, each
  * driver's configuration, its channels with the policy sets in engine order and the policies in
  * linkage order, resources, entitlements, forms, PRDs. Every node opens what the sidebar would;
  * a filter keeps the matching nodes and their ancestors; the driver rows can carry the live

@@ -41,6 +41,8 @@ setup.roots=$WORK
 agents=ci:idm-deployers;reader:
 agent.ci.token=ci-agent-token-0123456789
 agent.reader.token=reader-agent-token-0123456789
+audit.maxBytes=2KB
+audit.keep=0
 ENV
 IDMWEB_AGENT_KIT="$HERE/hosted/agent-kit" IDM_ENVIRONMENTS="$WORK/data/environments.properties" "$HERE/bin/idmweb" serve --hosted "$WORK/hosted.properties" > "$WORK/log" 2>&1 &
 PID=$!
@@ -389,8 +391,19 @@ try:
     s, r, _ = bob.call("POST", "/api/setup/directory", {"project": "outside", "path": "/etc"})
     check("a deployer may attach only under setup.roots (#41)", s == 400 and "outside" in r.get("error", ""))
     # #42: the audit log, deployers only
+    import datetime
+    def when(t):   # 3, 6 or 9 fraction digits: compare as times, not text (#161)
+        return datetime.datetime.fromisoformat(t.replace("Z", "+00:00"))
     s, a, _ = bob.call("GET", "/api/audit?limit=50")
-    check("a deployer reads the audit log (newest first, sign-ins among them)", s == 200 and len(a["entries"]) > 0 and any(e["event"] == "sign-in" for e in a["entries"]) and a["entries"][0]["time"] >= a["entries"][-1]["time"])
+    check("a deployer reads the audit log (newest first, sign-ins among them)", s == 200 and len(a["entries"]) > 0 and any(e["event"] == "sign-in" for e in a["entries"]) and when(a["entries"][0]["time"]) >= when(a["entries"][-1]["time"]))
+    # #161: rotated by size (2KB here, all kept); the view reads across the files, newest first
+    logs = sorted(f for f in os.listdir(os.path.join(work, "data")) if f.startswith("audit.log"))
+    current = len(open(os.path.join(work, "data", "audit.log")).read().splitlines())
+    whole = all(l.startswith("{") and l.endswith("}") for f in logs for l in open(os.path.join(work, "data", f)).read().splitlines())
+    check("the audit log rotates at audit.maxBytes, every line whole", "audit.log.1" in logs and whole
+          and all(os.path.getsize(os.path.join(work, "data", f)) <= 2 * 1024 for f in logs))
+    s, a, _ = bob.call("GET", "/api/audit?limit=2000")
+    check("the Audit view reads past the current file into the rotated ones", s == 200 and len(a["entries"]) > current)
     s, a, _ = bob.call("GET", "/api/audit?event=sign-in&user=alice")
     check("filtered by event and user", s == 200 and a["entries"] and all(e["event"] == "sign-in" and e["user"] == "alice" for e in a["entries"]))
     s, a, _ = bob.call("GET", "/api/audit?event=git-token")
@@ -418,8 +431,12 @@ finally:
     check("sessions.json is the owner's only", oct(os.stat(os.path.join(work, "data2", "sessions.json")).st_mode)[-3:] == "600")
     p2.terminate()
 
-with open(os.path.join(work, "data", "audit.log")) as f:
-    lines = [json.loads(l) for l in f if l.strip()]
+# the whole log, oldest first: audit.log.N … audit.log.1, then audit.log (rotated, #161)
+rotated = sorted((int(f.rsplit(".", 1)[1]) for f in os.listdir(os.path.join(work, "data")) if f.startswith("audit.log.")), reverse=True)
+lines = []
+for f in ["audit.log.%d" % n for n in rotated] + ["audit.log"]:
+    with open(os.path.join(work, "data", f)) as fh:
+        lines += [json.loads(l) for l in fh if l.strip()]
 events = [(l["user"], l["event"], l["outcome"]) for l in lines]
 check("the audit log has sign-ins, the workspace, the edit, the commit and the sign-out, per user",
       ("alice", "sign-in", "ok") in events and ("alice", "workspace.open", "ok") in events and ("alice", "op/gcv.set", "ok") in events and ("alice", "commit+push", "ok") in events and ("bob", "workspace.open", "ok") in events and ("alice", "sign-out", "ok") in events and ("agent:ci", "workspace.open", "ok") in events)

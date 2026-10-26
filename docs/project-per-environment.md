@@ -1,6 +1,6 @@
 # A project per environment: design note
 
-Status: **proposed 2026-10-26; decisions needed (section 8).** Nothing here is built.
+Status: **decided 2026-10-26** (section 8, Jerry: "go with the recommendations"). Building in three phases (section 9); nothing is built yet.
 
 The question: can each environment be a project of its own (a QA project, a production project),
 with a way to compare two projects and move differences from one to the other? This is how many
@@ -140,7 +140,7 @@ person's: the production gate and the typed environment name apply as for any de
 - **Only the current model.** Simplest, and what the existing-environments work built for. But it
   asks a team that keeps a project per environment to merge them first, and some won't.
 
-## 8. Decisions needed
+## 8. Decisions (taken 2026-10-26)
 
 1. **Separate repositories, or environment branches in one?** Recommended: separate projects, as
    asked. The record works for either, so this can be revisited.
@@ -156,6 +156,18 @@ person's: the production gate and the typed environment name apply as for any de
    yes.
 7. **Promoting more than one step** (dev → QA → production): each pair has its own record, so a
    change goes dev → QA, then QA → production. Recommended: yes, no skipping a step by default.
+
+Decided: every recommendation above.
+
+1. **Separate projects**, one repository each; the record would work for environment branches too.
+2. **A promotion always lands on a new branch** of the target, with a pull request when the provider
+   allows; never straight onto `main`.
+3. **An editor of the target project may promote**; merging and deploying are gated as today.
+4. **The map, known differences and record live in the target project** under `promotions/<source>.*`,
+   committed.
+5. **Values move only when ticked.**
+6. **Agents may compare and prepare a promotion branch**, not merge or deploy it.
+7. **One step at a time:** each pair has its own record; no skipping a step by default.
 
 ## 9. Phases
 

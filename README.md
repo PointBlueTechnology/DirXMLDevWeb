@@ -146,7 +146,7 @@ for developing it or for a quick look at a tree. Upgrading an install is running
 | [docs/development.md](docs/development.md) | running from a checkout, layout, tests, releasing |
 | [docs/limits.md](docs/limits.md) | what still goes through Operations or the CLI |
 | [docs/design.md](docs/design.md) | historical: the assessment and phases from before it was built, and why it is built this way |
-| [docs/project-per-environment.md](docs/project-per-environment.md) | design note (proposed): a project per environment, comparing two projects and promoting changes between them with a record of what moved |
+| [docs/project-per-environment.md](docs/project-per-environment.md) | design note (decided 2026-10-26): a project per environment, comparing two projects and promoting changes between them with a record of what moved |
 | [docs/connections-ui.md](docs/connections-ui.md) | design note (built in 0.61.0): the Connections page, and the layout rules every form follows: required before optional, one status and one action per row, rotated passwords made obvious |
 | [CHANGELOG.md](CHANGELOG.md) | every release |
 

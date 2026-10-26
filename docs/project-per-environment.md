@@ -1,6 +1,8 @@
 # A project per environment: design note
 
-Status: **decided 2026-10-26** (section 8, Jerry: "go with the recommendations"). Building in three phases (section 9); nothing is built yet.
+Status: **decided 2026-10-26** (section 8, Jerry: "go with the recommendations"). Building in three phases (section 9):
+R1 (DirXMLDev 0.53.0, [promotion.md](https://github.com/PointBlueTechnology/DirXMLDev/blob/master/docs/promotion.md)) and R2
+(*Compare projects*, [compare-projects.md](compare-projects.md)) are built; R3 is not.
 
 The question: can each environment be a project of its own (a QA project, a production project),
 with a way to compare two projects and move differences from one to the other? This is how many

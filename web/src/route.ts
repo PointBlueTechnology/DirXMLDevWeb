@@ -51,6 +51,8 @@ export function fromHash(hash: string): Selection | null {
     }
     case "traces":
       return { type: "traces" };
+    case "promote":
+      return m.from ? { type: "promote", from: m.from } : { type: "promote" };
     case "flow":
       return m.driver ? { type: "flow", driver: m.driver } : null;
     case "artifact":

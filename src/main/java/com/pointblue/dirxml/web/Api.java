@@ -390,7 +390,7 @@ public final class Api implements HttpHandler {
             }
             Object body = route(session, w, method, path, query, ex);
             boolean startedTask = body instanceof Map && Boolean.TRUE.equals(((Map<?, ?>) body).get("started")) && ((Map<?, ?>) body).containsKey("task");
-            if (!method.equals("GET") && !path.startsWith("/api/git/") && !path.startsWith("/api/sim/detail") && !startedTask) {
+            if (!method.equals("GET") && !path.startsWith("/api/git/") && !path.startsWith("/api/promote/") && !path.startsWith("/api/sim/detail") && !startedTask) {
                 audit.log(session, w, path.substring("/api/".length()), summary(body), outcome(body));
             }
             send(ex, 200, body);
@@ -496,6 +496,9 @@ public final class Api implements HttpHandler {
         CredentialService credentials = w.credentials;
         if (path.startsWith("/api/git/")) {
             return gitRoute(session, w, method, path, query, ex);
+        }
+        if (path.startsWith("/api/promote/")) {
+            return promoteRoute(session, w, method, path, query, ex);
         }
         if (method.equals("GET") && path.equals("/api/vault/task")) {
             // a deploy or rollback's progress and result: by id, or the latest for an environment (none: {})
@@ -1212,6 +1215,55 @@ public final class Api implements HttpHandler {
             }
         }
         return "ok";
+    }
+
+    private PromotionService promotion;
+
+    /**
+     * A project per environment (docs/project-per-environment.md, R2): this workspace's project compared with another
+     * (GET compare, anyone signed in), and the differences chosen promoted into a new branch of it (POST apply, editors).
+     */
+    private Object promoteRoute(Session session, Workspace w, String method, String path, Map<String, String> query, HttpExchange ex) throws IOException {
+        Project project = workspaces.projectOf(w);
+        if (project == null) {
+            throw new TreeService.BadRequest("comparing projects needs a server that holds projects");
+        }
+        synchronized (this) {
+            if (promotion == null) {
+                promotion = new PromotionService(workspaces);
+            }
+        }
+        if (method.equals("GET") && path.equals("/api/promote/projects")) {
+            return promotion.projects(project);
+        }
+        if (method.equals("GET") && path.equals("/api/promote/compare")) {
+            return promotion.compare(project, query.get("from"));
+        }
+        if (method.equals("POST") && path.equals("/api/promote/apply")) {
+            Map<String, Object> req = Json.asMap(Json.parse(new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8)));
+            Map<String, String> contents = new LinkedHashMap<>();
+            for (Map.Entry<String, Object> e : Json.asMap(req.get("contents")).entrySet()) {
+                contents.put(e.getKey(), Json.asString(e.getValue()));
+            }
+            String from = Json.asString(req.get("from"));
+            Map<String, Object> r = promotion.apply(session, sessions, project, from, Json.asString(req.get("revision")),
+                stringList(req.get("objects")), stringList(req.get("values")), contents);
+            Map<String, Object> info = new LinkedHashMap<>();
+            info.put("from", String.valueOf(from));
+            info.put("sourceCommit", String.valueOf(r.get("sourceCommit")));
+            info.put("objects", r.get("promoted"));
+            info.put("values", r.get("values"));
+            if (r.get("branch") != null) {
+                info.put("branch", r.get("branch"));
+                info.put("hash", String.valueOf(r.get("hash")));
+            }
+            if (r.get("refusal") != null) {
+                info.put("refusal", r.get("refusal"));
+            }
+            audit.log(session, w, "promote", info, Boolean.TRUE.equals(r.get("ok")) ? "ok" : "refused");
+            return r;
+        }
+        throw new TreeService.NotFound("no " + method + " " + path);
     }
 
     private PullRequests pullRequests;

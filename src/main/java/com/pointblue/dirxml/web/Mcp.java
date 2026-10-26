@@ -37,7 +37,7 @@ final class Mcp implements HttpHandler {
         "DirXMLDevWeb: an IDM driver set as code (a git workspace of the branch the person has open) and its Identity Vaults.",
         "Rules, the same as the page's:",
         "1. Orient with session, outline, validate; open_branch moves you to the branch the person names (list_branches lists them). Edit the tree with run_operations: preview (dryRun, the default) before applying; list_operations names every operation and its arguments.",
-        "2. Validate after edits; commit with a message. Never commit secrets.",
+        "2. Validate after edits; commit with a message. Never commit secrets. With a project per environment, compare_projects and promote_changes move changes from one project into a new branch of another; merging it is the person's.",
         "3. Before any vault write, run plan_deploy and show the person the plan. deploy, rollback and driver_lifecycle need confirm = the environment's name, typed by the person in chat. Never fill it in yourself.",
         "4. Production deploys come from main, pushed and current; the server refuses otherwise. Never work around a refusal: report it.",
         "5. Never print a secret; tools never return one.",
@@ -428,6 +428,31 @@ final class Mcp implements HttpHandler {
                     body.put("project", a.s("project"));
                 }
                 return new Request("POST", "/api/workspaces/open", body);
+            });
+
+        // a project per environment (docs/compare-projects.md)
+        tool("compare_projects", "This branch's project compared with another project (a project per environment): both read from their base branch as "
+                + "the repository has it, each differing file and value with its bucket (pending, own, both, unpaired, known, unchanged), its driver, "
+                + "and for a file the changed lines (detail, this project '-' to the other '+'). Gives the revision promote_changes needs.",
+            props("from", str("the other project, the source (list_branches names the projects)")), List.of("from"), false,
+            a -> new Request("GET", "/api/promote/compare?brief=true" + a.q("from"), null));
+        edit("promote_changes", "Promote chosen differences from another project into this project: dryRun (the default) checks the choice and writes "
+                + "nothing; with dryRun false, a new branch promote/<from>-<time> is made from the base, the files and values written (this project's "
+                + "values kept unless named in values), validated, committed with the promotion record and pushed, and you are moved to it. "
+                + "Merging and deploying are the person's: offer them the pull request.",
+            props("from", str("the source project"), "revision", str("compare_projects' revision: a stale one is refused"),
+                "objects", Map.of("type", "array", "items", Map.of("type", "string"), "description", "file paths, or a driver's directory (drivers/<name>, its cases too)"),
+                "values", Map.of("type", "array", "items", Map.of("type", "string"), "description", "value keys to take from the source (drivers/<d>.gcv.<name>, …)"),
+                "dryRun", bool("check only (default true)")),
+            List.of("from", "revision"),
+            a -> {
+                Map<String, Object> body = new LinkedHashMap<>();
+                body.put("from", a.s("from"));
+                body.put("revision", a.s("revision"));
+                body.put("objects", a.m.getOrDefault("objects", List.of()));
+                body.put("values", a.m.getOrDefault("values", List.of()));
+                body.put("dryRun", !Boolean.FALSE.equals(a.m.get("dryRun")));
+                return new Request("POST", "/api/promote/apply", body);
             });
 
         // editing the tree

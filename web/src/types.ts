@@ -1449,6 +1449,8 @@ export interface PromoteCompare {
   source: PromoteSide;
   paired: boolean;
   map: boolean;
+  /** Both projects have simulator cases: their files compare as cases/<path>. */
+  cases: boolean;
   revision: string;
   items: PromoteItem[];
   matches: { source: string; target: string; common: number; of: number }[];
@@ -1461,12 +1463,20 @@ export interface PromoteResult {
   newErrors?: { code: string; path: string; message: string }[];
   pair: string;
   sourceCommit: string | null;
-  promoted: string[];
-  values: string[];
-  notes: string[];
+  promoted?: string[];
+  values?: string[];
+  known?: string[];
+  pending?: string[];
+  notes?: string[];
   branch?: string;
   hash?: string;
   pushed?: boolean;
   trailer?: string;
   title?: string;
+}
+
+/** A difference accepted as it is: different on purpose, or to decide later. */
+export interface KnownDecision {
+  decision: "intended" | "later";
+  note?: string;
 }

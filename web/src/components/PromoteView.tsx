@@ -2,7 +2,7 @@ import { DiffEditor } from "@monaco-editor/react";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
 import { monacoTheme } from "../monaco";
-import type { PromoteBucket, PromoteCompare, PromoteItem, PromoteResult, Selection } from "../types";
+import type { KnownDecision, PromoteBucket, PromoteCompare, PromoteItem, PromoteResult, Selection } from "../types";
 
 const LABEL: Record<PromoteBucket, string> = {
   pending: "pending",
@@ -51,6 +51,12 @@ export function PromoteView({ initialFrom, editor, onSelect, onWorkspaceChanged 
   const [edits, setEdits] = useState<Record<string, string>>({});
   const [resets, setResets] = useState(0);
   const [showSettled, setShowSettled] = useState(false);
+  // differences accepted as known, and known ones no longer accepted: committed with the promotion (or alone)
+  const [known, setKnown] = useState<Record<string, KnownDecision>>({});
+  const [forget, setForget] = useState<Set<string>>(new Set());
+  // pairing: the map under review, and what pairing does with each difference (taken as it is by default)
+  const [pairing, setPairing] = useState<{ file: string; current: string | null; text: string } | null>(null);
+  const [pairChoice, setPairChoice] = useState<Record<string, "pending" | "known">>({});
 
   useEffect(() => {
     api.promote
@@ -66,12 +72,15 @@ export function PromoteView({ initialFrom, editor, onSelect, onWorkspaceChanged 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const compare = async (which: string) => {
+  const compare = async (which: string, mapText?: string) => {
     setBusy(`Reading ${projects?.base ?? "the base branch"} of both projects and comparing…`);
     setError(null);
     setRefused(null);
+    setKnown({});
+    setForget(new Set());
+    setPairChoice({});
     try {
-      const r = await api.promote.compare(which);
+      const r = await api.promote.compare(which, mapText);
       setResult(r);
       // pending files to begin with; never a value, never this project's own or both-changed
       setTake(new Set(r.items.filter((i) => i.kind === "file" && i.bucket === "pending").map((i) => i.path)));
@@ -140,11 +149,53 @@ export function PromoteView({ initialFrom, editor, onSelect, onWorkspaceChanged 
     return [...out];
   }, [result, files, take]);
 
+  /** Pairing: the map file as it is, or a proposal (look-alike drivers, nearest servers), compared with. */
+  const startPairing = async () => {
+    setBusy("Proposing a map…");
+    setError(null);
+    try {
+      const m = await api.promote.map(from);
+      const text = m.current ?? m.proposed;
+      setPairing({ file: m.file, current: m.current, text });
+      setShowSettled(true);
+      await compare(from, text);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      setBusy(null);
+    }
+  };
+
+  const pair = async () => {
+    if (!result || !pairing) {
+      return;
+    }
+    setBusy("Pairing into a new branch…");
+    setError(null);
+    setRefused(null);
+    try {
+      const pending = Object.entries(pairChoice).filter(([, c]) => c === "pending").map(([p]) => p);
+      const accepted: Record<string, KnownDecision> = Object.fromEntries(Object.entries(pairChoice).filter(([, c]) => c === "known").map(([p]) => [p, { decision: "intended" }]));
+      const r = await api.promote.pair(from, result.revision, pairing.text, pending, accepted);
+      if (!r.ok) {
+        setRefused(r);
+        return;
+      }
+      onWorkspaceChanged({ type: "changes", against: "base" });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const decide = (path: string, d: KnownDecision | null) => setKnown(({ [path]: _drop, ...rest }) => (d ? { ...rest, [path]: d } : rest));
+  const decisions = Object.keys(known).length + forget.size;
+
   const promote = async () => {
     if (!result) {
       return;
     }
-    setBusy(`Promoting ${files.length} file(s)${values.length ? ` and ${values.length} value(s)` : ""} into a new branch…`);
+    setBusy(files.length + values.length > 0 ? `Promoting ${files.length} file(s)${values.length ? ` and ${values.length} value(s)` : ""} into a new branch…` : "Recording the decisions in a new branch…");
     setError(null);
     setRefused(null);
     try {
@@ -155,7 +206,7 @@ export function PromoteView({ initialFrom, editor, onSelect, onWorkspaceChanged 
           contents[f.path] = text;
         }
       }
-      const r = await api.promote.apply(from, result.revision, files.filter((f) => !isMerged(f)).map((f) => f.path), values.map((v) => v.path), contents);
+      const r = await api.promote.apply(from, result.revision, files.filter((f) => !isMerged(f)).map((f) => f.path), values.map((v) => v.path), contents, known, [...forget]);
       if (!r.ok) {
         setRefused(r);
         return;
@@ -210,13 +261,42 @@ export function PromoteView({ initialFrom, editor, onSelect, onWorkspaceChanged 
               .filter(Boolean)
               .join(", ") || "Nothing to promote."}
           </p>
-          {!result.paired && (
+          {!result.paired && !pairing && (
             <p className="warn-text small" data-testid="promote-unpaired">
-              The pair has no promotion record yet, so every difference is shown plain. Each promotion records what it moved; to start from the two projects as they are
-              now, run <code>bin/idm promote.pair</code> on a branch of this project and merge it.
+              The pair has no promotion record yet, so every difference is shown plain; each promotion records what it moved.{" "}
+              {editor && (
+                <button onClick={() => void startPairing()} disabled={busy !== null} data-testid="promote-pair-start">
+                  Pair with {from}…
+                </button>
+              )}{" "}
+              Pairing records both projects as they are now, so from then on only new changes show.
             </p>
           )}
-          {!result.map && result.matches.length > 0 && (
+          {pairing && (
+            <div className="banner" data-testid="promote-pairing">
+              <p className="small">
+                <strong>Pair with {result.source.project}.</strong> The map in <code>{pairing.file}</code>
+                {pairing.current === null ? ", proposed from drivers that look alike and servers with the nearest names" : ", as the file holds it"}: one line each,{" "}
+                <code>drivers/&lt;{result.source.project}'s name&gt;.name = &lt;this project's&gt;</code> and{" "}
+                <code>servers.&lt;{result.source.project}'s server&gt; = &lt;this project's server's DN&gt;</code>. Compare again after a change. Below, every difference is taken as it is
+                unless you leave it pending (so it shows for promotion) or accept it as known.
+              </p>
+              <textarea className="code" rows={Math.min(10, Math.max(3, pairing.text.split("\n").length + 1))} value={pairing.text} onChange={(e) => setPairing({ ...pairing, text: e.target.value })} spellCheck={false} style={{ width: "100%" }} data-testid="promote-pair-map" />
+              <div className="addrow">
+                <button onClick={() => void compare(from, pairing.text)} disabled={busy !== null} data-testid="promote-pair-compare">
+                  Compare with this map
+                </button>
+                <button className="primary" onClick={() => void pair()} disabled={busy !== null} data-testid="promote-pair-apply">
+                  Pair: {Object.values(pairChoice).filter((c) => c === "pending").length} pending, {Object.values(pairChoice).filter((c) => c === "known").length} known…
+                </button>
+                <button className="link" onClick={() => (setPairing(null), void compare(from))} disabled={busy !== null}>
+                  cancel
+                </button>
+                <span className="muted small">Into a new branch, promote/{result.pair}-pair-&lt;time&gt;, with the map and the record, pushed for review.</span>
+              </div>
+            </div>
+          )}
+          {!pairing && !result.map && result.matches.length > 0 && (
             <div className="small" data-testid="promote-matches">
               Drivers only one project has that look alike under other names. If they are one driver, map them in <code>promotions/{result.pair}.properties</code>:
               <ul className="plain">
@@ -259,7 +339,20 @@ export function PromoteView({ initialFrom, editor, onSelect, onWorkspaceChanged 
                   <ul className="filelist pickable">
                     {list.map((i) => (
                       <li key={i.path}>
-                        {editor && <input type="checkbox" checked={take.has(i.path)} onChange={(e) => toggle(i.path, e.target.checked)} title={i.kind === "value" ? "Take the other project's value" : "Promote this file"} data-testid={"promote-take-" + i.path} />}
+                        {editor && pairing && (
+                          <select
+                            className="small"
+                            value={pairChoice[i.path] ?? ""}
+                            onChange={(e) => setPairChoice(({ [i.path]: _drop, ...rest }) => (e.target.value ? { ...rest, [i.path]: e.target.value as "pending" | "known" } : rest))}
+                            title="What pairing records for this difference"
+                            data-testid={"promote-pair-choice-" + i.path}
+                          >
+                            <option value="">as it is</option>
+                            <option value="pending">leave pending</option>
+                            <option value="known">known</option>
+                          </select>
+                        )}
+                        {editor && !pairing && <input type="checkbox" checked={take.has(i.path)} onChange={(e) => toggle(i.path, e.target.checked)} title={i.kind === "value" ? "Take the other project's value" : "Promote this file"} data-testid={"promote-take-" + i.path} />}
                         <button className={i.path === selected ? "leaf active" : "leaf"} onClick={() => setSelected(i.path)} title={i.path}>
                           {i.kind === "value" ? <span className="badge">V</span> : <span className={"badge st-" + (i.state === "only in the source" ? "added" : i.state === "only in the target" ? "deleted" : "changed")}>{i.state === "only in the source" ? "A" : i.state === "only in the target" ? "D" : "M"}</span>}
                           {i.kind === "value" ? i.path.replace(/^drivers\/[^.]*\.|^driverset\./, "") : i.path.split("/").slice(-2).join("/")}{" "}
@@ -268,6 +361,8 @@ export function PromoteView({ initialFrom, editor, onSelect, onWorkspaceChanged 
                           </span>
                           {i.changedSinceKnown && <span className="pill small" title="Accepted as known once, changed since"> changed since known</span>}
                           {isMerged(i) && <span className="pill small"> merged</span>}
+                          {known[i.path] && <span className="pill ok small"> → known</span>}
+                          {forget.has(i.path) && <span className="pill warn small"> → not known</span>}
                         </button>
                       </li>
                     ))}
@@ -281,6 +376,29 @@ export function PromoteView({ initialFrom, editor, onSelect, onWorkspaceChanged 
               )}
             </div>
             <div className="promote-diff">
+              {item && editor && !pairing && (
+                <div className="addrow tight small" data-testid="promote-decide">
+                  {item.bucket === "known" ? (
+                    <button className="link" onClick={() => setForget((cur) => (cur.has(item.path) ? new Set([...cur].filter((x) => x !== item.path)) : new Set(cur).add(item.path)))}>
+                      {forget.has(item.path) ? "keep it known" : "no longer known"}
+                    </button>
+                  ) : known[item.path] ? (
+                    <button className="link" onClick={() => decide(item.path, null)}>
+                      don't accept it
+                    </button>
+                  ) : (
+                    <>
+                      accept as known:
+                      <button className="link" onClick={() => decide(item.path, { decision: "intended" })} title="Different on purpose: collapsed until either project changes it">
+                        intended
+                      </button>
+                      <button className="link" onClick={() => decide(item.path, { decision: "later" })} title="Set aside for now, to decide later">
+                        to decide later
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
               {item && item.kind === "value" && (
                 <table className="kv" data-testid="promote-value">
                   <tbody>
@@ -364,10 +482,11 @@ export function PromoteView({ initialFrom, editor, onSelect, onWorkspaceChanged 
               {split.join(", ")} {split.length === 1 ? "lists" : "list"} files you are adding or removing: tick {split.length === 1 ? "it" : "them"} too, or the promotion is refused.
             </p>
           )}
-          {editor ? (
+          {editor && pairing ? null : editor ? (
             <div className="addrow">
-              <button className="primary" onClick={() => void promote()} disabled={busy !== null || ticked.length === 0} data-testid="promote-apply">
-                Promote {files.length} file(s){values.length ? ` and ${values.length} value(s)` : ""}…
+              <button className="primary" onClick={() => void promote()} disabled={busy !== null || (ticked.length === 0 && decisions === 0)} data-testid="promote-apply">
+                {ticked.length > 0 ? `Promote ${files.length} file(s)${values.length ? ` and ${values.length} value(s)` : ""}` : "Record"}
+                {decisions > 0 ? `${ticked.length > 0 ? "," : ""} ${decisions} decision(s)` : ""}…
               </button>
               <span className="muted small">
                 Into a new branch, promote/{result.pair}-&lt;time&gt;, made from {result.target.base}: committed with the promotion record and pushed. The page then opens it, and

@@ -10,9 +10,25 @@ The design is [project-per-environment.md](project-per-environment.md). The
 command line underneath is DirXMLDev's `tree.compare` and `promote.*`
 ([promotion.md](https://github.com/PointBlueTechnology/DirXMLDev/blob/master/docs/promotion.md)).
 
-The one-project model, with `overrides/<env>.properties` and a branch merged and
-deployed to each environment in turn ([git-workflow.md](git-workflow.md)), works
-as before.
+The other model, one project deployed to every environment with what differs in
+overrides, is [git-workflow.md](git-workflow.md). Its section
+[Two ways to keep environments](git-workflow.md#two-ways-to-keep-environments) compares the two and
+says when to choose which. Each project of a pair is otherwise an ordinary project with one
+environment: branches, merging and deploying work as that guide describes.
+
+## The first time through
+
+With a QA project and a production project on the server, QA's work merged into its `main`:
+
+1. Open a branch of **production** (its `main` is fine), and choose **Compare projects**, then
+   **Compare with: acme-qa** and **Compare**.
+2. **Pair with acme-qa…**: check the proposed map (drivers and servers QA names differently),
+   **Compare with this map**, and set what to leave pending or accept as known. **Pair** opens a
+   branch with the map and the first record: merge it as any other change (the pull request, or
+   **Merge into main…**).
+3. From then on, **Compare** lists what QA changed since as *pending*, ticked. Look at each file
+   side by side, keep production's lines where you need to, and **Promote**. Review the branch,
+   merge it, and deploy production as usual.
 
 ## Where it is
 
@@ -95,14 +111,49 @@ the next time.
 | Promote (make the branch) | no | yes | yes |
 | Merge, deploy | as for any branch | | |
 
-## Not on the page yet
+## Pairing
 
-- **Pairing.** The first record of a pair, and accepting a difference as known,
-  are `bin/idm promote.pair` and `promote.accept` for now. Commit their result on
-  a branch of the target and merge it. Until a pair has a record, every
-  difference shows as *not paired yet*, and each promotion records what it moved.
-- **Cases** (`cases/`) don't move with their driver yet.
-- **Agents:** no MCP tools for this yet.
+Until a pair has a record, every difference shows as *not paired yet*. A promotion records only
+what it moved. **Pair with <project>…** (in the notice above the list, for editors) takes the first
+record, so from then on only new changes show:
+
+1. **The map.** The page shows `promotions/<project>.properties` as the file holds it. With no
+   file yet, it proposes one:
+   - a `drivers/<their name>.name = <this project's name>` line for each driver that looks like
+     one only this project has (the same shim, a similar name, policies in common);
+   - when the two projects' servers differ, each of their servers onto the one here with the
+     nearest name.
+
+   Edit it, then **Compare with this map** to see the differences it leaves.
+2. **Each difference** is taken as it is unless you choose otherwise:
+   - **leave pending**: it shows as pending, to promote;
+   - **known**: accepted as it is.
+3. **Pair** writes the map (as you wrote it, comments included), the record and the known
+   differences into a new branch, `promote/<project>-pair-<time>`. It commits them, pushes, and
+   opens the branch for review, like a promotion.
+
+After a change to the map (a driver renamed), pair again: the record names files by this
+project's paths.
+
+## Known differences
+
+Pick a difference to see, above it, **accept as known: intended** (different on purpose) or **to
+decide later**. A known difference picked from *show N known or unchanged* offers **no longer
+known**. The decisions go into `promotions/<project>.known.json` with the next promotion, or on
+their own (**Record N decision(s)…**), in a new branch, the same way. A known difference stays
+collapsed until either project changes it, and then shows again, marked *changed since known*.
+
+## Cases
+
+When both projects have simulator cases (each project's `cases` directory), each case's files
+compare as `cases/<path>`, under the driver its `case.properties` names (`driver=`, read as this
+project names the driver). Ticked and promoted like any file, a case's `driver=` is written with
+this project's name for the driver.
+
+## Agents
+
+`compare_projects` and `promote_changes` do the same over MCP ([agents.md](agents.md)). An agent
+may prepare a promotion branch and offer you the pull request. Merging and deploying are yours.
 
 ## The API
 
@@ -112,8 +163,11 @@ the session has open, and through it on that branch's project.
 | Call | Who | Fields | Answer |
 |---|---|---|---|
 | `GET /api/promote/projects` | anyone signed in | | `project`, `base`, `inPlace`, and `projects`: the others, each with `name` and `base` |
-| `GET /api/promote/compare` | anyone signed in | **`from`**: another project's name | `pair`; `target` and `source` (each `project`, `base`, `commit`); `paired`; `map` (whether the pair has a map); `revision`; `items`; `matches`; `notes` |
-| `POST /api/promote/apply` | editors, deployers | **`from`**; **`revision`** (from the comparison); `objects` (file paths); `values` (value keys); `contents` (`{"<path>": "<merged text>"}`, which chooses that file too). At least one file or value | `ok`; then `branch`, `hash`, `pushed`, `trailer`, `title`, `promoted`, `values`, `changedFiles`, `deletedFiles`; or `refusal` and `newErrors` |
+| `GET /api/promote/compare` | anyone signed in | **`from`**: another project's name; `map`: a map's text to compare with instead of the pair's file | `pair`; `target` and `source` (each `project`, `base`, `commit`); `paired`; `map` (whether the pair has a map file); `cases` (whether both have cases); `revision`; `items`; `matches`; `notes` |
+| `GET /api/promote/compare?brief=true` | anyone signed in | **`from`** | the same without both sides' texts: each file's changed lines (`detail`) instead |
+| `GET /api/promote/map` | anyone signed in | **`from`** | `file` (the map's path), `current` (its text, or null) and `proposed` (a map to start from) |
+| `POST /api/promote/apply` | editors, deployers | **`from`**; **`revision`** (from the comparison); `objects` (file paths, or `drivers/<name>` with its cases); `values` (value keys); `contents` (`{"<path>": "<merged text>"}`, which chooses that file too); `known` (`{"<path>": {"decision": "intended" or "later", "note": "…"}}`); `forget` (paths no longer known); `dryRun` (`true` checks, makes no branch). At least one of them | `ok`; then `branch`, `hash`, `pushed`, `trailer`, `title`, `promoted`, `values`, `known`, `forget`, `changedFiles`, `deletedFiles`; or `refusal` and `newErrors` |
+| `POST /api/promote/pair` | editors, deployers | **`from`**; **`revision`** (from a comparison made with the same `map`); `map` (the map file's text, written as it is; omit to keep the pair's file); `pending` (paths left pending); `known` (as above) | `ok`, `branch`, `hash`, `pushed`, `notes`; or `refusal` |
 
 Each item of a comparison has:
 
@@ -138,5 +192,6 @@ curl -s -X POST https://idm.example.com/api/promote/apply -H "Authorization: Bea
   -d "{\"from\":\"acme-qa\",\"revision\":\"$(jq -r .revision compare.json)\",\"objects\":[\"drivers/AD/subscriber/sub-ctp.policy.xml\"]}"
 ```
 
-Each promotion, made or refused (a stale review is not), is in the audit log as `promote`, with the
-source project, its commit, the files and values, and the branch made.
+Each promotion and each pairing, made or refused (a stale review and a dry run are not), is in the
+audit log as `promote` or `promote-pair`, with the source project, its commit, what was chosen, and
+the branch made.

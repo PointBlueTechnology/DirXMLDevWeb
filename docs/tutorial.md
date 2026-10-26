@@ -332,6 +332,11 @@ a branch of its own, deployed to dev, merged into `main`, then promoted to test 
 [git-workflow.md](git-workflow.md) walks through that, and through setting up the environments of
 one driver set. Read it next.
 
+If your team keeps a project per environment instead (a QA project and a production project, each
+its own repository), **Compare projects** moves changes from one into the other, file by file, on a
+branch for review: [compare-projects.md](compare-projects.md) walks through a first pairing and a
+first promotion.
+
 Also:
 
 - The same steps from the command line run in your workspace of the branch you have open:

@@ -5,6 +5,17 @@ All notable changes to DirXMLDevWeb are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.77.0] - 2026-10-26
+
+Needs DirXMLDev 0.52.0 (was 0.50.0).
+
+### Changed
+
+- **DirXMLDev 0.52.0 in the server and the image** (the container's `idm` reports 0.52.0). It builds
+  against trace-core 1.10.0, the version the image already carried since 0.76.0, and adds
+  `Vault.open` over a caller's own connection for Directory Console. Nothing changes on the page or
+  in the CLIs' behaviour.
+
 ## [0.76.0] - 2026-10-23
 
 Needs DirXMLDev 0.50.0. Uses DirXML Trace Viewer's `dirxml-trace-core` 1.10.0 (was 1.8.0).

@@ -5,6 +5,29 @@ All notable changes to DirXMLDevWeb are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+Needs DirXMLDev 0.55.0.
+
+### Added
+
+- **Compare projects: pairing on the page.** **Pair with <project>…** proposes the map (look-alike
+  drivers, the nearest-named servers) or shows the pair's file, compares with it as you edit it,
+  and lets you leave differences pending or accept them as known. Then it writes the map (as
+  written), the first record and the known differences into a new branch, `promote/<project>-pair-<time>`,
+  committed and pushed for review. `GET /api/promote/map`, `POST /api/promote/pair`,
+  `GET /api/promote/compare?map=`.
+- **Known differences on the page:** accept a difference as known (intended, or to decide later),
+  or a known one as no longer known. The decisions go with the next promotion, or alone in a
+  branch of their own (`known`, `forget` on `POST /api/promote/apply`).
+- **Cases move with their driver:** when both projects have simulator cases, their files compare
+  and promote as `cases/<path>`, with `driver=` written as this project names the driver.
+- **Agents:** MCP `compare_projects` (each difference with its bucket and changed lines) and
+  `promote_changes` (dry run by default; the branch otherwise). `GET /api/promote/compare?brief=true`,
+  `dryRun` on `POST /api/promote/apply`.
+- **Docs:** compare-projects.md (pairing, known differences, cases, agents, a first time
+  through), agents.md (the two tools), the tutorial's next steps.
+
 ## [0.78.0] - 2026-10-26
 
 Needs DirXMLDev 0.54.0.

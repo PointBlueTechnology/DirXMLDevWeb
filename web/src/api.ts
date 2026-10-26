@@ -1,4 +1,4 @@
-import type { EnvCompareResult, CacheView, CaseFiles, CasePlan, EventDetail, EventRow, EventsDescribe, TraceFileEntry, VaultPolicies, PolicyMembers, AppQueryResult, DriverHealth, LogLevel, DriverRights, DriverSetAdmin, EngineMetrics, WorkOrders, EmailServer, EngineInfo, DriverDetail, TraceShow, TraceTailResult, NamedPasswords, OperateOutcome, PullResult, NewProjectFields, ProjectExportResult, PullRequestInfo, PullRequestCreated, GitTokenHost, MergePreview, MergeResult, Conflicts, MergedBranches, PromoteCompare, PromoteResult } from "./types";
+import type { EnvCompareResult, CacheView, CaseFiles, CasePlan, EventDetail, EventRow, EventsDescribe, TraceFileEntry, VaultPolicies, PolicyMembers, AppQueryResult, DriverHealth, LogLevel, DriverRights, DriverSetAdmin, EngineMetrics, WorkOrders, EmailServer, EngineInfo, DriverDetail, TraceShow, TraceTailResult, NamedPasswords, OperateOutcome, PullResult, NewProjectFields, ProjectExportResult, PullRequestInfo, PullRequestCreated, GitTokenHost, MergePreview, MergeResult, Conflicts, MergedBranches, PromoteCompare, PromoteResult, KnownDecision } from "./types";
 import type { TraceRec } from "./trace/model";
 import type { AppSchema, Architecture, DevNode, DeployChoices, DriverAssociations, ObjectInspection, PasswordSync, VaultJobs, VaultSnapshot, SchemaDiffResult, ProjectArchive, ProjectArchiveResult, Artifact, AuditEntry, BuildResult, ConfigView, Connections, DeployResult, EnvSecrets, FetchResult, FormData as FormDoc, GitDiff, GitStatus, ImportResult, LifecycleResult, OpCall, OpResult, OpSpec, Outline, OverridesData, PackagePrompts, PackagesData, PrdData, RoleCatalog, SchemaActionResult, SchemaClass, SchemaData, Session, SetupResult, SimCaseFiles, SimCases, SimDetail, SimRun, SiteListing, TreeFile, UpdateSites, Validation, VaultDiffResult, VaultEnvironments, VaultStatus, VaultTask, VaultCertificate, SignInCheck, ServerAddress, ProjectRepository, RepositoryCheck, WorkspacesInfo } from "./types";
 import type { FishboneModel } from "./fishbone/types";
@@ -178,10 +178,16 @@ export const api = {
   openWorkspace: (branch: string, project?: string) => call<{ workspace: string; project: string | null; branch: string }>("POST", "/api/workspaces/open", { branch, project }),
   promote: {
     projects: () => call<{ project: string; base: string; inPlace: boolean; projects: { name: string; base: string }[] }>("GET", "/api/promote/projects"),
-    compare: (from: string) => call<PromoteCompare>("GET", `/api/promote/compare?from=${q(from)}`),
+    /** With map, the comparison uses that map (the map file's text) instead of the pair's file. */
+    compare: (from: string, map?: string) => call<PromoteCompare>("GET", `/api/promote/compare?from=${q(from)}${map !== undefined ? `&map=${q(map)}` : ""}`),
+    /** The pair's map file (or null) and a proposal to start from. */
+    map: (from: string) => call<{ file: string; current: string | null; proposed: string }>("GET", `/api/promote/map?from=${q(from)}`),
     /** Into a new branch of this project, committed and pushed; the session moves to it. */
-    apply: (from: string, revision: string, objects: string[], values: string[], contents: Record<string, string>) =>
-      call<PromoteResult>("POST", "/api/promote/apply", { from, revision, objects, values, contents }),
+    apply: (from: string, revision: string, objects: string[], values: string[], contents: Record<string, string>, known: Record<string, KnownDecision>, forget: string[]) =>
+      call<PromoteResult>("POST", "/api/promote/apply", { from, revision, objects, values, contents, known, forget }),
+    /** The pair's first record, with the map and the decisions, into a new branch of this project. */
+    pair: (from: string, revision: string, map: string, pending: string[], known: Record<string, KnownDecision>) =>
+      call<PromoteResult>("POST", "/api/promote/pair", { from, revision, map, pending, known }),
   },
   git: {
     status: () => call<GitStatus>("GET", "/api/git/status"),

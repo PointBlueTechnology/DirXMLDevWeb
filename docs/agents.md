@@ -113,6 +113,15 @@ with a note: narrow the request (one driver, one path).
 | `open_branch` | **`branch`**: letters, digits, `.`, `_`, `-` and `/`; `project`: another project | works on that branch from now on (a new name branches from the base branch) |
 | `commit` | **`message`**; `push`: `true` to push too | commits the workspace's changes |
 
+**A project per environment** ([compare-projects.md](compare-projects.md)):
+
+| Tool | Arguments | What it does |
+|---|---|---|
+| `compare_projects` | **`from`**: the other project | this project and the other, from both base branches: each differing file and value with its bucket (`pending`, `own`, `both`, `unpaired`, `known`, `unchanged`), its driver, and a file's changed lines (`detail`); the `revision` to promote with. Any role |
+| `promote_changes` | **`from`**; **`revision`** (from `compare_projects`); `objects`: file paths or `drivers/<name>` (its cases too); `values`: value keys; `dryRun`: `true` (default) checks, `false` makes the branch | a new branch `promote/<from>-<time>` from the base, the files and values written (this project's values kept unless named), validated, committed with the promotion record and pushed; you are moved to it. Editors |
+
+An agent may prepare a promotion and offer you the pull request. Merging and deploying it are yours.
+
 `run_operations` fetches the tree's revision itself, so an edit planned against an older tree is
 refused instead of overwriting someone else's change. Example arguments:
 

@@ -299,6 +299,9 @@ check("MCP: list_branches names the branch the agent opened as one of yours", "f
 s, bad, _ = mcp({"jsonrpc": "2.0", "id": 16, "method": "tools/call", "params": {"name": "open_branch", "arguments": {"branch": "../escape"}}})
 check("MCP: a bad branch name is refused", bad["result"]["isError"])
 mcp({"jsonrpc": "2.0", "id": 17, "method": "tools/call", "params": {"name": "open_branch", "arguments": {"branch": page_branch}}})
+check("MCP: compare_projects and promote_changes are listed", "compare_projects" in names and "promote_changes" in names)
+s, cp, _ = mcp({"jsonrpc": "2.0", "id": 18, "method": "tools/call", "params": {"name": "compare_projects", "arguments": {"from": "nope"}}})
+check("MCP: compare_projects names a project the server holds", cp["result"]["isError"] and "no project 'nope'" in cp["result"]["content"][0]["text"])
 s, rl, _ = mcp({"jsonrpc": "2.0", "id": 8, "method": "resources/list"})
 uris = [x["uri"] for x in rl["result"]["resources"]]
 check("MCP: the agent kit is listed as resources", s == 200 and "dirxmldev://kit/AGENTS.md" in uris)

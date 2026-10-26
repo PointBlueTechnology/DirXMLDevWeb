@@ -23,6 +23,8 @@ describe("the selection in the address", () => {
       { type: "trace", file: "edir3/all-20261008-101500.trace" },
       { type: "trace", env: "edir3", popout: "1" },
       { type: "traces" },
+      { type: "promote" },
+      { type: "promote", from: "acme-qa" },
     ];
     for (const s of all) {
       expect(fromHash(toHash(s))).toEqual(s);

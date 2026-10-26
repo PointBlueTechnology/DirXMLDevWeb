@@ -11,6 +11,7 @@ import { FlowView } from "./components/FlowView";
 import { OperationsView } from "./components/OperationsView";
 import { AuditView } from "./components/AuditView";
 import { ProjectsView } from "./components/ProjectsView";
+import { PromoteView } from "./components/PromoteView";
 import { ArchitectureView } from "./components/ArchitectureView";
 import { DeveloperView } from "./components/DeveloperView";
 import { SEVERITIES, ValidationPanel, ValidationSummary } from "./components/ValidationPanel";
@@ -90,6 +91,8 @@ export function App() {
   const [revision, setRevision] = useState<string>("");
   const [live, setLive] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // how many projects the server holds: Compare projects is offered when there is another one
+  const [projectCount, setProjectCount] = useState(0);
   const [selection, setSelectionState] = useState<Selection>(() => fromHash(window.location.hash) ?? { type: "home" });
   // every selection is an entry in the browser's history: Back and Forward move between views
   const setSelection = useCallback((s: Selection) => {
@@ -244,6 +247,24 @@ export function App() {
     return null;
   };
 
+  useEffect(() => {
+    if (session?.mode === "hosted") {
+      api
+        .workspaces()
+        .then((w) => setProjectCount(w.projects?.length ?? 0))
+        .catch(() => setProjectCount(0));
+    }
+  }, [session?.mode, session?.project]);
+
+  /** The session moved to another workspace (a branch opened, a promotion's new branch): read it, then show {@code next}. */
+  const workspaceChanged = (next: Selection) => {
+    setLoading("Reading the tree…");
+    void loadSession().then(() => {
+      setStreamKey((k) => k + 1);
+      return reload();
+    });
+    setSelection(next);
+  };
   if (selection.type === "trace" && selection.popout) {
     // a pop-out window: the trace viewer alone, full height — live for an environment, or a trace file
     return (
@@ -282,14 +303,7 @@ export function App() {
         <RepoBar
           session={session}
           revision={revision}
-          onWorkspaceChanged={() => {
-            setLoading("Reading the tree…");
-            void loadSession().then(() => {
-              setStreamKey((k) => k + 1);
-              return reload();
-            });
-            setSelection({ type: "home" });
-          }}
+          onWorkspaceChanged={() => workspaceChanged({ type: "home" })}
           onBusy={(what) => setLoading(what)}
           onAddProject={() => setAddingProject(true)}
           onSelect={setSelection}
@@ -378,6 +392,11 @@ export function App() {
           <button className={selection.type === "vault" ? "navbtn active" : "navbtn"} onClick={() => setSelection({ type: "vault" })}>
             Vault
           </button>
+          {session?.mode === "hosted" && projectCount > 1 && (
+            <button className={selection.type === "promote" ? "navbtn active" : "navbtn"} onClick={() => setSelection({ type: "promote" })} title="This project compared with another one, and differences promoted into a new branch: a project per environment" data-testid="nav-promote">
+              Compare projects
+            </button>
+          )}
           <button className={selection.type === "traces" ? "navbtn active" : "navbtn"} onClick={() => setSelection({ type: "traces" })} title="Recordings of the live trace and uploaded trace files, in the viewer">
             Trace files
           </button>
@@ -439,6 +458,7 @@ export function App() {
           {selection.type === "form" && <FormView key={selection.driver + "/" + selection.name} driver={selection.driver} name={selection.name} revision={revision} onSelect={setSelection} onSaved={reload} />}
           {selection.type === "roles" && <RolesView revision={revision} onSaved={reload} />}
           {selection.type === "audit" && <AuditView />}
+          {selection.type === "promote" && <PromoteView key={selection.from ?? ""} initialFrom={selection.from} editor={session?.user.editor ?? true} onSelect={setSelection} onWorkspaceChanged={workspaceChanged} />}
           {selection.type === "projects" && <ProjectsView deployer={session?.user.deployer ?? true} />}
           {selection.type === "architecture" && <ArchitectureView revision={revision} onSelect={setSelection} />}
           {selection.type === "developer" && <DeveloperView revision={revision} onSelect={setSelection} />}

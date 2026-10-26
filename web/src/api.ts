@@ -1,4 +1,4 @@
-import type { EnvCompareResult, CacheView, CaseFiles, CasePlan, EventDetail, EventRow, EventsDescribe, TraceFileEntry, VaultPolicies, PolicyMembers, AppQueryResult, DriverHealth, LogLevel, DriverRights, DriverSetAdmin, EngineMetrics, WorkOrders, EmailServer, EngineInfo, DriverDetail, TraceShow, TraceTailResult, NamedPasswords, OperateOutcome, PullResult, NewProjectFields, ProjectExportResult, PullRequestInfo, PullRequestCreated, GitTokenHost, MergePreview, MergeResult, Conflicts, MergedBranches } from "./types";
+import type { EnvCompareResult, CacheView, CaseFiles, CasePlan, EventDetail, EventRow, EventsDescribe, TraceFileEntry, VaultPolicies, PolicyMembers, AppQueryResult, DriverHealth, LogLevel, DriverRights, DriverSetAdmin, EngineMetrics, WorkOrders, EmailServer, EngineInfo, DriverDetail, TraceShow, TraceTailResult, NamedPasswords, OperateOutcome, PullResult, NewProjectFields, ProjectExportResult, PullRequestInfo, PullRequestCreated, GitTokenHost, MergePreview, MergeResult, Conflicts, MergedBranches, PromoteCompare, PromoteResult } from "./types";
 import type { TraceRec } from "./trace/model";
 import type { AppSchema, Architecture, DevNode, DeployChoices, DriverAssociations, ObjectInspection, PasswordSync, VaultJobs, VaultSnapshot, SchemaDiffResult, ProjectArchive, ProjectArchiveResult, Artifact, AuditEntry, BuildResult, ConfigView, Connections, DeployResult, EnvSecrets, FetchResult, FormData as FormDoc, GitDiff, GitStatus, ImportResult, LifecycleResult, OpCall, OpResult, OpSpec, Outline, OverridesData, PackagePrompts, PackagesData, PrdData, RoleCatalog, SchemaActionResult, SchemaClass, SchemaData, Session, SetupResult, SimCaseFiles, SimCases, SimDetail, SimRun, SiteListing, TreeFile, UpdateSites, Validation, VaultDiffResult, VaultEnvironments, VaultStatus, VaultTask, VaultCertificate, SignInCheck, ServerAddress, ProjectRepository, RepositoryCheck, WorkspacesInfo } from "./types";
 import type { FishboneModel } from "./fishbone/types";
@@ -176,6 +176,13 @@ export const api = {
     },
   },
   openWorkspace: (branch: string, project?: string) => call<{ workspace: string; project: string | null; branch: string }>("POST", "/api/workspaces/open", { branch, project }),
+  promote: {
+    projects: () => call<{ project: string; base: string; inPlace: boolean; projects: { name: string; base: string }[] }>("GET", "/api/promote/projects"),
+    compare: (from: string) => call<PromoteCompare>("GET", `/api/promote/compare?from=${q(from)}`),
+    /** Into a new branch of this project, committed and pushed; the session moves to it. */
+    apply: (from: string, revision: string, objects: string[], values: string[], contents: Record<string, string>) =>
+      call<PromoteResult>("POST", "/api/promote/apply", { from, revision, objects, values, contents }),
+  },
   git: {
     status: () => call<GitStatus>("GET", "/api/git/status"),
     diff: (against: "head" | "base" | "upstream") => call<GitDiff>("GET", `/api/git/diff?against=${against}`),

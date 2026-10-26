@@ -1496,3 +1496,37 @@ a.button { display: inline-block; padding: 5px 10px; border: 1px solid var(--bor
 .drift-driver > summary { cursor: pointer; padding: 3px 0; }
 .nowrap { white-space: nowrap; }
 .match { margin: 6px 0; }
+
+/* Compare projects: the differences by driver on the left, the selected one on the right */
+.promote-body {
+  display: flex;
+  gap: 12px;
+  height: calc(100vh - 330px);
+  min-height: 360px;
+  margin: 8px 0;
+}
+.promote-side {
+  width: 360px;
+  flex: none;
+  overflow: auto;
+}
+.promote-side h4 {
+  margin: 8px 0 2px;
+}
+.promote-diff {
+  flex: 1;
+  min-width: 0;
+}
+@media (max-width: 800px) {
+  .promote-body {
+    flex-direction: column;
+    height: auto;
+  }
+  .promote-side {
+    width: auto;
+    max-height: 40vh;
+  }
+  .promote-diff {
+    height: 60vh;
+  }
+}

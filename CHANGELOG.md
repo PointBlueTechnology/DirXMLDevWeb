@@ -5,6 +5,29 @@ All notable changes to DirXMLDevWeb are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+Needs DirXMLDev 0.54.0.
+
+### Added
+
+- **Compare projects** ([docs/compare-projects.md](docs/compare-projects.md)), for teams that
+  keep a project per environment:
+  - **The comparison:** this project and another, both read from their base branch as the
+    repository has it, in this project's terms (the pair's map, `promotions/<source>.properties`).
+  - **The list:** by driver, each difference sorted by the pair's promotion record into pending,
+    both changed, this project's own, not paired yet, known and unchanged. Values that differ are
+    listed apart and never make their file look changed.
+  - **The review:** each file side by side, this project's against what promoting writes (the
+    other project's logic with this project's values), merged line by line if you want.
+  - **Promote:** the ticked files and values go into a new branch, `promote/<source>-<time>`,
+    made from the base. The result is validated, committed as you with the promotion record and a
+    `Promoted-from:` trailer, and pushed. The page then opens the branch, where the bar offers
+    the pull request. A promotion that wouldn't validate, or that adds a file without its
+    manifest, is refused before any branch is made.
+  - **The audit log** records each one as `promote`.
+  - **API:** `GET /api/promote/projects`, `GET /api/promote/compare`, `POST /api/promote/apply`.
+
 ## [0.77.0] - 2026-10-26
 
 Needs DirXMLDev 0.52.0 (was 0.50.0).

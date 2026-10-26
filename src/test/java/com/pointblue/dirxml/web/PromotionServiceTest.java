@@ -99,6 +99,57 @@ public class PromotionServiceTest {
         git(seed, "push", "-q", "origin", "HEAD:main");
     }
 
+    private static PromotionService.Choices files(String... paths) {
+        PromotionService.Choices ch = new PromotionService.Choices();
+        ch.objects.addAll(List.of(paths));
+        return ch;
+    }
+
+    @Test
+    public void pairingAndAKnownDifferenceLandOnBranchesOfTheirOwn() throws Exception {
+        Path data = tmp.newFolder("data").toPath();
+        Path qaSeed = repo(data, "acme-qa", tree("r1", "users"));
+        repo(data, "acme-prod", tree("r1", "users"));
+        push(qaSeed, tree("qa changed it", "qa-users"), "qa work");
+        Files.writeString(data.resolve("hosted.properties"), "public.url=https://idm.example.com/\ndata.dir=" + data
+            + "\nprojects=acme-qa,acme-prod\nproject.acme-qa.repo.url=" + data.resolve("projects/acme-qa.git")
+            + "\nproject.acme-prod.repo.url=" + data.resolve("projects/acme-prod.git") + "\nroles.editor=*\nroles.deployer=*\n");
+        Workspaces ws = new Workspaces(Hosted.load(data.resolve("hosted.properties")), new Git(data, null));
+        PromotionService svc = new PromotionService(ws);
+        Project prod = ws.project("acme-prod");
+        Session.Store store = new Session.Store(3600);
+        Session alice = store.create(new Session.Principal("alice", "Alice", "alice@example.com", List.of(), true, false));
+
+        Map<String, Object> proposal = svc.proposedMap(prod, "acme-qa");
+        assertEquals(null, proposal.get("current"));
+        String map = "# the two name everything alike\n";
+        Map<String, Object> c = svc.compare(prod, "acme-qa", map);
+        Map<String, String[]> known = new java.util.LinkedHashMap<>();
+        known.put("drivers/AD.gcv.drv.users", new String[] {"intended", "each project's own"});
+        Map<String, Object> r = svc.pair(alice, store, prod, "acme-qa", (String) c.get("revision"), map, List.of(POLICY), known);
+        assertEquals(r.toString(), true, r.get("ok"));
+        String branch = (String) r.get("branch");
+        assertTrue(branch, branch.startsWith("promote/acme-qa-pair-"));
+        Path check = tmp.newFolder("pair").toPath();
+        git(check, "clone", "-q", "--branch", branch, data.resolve("projects/acme-prod.git").toString(), ".");
+        assertTrue(Files.isRegularFile(check.resolve("promotions/acme-qa.json")));
+        assertTrue(Files.readString(check.resolve("promotions/acme-qa.known.json")).contains("each project's own"));
+        assertEquals("the map as written, comment and all", map, Files.readString(check.resolve("promotions/acme-qa.properties")));
+        assertTrue(git(check, "log", "-1", "--format=%B").startsWith("Pair with acme-qa"));
+
+        // a refused pairing makes no branch: a pending path that doesn't differ
+        Map<String, Object> bad = svc.pair(alice, store, prod, "acme-qa", (String) c.get("revision"), map, List.of("drivers/AD/nope.xml"), Map.of());
+        assertFalse(Boolean.TRUE.equals(bad.get("ok")));
+
+        // a known difference alone, without promoting anything
+        Map<String, Object> plain = svc.compare(prod, "acme-qa", null);
+        PromotionService.Choices decision = new PromotionService.Choices();
+        decision.known.put(POLICY, new String[] {"later", null});
+        Map<String, Object> k = svc.apply(alice, store, prod, "acme-qa", (String) plain.get("revision"), decision);
+        assertEquals(k.toString(), true, k.get("ok"));
+        assertEquals("Known differences with acme-qa", k.get("title"));
+    }
+
     @Test
     public void aPolicyPromotedFromQaLandsOnANewBranchOfProduction() throws Exception {
         Path data = tmp.newFolder("data").toPath();
@@ -113,11 +164,11 @@ public class PromotionServiceTest {
         Project prod = ws.project("acme-prod");
 
         assertEquals(List.of(Map.of("name", "acme-qa", "base", "main")), svc.projects(prod).get("projects"));
-        assertTrue("no differences yet", ((List<?>) svc.compare(prod, "acme-qa").get("items")).isEmpty());
+        assertTrue("no differences yet", ((List<?>) svc.compare(prod, "acme-qa", null).get("items")).isEmpty());
 
         // QA changes the policy and its own value, and pushes
         push(qaSeed, tree("qa changed it", "qa-users"), "qa work");
-        Map<String, Object> c = svc.compare(prod, "acme-qa");
+        Map<String, Object> c = svc.compare(prod, "acme-qa", null);
         List<?> items = (List<?>) c.get("items");
         assertEquals(c.toString(), 2, items.size());
         Map<?, ?> file = (Map<?, ?>) items.stream().filter(i -> POLICY.equals(((Map<?, ?>) i).get("path"))).findFirst().orElseThrow();
@@ -131,16 +182,16 @@ public class PromotionServiceTest {
         Session.Store store = new Session.Store(3600);
         Session alice = store.create(new Session.Principal("alice", "Alice", "alice@example.com", List.of(), true, false));
         try {
-            svc.apply(alice, store, prod, "acme-qa", "not-the-revision", List.of(POLICY), List.of(), Map.of());
+            svc.apply(alice, store, prod, "acme-qa", "not-the-revision", files(POLICY));
             fail("a stale review was applied");
         } catch (TreeService.Stale expected) {
             // compare again
         }
-        Map<String, Object> refused = svc.apply(alice, store, prod, "acme-qa", (String) c.get("revision"), List.of("drivers/AD/nope.xml"), List.of(), Map.of());
+        Map<String, Object> refused = svc.apply(alice, store, prod, "acme-qa", (String) c.get("revision"), files("drivers/AD/nope.xml"));
         assertFalse(Boolean.TRUE.equals(refused.get("ok")));
         assertTrue(String.valueOf(refused.get("refusal")).contains("nothing differs"));
 
-        Map<String, Object> r = svc.apply(alice, store, prod, "acme-qa", (String) c.get("revision"), List.of(POLICY), List.of(), Map.of());
+        Map<String, Object> r = svc.apply(alice, store, prod, "acme-qa", (String) c.get("revision"), files(POLICY));
         assertEquals(r.toString(), true, r.get("ok"));
         String branch = (String) r.get("branch");
         assertTrue(branch, branch.matches("promote/acme-qa-\\d{8}-\\d{6}"));

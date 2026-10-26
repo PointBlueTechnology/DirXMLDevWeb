@@ -1237,22 +1237,47 @@ public final class Api implements HttpHandler {
             return promotion.projects(project);
         }
         if (method.equals("GET") && path.equals("/api/promote/compare")) {
-            return promotion.compare(project, query.get("from"));
+            return "true".equals(query.get("brief")) ? promotion.brief(project, query.get("from"))
+                : promotion.compare(project, query.get("from"), query.get("map"));
         }
-        if (method.equals("POST") && path.equals("/api/promote/apply")) {
+        if (method.equals("GET") && path.equals("/api/promote/map")) {
+            return promotion.proposedMap(project, query.get("from"));
+        }
+        if (method.equals("POST") && (path.equals("/api/promote/apply") || path.equals("/api/promote/pair"))) {
             Map<String, Object> req = Json.asMap(Json.parse(new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8)));
-            Map<String, String> contents = new LinkedHashMap<>();
-            for (Map.Entry<String, Object> e : Json.asMap(req.get("contents")).entrySet()) {
-                contents.put(e.getKey(), Json.asString(e.getValue()));
-            }
             String from = Json.asString(req.get("from"));
-            Map<String, Object> r = promotion.apply(session, sessions, project, from, Json.asString(req.get("revision")),
-                stringList(req.get("objects")), stringList(req.get("values")), contents);
+            Map<String, String[]> known = new LinkedHashMap<>();
+            for (Map.Entry<String, Object> e : Json.asMap(req.get("known")).entrySet()) {
+                Map<String, Object> d = Json.asMap(e.getValue());
+                known.put(e.getKey(), new String[] {Json.asString(d.get("decision")), Json.asString(d.get("note"))});
+            }
+            Map<String, Object> r;
             Map<String, Object> info = new LinkedHashMap<>();
             info.put("from", String.valueOf(from));
+            if (path.equals("/api/promote/pair")) {
+                r = promotion.pair(session, sessions, project, from, Json.asString(req.get("revision")), Json.asString(req.get("map")),
+                    stringList(req.get("pending")), known);
+                info.put("pending", r.get("pending"));
+            } else {
+                PromotionService.Choices ch = new PromotionService.Choices();
+                ch.objects.addAll(stringList(req.get("objects")));
+                ch.values.addAll(stringList(req.get("values")));
+                for (Map.Entry<String, Object> e : Json.asMap(req.get("contents")).entrySet()) {
+                    ch.contents.put(e.getKey(), Json.asString(e.getValue()));
+                }
+                ch.known.putAll(known);
+                ch.forget.addAll(stringList(req.get("forget")));
+                ch.dryRun = Boolean.TRUE.equals(req.get("dryRun"));
+                r = promotion.apply(session, sessions, project, from, Json.asString(req.get("revision")), ch);
+                if (ch.dryRun) {
+                    return r;   // nothing made: not an audit event
+                }
+                info.put("objects", r.get("promoted"));
+                info.put("values", r.get("values"));
+                info.put("forget", r.get("forget"));
+            }
             info.put("sourceCommit", String.valueOf(r.get("sourceCommit")));
-            info.put("objects", r.get("promoted"));
-            info.put("values", r.get("values"));
+            info.put("known", r.get("known"));
             if (r.get("branch") != null) {
                 info.put("branch", r.get("branch"));
                 info.put("hash", String.valueOf(r.get("hash")));
@@ -1260,7 +1285,8 @@ public final class Api implements HttpHandler {
             if (r.get("refusal") != null) {
                 info.put("refusal", r.get("refusal"));
             }
-            audit.log(session, w, "promote", info, Boolean.TRUE.equals(r.get("ok")) ? "ok" : "refused");
+            info.values().removeIf(java.util.Objects::isNull);
+            audit.log(session, w, path.endsWith("/pair") ? "promote-pair" : "promote", info, Boolean.TRUE.equals(r.get("ok")) ? "ok" : "refused");
             return r;
         }
         throw new TreeService.NotFound("no " + method + " " + path);

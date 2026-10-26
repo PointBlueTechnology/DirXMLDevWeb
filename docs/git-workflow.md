@@ -12,6 +12,33 @@ committed and deployed once.
 The screenshots use a synthetic driver set, *SynthSet*, with one Loopback driver. Alice is an
 editor, and Bob a deployer.
 
+## Two ways to keep environments
+
+DirXMLDevWeb supports two models. This guide is about the first; [compare-projects.md](compare-projects.md)
+is the second.
+
+| | One project, every environment | A project per environment |
+|---|---|---|
+| The tree | one, deployed to dev, test and production | one per environment, each in its own repository and deployed only to its own vault |
+| What differs per environment | overrides: values, driver names, servers, jobs ([section 2](#2-one-driver-set-three-environments)) | each tree holds its own environment's values, names and servers |
+| How a change moves | a branch, merged into `main`, deployed to each environment in turn | **Compare projects**: picked from the other project's `main` and promoted into a branch of this one, reviewed and merged there |
+| What tells changes apart | git's own history: a merge carries only what changed | the pair's promotion record: what each side changed since the last promotion |
+| Drift between environments | only on purpose (an override, a known difference) | the default: a change reaches production only when someone promotes it |
+| Production's gate | deploys to production only from `main`, as pushed, after test had the same content | the production project's own repository and reviews, and its own gate on `main` |
+
+**Choose one project** for a driver set you build here, or can bring into one tree: a change is
+made once and the same content goes everywhere, with what differs kept in overrides. It is what
+this guide recommends.
+
+**Choose a project per environment** when the environments are kept apart already, as many
+Designer teams do with a project each: different people or repositories own production, or the
+trees differ too much to fold into one. Each project is then set up as in this guide, with one
+environment (`project.<name>.environments`). Changes move between them with **Compare projects**.
+
+A project keeps one model. Switching later is possible both ways: fold the per-environment trees
+into one, with their differences as overrides, or start a project per environment from one tree
+and pair them.
+
 ## The short version
 
 - **One driver set is one project, with one repository and one tree.** Dev, test and production

@@ -10,9 +10,11 @@ The design is [project-per-environment.md](project-per-environment.md). The
 command line underneath is DirXMLDev's `tree.compare` and `promote.*`
 ([promotion.md](https://github.com/PointBlueTechnology/DirXMLDev/blob/master/docs/promotion.md)).
 
-The one-project model, with `overrides/<env>.properties` and a branch merged and
-deployed to each environment in turn ([git-workflow.md](git-workflow.md)), works
-as before.
+The other model, one project deployed to every environment with what differs in
+overrides, is [git-workflow.md](git-workflow.md). Its section
+[Two ways to keep environments](git-workflow.md#two-ways-to-keep-environments) compares the two and
+says when to choose which. Each project of a pair is otherwise an ordinary project with one
+environment: branches, merging and deploying work as that guide describes.
 
 ## The first time through
 

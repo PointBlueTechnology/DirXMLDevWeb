@@ -325,6 +325,7 @@ export type Selection =
   | { type: "projects" }
   | { type: "architecture" }
   | { type: "developer" }
+  | { type: "promote"; from?: string }
   | { type: "operations" };
 
 /** One audit line: who did what, where, with what (names and flags only), and how it went. */
@@ -1413,4 +1414,59 @@ export interface RepositoryCheck {
   tags: number;
   unpushed: { person: string; branch: string; ahead: number; uncommitted: number; pushed: boolean }[];
   message: string;
+}
+
+/** Where a difference between two projects stands, from the pair's promotion record (docs/project-per-environment.md). */
+export type PromoteBucket = "pending" | "own" | "both" | "known" | "unchanged" | "unpaired";
+
+/** One file or value that differs between this project and the one it is compared with. */
+export interface PromoteItem {
+  path: string;
+  kind: "file" | "value";
+  driver: string | null;
+  bucket: PromoteBucket;
+  state: "differs" | "only in the source" | "only in the target";
+  changedSinceKnown: boolean;
+  /** Values: each side's. */
+  source?: string | null;
+  target?: string | null;
+  /** Files: this project's text now and what a promotion writes (null: that side has none); absent when binary. */
+  before?: string | null;
+  after?: string | null;
+  binary?: boolean;
+  language?: string;
+}
+
+export interface PromoteSide {
+  project: string;
+  base: string;
+  commit: string | null;
+}
+
+export interface PromoteCompare {
+  pair: string;
+  target: PromoteSide;
+  source: PromoteSide;
+  paired: boolean;
+  map: boolean;
+  revision: string;
+  items: PromoteItem[];
+  matches: { source: string; target: string; common: number; of: number }[];
+  notes: string[];
+}
+
+export interface PromoteResult {
+  ok: boolean;
+  refusal?: string;
+  newErrors?: { code: string; path: string; message: string }[];
+  pair: string;
+  sourceCommit: string | null;
+  promoted: string[];
+  values: string[];
+  notes: string[];
+  branch?: string;
+  hash?: string;
+  pushed?: boolean;
+  trailer?: string;
+  title?: string;
 }

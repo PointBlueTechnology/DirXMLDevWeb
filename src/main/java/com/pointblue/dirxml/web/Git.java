@@ -96,7 +96,7 @@ public final class Git {
         return token == null ? s : s.replace(token, "•••");
     }
 
-    private static Result must(Result r, String what) {
+    static Result must(Result r, String what) {
         if (!r.ok()) {
             throw new TreeService.BadRequest(what + ": " + (r.err.isBlank() ? r.out : r.err).trim());
         }

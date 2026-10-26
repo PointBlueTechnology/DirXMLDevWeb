@@ -255,6 +255,14 @@ Every view of the page, by area, in every install; the items marked *local and s
   perspective — each driver's configuration, its Subscriber and Publisher policy sets in engine
   order with the policies in linkage order, schema mapping, resources, entitlements, forms and
   PRDs — with a filter, expand and collapse all, and each node opening its editor.
+- **Compare projects** (hosted, more than one project): for a project per environment. This
+  project and another, both from their base branch, each difference by driver and by what the
+  pair's promotion record says changed it (pending, both changed, this project's own, known);
+  files side by side, merged line by line; the chosen files and values promoted into a new branch,
+  validated, committed with the record and pushed for review. *Pair with…* proposes the map of
+  driver names and servers and takes the first record; known differences are accepted from the
+  list; cases move with their driver. MCP `compare_projects` and `promote_changes`
+  (docs/compare-projects.md).
 - **Projects** (hosted, deployers): every project the server holds; *Archive…* writes its
   repository as a git bundle, moves its workspaces and recordings aside under `data.dir/archive/`
   and forgets it, with the bundle to download; *Remove…* only forgets it (docs/hosted-mode.md).

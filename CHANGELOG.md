@@ -5,7 +5,7 @@ All notable changes to DirXMLDevWeb are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.79.0] - 2026-10-26
 
 Needs DirXMLDev 0.55.0.
 
@@ -26,7 +26,9 @@ Needs DirXMLDev 0.55.0.
   `promote_changes` (dry run by default; the branch otherwise). `GET /api/promote/compare?brief=true`,
   `dryRun` on `POST /api/promote/apply`.
 - **Docs:** compare-projects.md (pairing, known differences, cases, agents, a first time
-  through), agents.md (the two tools), the tutorial's next steps.
+  through), agents.md (the two tools), the tutorial's next steps. git-workflow.md opens with the
+  two ways to keep environments side by side, and when to choose which. features.md lists
+  Compare projects.
 
 ## [0.78.0] - 2026-10-26
 

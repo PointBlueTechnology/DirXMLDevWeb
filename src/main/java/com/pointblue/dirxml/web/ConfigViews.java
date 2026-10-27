@@ -1,5 +1,6 @@
 package com.pointblue.dirxml.web;
 
+import com.pointblue.dirxml.dev.deploy.Servers;
 import com.pointblue.dirxml.dev.edit.GcvOps;
 import com.pointblue.dirxml.dev.model.Artifact;
 import com.pointblue.dirxml.dev.model.Driver;
@@ -51,7 +52,32 @@ final class ConfigViews {
         m.put("params", definitions(d.config.get(Driver.SHIM_CONFIG_INFO), null));
         m.put("ecvs", definitions(d.config.get(Driver.ENGINE_CONTROL_VALUES), null));
         m.put("gcvs", gcvs(ds, d));
+        m.put("servers", servers(ds));
         return m;
+    }
+
+    /**
+     * The servers of a set served by several (#134), the primary first: each holds its own copy of a driver's
+     * GCVs, and the tree's are the primary's. Empty on a single-server set, or when the tree doesn't record
+     * which server it was read through.
+     */
+    static List<Object> servers(DriverSet ds) {
+        List<Object> out = new ArrayList<>();
+        String primary = ds.meta.get(Servers.PRIMARY_META);
+        if (ds.servers.size() < 2 || primary == null) {
+            return out;
+        }
+        List<String> order = new ArrayList<>();
+        order.add(primary);
+        order.addAll(Servers.others(ds, primary));
+        for (String dn : order) {
+            Map<String, Object> s = new LinkedHashMap<>();
+            s.put("dn", dn);
+            s.put("name", Servers.dirName(dn));
+            s.put("primary", dn.equalsIgnoreCase(primary));
+            out.add(s);
+        }
+        return out;
     }
 
     static Map<String, Object> driverSet(DriverSet ds) {
@@ -122,7 +148,40 @@ final class ConfigViews {
                 uses.add(um);
             }
             row.put("usedBy", uses);
+            if ("driver".equals(scope)) {
+                row.put("onServers", GcvOps.onServers(ds, d, name));
+            }
             out.add(row);
+        }
+        // a GCV only another server's copy of the driver's values defines: no value on the primary
+        if (d != null) {
+            for (String name : GcvOps.onlyOnServers(d)) {
+                if (GcvOps.find(ds, d, name, index) != null) {
+                    continue;
+                }
+                Map<String, String> on = GcvOps.onServers(ds, d, name);
+                Element def = null;
+                for (String dn : on.keySet()) {
+                    Map<String, Element> own = d.serverConfig.get(dn);
+                    def = own == null ? null : GcvOps.definition(own.get(Driver.CONFIG_VALUES), name);
+                    if (def != null) {
+                        break;
+                    }
+                }
+                if (def == null) {
+                    continue;
+                }
+                Map<String, Object> row = row(def);
+                row.put("value", "");
+                row.put("owner", "drivers/" + d.name);
+                row.put("scope", "driver");
+                row.put("overrideKey", "drivers/" + d.name + ".gcv." + name);
+                row.put("usedBy", List.of());
+                row.put("onServers", on);
+                String primary = ds.meta.get(Servers.PRIMARY_META);
+                row.put("absent", "not defined on " + (primary == null ? "the primary server" : Servers.dirName(primary)));
+                out.add(row);
+            }
         }
         return out;
     }

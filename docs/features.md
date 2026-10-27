@@ -96,6 +96,13 @@ Every view of the page, by area, in every install; the items marked *local and s
   - *GCVs* in scope, each from the place the engine would take it, with a column per environment
     for the values that differ per stage, and *Used by*: every policy and configuration document
     (shim parameters, engine controls, filter) that reads the GCV, each a link.
+    On a driver set served by several servers, each holds its own copy of a driver's GCVs: the
+    Value column names the server it shows (*Value on <server> (primary)*), a note above the table
+    says which servers follow it, and each of the driver's own GCVs has a field per other server,
+    outlined where that server holds a value of its own, *not defined* where its copy lacks the
+    GCV. Typing there sets that server's value (`gcv.set --server`); emptying it puts the primary's
+    back. A GCV only another server defines is listed too, *not defined on <primary>*. GCVs from a
+    resource or the driver set are the same on every server and have no server fields.
   - *Settings*: shim class and authentication, shim parameters, engine control values.
   - *Filter*: classes and attributes with each channel's setting and the merge authority.
   - *Policy sets*: every set as an ordered list; drag or use the arrows to reorder, link, unlink.

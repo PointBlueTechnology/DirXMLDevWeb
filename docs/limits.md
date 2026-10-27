@@ -1,5 +1,9 @@
 # Known limits
 
+- On a driver set served by several servers, the GCV tab shows and sets each server's values; the
+  *Settings* tab's shim parameters, engine control values and shim account are the primary's.
+  Another server's are copied with *Driver set → Servers → Copy server-specific settings…*, or
+  edited in its `drivers/<driver>/servers/<server>/` files.
 - The structured policy editor covers DirXML Script. XSLT and ECMAScript are edited as source.
 - The editor's grammar table (`web/src/policy/grammar.json`) is generated from the DirXML Script
   DTD that ships with Designer by `tools/dtd2grammar.py`; regenerate it for a newer DTD.

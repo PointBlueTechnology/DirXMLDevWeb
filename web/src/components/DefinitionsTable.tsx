@@ -15,10 +15,12 @@ interface Props {
   group?: (row: Definition) => { key: string; title: string; note?: string } | null;
   /** A second line under each definition (where defined, who uses it, per-environment values): the value line keeps its room. */
   meta?: (row: Definition) => ReactNode;
+  /** The Value column's heading, when it says more than "Value" (whose values they are). */
+  valueHead?: ReactNode;
 }
 
 /** Configuration definitions as a table: one row each, with an input that fits the type. */
-export function DefinitionsTable({ rows, staged, onChange, extra, extraHead, onDelete, empty, group, meta }: Props) {
+export function DefinitionsTable({ rows, staged, onChange, extra, extraHead, onDelete, empty, group, meta, valueHead }: Props) {
   let lastGroup: string | null = null;
   // a spanning row needs the real column count: Chrome gives a colspan past the last column only the first one
   const span = extra ? 99 : 3 + (onDelete ? 1 : 0);
@@ -31,7 +33,7 @@ export function DefinitionsTable({ rows, staged, onChange, extra, extraHead, onD
         <tr>
           <th>Name</th>
           <th>Type</th>
-          <th>Value</th>
+          <th>{valueHead ?? "Value"}</th>
           {extraHead}
           {onDelete && <th />}
         </tr>
@@ -61,14 +63,22 @@ export function DefinitionsTable({ rows, staged, onChange, extra, extraHead, onD
               </td>
               <td className="muted">{row.type || "string"}</td>
               <td className="vcell">
-                <ValueInput row={row} value={value} onChange={(v) => onChange(row, v)} />
+                {row.absent ? (
+                  <span className="muted small" title="Only another server's copy of the driver's values defines it">
+                    {row.absent}
+                  </span>
+                ) : (
+                  <ValueInput row={row} value={value} onChange={(v) => onChange(row, v)} />
+                )}
               </td>
               {extra?.(row)}
               {onDelete && (
                 <td>
-                  <button className="mini danger" title="Delete this definition" onClick={() => onDelete(row)}>
-                    ×
-                  </button>
+                  {!row.absent && (
+                    <button className="mini danger" title="Delete this definition" onClick={() => onDelete(row)}>
+                      ×
+                    </button>
+                  )}
                 </td>
               )}
             </tr>,

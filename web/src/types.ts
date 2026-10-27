@@ -246,6 +246,17 @@ export interface Definition {
   overrideKey?: string;
   /** Where the GCV is read: policies by artifact path, a driver's configuration documents by file. */
   usedBy?: { kind: string; path: string; file?: string }[];
+  /** A driver's own GCV on a set served by several servers: server DN → the value that server holds where it differs from the primary's (null: not defined there). */
+  onServers?: Record<string, string | null>;
+  /** Why the row has no value of its own here (a GCV only another server defines). */
+  absent?: string;
+}
+
+/** A server of a driver set served by several (#134); the tree's values are the primary's. */
+export interface ServerRef {
+  dn: string;
+  name: string;
+  primary: boolean;
 }
 
 export interface ConfigView {
@@ -263,6 +274,8 @@ export interface ConfigView {
   params?: Definition[];
   ecvs?: Definition[];
   gcvs: Definition[];
+  /** The set's servers, the primary first; empty unless several serve it. */
+  servers?: ServerRef[];
 }
 
 export interface OverrideRow {

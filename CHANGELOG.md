@@ -5,6 +5,23 @@ All notable changes to DirXMLDevWeb are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+Needs DirXMLDev 0.56.0.
+
+### Added
+
+- **The GCV tab on a driver set served by several servers** (#134). Each server holds its own copy of a
+  driver's GCVs, and the tab showed the primary's without saying so. Now:
+  - the Value column is headed *Value on <server> (primary)*, and a note above the table names the
+    servers that follow it;
+  - each of the driver's own GCVs has a field per other server, outlined where that server holds a
+    value of its own and *not defined* where its copy lacks the GCV. Typing sets that server's value
+    (`gcv.set --server`, through the review); emptying it puts the primary's back;
+  - a GCV only another server defines is listed, *not defined on <primary>*, with no delete button.
+
+  GCVs from a resource or the driver set are the same on every server and have no server fields.
+
 ## [0.79.0] - 2026-10-26
 
 Needs DirXMLDev 0.55.0.

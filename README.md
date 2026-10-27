@@ -50,7 +50,8 @@ written.
 ![Policy sets](docs/screenshots/config-policy-sets.png)
 
 **GCVs** — each global configuration value in the driver's scope, where it is defined, and
-every policy that reads it.
+every policy that reads it. On a driver set served by several servers, the values are the
+primary's, and each of the driver's own GCVs has a field for every other server's value.
 
 ![GCVs](docs/screenshots/config-gcvs.png)
 

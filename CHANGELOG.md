@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.80.0] - 2026-10-27
+
 Needs DirXMLDev 0.56.0.
 
 ### Added
@@ -21,6 +23,10 @@ Needs DirXMLDev 0.56.0.
   - a GCV only another server defines is listed, *not defined on <primary>*, with no delete button.
 
   GCVs from a resource or the driver set are the same on every server and have no server fields.
+
+### Changed
+
+- **README screenshots retaken** on the current page, from one lab driver set; the GCV shot shows the per-server field.
 
 ## [0.79.0] - 2026-10-26
 

@@ -26,6 +26,10 @@ const SCOPE_GROUPS: Record<string, { key: string; title: string; note?: string }
  * The GCVs in a driver's scope (or the driver set's): each from the place the engine would take
  * it, editable there through `gcv.set`. A value that differs per environment is set in the environment
  * columns, which write `overrides/<env>.properties` and leave the base alone.
+ *
+ * On a driver set served by several servers each server holds its own copy of a driver's GCVs (#134).
+ * The Value column is the primary's, which a server without its own value follows; each other server
+ * has a field beside the driver's own GCVs, written with `gcv.set --server`.
  */
 export function GcvEditor({ config, overrides, canOverride, pending, onOpen }: Props) {
   const driver = config.driver;
@@ -34,6 +38,38 @@ export function GcvEditor({ config, overrides, canOverride, pending, onOpen }: P
   const [draft, setDraft] = useState({ name: "", type: "string", display: "", value: "" });
   const envs = [...new Set([...(overrides?.environments ?? []), ...extraEnvs])];
   const scope = driver ? `drivers/${driver}` : "driverset";
+  const servers = driver ? (config.servers ?? []) : [];
+  const primary = servers.find((s) => s.primary);
+  const others = servers.filter((s) => !s.primary);
+
+  /** What a server holds for a row: its own value where it differs, else the primary's (undefined); null = not defined there. */
+  const serverOwn = (row: Definition, dn: string): string | null | undefined =>
+    row.onServers && dn in row.onServers ? row.onServers[dn] : row.absent ? null : undefined;
+
+  const serverValue = (row: Definition, dn: string): string => {
+    const staged = pending.ops.find((o) => o.key === `gcvsrv:${dn}:${row.name}`);
+    if (staged) {
+      return staged.args.value === row.value ? "" : (staged.args.value ?? "");
+    }
+    return serverOwn(row, dn) ?? "";
+  };
+
+  const setServerValue = (row: Definition, server: { dn: string; name: string }, value: string) => {
+    const key = `gcvsrv:${server.dn}:${row.name}`;
+    const own = serverOwn(row, server.dn);
+    // empty: back to the primary's value (a copy equal to the primary's is dropped)
+    const target = value === "" && !row.absent ? row.value : value;
+    if (own === undefined ? target === row.value : target === own) {
+      pending.put(key, null);
+      return;
+    }
+    const args: Record<string, string> = { driver: driver ?? "", name: row.name, value: target, server: server.name };
+    pending.put(key, {
+      name: "gcv.set",
+      args,
+      label: value === "" && !row.absent ? `${server.name}: ${row.name} back to ${primary?.name ?? "the primary"}'s value` : `${server.name}: ${row.name} = ${value}`,
+    });
+  };
 
   const stagedValue = (name: string) => pending.ops.find((o) => o.key === `gcv:${name}`)?.args.value;
 
@@ -91,7 +127,16 @@ export function GcvEditor({ config, overrides, canOverride, pending, onOpen }: P
 
   return (
     <div className="pad">
+      {primary && (
+        <p className="muted small servers-note" data-testid="gcv-servers-note">
+          This driver set runs on {servers.length} servers, and each holds its own copy of this driver's GCVs. <strong>Value</strong> is{" "}
+          <span title={primary.dn}>{primary.name}</span>'s, the primary's; {others.map((s) => s.name).join(", ")}{" "}
+          {others.length === 1 ? "follows it unless it holds" : "follow it unless they hold"} a value of {others.length === 1 ? "its" : "their"} own, set
+          beside each of the driver's own GCVs (empty = the primary's). GCVs from a resource or the driver set are the same on every server.
+        </p>
+      )}
       <DefinitionsTable
+        valueHead={primary ? <span title={primary.dn}>Value on {primary.name} (primary)</span> : undefined}
         rows={[...config.gcvs].sort((a, b) => SCOPE_ORDER.indexOf(a.scope ?? "driver") - SCOPE_ORDER.indexOf(b.scope ?? "driver"))}
         group={driver ? (row) => SCOPE_GROUPS[row.scope ?? "driver"] ?? null : undefined}
         empty="No GCVs are defined in this scope."
@@ -134,6 +179,29 @@ export function GcvEditor({ config, overrides, canOverride, pending, onOpen }: P
                 ))
               )}
             </span>
+            {row.scope === "driver" &&
+              others.map((s) => {
+                const own = serverOwn(row, s.dn);
+                return (
+                  <span key={s.dn} className="metaitem server" title={`${s.dn}: ${own === undefined ? "follows the primary" : "holds its own value"}`} data-testid={`gcv-server-${s.name}-${row.name}`}>
+                    <span className="k">on {s.name}</span>
+                    {own === null ? (
+                      <span className="muted" title={row.absent ? `${s.name} doesn't define it either` : `${s.name}'s own copy of the driver's GCVs doesn't define it. Driver set → Servers → Copy server-specific settings… gives it the primary's.`}>
+                        not defined
+                      </span>
+                    ) : (
+                      <input
+                        className={own === undefined ? "" : "own"}
+                        value={serverValue(row, s.dn)}
+                        placeholder={row.absent ? "" : `= ${primary?.name ?? "primary"}`}
+                        disabled={!row.editable}
+                        onChange={(ev) => setServerValue(row, s, ev.target.value)}
+                        spellCheck={false}
+                      />
+                    )}
+                  </span>
+                );
+              })}
             {canOverride &&
               envs.map((e) => (
                 <span key={e} className="metaitem env" title={`overrides/${e}.properties`}>

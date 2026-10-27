@@ -1268,6 +1268,9 @@ details.ecvs[open] > summary h3::before { content: "▾ "; }
 .metaitem { display: inline-flex; align-items: center; gap: 6px; }
 .metaitem .k { color: var(--muted); }
 .metaitem.env input { width: 150px; min-width: 0; font-size: 12px; padding: 2px 6px; }
+.metaitem.server input { width: 150px; min-width: 0; font-size: 12px; padding: 2px 6px; }
+.metaitem.server input.own { border-color: var(--warn); }
+.servers-note { margin: 0 0 10px; max-width: 980px; }
 .metaline .usedby .link { margin-right: 6px; }
 /* schema (driver set tab, app schema tab, pickers) */
 .schemaview { display: flex; flex-direction: column; min-height: 0; height: 100%; }

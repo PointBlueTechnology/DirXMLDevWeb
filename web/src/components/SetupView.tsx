@@ -60,7 +60,10 @@ export function SetupView({ first, onDone, onConnections, onCancel }: { first: b
     fn()
       .then((r) => {
         setResult(r);
-        setTimeout(() => onDone(r.project ?? null), 1200);
+        // notes (what the import left out) stay until the person has read them
+        if (!r.notes?.length) {
+          setTimeout(() => onDone(r.project ?? null), 1200);
+        }
       })
       .catch((e: Error) => setError(e.message))
       .finally(() => setBusy(null));
@@ -89,7 +92,15 @@ export function SetupView({ first, onDone, onConnections, onCancel }: { first: b
             {n}
           </p>
         ))}
-        <p className="muted">Opening the workbench…</p>
+        {result.notes?.length ? (
+          <p>
+            <button className="primary" onClick={() => onDone(result.project ?? null)}>
+              Open the workbench
+            </button>
+          </p>
+        ) : (
+          <p className="muted">Opening the workbench…</p>
+        )}
       </div>
     );
   }

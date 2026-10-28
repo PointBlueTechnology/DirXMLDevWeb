@@ -410,7 +410,7 @@ public final class Api implements HttpHandler {
                 // the page says where to find it
                 System.err.println("error: " + ex.getRequestMethod() + " " + ex.getRequestURI().getPath() + ": " + e);
                 e.printStackTrace();
-                send(ex, 500, error(e.getClass().getSimpleName() + ": " + e.getMessage() + " (an internal error; the server log has the details)"));
+                send(ex, 500, error(e.getClass().getSimpleName() + ": " + e.getMessage() + " (an internal error; the server log has the details: docker logs idmweb, or the terminal that runs the server)"));
                 return;
             }
             send(ex, 500, error(e.getClass().getSimpleName() + ": " + e.getMessage()));

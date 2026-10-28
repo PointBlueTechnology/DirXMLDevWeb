@@ -7,6 +7,28 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.82.0] - 2026-10-28
+
+Needs DirXMLDev 0.58.0.
+
+### Added
+
+- Library objects that live in another Library of the vault (DirXMLDev #111) are marked
+  **read-only**:
+  - **Outline and Developer view:** a badge, with the Library's DN on hover.
+  - **The object's page:** the source only. There's no Rename, Delete or structured editor, and a
+    note says where the object lives.
+
+  Links to it keep its DN, compare and deploy leave it alone, and the core refuses an edit to it.
+
+### Changed
+
+- Pins DirXMLDev 0.58.0:
+  - `vault.deploy-schema --yes` is behind the agent write gate;
+  - the `idm` CLI in the image refuses arguments a command doesn't take, and a flag no longer
+    takes the next word;
+  - `driver.query` is gated, and `driver.migrate --dry-run` isn't.
+
 ## [0.81.0] - 2026-10-28
 
 Needs DirXMLDev 0.57.0.

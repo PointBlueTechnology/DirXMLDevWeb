@@ -191,6 +191,8 @@ command there (`docker exec idmweb idm vault.status --env lab`) binds as you do 
 - **Stop:** `docker compose -f "$HOME/idmweb/compose.yml" down`. Everything lives in the folder:
   back it up, move it or delete it, and that is the whole install.
 - **One per machine:** the container is named `idmweb`.
+- **The server log:** `docker logs idmweb` (add `--tail 200` for the end). When the page reports
+  "an internal error", the stack trace is there; attach it to an issue.
 - **Moving to a server for a team:** [hosted-install.md](hosted-install.md) is the same image
   behind a proxy with TLS and your identity provider. Push the folder's `repo.git` to GitHub or
   GitLab and point the server's project at it.

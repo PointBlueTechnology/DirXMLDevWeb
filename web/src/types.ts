@@ -113,6 +113,8 @@ export interface ArtifactNode {
   name: string;
   kind: string;
   file: string | null;
+  /** A Library object from another Library: the DN of the Library it lives in; read-only here. */
+  readOnly?: string;
 }
 
 export interface FileNode {
@@ -174,6 +176,8 @@ export interface Artifact {
   language: string;
   content: string;
   editable: boolean;
+  /** A Library object from another Library: the DN of the Library it lives in; read-only here. */
+  readOnly?: string | null;
   packaged: boolean;
   refs: Ref[];
 }
@@ -1188,6 +1192,7 @@ export interface DevNode {
   shimClass?: string | null;
   icon?: boolean;
   unresolved?: boolean;
+  readOnly?: string;
 }
 
 /** A project put away (#76): its bundle and what moved aside. */

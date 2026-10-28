@@ -126,6 +126,11 @@ export function DeveloperView({ revision, onSelect }: { revision: string; onSele
           )}
           {n.kind === "driver" && n.typeName && n.typeName !== n.label && <span className="muted small"> {n.typeName}</span>}
           {n.unresolved && <span className="pill warn">unresolved</span>}
+          {n.readOnly && (
+            <span className="pill" title={`Lives in ${n.readOnly}, outside the driver set's Library; read-only here`}>
+              read-only
+            </span>
+          )}
           {st && <span className={"pill " + (st.state.toLowerCase().includes("running") ? "ok" : st.state.toLowerCase().includes("disabled") ? "err" : "")}>{st.state}</span>}
           {folder && n.count !== undefined && <span className="muted small count">{n.count}</span>}
         </div>

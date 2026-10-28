@@ -1533,3 +1533,13 @@ a.button { display: inline-block; padding: 5px 10px; border: 1px solid var(--bor
     height: 60vh;
   }
 }
+
+/* a Library object from another Library (#111) */
+.leaf .pill.ro {
+  margin-right: 6px;
+  font-size: 0.85em;
+}
+.readonly-note {
+  margin-top: 4px;
+  max-width: 60em;
+}

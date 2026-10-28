@@ -36,8 +36,17 @@ export function OutlineTree({ outline, selection, onSelect }: Props) {
         <ul>
           {nodes.map((n) => (
             <li key={n.path}>
-              <button className={isArtifact(n.path) ? "leaf active" : "leaf"} onClick={() => onSelect({ type: "artifact", path: n.path })} title={n.path}>
+              <button
+                className={isArtifact(n.path) ? "leaf active" : "leaf"}
+                onClick={() => onSelect({ type: "artifact", path: n.path })}
+                title={n.readOnly ? `${n.path}: lives in ${n.readOnly}, outside the driver set's Library; read-only here` : n.path}
+              >
                 <span className="badge">{KIND_BADGE[n.kind] ?? "·"}</span>
+                {n.readOnly && (
+                  <span className="pill ro" data-testid={`readonly-${n.path}`}>
+                    read-only
+                  </span>
+                )}
                 {n.name}
               </button>
             </li>

@@ -136,8 +136,8 @@ public final class TreeService {
         set.put("schema", ds.schema == null ? null : ds.schema.summary());
         o.put("driverSet", set);
         Map<String, Object> lib = new LinkedHashMap<>();
-        lib.put("policies", nodes(ds.library.policies, files));
-        lib.put("resources", nodes(ds.library.resources, files));
+        lib.put("policies", nodes(ds, ds.library.policies, files));
+        lib.put("resources", nodes(ds, ds.library.resources, files));
         o.put("library", lib);
         List<Object> drivers = new ArrayList<>();
         for (Driver d : ds.drivers) {
@@ -153,11 +153,11 @@ public final class TreeService {
             }
             m.put("config", existing(config));
             Map<String, Object> policies = new LinkedHashMap<>();
-            policies.put("driver", nodes(d.policies, files));
-            policies.put("subscriber", nodes(d.subscriber.policies, files));
-            policies.put("publisher", nodes(d.publisher.policies, files));
+            policies.put("driver", nodes(ds, d.policies, files));
+            policies.put("subscriber", nodes(ds, d.subscriber.policies, files));
+            policies.put("publisher", nodes(ds, d.publisher.policies, files));
             m.put("policies", policies);
-            m.put("resources", nodes(d.resources, files));
+            m.put("resources", nodes(ds, d.resources, files));
             List<Object> ents = new ArrayList<>();
             for (Entitlement e : d.entitlements) {
                 ents.add(fileNode(e.name, dir + "/entitlements/" + AsCodeWriter.fileSafe(e.name) + ".xml"));
@@ -203,7 +203,7 @@ public final class TreeService {
         return o;
     }
 
-    private List<Object> nodes(List<? extends Artifact> artifacts, Map<String, String> files) {
+    private List<Object> nodes(DriverSet ds, List<? extends Artifact> artifacts, Map<String, String> files) {
         List<Object> out = new ArrayList<>();
         for (Artifact a : artifacts) {
             Map<String, Object> n = new LinkedHashMap<>();
@@ -211,6 +211,11 @@ public final class TreeService {
             n.put("name", a.name);
             n.put("kind", kindOf(a));
             n.put("file", files.get(a.path()));
+            // a Library object from another Library: a read-only reference (DirXMLDev 0.58.0, #111)
+            String other = com.pointblue.dirxml.dev.model.Libraries.outside(ds, a);
+            if (other != null) {
+                n.put("readOnly", other);
+            }
             out.add(n);
         }
         return out;
@@ -262,7 +267,9 @@ public final class TreeService {
         m.put("file", file);
         m.put("language", language(file));
         m.put("content", file == null ? "" : Files.readString(tree.resolve(file), StandardCharsets.UTF_8));
-        m.put("editable", file != null);
+        String other = com.pointblue.dirxml.dev.model.Libraries.outside(ds, a);
+        m.put("editable", file != null && other == null);
+        m.put("readOnly", other);
         m.put("packaged", a.meta.keySet().stream().anyMatch(k -> k.toLowerCase().startsWith("dirxml-pkg") || k.equals("package-id")));
         List<Object> refs = new ArrayList<>();
         // a mapping table also names the drivers that run a policy reading it (DirXMLDev 0.34.0)
@@ -410,10 +417,10 @@ public final class TreeService {
         // the library
         Map<String, Object> lib = node("library", "Library", "folder", null);
         List<Object> lk = kids(lib);
-        for (Object n : nodes(ds.library.policies, files)) {
+        for (Object n : nodes(ds, ds.library.policies, files)) {
             lk.add(artifactLeaf("lib", n));
         }
-        for (Object n : nodes(ds.library.resources, files)) {
+        for (Object n : nodes(ds, ds.library.resources, files)) {
             lk.add(artifactLeaf("lib", n));
         }
         rootKids.add(lib);
@@ -458,7 +465,7 @@ public final class TreeService {
                     rk.add(boneNode(d.name, b));
                 }
             }
-            for (Object n : nodes(d.resources, files)) {
+            for (Object n : nodes(ds, d.resources, files)) {
                 rk.add(artifactLeaf("res:" + d.name, n));
             }
             dkids.add(res);
@@ -551,7 +558,11 @@ public final class TreeService {
     @SuppressWarnings("unchecked")
     private static Map<String, Object> artifactLeaf(String prefix, Object nodeMap) {
         Map<String, Object> n = (Map<String, Object>) nodeMap;
-        return leaf(prefix + ":" + n.get("path"), String.valueOf(n.get("name")), String.valueOf(n.get("kind")), Map.of("type", "artifact", "path", String.valueOf(n.get("path"))));
+        Map<String, Object> l = leaf(prefix + ":" + n.get("path"), String.valueOf(n.get("name")), String.valueOf(n.get("kind")), Map.of("type", "artifact", "path", String.valueOf(n.get("path"))));
+        if (n.get("readOnly") != null) {
+            l.put("readOnly", n.get("readOnly"));
+        }
+        return l;
     }
 
     private static String configLabel(String kind) {

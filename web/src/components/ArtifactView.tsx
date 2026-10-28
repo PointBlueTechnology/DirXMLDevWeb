@@ -69,7 +69,7 @@ export function ArtifactView({ path, revision, onOpen, onSaved, onGone, onMoved 
         setError(null);
         setChangedOnDisk(false);
         setDraft(null);
-        setTab((t) => (t === "structured" && !STRUCTURED[a.kind] ? "source" : t));
+        setTab((t) => (t === "structured" && (a.readOnly || !STRUCTURED[a.kind]) ? "source" : t));
       })
       .catch((e: Error) => !gone && setError(e.message));
     return () => {
@@ -119,7 +119,8 @@ export function ArtifactView({ path, revision, onOpen, onSaved, onGone, onMoved 
     setChangedOnDisk(false);
   };
 
-  const structuredLabel = STRUCTURED[artifact.kind];
+  // a Library object from another Library is shown, not edited: the source only (#111)
+  const structuredLabel = artifact.readOnly ? undefined : STRUCTURED[artifact.kind];
 
   return (
     <div className="view">
@@ -129,12 +130,18 @@ export function ArtifactView({ path, revision, onOpen, onSaved, onGone, onMoved 
             {artifact.kind} · {artifact.scope}
             {artifact.driver ? ` · ${artifact.driver}` : ""}
             {artifact.packaged ? " · packaged" : ""}
+            {artifact.readOnly ? " · read-only" : ""}
           </div>
           <h2>{artifact.name}</h2>
           <div className="muted small">{artifact.file ?? artifact.path}</div>
+          {artifact.readOnly && (
+            <div className="muted small readonly-note" data-testid="artifact-readonly">
+              Lives in <span title={artifact.readOnly}>{artifact.readOnly}</span>, outside the driver set's Library. Drivers' links to it keep its DN; compare and deploy leave it alone. Change it in Designer, or in that Library.
+            </div>
+          )}
         </div>
         <div className="actions">
-          {!editing && pending.ops.length === 0 && (
+          {!editing && pending.ops.length === 0 && !artifact.readOnly && (
             <>
               <button onClick={() => (setNewName(artifact.name), setRenaming(true))} title="Rename it, and rewrite every reference to it (links, includes, Map tokens)" data-testid="artifact-rename">
                 Rename…

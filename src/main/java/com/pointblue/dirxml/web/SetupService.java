@@ -139,6 +139,9 @@ public final class SetupService {
             }
         }
         Map<String, Object> m = seedRepository(name, live, "Imported from " + envName + " (" + dn + ")");
+        @SuppressWarnings("unchecked")
+        List<String> leftOut = (List<String>) m.getOrDefault("notes", List.of());
+        notes.addAll(leftOut);
         m.put("notes", notes);
         m.put("driverSet", dn);
         done(session, "vault", Map.of("project", name, "env", envName, "driverSet", dn, "drivers", live.drivers.size()));
@@ -303,6 +306,15 @@ public final class SetupService {
             throw new TreeService.BadRequest(repo + " exists already; choose 'an existing repository' for it, or another name");
         }
         Files.createDirectories(repo.getParent());
+        // what the read left out (two objects of one name: DirXMLDev's DuplicateArtifacts) goes on the
+        // page and into the first commit, so the person can decide in Designer (#174)
+        List<String> leftOut = new ArrayList<>();
+        for (com.pointblue.dirxml.dev.model.DuplicateArtifacts.Dropped d : ds.duplicates) {
+            leftOut.add(d.note + ". " + d.advice + ".");
+        }
+        if (!leftOut.isEmpty()) {
+            message = message + "\n\n" + String.join("\n", leftOut);
+        }
         Path seed = Files.createTempDirectory("idmweb-seed");
         Git git = workspaces.git();
         try {
@@ -326,6 +338,9 @@ public final class SetupService {
         m.put("repository", repo.toString());
         m.put("tree", "tree");
         m.put("drivers", ds.drivers.size());
+        if (!leftOut.isEmpty()) {
+            m.put("notes", leftOut);
+        }
         return m;
     }
 

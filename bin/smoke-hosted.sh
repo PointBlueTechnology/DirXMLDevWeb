@@ -393,6 +393,28 @@ try:
     check("adding a project to a server set up with the old repo.* keys keeps its first project", s == 200 and "projects=repo,extra" in conf1 and "project.repo.repo.url=" in conf1 and "repo.url=" not in conf1.replace("project.repo.repo.url=", "").replace("project.extra.repo.url=", ""))
     s, r, _ = bob.call("POST", "/api/setup/directory", {"project": "outside", "path": "/etc"})
     check("a deployer may attach only under setup.roots (#41)", s == 400 and "outside" in r.get("error", ""))
+    # #174: a Designer project whose driver set uses two Libraries that both hold "es-shared"
+    proj = os.path.join(work, "two-libraries"); orph = os.path.join(proj, "Model", "EdirOrphan"); os.makedirs(os.path.join(orph, "L2"))
+    def cobj(name, typ, inner):
+        return ('<?xml version="1.0" encoding="utf-8"?><com.novell.designer.model:CObject xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
+                'xmlns:com.novell.designer.model="http://com.novell.designer.model" name="%s" type="%s">%s</com.novell.designer.model:CObject>' % (name, typ, inner))
+    def cstr(n, v): return '<attributes xsi:type="com.novell.designer.model:CString" attrName="%s" value="%s"/>' % (n, v)
+    def rel(n, k): return '<relations name="%s" type="Child" key="#%s"/>' % (n, k)
+    files = {
+        "DS.DriverSet_": cobj("DS", "DriverSet", cstr("DSetContext", "o=system") + rel("Idm:Libraries", "L2.Library_") + rel("Idm:Libraries", "L1.Library_")),
+        "L1.Library_": cobj("Library", "Library", cstr("LibraryContext", "cn=DS,o=system") + rel("Idm:Resources", "J1.ECMAScriptResource_")),
+        "L2.Library_": cobj("Library", "Library", cstr("LibraryContext", "ou=shared,o=system") + rel("Idm:Resources", "J2.ECMAScriptResource_")),
+        "L2/J1.ECMAScriptResource_": cobj("es-shared", "ECMAScriptResource", cstr("DirXML-ContentType", "text/ecmascript")),
+        "L2/J1_contents.xml": "function own(){}",
+        "L2/J2.ECMAScriptResource_": cobj("es-shared", "ECMAScriptResource", cstr("DirXML-ContentType", "text/ecmascript")),
+        "L2/J2_contents.xml": "function shared(){}",
+    }
+    for f, t in files.items():
+        open(os.path.join(orph, f), "w").write(t)
+    open(os.path.join(proj, ".project"), "w").write("<projectDescription><name>two-libraries</name></projectDescription>")
+    s, r, _ = bob.call("POST", "/api/setup/project", {"project": "twolib", "path": proj})
+    check("#174: a project with an object two Libraries hold imports, and the page is told which it kept", s == 200
+          and any("kept the resource (in cn=Library,cn=DS,o=system" in n and "one Library" in n for n in r.get("notes", [])))
     # #42: the audit log, deployers only
     import datetime
     def when(t):   # 3, 6 or 9 fraction digits: compare as times, not text (#161)

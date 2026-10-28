@@ -7,6 +7,22 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+Needs DirXMLDev 0.57.0.
+
+### Fixed
+
+- Importing a Designer project that holds two objects of one name (a driver set using Libraries in
+  two containers, or a package upgrade's leftover) no longer gives a project where nearly every
+  page fails with `duplicate artifact path` (#174). The import keeps one, and the page now waits
+  on the result, saying which one it kept and what was left out, until you open the workbench. The
+  first commit's message records it too. A project imported before this loads again, and
+  validation names the duplicate.
+
+### Changed
+
+- "An internal error" says where the server log is (`docker logs idmweb`, or the terminal that
+  runs the server); the quickstart's *Day to day* says so too.
+
 ## [0.80.0] - 2026-10-27
 
 Needs DirXMLDev 0.56.0.

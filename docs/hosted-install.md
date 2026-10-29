@@ -134,4 +134,7 @@ An agent (CI, a coding agent, a script) does not install anything:
   customer keeps logs; set `audit.keep=0` if nothing may be deleted.
 - Sessions are kept in `<data.dir>/sessions.json` (owner-only): a restart signs nobody out, and
   each person gets their last project and branch back on their next session.
+- Memory: the server takes up to three quarters of the container's memory (its first log line
+  says `heap up to … MB`). Size the container for the largest project; `IDM_JAVA_OPTS=-Xmx…` in
+  `idmweb.env` sets the heap instead.
 - `bin/smoke-container.sh` runs the image end to end on a workstation with Docker.

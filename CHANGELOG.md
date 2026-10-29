@@ -7,6 +7,26 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.83.0] - 2026-10-29
+
+Needs DirXMLDev 0.59.0.
+
+### Fixed
+
+- A large project no longer runs the server out of memory on the schema and provisioning pages
+  (#177). Each of their requests read and parsed the whole tree again, and a page sends several at
+  once. They now read the tree the outline keeps, read again only when its files change.
+- The warning that `hosted.properties` "is readable by other users" no longer shows on a folder
+  that ignores `chmod`, such as a Windows folder mounted into the container, where its advice
+  can't be followed (DirXMLDev 0.59.0).
+
+### Changed
+
+- The server may use three quarters of the container's memory (`-XX:MaxRAMPercentage=75`); Java's
+  default is a quarter. `IDM_JAVA_OPTS` in `idmweb.env` still overrides it (`-Xmx4g`). The first
+  log line says how much it has (`heap up to … MB`), and the quickstart and hosted install say
+  what to do when the log shows `OutOfMemoryError`.
+
 ## [0.82.0] - 2026-10-28
 
 Needs DirXMLDev 0.58.0.

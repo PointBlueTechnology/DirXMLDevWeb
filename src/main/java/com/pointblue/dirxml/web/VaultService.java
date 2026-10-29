@@ -44,6 +44,17 @@ public final class VaultService {
         this.files = files;
     }
 
+    private TreeService models;
+
+    /** Reads the tree through {@code t}'s copy instead of from disk each time (#177). */
+    public void models(TreeService t) {
+        this.models = t;
+    }
+
+    private <T> T model(TreeService.ModelRead<T> read) throws IOException {
+        return models != null ? models.withModel(read) : read.read(AsCodeReader.read(tree));
+    }
+
     /** The environments this tree is deployed to (hosted: the project's list); empty = every one the file names. */
     private volatile List<String> environmentFilter = List.of();
 
@@ -438,76 +449,78 @@ public final class VaultService {
 
     /** The tree's vault schema: counts and source, every class (name, LDAP, kind, custom) and every attribute (name, LDAP, syntax, single, custom). */
     public Map<String, Object> schema() throws IOException {
-        DriverSet ds = AsCodeReader.read(tree);
-        Map<String, Object> m = new LinkedHashMap<>();
-        m.put("present", ds.schema != null);
-        if (ds.schema == null) {
+        return model(ds -> {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("present", ds.schema != null);
+            if (ds.schema == null) {
+                return m;
+            }
+            m.putAll(ds.schema.summary());
+            List<Object> classes = new ArrayList<>();
+            for (com.pointblue.dirxml.dev.model.VaultSchema.ClassDef c : ds.schema.classes) {
+                Map<String, Object> cm = new LinkedHashMap<>();
+                cm.put("name", c.name);
+                cm.put("ldap", c.ldap);
+                cm.put("kind", c.kind);
+                cm.put("container", c.container);
+                cm.put("custom", c.custom);
+                cm.put("superclasses", c.superclasses);
+                classes.add(cm);
+            }
+            m.put("classes", classes);
+            List<Object> attrs = new ArrayList<>();
+            for (com.pointblue.dirxml.dev.model.VaultSchema.AttrDef a : ds.schema.attributes) {
+                Map<String, Object> am = new LinkedHashMap<>();
+                am.put("name", a.name);
+                am.put("ldap", a.ldap);
+                am.put("syntax", a.syntax);
+                am.put("single", a.single);
+                am.put("custom", a.custom);
+                attrs.add(am);
+            }
+            m.put("attributes", attrs);
             return m;
-        }
-        m.putAll(ds.schema.summary());
-        List<Object> classes = new ArrayList<>();
-        for (com.pointblue.dirxml.dev.model.VaultSchema.ClassDef c : ds.schema.classes) {
-            Map<String, Object> cm = new LinkedHashMap<>();
-            cm.put("name", c.name);
-            cm.put("ldap", c.ldap);
-            cm.put("kind", c.kind);
-            cm.put("container", c.container);
-            cm.put("custom", c.custom);
-            cm.put("superclasses", c.superclasses);
-            classes.add(cm);
-        }
-        m.put("classes", classes);
-        List<Object> attrs = new ArrayList<>();
-        for (com.pointblue.dirxml.dev.model.VaultSchema.AttrDef a : ds.schema.attributes) {
-            Map<String, Object> am = new LinkedHashMap<>();
-            am.put("name", a.name);
-            am.put("ldap", a.ldap);
-            am.put("syntax", a.syntax);
-            am.put("single", a.single);
-            am.put("custom", a.custom);
-            attrs.add(am);
-        }
-        m.put("attributes", attrs);
-        return m;
+        });
     }
 
     /** One class with everything about it and the attributes it holds (its superclasses' included), for a picker. */
     public Map<String, Object> schemaClass(String name) throws IOException {
-        DriverSet ds = AsCodeReader.read(tree);
-        if (ds.schema == null) {
-            throw new TreeService.NotFound("the tree has no schema");
-        }
-        com.pointblue.dirxml.dev.model.VaultSchema.ClassDef c = ds.schema.classDef(name);
-        if (c == null) {
-            throw new TreeService.NotFound("no class '" + name + "' in the schema");
-        }
-        Map<String, Object> m = new LinkedHashMap<>();
-        m.put("name", c.name);
-        m.put("ldap", c.ldap);
-        m.put("oid", c.oid);
-        m.put("kind", c.kind);
-        m.put("container", c.container);
-        m.put("custom", c.custom);
-        m.put("superclasses", c.superclasses);
-        m.put("mandatory", c.mandatory);
-        m.put("optional", c.optional);
-        m.put("containment", c.containment);
-        m.put("naming", c.naming);
-        Set<String> mandatory = new java.util.HashSet<>();
-        mandatoryOf(ds.schema, c, mandatory, new java.util.HashSet<>());
-        List<Object> all = new ArrayList<>();
-        for (String a : ds.schema.attributesOf(c.name)) {
-            com.pointblue.dirxml.dev.model.VaultSchema.AttrDef d = ds.schema.attribute(a);
-            Map<String, Object> am = new LinkedHashMap<>();
-            am.put("name", a);
-            am.put("ldap", d == null ? a : d.ldap);
-            am.put("syntax", d == null ? null : d.syntax);
-            am.put("single", d != null && d.single);
-            am.put("mandatory", mandatory.contains(a.toLowerCase(java.util.Locale.ROOT)));
-            all.add(am);
-        }
-        m.put("attributes", all);
-        return m;
+        return model(ds -> {
+            if (ds.schema == null) {
+                throw new TreeService.NotFound("the tree has no schema");
+            }
+            com.pointblue.dirxml.dev.model.VaultSchema.ClassDef c = ds.schema.classDef(name);
+            if (c == null) {
+                throw new TreeService.NotFound("no class '" + name + "' in the schema");
+            }
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("name", c.name);
+            m.put("ldap", c.ldap);
+            m.put("oid", c.oid);
+            m.put("kind", c.kind);
+            m.put("container", c.container);
+            m.put("custom", c.custom);
+            m.put("superclasses", c.superclasses);
+            m.put("mandatory", c.mandatory);
+            m.put("optional", c.optional);
+            m.put("containment", c.containment);
+            m.put("naming", c.naming);
+            Set<String> mandatory = new java.util.HashSet<>();
+            mandatoryOf(ds.schema, c, mandatory, new java.util.HashSet<>());
+            List<Object> all = new ArrayList<>();
+            for (String a : ds.schema.attributesOf(c.name)) {
+                com.pointblue.dirxml.dev.model.VaultSchema.AttrDef d = ds.schema.attribute(a);
+                Map<String, Object> am = new LinkedHashMap<>();
+                am.put("name", a);
+                am.put("ldap", d == null ? a : d.ldap);
+                am.put("syntax", d == null ? null : d.syntax);
+                am.put("single", d != null && d.single);
+                am.put("mandatory", mandatory.contains(a.toLowerCase(java.util.Locale.ROOT)));
+                all.add(am);
+            }
+            m.put("attributes", all);
+            return m;
+        });
     }
 
     /** The attributes a class must have, its superclasses' included (a mandatory attribute is mandatory wherever it is inherited). */
@@ -525,38 +538,39 @@ public final class VaultService {
 
     /** A driver's application schema as the shim reported it: classes with their attributes; present=false when never read. */
     public Map<String, Object> appSchema(String driver) throws IOException {
-        DriverSet ds = AsCodeReader.read(tree);
-        Driver d = ds.driver(driver);
-        if (d == null) {
-            throw new TreeService.NotFound("no driver '" + driver + "'");
-        }
-        org.w3c.dom.Element app = d.config.get(Driver.APP_SCHEMA);
-        Map<String, Object> m = new LinkedHashMap<>();
-        m.put("driver", driver);
-        m.put("present", app != null);
-        List<Object> classes = new ArrayList<>();
-        if (app != null) {
-            m.put("hierarchical", app.getAttribute("hierarchical"));
-            for (org.w3c.dom.Element c : SchemaOps.children(app, "class-def")) {
-                Map<String, Object> cm = new LinkedHashMap<>();
-                cm.put("name", c.getAttribute("class-name"));
-                cm.put("container", "true".equals(c.getAttribute("container")));
-                List<Object> attrs = new ArrayList<>();
-                for (org.w3c.dom.Element a : SchemaOps.children(c, "attr-def")) {
-                    Map<String, Object> am = new LinkedHashMap<>();
-                    am.put("name", a.getAttribute("attr-name"));
-                    am.put("type", a.getAttribute("type"));
-                    am.put("multi", "true".equals(a.getAttribute("multi-valued")));
-                    am.put("required", "true".equals(a.getAttribute("required")));
-                    am.put("naming", "true".equals(a.getAttribute("naming")));
-                    attrs.add(am);
-                }
-                cm.put("attributes", attrs);
-                classes.add(cm);
+        return model(ds -> {
+            Driver d = ds.driver(driver);
+            if (d == null) {
+                throw new TreeService.NotFound("no driver '" + driver + "'");
             }
-        }
-        m.put("classes", classes);
-        return m;
+            org.w3c.dom.Element app = d.config.get(Driver.APP_SCHEMA);
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("driver", driver);
+            m.put("present", app != null);
+            List<Object> classes = new ArrayList<>();
+            if (app != null) {
+                m.put("hierarchical", app.getAttribute("hierarchical"));
+                for (org.w3c.dom.Element c : SchemaOps.children(app, "class-def")) {
+                    Map<String, Object> cm = new LinkedHashMap<>();
+                    cm.put("name", c.getAttribute("class-name"));
+                    cm.put("container", "true".equals(c.getAttribute("container")));
+                    List<Object> attrs = new ArrayList<>();
+                    for (org.w3c.dom.Element a : SchemaOps.children(c, "attr-def")) {
+                        Map<String, Object> am = new LinkedHashMap<>();
+                        am.put("name", a.getAttribute("attr-name"));
+                        am.put("type", a.getAttribute("type"));
+                        am.put("multi", "true".equals(a.getAttribute("multi-valued")));
+                        am.put("required", "true".equals(a.getAttribute("required")));
+                        am.put("naming", "true".equals(a.getAttribute("naming")));
+                        attrs.add(am);
+                    }
+                    cm.put("attributes", attrs);
+                    classes.add(cm);
+                }
+            }
+            m.put("classes", classes);
+            return m;
+        });
     }
 
     /** {@code vault.schema}: read the environment's schema into the tree (a vault read, a tree write). */

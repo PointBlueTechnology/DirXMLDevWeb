@@ -1,8 +1,10 @@
 #!/bin/sh
 # The web server inside the container, on the same class path as idm.
 set -e
+# Java takes a quarter of the container's memory unless told: let the server have three
+# quarters (#177). IDM_JAVA_OPTS comes after, so an -Xmx there wins.
 IDM_HOME=${IDM_HOME:-/opt/idmweb}
 IDM_LIB=${IDM_LIB:-/opt/idm/lib}
 CP="$IDM_HOME/lib/dirxml-dev-web.jar:$IDM_HOME/lib/dirxml-dev.jar:$IDM_HOME/lib/dirxml-simulator.jar:$IDM_HOME/lib/dirxml-trace-core.jar:$IDM_HOME/lib/postgresql.jar:$IDM_HOME/lib/console-auth.jar:$IDM_HOME/lib/jldap.jar"
 for j in "$IDM_LIB"/*.jar; do [ -f "$j" ] && CP="$CP:$j"; done
-exec java ${IDM_JAVA_OPTS:-} -Didmweb.home="$IDM_HOME" -Didm.home="$IDM_HOME" -cp "$CP" com.pointblue.dirxml.web.Serve "$@"
+exec java -XX:MaxRAMPercentage=75 ${IDM_JAVA_OPTS:-} -Didmweb.home="$IDM_HOME" -Didm.home="$IDM_HOME" -cp "$CP" com.pointblue.dirxml.web.Serve "$@"

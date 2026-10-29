@@ -7,11 +7,18 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.83.0] - 2026-10-29
+
+Needs DirXMLDev 0.59.0.
+
 ### Fixed
 
 - A large project no longer runs the server out of memory on the schema and provisioning pages
   (#177). Each of their requests read and parsed the whole tree again, and a page sends several at
   once. They now read the tree the outline keeps, read again only when its files change.
+- The warning that `hosted.properties` "is readable by other users" no longer shows on a folder
+  that ignores `chmod`, such as a Windows folder mounted into the container, where its advice
+  can't be followed (DirXMLDev 0.59.0).
 
 ### Changed
 

@@ -193,6 +193,18 @@ command there (`docker exec idmweb idm vault.status --env lab`) binds as you do 
 - **One per machine:** the container is named `idmweb`.
 - **The server log:** `docker logs idmweb` (add `--tail 200` for the end). When the page reports
   "an internal error", the stack trace is there; attach it to an issue.
+- **Memory:** the server takes up to three quarters of the container's memory; its first log line
+  says how much (`heap up to … MB`). Docker's own limit can be as little as 2 GB, which a large
+  project can fill: the log then shows `OutOfMemoryError`. Give Docker more memory
+  (Docker Desktop: **Settings → Resources**; WSL: `memory=` in `.wslconfig`), or set the heap
+  yourself with a line in `idmweb.env`, which `setup` keeps:
+
+  ```
+  IDM_JAVA_OPTS=-Xmx4g
+  ```
+
+  Then `docker compose -f "$HOME/idmweb/compose.yml" up -d` again. The same setting reaches
+  `docker exec idmweb idm …`.
 - **Moving to a server for a team:** [hosted-install.md](hosted-install.md) is the same image
   behind a proxy with TLS and your identity provider. Push the folder's `repo.git` to GitHub or
   GitLab and point the server's project at it.

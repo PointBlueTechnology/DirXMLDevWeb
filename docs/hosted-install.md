@@ -101,7 +101,7 @@ cd /srv/idmweb && docker compose up -d && docker compose logs -f idmweb
 ```
 
 The log's first line says the public URL, the identity provider, how many agents, the
-repository and the data directory. Open `https://<PUBLIC_HOST>/`: Keycloak's sign-in, then the
+repository, the data directory and the heap the server may use (see *Memory* in step 6). Open `https://<PUBLIC_HOST>/`: Keycloak's sign-in, then the
 workbench with "open a branch".
 
 ## 5. Agents and the CLI
@@ -135,6 +135,16 @@ An agent (CI, a coding agent, a script) does not install anything:
 - Sessions are kept in `<data.dir>/sessions.json` (owner-only): a restart signs nobody out, and
   each person gets their last project and branch back on their next session.
 - Memory: the server takes up to three quarters of the container's memory (its first log line
-  says `heap up to … MB`). Size the container for the largest project; `IDM_JAVA_OPTS=-Xmx…` in
-  `idmweb.env` sets the heap instead.
+  says `heap up to … MB`).
+  - **Cap it on a shared host.** A container without a memory limit sees the whole host, so the
+    server may grow to three quarters of the host's memory: 24 GB on a 32 GB host that also runs
+    eDirectory or a registry. Give `idmweb` a limit (`mem_limit: 6g` in `compose.yml`), or set
+    the heap in `idmweb.env`:
+
+    ```
+    IDM_JAVA_OPTS=-Xmx4g
+    ```
+
+    then `docker compose up -d`. The first log line should say `heap up to 4096 MB`.
+  - **How much:** 4 GB is a reasonable start; raise it if the log shows `OutOfMemoryError`.
 - `bin/smoke-container.sh` runs the image end to end on a workstation with Docker.

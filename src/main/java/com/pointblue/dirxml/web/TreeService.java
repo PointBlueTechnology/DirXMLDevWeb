@@ -88,6 +88,24 @@ public final class TreeService {
         return cached;
     }
 
+    /** Reads the model; it must not change it, nor keep a DOM node past its return. */
+    public interface ModelRead<T> {
+        T read(DriverSet ds) throws IOException;
+    }
+
+    /**
+     * Runs {@code read} on the tree as last read, under this service's lock, for another service
+     * that only reads it. Each request used to read the whole tree again, and the schema page asks
+     * several at once, so a large tree filled the heap (#177). The lock also keeps two threads off
+     * one DOM, which isn't safe to read concurrently. The files are checked first (sizes and
+     * times only), so a change written a moment ago is read as before, without waiting for the
+     * watcher.
+     */
+    public synchronized <T> T withModel(ModelRead<T> read) throws IOException {
+        watcher.refreshNow();
+        return read.read(model());
+    }
+
     // ---- reads ----
 
     public synchronized Map<String, Object> outline() throws IOException {

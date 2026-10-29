@@ -38,9 +38,11 @@ public final class Workspace implements AutoCloseable {
         this.packages = new PackageService(tree, catalog);
         service.catalog(packages.catalogArg());
         this.vault = new VaultService(tree, files);
+        this.vault.models(service);
         this.sim = new SimService(tree, SimService.locate(tree, cases));
         this.vault.setCasesDir(this.sim.casesDir());
         this.prov = new ProvisioningService(tree);
+        this.prov.models(service);
         this.credentials = new CredentialService(tree, files);
         this.events = new EventsService(tree, sim.casesDir(), files);
         this.traces = new TraceFiles(Path.of(System.getProperty("user.home"), ".idm", "traces", id.replaceAll("[^A-Za-z0-9._-]+", "-")));

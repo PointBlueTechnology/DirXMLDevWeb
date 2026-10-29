@@ -7,6 +7,19 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Fixed
+
+- A large project no longer runs the server out of memory on the schema and provisioning pages
+  (#177). Each of their requests read and parsed the whole tree again, and a page sends several at
+  once. They now read the tree the outline keeps, read again only when its files change.
+
+### Changed
+
+- The server may use three quarters of the container's memory (`-XX:MaxRAMPercentage=75`); Java's
+  default is a quarter. `IDM_JAVA_OPTS` in `idmweb.env` still overrides it (`-Xmx4g`). The first
+  log line says how much it has (`heap up to … MB`), and the quickstart and hosted install say
+  what to do when the log shows `OutOfMemoryError`.
+
 ## [0.82.0] - 2026-10-28
 
 Needs DirXMLDev 0.58.0.

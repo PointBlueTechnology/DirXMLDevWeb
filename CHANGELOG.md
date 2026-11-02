@@ -7,6 +7,24 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.84.0] - 2026-11-02
+
+Needs DirXMLDev 0.61.0.
+
+### Fixed
+
+- **A driver's shim password set by a deploy now works** (DirXMLDev 0.61.0). Before, a deploy that
+  set `<driver>.shim-auth-password` wrote it to the vault in clear text. The shim then connected
+  with no DN and no password, and the engine refused to change that password afterwards (`-638`).
+  The password is now set through the engine, as Designer and iManager do it. When it meets a
+  clear-text value left by an earlier version, it removes it and sets the password again, and the
+  deploy's notes say so. **Upgrading:** set the shim password once more, with a deploy or in
+  Designer or iManager, on every driver where an earlier version set it.
+
+### Changed
+
+- The hosted install says how to cap the server's memory on a shared host (#179).
+
 ## [0.83.0] - 2026-10-29
 
 Needs DirXMLDev 0.59.0.

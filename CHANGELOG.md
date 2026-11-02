@@ -7,6 +7,13 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Fixed
+
+- **Cache sizes say they are bytes.** The Drivers tab, the engine counters, a driver's status and the
+  Architecture view's tooltip showed a driver's cache as a bare number, such as `465`. That reads as 465
+  queued events, but the engine reports the size in bytes; 465 bytes was two events. They now read
+  `465 bytes`. **view** beside the size still lists and counts the events.
+
 ## [0.85.0] - 2026-11-02
 
 Needs DirXMLDev 0.62.0.

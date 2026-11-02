@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api";
 import { EnvPicker, useEnvironment } from "../env";
+import { cacheBytes } from "../drivers";
 import type { ArchApplication, Architecture, DriverState, Selection } from "../types";
 
 /**
@@ -275,7 +276,7 @@ export function ArchitectureView({ revision, onSelect }: { revision: string; onS
     const midX = (fromX + toX) / 2;
     const vaultY = Math.min(Math.max(cy, st0.y + 24), st0.y + st0.h - 24);
     const st = states?.[a.driver];
-    const tip = `${a.driver}${a.vaultOnly ? " (serves the vault, no external system)" : ""}\n${a.shimClass ?? "no shim class"}\n${a.counts.policies} policies · ${a.counts.entitlements} entitlements · ${a.counts.resources} resources${a.counts.forms + a.counts.prds > 0 ? ` · ${a.counts.forms} forms · ${a.counts.prds} PRDs` : ""}${st ? `\n${st.state}${st.cacheSize ? ` · cache ${st.cacheSize}` : ""}` : ""}`;
+    const tip = `${a.driver}${a.vaultOnly ? " (serves the vault, no external system)" : ""}\n${a.shimClass ?? "no shim class"}\n${a.counts.policies} policies · ${a.counts.entitlements} entitlements · ${a.counts.resources} resources${a.counts.forms + a.counts.prds > 0 ? ` · ${a.counts.forms} forms · ${a.counts.prds} PRDs` : ""}${st ? `\n${st.state}${st.cacheSize ? ` · cache ${cacheBytes(st.cacheSize)}` : ""}` : ""}`;
     return (
       <g key={a.driver}>
         <path className="arch-conn" d={`M${fromX},${cy} C${midX},${cy} ${midX},${vaultY} ${toX},${vaultY}`} />

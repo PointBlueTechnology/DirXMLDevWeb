@@ -7,8 +7,16 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.86.0] - 2026-11-02
+
+Needs DirXMLDev 0.63.0.
+
 ### Fixed
 
+- **A deploy no longer rewrites package stamps it doesn't change** (DirXMLDev 0.63.0). Changing a
+  packaged object, such as one value in a GCV object a package installed, planned the
+  `DirXML-PkgItemAux` class and all three package stamps again with the values the vault already held,
+  so a one-value change showed five steps. The plan now writes only the stamps that differ.
 - **Cache sizes say they are bytes.** The Drivers tab, the engine counters, a driver's status and the
   Architecture view's tooltip showed a driver's cache as a bare number, such as `465`. That reads as 465
   queued events, but the engine reports the size in bytes; 465 bytes was two events. They now read

@@ -11,3 +11,12 @@ export function isUserApplication(d: { shimClass?: string | null; forms?: unknow
 export function userApplicationDrivers(drivers: DriverOutline[]): DriverOutline[] {
   return drivers.filter(isUserApplication);
 }
+
+/**
+ * A driver's cache size as the engine reports it, with its unit: bytes, not a count of events (viewing the
+ * cache counts them). 465 bytes was two events on a test vault. Anything that isn't a number shows as it is.
+ */
+export function cacheBytes(size: string | number | null | undefined): string {
+  if (size === null || size === undefined || size === "") return "";
+  return /^\d+$/.test(String(size)) ? `${size} bytes` : String(size);
+}

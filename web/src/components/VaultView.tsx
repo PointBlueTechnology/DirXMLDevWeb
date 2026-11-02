@@ -4,6 +4,7 @@ import { Fragment, useEffect, useRef, useState } from "react";
 import { ApiError, GIT_CHANGED, api } from "../api";
 import { EnvPicker, useEnvironment } from "../env";
 import { CachePanel } from "./CachePanel";
+import { cacheBytes } from "../drivers";
 import { EventsView } from "./EventsView";
 import { TraceViewer } from "./TraceViewer";
 import { CaptureSteps, ProductionCheck } from "./ProductionCheck";
@@ -1134,7 +1135,7 @@ function Drivers({ env, onFix, onSelect, onSaved }: { env: string; onFix: () => 
                   </button>
                 </td>
                 <td className="nowrap">
-                  {d.cacheSize ?? ""}{" "}
+                  {cacheBytes(d.cacheSize)}{" "}
                   <button className="mini" onClick={() => setCacheOf(cacheOf === d.name ? null : d.name)} title="The queued events: view them, save them as a simulator case, clear the cache" data-testid={"cache-view-" + d.name}>
                     {cacheOf === d.name ? "hide" : "view"}
                   </button>
@@ -1228,8 +1229,8 @@ function EngineStrip({ env }: { env: string }) {
             {data.stats.drivers.map((d) => (
               <tr key={d.name}>
                 <td>{d.name}</td>
-                <td>{d.cacheSize}</td>
-                <td>{d.unprocessedSize}</td>
+                <td>{cacheBytes(d.cacheSize)}</td>
+                <td>{cacheBytes(d.unprocessedSize)}</td>
                 <td>{d.reportedEvents}</td>
                 <td>{d.commands}</td>
               </tr>
@@ -1326,7 +1327,7 @@ function DriverManagePanel({ env, driver, armed, confirm, onSelect, onClose }: {
             <tbody>
               <tr><td>DN</td><td className="small"><code>{status.dn}</code></td></tr>
               <tr><td>State</td><td>{status.state} · start option {status.startOption}</td></tr>
-              <tr><td>Cache</td><td>{status.cacheSize} · unprocessed {status.unprocessedSize}</td></tr>
+              <tr><td>Cache</td><td>{cacheBytes(status.cacheSize)} · unprocessed {cacheBytes(status.unprocessedSize)}</td></tr>
               <tr><td>Trace</td><td>level {status.traceLevel ?? "-"} · file {status.traceFile || "-"}</td></tr>
               <tr><td>Named passwords</td><td className="small">{(status.namedPasswords ?? []).length === 0 ? <span className="muted">none</span> : (status.namedPasswords ?? []).join(", ")}</td></tr>
             </tbody>

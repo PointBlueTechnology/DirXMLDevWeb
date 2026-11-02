@@ -7,6 +7,27 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.85.0] - 2026-11-02
+
+Needs DirXMLDev 0.62.0.
+
+### Added
+
+- **Remote Loader drivers' driver object password** (DirXMLDev 0.62.0). A secrets file can hold
+  `<driver>.driver-object-password`, the password the Remote Loader signs in to the engine with,
+  and a deploy sets it on the driver object. A new Remote Loader driver needs it, as it needs
+  `<driver>.remote-loader-password`.
+
+### Fixed
+
+- **Remote Loader drivers set up the usual way are recognised** (DirXMLDev 0.62.0). A driver whose
+  auth server is `REMOTE(hostname=… port=…)…`, as Designer writes it for a native shim such as
+  AD's, now counts as a Remote Loader driver. Before, a deploy never set its Remote Loader password.
+  **Upgrading:** a deploy that creates such a driver now needs both passwords in the secrets file,
+  or it is refused.
+- **A deploy of chosen drivers keeps to their secrets** (DirXMLDev 0.62.0). With the secrets set
+  to *missing* or *all*, it no longer plans, or refuses over, other drivers' secrets.
+
 ## [0.84.0] - 2026-11-02
 
 Needs DirXMLDev 0.61.0.

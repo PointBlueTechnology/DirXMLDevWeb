@@ -465,6 +465,7 @@ function Compare({ env, drivers, revision, onOpen, onFix }: { env: string; drive
   const [restart, setRestart] = useState(true);
   const [secrets, setSecrets] = useState<"none" | "missing" | "all">("none");
   const [allowMissing, setAllowMissing] = useState(false);
+  const [traceSizeLimit, setTraceSizeLimit] = useState(false);
   const [pulling, setPulling] = useState(false);
   // #136: a capture of the environment's state, and the steps on from it
   const [captured, setCaptured] = useState<DeployResult | null>(null);
@@ -476,7 +477,7 @@ function Compare({ env, drivers, revision, onOpen, onFix }: { env: string; drive
   const [rollbackOf, setRollbackOf] = useState<VaultSnapshot | null>(null);
   const [rollbackConfirm, setRollbackConfirm] = useState("");
   const [rollbackResult, setRollbackResult] = useState<DeployResult | null>(null);
-  const choices = { restart, secrets, allowMissingSecrets: allowMissing, deleteDrivers, driverServers, captureDrift: false };
+  const choices = { restart, secrets, allowMissingSecrets: allowMissing, deleteDrivers, driverServers, captureDrift: false, traceSizeLimit };
   const loadSnapshots = () =>
     api.vault
       .snapshots(env)
@@ -851,6 +852,9 @@ function Compare({ env, drivers, revision, onOpen, onFix }: { env: string; drive
               </label>
               <label className="checkchip" title="A first deploy of a driver refuses when a secret it needs is not provided; allow it to create the driver stopped and list what to set">
                 <input type="checkbox" checked={allowMissing} onChange={(e) => setAllowMissing(e.target.checked)} data-testid="vault-allow-missing" /> allow missing secrets on a first deploy
+              </label>
+              <label className="checkchip" title="A new driver always gets the tree's trace size limit. An existing driver keeps the vault's unless this is ticked; the plan notes a difference either way. Never restarts a driver">
+                <input type="checkbox" checked={traceSizeLimit} onChange={(e) => setTraceSizeLimit(e.target.checked)} data-testid="vault-trace-size-limit" /> write the tree's trace size limits over the vault's
               </label>
               <button className={plan && !planOutdated ? "" : "primary"} onClick={makePlan} disabled={busy !== null || stale || running} data-testid="vault-plan">
                 {plan ? "Plan again" : "Plan the deploy"}

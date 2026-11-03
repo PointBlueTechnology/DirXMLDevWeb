@@ -991,6 +991,7 @@ public final class Api implements HttpHandler {
         c.restart = restart;
         c.secretsMode = Json.asString(req.get("secrets"));
         c.allowMissingSecrets = Boolean.TRUE.equals(req.get("allowMissingSecrets"));
+        c.traceSizeLimit = Boolean.TRUE.equals(req.get("traceSizeLimit"));
         java.util.List<String> del = new java.util.ArrayList<>();
         Object d = req.get("deleteDrivers");
         if (d instanceof java.util.List<?> list) {

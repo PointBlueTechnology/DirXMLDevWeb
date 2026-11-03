@@ -7,6 +7,19 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.87.0] - 2026-11-02
+
+Needs DirXMLDev 0.64.0.
+
+### Added
+
+- **Trace size limits in deploys** (DirXMLDev 0.64.0). The tree now records each driver's trace size
+  limit, and a new driver is created with it and with the trace level and file the tree saw. On the
+  Deploy step, **write the tree's trace size limits over the vault's** also writes the limit on existing
+  drivers. Without it the vault keeps its own and the plan notes the difference. It never restarts a
+  driver, and a limit difference never stops a production deploy as drift. The agent tools `plan_deploy`
+  and `deploy` take `traceSizeLimit`.
+
 ## [0.86.0] - 2026-11-02
 
 Needs DirXMLDev 0.63.0.

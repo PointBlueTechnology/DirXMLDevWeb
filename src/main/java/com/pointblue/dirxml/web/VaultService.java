@@ -214,6 +214,8 @@ public final class VaultService {
         public Map<String, String> driverServers = Map.of();
         /** {@code --capture-drift}: a production environment whose current state is unknown has it captured first (#67). */
         public boolean captureDrift;
+        /** {@code --trace-size-limit}: write the tree's trace size limit over an existing driver's (a new driver always gets it). */
+        public boolean traceSizeLimit;
     }
 
     public Map<String, Object> plan(String envName, List<String> drivers, boolean restart, String secretsMode) throws IOException {
@@ -403,6 +405,7 @@ public final class VaultService {
         o.deleteDrivers = c.deleteDrivers == null ? List.of() : c.deleteDrivers;
         o.driverServers = c.driverServers == null ? Map.of() : c.driverServers;
         o.captureDrift = c.captureDrift;
+        o.traceSizeLimit = c.traceSizeLimit;
         return o;
     }
 

@@ -499,7 +499,8 @@ final class Mcp implements HttpHandler {
         tool("plan_deploy", "What a deploy to an environment would do, step by step, and what stands in its way (validation, production's rules). Nothing is written. Show this to the person before deploy.",
             props("env", str("environment name"), "drivers", strs("only these drivers; the whole driver set when omitted"),
                 "restart", bool("restart drivers a change needs restarted (default true)"),
-                "secrets", str("none (default), missing, or all")),
+                "secrets", str("none (default), missing, or all"),
+                "traceSizeLimit", bool("also write the tree's trace size limit over an existing driver's (default false: the vault keeps its own; a new driver always gets the tree's)")),
             List.of("env"), false, a -> new Request("POST", "/api/vault/plan", vaultBody(a)));
         tool("driver_status", "The drivers' state in an environment (running, stopped), or one driver's.",
             props("env", str("environment name"), "driver", str("one driver (optional)")), List.of("env"), false,
@@ -519,7 +520,8 @@ final class Mcp implements HttpHandler {
         tool("deploy", "Deploy the tree to an environment. Only after plan_deploy has been shown to the person and they typed the environment's name in chat as confirm. The server refuses otherwise.",
             props("env", str("environment name"), "drivers", strs("only these drivers; the whole driver set when omitted"),
                 "confirm", str("the environment's name, typed by the person"), "restart", bool("restart drivers a change needs restarted (default true)"),
-                "secrets", str("none (default), missing, or all")),
+                "secrets", str("none (default), missing, or all"),
+                "traceSizeLimit", bool("also write the tree's trace size limit over an existing driver's (default false: the vault keeps its own; a new driver always gets the tree's)")),
             List.of("env", "confirm"), true, a -> {
                 Map<String, Object> b = vaultBody(a);
                 b.put("confirm", a.s("confirm"));
@@ -549,6 +551,7 @@ final class Mcp implements HttpHandler {
         b.put("drivers", a.list("drivers"));
         b.put("restart", !Boolean.FALSE.equals(a.m.get("restart")));
         b.put("secrets", a.s("secrets") == null ? "none" : a.s("secrets"));
+        b.put("traceSizeLimit", Boolean.TRUE.equals(a.m.get("traceSizeLimit")));
         return b;
     }
 

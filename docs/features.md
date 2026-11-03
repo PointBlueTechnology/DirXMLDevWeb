@@ -167,8 +167,10 @@ Every view of the page, by area, in every install; the items marked *local and s
   - *Deploy*: the plan step by step with nothing written, then the deploy itself (snapshot,
     write, restart, verify) once you type the environment's name; the secrets mode (leave alone,
     set the named passwords the vault lacks, re-set every provided secret), *allow missing
-    secrets* for a first deploy, and *delete from the vault* for a driver the comparison reports
-    as only there (stopped first; the snapshot keeps it). Against production the plan runs the
+    secrets* for a first deploy, *write the tree's trace size limits over the vault's* (a new driver
+    always gets the tree's limit, trace level and file; an existing driver keeps the vault's limit
+    unless this is ticked, and the plan notes a difference either way), and *delete from the vault*
+    for a driver the comparison reports as only there (stopped first; the snapshot keeps it). Against production the plan runs the
     production checks too, before anything is typed, and says what stands in the way in plain
     words with a button for the way on: *Push*, *Get latest main*, or *Capture <environment>'s
     current state* when its state isn't on record or has changed outside the tree. A capture reads

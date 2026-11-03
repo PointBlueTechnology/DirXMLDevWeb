@@ -136,7 +136,7 @@ refused instead of overwriting someone else's change. Example arguments:
 | `environments` | | the project's environments, their tier (dev, test, prd), whether you are connected |
 | `compare` | **`env`**; `drivers`: a list of the tree's driver names (all when omitted) | the tree against the vault: what a deploy would write |
 | `compare_environments` | **`env`**, **`with`** | two vaults side by side: what only one holds, values that differ, likely renames, likely causes |
-| `plan_deploy` | **`env`**; `drivers`; `restart`: `true` (default) restarts drivers a change needs restarted; `secrets`: `none` (default), `missing` or `all` | a deploy step by step, and what stands in its way |
+| `plan_deploy` | **`env`**; `drivers`; `restart`: `true` (default) restarts drivers a change needs restarted; `secrets`: `none` (default), `missing` or `all`; `traceSizeLimit`: `true` writes the tree's trace size limit over an existing driver's (default `false`: the vault keeps its own) | a deploy step by step, and what stands in its way |
 | `driver_status` | **`env`**; `driver` | the drivers' state, or one driver's |
 | `trace` | **`env`**, **`driver`** | a driver's recent trace |
 | `snapshots` | **`env`** | the snapshots earlier deploys took (what a rollback puts back) |
@@ -147,7 +147,7 @@ you in the chat**. The agent must not fill it in itself.
 
 | Tool | Arguments | What it does |
 |---|---|---|
-| `deploy` | **`env`**, **`confirm`**; `drivers`, `restart`, `secrets` as for `plan_deploy` | deploys, after a snapshot |
+| `deploy` | **`env`**, **`confirm`**; `drivers`, `restart`, `secrets`, `traceSizeLimit` as for `plan_deploy` | deploys, after a snapshot |
 | `rollback` | **`env`**, **`snapshot`** (as `snapshots` lists it), **`confirm`** | puts a snapshot back |
 | `driver_lifecycle` | **`env`**, **`driver`**, **`action`**: `start`, `stop` or `restart`; **`confirm`** | starts, stops or restarts a driver |
 

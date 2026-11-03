@@ -446,6 +446,8 @@ export interface DeployChoices {
   driverServers?: Record<string, string>;
   /** A production environment's unknown or drifted state captured first as an as-found branch (vault.deploy --capture-drift). */
   captureDrift?: boolean;
+  /** Also write the tree's trace size limit over an existing driver's (vault.deploy --trace-size-limit); a new driver always gets it. */
+  traceSizeLimit?: boolean;
 }
 
 /** The vault's state taken into the workspace's tree (#67): a dry run's per-file diff, or what an apply wrote. */

@@ -7,6 +7,18 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.88.0] - 2026-11-03
+
+Needs DirXMLDev 0.65.0.
+
+### Fixed
+
+- **A GCV tested in a policy condition but defined nowhere no longer fails validation** (DirXMLDev 0.65.0).
+  The engine reads an undefined GCV in an `<if-global-variable>` condition as having no value, so nothing
+  fails. An `available` / `not-available` test is no longer reported, and any other test is the info
+  `gcv-undefined-condition`. This no longer blocks Plan and Deploy. A GCV that a policy substitutes is
+  still an error.
+
 ## [0.87.0] - 2026-11-02
 
 Needs DirXMLDev 0.64.0.

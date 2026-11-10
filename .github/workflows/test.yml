@@ -21,7 +21,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           CORE=$(sed -n 's#.*<dirxmldev.version>\([^<]*\)</dirxmldev.version>.*#\1#p' pom.xml | head -1)
-          SIM=$(sed -n 's#.*<simulator.version>\([^<]*\)</simulator.version>.*#\1#p' pom.xml | head -1); SIM=${SIM:-1.7.0}
+          SIM=$(sed -n 's#.*<simulator.version>\([^<]*\)</simulator.version>.*#\1#p' pom.xml | head -1); SIM=${SIM:-1.8.0}
           gh release download "v$CORE" --repo PointBlueTechnology/DirXMLDev -p "dirxml-dev-$CORE.jar" -D /tmp
           gh release download "v$SIM" --repo PointBlueTechnology/DirXMLSimulator -p "dirxml-simulator-$SIM.jar" -D /tmp
           mvn -B -q install:install-file -Dfile=/tmp/dirxml-dev-$CORE.jar -DgroupId=com.pointblue.dirxml -DartifactId=dirxml-dev -Dversion=$CORE -Dpackaging=jar

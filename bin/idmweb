@@ -14,7 +14,7 @@ if [ ! -d "$HERE/target/classes" ]; then
   echo "ERROR: this server is not built. Run 'mvn -o package' in $HERE (after 'mvn -o install -DskipTests' in DirXMLDev)." >&2
   exit 1
 fi
-SIM_VER=${IDM_SIM_VERSION:-1.7.0}
+SIM_VER=${IDM_SIM_VERSION:-1.8.0}
 SIM_JAR="$HOME/.m2/repository/com/pointblue/dirxml/dirxml-simulator/$SIM_VER/dirxml-simulator-$SIM_VER.jar"
 # the DirXML Trace Viewer's library (the version the pom names); jldap itself comes from the engine's ldap.jar
 TRACE_VER=$(sed -n 's#.*<tracecore.version>\([^<]*\)</tracecore.version>.*#\1#p' "$HERE/pom.xml" | head -1)

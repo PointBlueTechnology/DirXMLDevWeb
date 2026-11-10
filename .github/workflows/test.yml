@@ -34,7 +34,10 @@ jobs:
           # Directory Console's console-auth library, from its (public) release
           AUTH=$(sed -n 's#.*<console.version>\([^<]*\)</console.version>.*#\1#p' pom.xml | head -1)
           gh release download "v$AUTH" --repo PointBlueTechnology/directory-console -p "console-auth-$AUTH.jar" -D /tmp
-          mvn -B -q install:install-file -Dfile=/tmp/console-auth-$AUTH.jar -DgroupId=com.pointblue.console -DartifactId=console-auth -Dversion=$AUTH -Dpackaging=jar
+          # Its jar embeds a pom whose parent (directory-console) is not published; this server excludes
+          # every dependency of console-auth anyway, so install it with a pom of its own.
+          printf '<project xmlns="http://maven.apache.org/POM/4.0.0"><modelVersion>4.0.0</modelVersion><groupId>com.pointblue.console</groupId><artifactId>console-auth</artifactId><version>%s</version></project>' "$AUTH" > /tmp/console-auth.pom
+          mvn -B -q install:install-file -Dfile=/tmp/console-auth-$AUTH.jar -DpomFile=/tmp/console-auth.pom
       - run: mvn -B test
   page:
     runs-on: ubuntu-latest

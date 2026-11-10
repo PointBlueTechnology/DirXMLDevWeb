@@ -7,6 +7,23 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.89.0] - 2026-11-10
+
+Needs DirXMLDev 0.67.0 and DirXMLSimulator 1.8.0.
+
+### Changed
+
+- **Simulation honours query scope** (DirXMLSimulator 1.8.0). In a simulated case, a query's `scope` now
+  works as in XDS: `entry` is the base object, `subordinates` one level, and `subtree` (the default) the base
+  and everything below it. Before, `dest-dn` / `src-dn` had to match exactly, so `do-find-matching-object`
+  under a container found nothing. A case that relied on that may now see more results.
+
+### Fixed
+
+- **Work orders shows the Work Order driver's work orders** (DirXMLDev 0.66.0). The list searched under the
+  driver set; it now looks in the container the `idv.workorder.container` GCV names, or the Work Order driver
+  object.
+
 ## [0.88.0] - 2026-11-03
 
 Needs DirXMLDev 0.65.0.

@@ -24,7 +24,7 @@ jobs:
         run: |
           VER="${{ github.event.inputs.version || github.event.release.tag_name }}"; VER="${VER#v}"
           CORE=$(sed -n 's#.*<dirxmldev.version>\([^<]*\)</dirxmldev.version>.*#\1#p' pom.xml | head -1)
-          SIM=$(sed -n 's#.*<simulator.version>\([^<]*\)</simulator.version>.*#\1#p' pom.xml | head -1); SIM=${SIM:-1.7.0}
+          SIM=$(sed -n 's#.*<simulator.version>\([^<]*\)</simulator.version>.*#\1#p' pom.xml | head -1); SIM=${SIM:-1.8.0}
           echo "ver=$VER" >> "$GITHUB_OUTPUT"; echo "core=$CORE" >> "$GITHUB_OUTPUT"; echo "sim=$SIM" >> "$GITHUB_OUTPUT"
           echo "web $VER, core $CORE, simulator $SIM"
       - name: This release's jar and page

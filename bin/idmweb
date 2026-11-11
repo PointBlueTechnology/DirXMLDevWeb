@@ -15,7 +15,7 @@ if [ ! -d "$HERE/target/classes" ]; then
   exit 1
 fi
 SIM_VER=${IDM_SIM_VERSION:-1.8.0}
-SIM_JAR="$HOME/.m2/repository/com/pointblue/dirxml/dirxml-simulator/$SIM_VER/dirxml-simulator-$SIM_VER.jar"
+SIM_JAR="$HOME/.m2/repository/com/pointbluetech/dirxml/dirxml-simulator/$SIM_VER/dirxml-simulator-$SIM_VER.jar"
 # the DirXML Trace Viewer's library (the version the pom names); jldap itself comes from the engine's ldap.jar
 TRACE_VER=$(sed -n 's#.*<tracecore.version>\([^<]*\)</tracecore.version>.*#\1#p' "$HERE/pom.xml" | head -1)
 TRACE_JAR="$HOME/.m2/repository/com/pointbluetech/dirxml-trace-core/$TRACE_VER/dirxml-trace-core-$TRACE_VER.jar"
@@ -24,7 +24,7 @@ PG_VER=$(sed -n 's#.*<postgresql.version>\([^<]*\)</postgresql.version>.*#\1#p' 
 PG_JAR="$HOME/.m2/repository/org/postgresql/postgresql/$PG_VER/postgresql-$PG_VER.jar"
 # Directory Console's console-auth (OIDC sign-in, TLS trust; the version the pom names; `mvn install` in directory-console)
 AUTH_VER=$(sed -n 's#.*<console.version>\([^<]*\)</console.version>.*#\1#p' "$HERE/pom.xml" | head -1)
-AUTH_JAR="$HOME/.m2/repository/com/pointblue/console/console-auth/$AUTH_VER/console-auth-$AUTH_VER.jar"
+AUTH_JAR="$HOME/.m2/repository/com/pointbluetech/console/console-auth/$AUTH_VER/console-auth-$AUTH_VER.jar"
 JH=${IDM_JAVA_HOME:-}
 if [ -z "$JH" ] && [ -x /usr/libexec/java_home ]; then
   JH=$(/usr/libexec/java_home -v 21 2>/dev/null || true)

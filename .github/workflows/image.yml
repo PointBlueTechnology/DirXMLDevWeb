@@ -52,7 +52,7 @@ jobs:
         run: |
           mkdir -p DirXMLDev/target
           gh release download "v${{ steps.v.outputs.core }}" --repo PointBlueTechnology/DirXMLDev -p "dirxml-dev-${{ steps.v.outputs.core }}.jar" -D DirXMLDev/target
-          M=~/.m2/repository/com/pointblue/dirxml/dirxml-simulator/${{ steps.v.outputs.sim }}; mkdir -p "$M"
+          M=~/.m2/repository/com/pointbluetech/dirxml/dirxml-simulator/${{ steps.v.outputs.sim }}; mkdir -p "$M"
           gh release download "v${{ steps.v.outputs.sim }}" --repo PointBlueTechnology/DirXMLSimulator -p "dirxml-simulator-${{ steps.v.outputs.sim }}.jar" -D "$M"
           TRACE=$(sed -n 's#.*<tracecore.version>\([^<]*\)</tracecore.version>.*#\1#p' pom.xml | head -1)
           T=~/.m2/repository/com/pointbluetech/dirxml-trace-core/$TRACE; mkdir -p "$T"
@@ -63,7 +63,7 @@ jobs:
           J=~/.m2/repository/com/novell/ldap/jldap/4.3; mkdir -p "$J"
           gh release download "v${{ steps.v.outputs.core }}" --repo PointBlueTechnology/DirXMLDev -p "jldap-4.3.jar" -D "$J"
           AUTH=$(sed -n 's#.*<console.version>\([^<]*\)</console.version>.*#\1#p' pom.xml | head -1)
-          A=~/.m2/repository/com/pointblue/console/console-auth/$AUTH; mkdir -p "$A"
+          A=~/.m2/repository/com/pointbluetech/console/console-auth/$AUTH; mkdir -p "$A"
           # Directory Console's console-auth library, from its (public) release
           gh release download "v$AUTH" --repo PointBlueTechnology/directory-console -p "console-auth-$AUTH.jar" -D "$A"
       - uses: docker/setup-qemu-action@v3

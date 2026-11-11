@@ -22,11 +22,11 @@ cp "$HERE/target/dirxml-dev-web-$WEB_VER.jar" "$CTX/artifacts/dirxml-dev-web.jar
 if [ -f "$IDM_HOME/target/dirxml-dev-$CORE_VER.jar" ]; then
   cp "$IDM_HOME/target/dirxml-dev-$CORE_VER.jar" "$CTX/artifacts/dirxml-dev.jar"
 else
-  cp "$HOME/.m2/repository/com/pointblue/dirxml/dirxml-dev/$CORE_VER/dirxml-dev-$CORE_VER.jar" "$CTX/artifacts/dirxml-dev.jar"
+  cp "$HOME/.m2/repository/com/pointbluetech/dirxml/dirxml-dev/$CORE_VER/dirxml-dev-$CORE_VER.jar" "$CTX/artifacts/dirxml-dev.jar"
 fi
 echo "web $WEB_VER, core $CORE_VER"
 SIM_VER=${IDM_SIM_VERSION:-1.8.0}
-cp "$HOME/.m2/repository/com/pointblue/dirxml/dirxml-simulator/$SIM_VER/dirxml-simulator-$SIM_VER.jar" "$CTX/artifacts/dirxml-simulator.jar"
+cp "$HOME/.m2/repository/com/pointbluetech/dirxml/dirxml-simulator/$SIM_VER/dirxml-simulator-$SIM_VER.jar" "$CTX/artifacts/dirxml-simulator.jar"
 TRACE_VER=$(sed -n 's#.*<tracecore.version>\([^<]*\)</tracecore.version>.*#\1#p' "$HERE/pom.xml" | head -1)
 cp "$HOME/.m2/repository/com/pointbluetech/dirxml-trace-core/$TRACE_VER/dirxml-trace-core-$TRACE_VER.jar" "$CTX/artifacts/dirxml-trace-core.jar"
 PG_VER=$(sed -n 's#.*<postgresql.version>\([^<]*\)</postgresql.version>.*#\1#p' "$HERE/pom.xml" | head -1)
@@ -34,7 +34,7 @@ cp "$HOME/.m2/repository/org/postgresql/postgresql/$PG_VER/postgresql-$PG_VER.ja
 # the vault path's LDAP client: open-source JLDAP (OpenLDAP Public License), attached to the core's release
 cp "$HOME/.m2/repository/com/novell/ldap/jldap/4.3/jldap-4.3.jar" "$CTX/artifacts/jldap.jar"
 AUTH_VER=$(sed -n 's#.*<console.version>\([^<]*\)</console.version>.*#\1#p' "$HERE/pom.xml" | head -1)
-cp "$HOME/.m2/repository/com/pointblue/console/console-auth/$AUTH_VER/console-auth-$AUTH_VER.jar" "$CTX/artifacts/console-auth.jar"
+cp "$HOME/.m2/repository/com/pointbluetech/console/console-auth/$AUTH_VER/console-auth-$AUTH_VER.jar" "$CTX/artifacts/console-auth.jar"
 cp -R "$HERE/web/dist" "$CTX/artifacts/dist"
 # the notices and the license go into the image, as the components' licenses ask of a redistribution
 cp "$HERE/THIRD-PARTY.md" "$HERE/LICENSE" "$CTX/artifacts/"

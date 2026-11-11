@@ -6,7 +6,7 @@
 
     <groupId>com.pointbluetech.dirxml</groupId>
     <artifactId>dirxml-dev-web</artifactId>
-    <version>0.90.0</version>
+    <version>0.91.0</version>
     <licenses>
         <license>
             <name>MIT License</name>

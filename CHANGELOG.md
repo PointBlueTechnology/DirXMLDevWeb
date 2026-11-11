@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.91.0] - 2026-11-11
+
 ### Changed
 
 - **The libraries come from Maven Central:** needs DirXMLDev 0.70.0 (was 0.69.0), DirXMLSimulator 1.9.0

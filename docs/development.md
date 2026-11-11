@@ -11,7 +11,7 @@ look at a tree. For one person in a container see [quickstart.md](quickstart.md)
 Prerequisites: a [DirXMLDev](https://github.com/PointBlueTechnology/DirXMLDev) checkout beside this
 one (`../DirXMLDev`, or set `IDM_HOME`), JDK 21, Maven 3.9, Node 20 or newer, and `curl`. The server
 runs on that checkout's own classes, so check out the tag `pom.xml` names there
-(`dirxmldev.version`; for example `git checkout v0.67.0`): its default branch can be ahead.
+(`dirxmldev.version`; for example `git checkout v0.69.0`): its default branch can be ahead.
 
 ```bash
 # once, in this checkout: the libraries this pom pins (dirxml-dev, the simulator, console-auth,

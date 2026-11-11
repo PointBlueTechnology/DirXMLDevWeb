@@ -14,6 +14,11 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   means building each from the right tag in the right order. `docs/development.md` uses it; so does CI,
   in place of its own download steps. DirXMLDev carries the same script.
 
+### Changed
+
+- Needs DirXMLDev 0.69.0 (was 0.67.0). 0.68.0 added a work-order lookup for Directory Console, and 0.69.0
+  added `bin/install-deps`; nothing changes on the page.
+
 ## [0.89.0] - 2026-11-10
 
 Needs DirXMLDev 0.67.0 and DirXMLSimulator 1.8.0.

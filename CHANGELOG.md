@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.90.0] - 2026-11-11
+
 ### Added
 
 - **`bin/install-deps`:** installs the libraries this build pins (`dirxml-dev`, the simulator, the trace

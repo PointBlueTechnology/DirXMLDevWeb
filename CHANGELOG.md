@@ -9,13 +9,14 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Changed
 
-- **Maven coordinates move to `com.pointbluetech` for Maven Central:** the web depends on
-  `com.pointbluetech.dirxml:dirxml-dev`, `com.pointbluetech.dirxml:dirxml-simulator` and
-  `com.pointbluetech.console:console-auth`, as those projects move. `bin/idmweb`, `hosted/docker/build.sh`
-  and the image workflow look for them under `~/.m2/repository/com/pointbluetech/`. **After updating, run
-  `bin/install-deps`**: it installs the pinned versions under the new groupIds.
-- `bin/install-deps` (the same as DirXMLDev's) takes each groupId from the pom and skips a version on
-  Maven Central.
+- **The libraries come from Maven Central:** needs DirXMLDev 0.70.0 (was 0.69.0), DirXMLSimulator 1.9.0
+  (was 1.8.0), the trace parser 1.12.0 (was 1.10.0) and `console-auth` 0.4.11 (was 0.1.0), all on Maven
+  Central under `com.pointbluetech`, so Maven fetches them: a build from source needs no install step, CI
+  no longer runs `bin/install-deps`, and the image workflow resolves the pom instead of downloading each jar
+  from a release. `bin/install-deps` (the same as DirXMLDev's, now taking each groupId from the pom) stays
+  for building older tags. Nothing changes on the page.
+- `bin/idmweb` and `hosted/docker/build.sh` take the simulator's version from the pom (`IDM_SIM_VERSION`
+  still overrides it).
 
 ## [0.90.0] - 2026-11-11
 

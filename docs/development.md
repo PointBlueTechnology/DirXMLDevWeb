@@ -14,18 +14,12 @@ runs on that checkout's own classes, so check out the tag `pom.xml` names there
 (`dirxmldev.version`; for example `git checkout v0.69.0`): its default branch can be ahead.
 
 ```bash
-# once, in this checkout: the libraries this pom pins (dirxml-dev, the simulator, console-auth,
-# the trace parser), from their GitHub releases into ~/.m2
-bin/install-deps
-```
-
-```bash
-# once, in the DirXMLDev checkout: its classes (the trace parser it needs is now in ~/.m2)
+# once, in the DirXMLDev checkout: its classes
 mvn package -DskipTests
 ```
 
 ```bash
-# the server and the page
+# the server and the page; Maven fetches the libraries this pom pins
 mvn package
 ```
 
@@ -38,11 +32,11 @@ cd web && npm ci && npm run build
 bin/idmweb serve /path/to/tree
 ```
 
-None of those libraries is on Maven Central; `bin/install-deps` takes each from its repository's
-GitHub release at the pinned version. A version already in `~/.m2` is left alone, so a jar you built
-yourself (`mvn install` in that checkout, at the tag the pin names) is kept; `--list` shows each pin
-and whether it is installed, `--force` replaces one with the release jar. DirXMLDev carries the same
-script. The order of the repositories, and building one yourself, is in DirXMLDev's
+The libraries this pom pins (dirxml-dev, the simulator, console-auth, the trace parser) are on
+Maven Central under `com.pointbluetech`, so Maven fetches them into `~/.m2`. Versions from before
+Maven Central are only on GitHub releases: to build an older tag of this repository, run
+`bin/install-deps` first, which installs them into `~/.m2` (`--list` shows each pin and whether it
+is installed). DirXMLDev carries the same script. The order of the repositories, and building one yourself, is in DirXMLDev's
 [docs/install.md §2.0](https://github.com/PointBlueTechnology/DirXMLDev/blob/master/docs/install.md#20-which-repositories-in-which-order).
 
 The launcher puts the simulator, the trace parser and `console-auth` from `~/.m2` on the class path,

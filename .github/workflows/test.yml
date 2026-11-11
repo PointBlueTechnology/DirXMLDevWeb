@@ -16,8 +16,6 @@ jobs:
           distribution: temurin
           java-version: "21"
           cache: maven
-      - name: DirXMLDev, simulator, trace parser and console-auth from their releases
-        run: bin/install-deps
       - run: mvn -B test
   page:
     runs-on: ubuntu-latest

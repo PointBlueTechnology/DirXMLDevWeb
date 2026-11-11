@@ -25,7 +25,7 @@ else
   cp "$HOME/.m2/repository/com/pointbluetech/dirxml/dirxml-dev/$CORE_VER/dirxml-dev-$CORE_VER.jar" "$CTX/artifacts/dirxml-dev.jar"
 fi
 echo "web $WEB_VER, core $CORE_VER"
-SIM_VER=${IDM_SIM_VERSION:-1.8.0}
+SIM_VER=${IDM_SIM_VERSION:-$(sed -n 's#.*<simulator.version>\([^<]*\)</simulator.version>.*#\1#p' "$HERE/pom.xml" | head -1)}
 cp "$HOME/.m2/repository/com/pointbluetech/dirxml/dirxml-simulator/$SIM_VER/dirxml-simulator-$SIM_VER.jar" "$CTX/artifacts/dirxml-simulator.jar"
 TRACE_VER=$(sed -n 's#.*<tracecore.version>\([^<]*\)</tracecore.version>.*#\1#p' "$HERE/pom.xml" | head -1)
 cp "$HOME/.m2/repository/com/pointbluetech/dirxml-trace-core/$TRACE_VER/dirxml-trace-core-$TRACE_VER.jar" "$CTX/artifacts/dirxml-trace-core.jar"

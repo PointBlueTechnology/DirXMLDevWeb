@@ -16,28 +16,8 @@ jobs:
           distribution: temurin
           java-version: "21"
           cache: maven
-      - name: DirXMLDev and simulator jars from their releases
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          CORE=$(sed -n 's#.*<dirxmldev.version>\([^<]*\)</dirxmldev.version>.*#\1#p' pom.xml | head -1)
-          SIM=$(sed -n 's#.*<simulator.version>\([^<]*\)</simulator.version>.*#\1#p' pom.xml | head -1); SIM=${SIM:-1.8.0}
-          gh release download "v$CORE" --repo PointBlueTechnology/DirXMLDev -p "dirxml-dev-$CORE.jar" -D /tmp
-          gh release download "v$SIM" --repo PointBlueTechnology/DirXMLSimulator -p "dirxml-simulator-$SIM.jar" -D /tmp
-          mvn -B -q install:install-file -Dfile=/tmp/dirxml-dev-$CORE.jar -DgroupId=com.pointblue.dirxml -DartifactId=dirxml-dev -Dversion=$CORE -Dpackaging=jar
-          mvn -B -q install:install-file -Dfile=/tmp/dirxml-simulator-$SIM.jar -DgroupId=com.pointblue.dirxml -DartifactId=dirxml-simulator -Dversion=$SIM -Dpackaging=jar
-          # the trace viewer's library: its jar carries a module pom with a parent nobody has, so install it with a flat one
-          TRACE=$(sed -n 's#.*<tracecore.version>\([^<]*\)</tracecore.version>.*#\1#p' pom.xml | head -1)
-          gh release download "v$TRACE" --repo PointBlueTechnology/DirXMLTraceViewer -p "dirxml-trace-core-$TRACE.jar" -D /tmp
-          printf '<project xmlns="http://maven.apache.org/POM/4.0.0"><modelVersion>4.0.0</modelVersion><groupId>com.pointbluetech</groupId><artifactId>dirxml-trace-core</artifactId><version>%s</version><dependencies><dependency><groupId>com.novell.ldap</groupId><artifactId>jldap</artifactId><version>4.3</version></dependency></dependencies></project>' "$TRACE" > /tmp/trace-core.pom
-          mvn -B -q install:install-file -Dfile=/tmp/dirxml-trace-core-$TRACE.jar -DpomFile=/tmp/trace-core.pom
-          # Directory Console's console-auth library, from its (public) release
-          AUTH=$(sed -n 's#.*<console.version>\([^<]*\)</console.version>.*#\1#p' pom.xml | head -1)
-          gh release download "v$AUTH" --repo PointBlueTechnology/directory-console -p "console-auth-$AUTH.jar" -D /tmp
-          # Its jar embeds a pom whose parent (directory-console) is not published; this server excludes
-          # every dependency of console-auth anyway, so install it with a pom of its own.
-          printf '<project xmlns="http://maven.apache.org/POM/4.0.0"><modelVersion>4.0.0</modelVersion><groupId>com.pointblue.console</groupId><artifactId>console-auth</artifactId><version>%s</version></project>' "$AUTH" > /tmp/console-auth.pom
-          mvn -B -q install:install-file -Dfile=/tmp/console-auth-$AUTH.jar -DpomFile=/tmp/console-auth.pom
+      - name: DirXMLDev, simulator, trace parser and console-auth from their releases
+        run: bin/install-deps
       - run: mvn -B test
   page:
     runs-on: ubuntu-latest

@@ -8,24 +8,25 @@ look at a tree. For one person in a container see [quickstart.md](quickstart.md)
 
 ## Run it
 
-Prerequisites: a built [DirXMLDev](https://github.com/PointBlueTechnology/DirXMLDev) at the
-version `pom.xml` names (`dirxmldev.version`, 0.11.0 now; its `bin/idm doctor` is green), JDK 21,
-Maven 3.9, Node 20 or newer.
+Prerequisites: a [DirXMLDev](https://github.com/PointBlueTechnology/DirXMLDev) checkout beside this
+one (`../DirXMLDev`, or set `IDM_HOME`), JDK 21, Maven 3.9, Node 20 or newer, and `curl`. The server
+runs on that checkout's own classes, so check out the tag `pom.xml` names there
+(`dirxmldev.version`; for example `git checkout v0.69.0`): its default branch can be ahead.
 
 ```bash
-# once, in the DirXMLDev checkout: make its jar available to this build
-mvn -o install -DskipTests
+# once, in this checkout: the libraries this pom pins (dirxml-dev, the simulator, console-auth,
+# the trace parser), from their GitHub releases into ~/.m2
+bin/install-deps
 ```
 
 ```bash
-# once, in the directory-console checkout: console-auth (OIDC sign-in, TLS trust), the version
-# pom.xml names (console.version); its jar is also on every directory-console release
-mvn install
+# once, in the DirXMLDev checkout: its classes (the trace parser it needs is now in ~/.m2)
+mvn package -DskipTests
 ```
 
 ```bash
-# once, in this checkout: the server and the page
-mvn -o package
+# the server and the page
+mvn package
 ```
 
 ```bash
@@ -37,21 +38,15 @@ cd web && npm ci && npm run build
 bin/idmweb serve /path/to/tree
 ```
 
-The build also needs `dirxml-simulator` in `~/.m2` (`mvn install` in DirXMLSimulator), which a
-built DirXMLDev already has, and the DirXML Trace Viewer's library `dirxml-trace-core` (the
-version `pom.xml` names), which does the trace parsing and highlighting. Its jar is on every
-[viewer release](https://github.com/PointBlueTechnology/DirXMLTraceViewer/releases); install it
-with a flat pom, since the pom inside the 1.5.0 jar names a parent you do not have:
+None of those libraries is on Maven Central; `bin/install-deps` takes each from its repository's
+GitHub release at the pinned version. A version already in `~/.m2` is left alone, so a jar you built
+yourself (`mvn install` in that checkout, at the tag the pin names) is kept; `--list` shows each pin
+and whether it is installed, `--force` replaces one with the release jar. DirXMLDev carries the same
+script. The order of the repositories, and building one yourself, is in DirXMLDev's
+[docs/install.md §2.0](https://github.com/PointBlueTechnology/DirXMLDev/blob/master/docs/install.md#20-which-repositories-in-which-order).
 
-```sh
-V=1.5.0; gh release download v$V --repo PointBlueTechnology/DirXMLTraceViewer -p dirxml-trace-core-$V.jar -D /tmp
-printf '<project xmlns="http://maven.apache.org/POM/4.0.0"><modelVersion>4.0.0</modelVersion><groupId>com.pointbluetech</groupId><artifactId>dirxml-trace-core</artifactId><version>%s</version><dependencies><dependency><groupId>com.novell.ldap</groupId><artifactId>jldap</artifactId><version>4.3</version></dependency></dependencies></project>' $V > /tmp/trace-core.pom
-mvn -q install:install-file -Dfile=/tmp/dirxml-trace-core-$V.jar -DpomFile=/tmp/trace-core.pom
-```
-
-(or `mvn install` in a DirXMLTraceViewer checkout at that tag). The launcher adds the jar to the
-class path; the LDAP classes it needs are JLDAP's, which the launcher takes from `~/.m2`
-(`mvn install` in DirXMLDev puts them there). Simulator cases are read from `cases/` beside the tree; name
+The launcher puts the simulator, the trace parser and `console-auth` from `~/.m2` on the class path,
+with JLDAP for the LDAP classes (DirXMLDev's build puts it in `~/.m2`). Simulator cases are read from `cases/` beside the tree; name
 another place with `--cases DIR`. The package catalog is `--catalog DIR` (or `IDM_CATALOG`);
 without one, installed packages are still listed from the tree but nothing can be installed,
 upgraded or built.

@@ -7,6 +7,16 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- **Maven coordinates move to `com.pointbluetech` for Maven Central:** the web depends on
+  `com.pointbluetech.dirxml:dirxml-dev`, `com.pointbluetech.dirxml:dirxml-simulator` and
+  `com.pointbluetech.console:console-auth`, as those projects move. `bin/idmweb`, `hosted/docker/build.sh`
+  and the image workflow look for them under `~/.m2/repository/com/pointbluetech/`. **After updating, run
+  `bin/install-deps`**: it installs the pinned versions under the new groupIds.
+- `bin/install-deps` (the same as DirXMLDev's) takes each groupId from the pom and skips a version on
+  Maven Central.
+
 ## [0.90.0] - 2026-11-11
 
 ### Added

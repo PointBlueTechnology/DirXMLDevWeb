@@ -4,7 +4,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.pointblue.dirxml</groupId>
+    <groupId>com.pointbluetech.dirxml</groupId>
     <artifactId>dirxml-dev-web</artifactId>
     <version>0.90.0</version>
     <licenses>
@@ -36,7 +36,7 @@
 
     <dependencies>
         <dependency>
-            <groupId>com.pointblue.console</groupId>
+            <groupId>com.pointbluetech.console</groupId>
             <artifactId>console-auth</artifactId>
             <version>${console.version}</version>
             <exclusions>
@@ -48,7 +48,7 @@
             </exclusions>
         </dependency>
         <dependency>
-            <groupId>com.pointblue.dirxml</groupId>
+            <groupId>com.pointbluetech.dirxml</groupId>
             <artifactId>dirxml-dev</artifactId>
             <version>${dirxmldev.version}</version>
             <scope>provided</scope>
@@ -64,7 +64,7 @@
         <!-- The simulator's own result types (stages, comparison) for the simulator view. Installed by
              'mvn install' in the DirXMLSimulator repo; the launcher supplies it at run time. -->
         <dependency>
-            <groupId>com.pointblue.dirxml</groupId>
+            <groupId>com.pointbluetech.dirxml</groupId>
             <artifactId>dirxml-simulator</artifactId>
             <version>${simulator.version}</version>
             <scope>provided</scope>

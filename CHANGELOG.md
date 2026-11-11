@@ -7,6 +7,11 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- `bin/install-deps` (the same as DirXMLDev's) fetches a pinned version that is on Maven Central into
+  `~/.m2` instead of skipping it, so `bin/idmweb` finds the libraries before the first build.
+
 ## [0.91.0] - 2026-11-11
 
 ### Changed

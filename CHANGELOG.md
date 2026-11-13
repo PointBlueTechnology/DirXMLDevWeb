@@ -7,8 +7,18 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Fixed
+
+- **Driver-set GCV objects in the simulator (#187):** a case now runs with the GCV objects its driver set links,
+  as the engine does, so a policy naming one of their GCVs (a User Application package's `~UAProvURL~`) no
+  longer stops with "referenced but not defined". The fix is in DirXMLDev 0.72.0.
+- **A missing engine jar says which one (#186):** when the engine can't find a class, the case's error now names
+  the jar it is in and where to copy it from, for example `xp.jar` for `com.jclark.xml.sax.CommentDriver`. The
+  quickstart and `setup.sh` say that engines from 4.10.2 on ship `xp.jar` as `xp-1.0.0.jar`, which works as it is.
+
 ### Changed
 
+- Needs DirXMLDev 0.72.0 (was 0.70.0).
 - `bin/install-deps` (the same as DirXMLDev's) fetches a pinned version that is on Maven Central into
   `~/.m2` instead of skipping it, so `bin/idmweb` finds the libraries before the first build.
 

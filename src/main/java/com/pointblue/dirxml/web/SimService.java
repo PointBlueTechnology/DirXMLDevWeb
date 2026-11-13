@@ -174,7 +174,7 @@ public final class SimService {
             try {
                 c = Case.load(rendered);
                 r = c.run();
-            } catch (RuntimeException e) {
+            } catch (RuntimeException | LinkageError e) {
                 m.put("ok", false);
                 m.put("error", root(e));
                 m.put("notes", notes);
@@ -239,7 +239,7 @@ public final class SimService {
                         sd.add(one);
                     }
                     cmp.put("stages", sd);
-                } catch (RuntimeException e) {
+                } catch (RuntimeException | LinkageError e) {
                     cmp.put("error", root(e));
                 }
                 m.put("against", cmp);
@@ -367,7 +367,7 @@ public final class SimService {
             m.put("name", name);
             m.put("wrote", wrote);
             return m;
-        } catch (RuntimeException e) {
+        } catch (RuntimeException | LinkageError e) {
             throw new TreeService.BadRequest("the case did not run, so nothing was recorded: " + root(e));
         } finally {
             TreeService.deleteTree(scratch);
@@ -389,11 +389,14 @@ public final class SimService {
         }
     }
 
+    /** The innermost cause's message; when the engine is missing a class, which jar to copy (#186). */
     private static String root(Throwable t) {
         Throwable c = t;
         while (c.getCause() != null) {
             c = c.getCause();
         }
-        return c.getMessage() != null ? c.getMessage() : c.toString();
+        String msg = c.getMessage() != null ? c.getMessage() : c.toString();
+        String missing = com.pointblue.dirxml.dev.EngineJars.explain(t);
+        return missing == null ? msg : msg + ". " + missing;
     }
 }

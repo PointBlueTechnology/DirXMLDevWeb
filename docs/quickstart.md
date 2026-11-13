@@ -116,7 +116,9 @@ docker restart idmweb
 ```
 
 It needs `dirxml.jar`, `dirxml_misc.jar`, `nxsl.jar`, `xp.jar`, `CommonDriverShim.jar`,
-`jclient.jar`, `dhutil.jar`, `XDS.jar` and `js.jar`.
+`jclient.jar`, `dhutil.jar`, `XDS.jar` and `js.jar`. Engines from 4.10.2 on ship `xp.jar` as
+`xp-1.0.0.jar`; copy it as it is (every jar in `lib/` is loaded). If one is missing, the simulator's error
+names the jar to copy.
 
 ## 5. The CLI, the simulator, your agents
 

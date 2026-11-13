@@ -23,7 +23,7 @@
         <!-- The Point Blue libraries below are on Maven Central (com.pointbluetech.*), so Maven fetches
              them. The DirXMLDev release this server is written against: bin/idmweb runs against a
              DirXMLDev checkout at this tag (its classes, engine jars) and the simulator in ~/.m2. -->
-        <dirxmldev.version>0.70.0</dirxmldev.version>
+        <dirxmldev.version>0.72.0</dirxmldev.version>
         <simulator.version>1.9.0</simulator.version>
         <!-- the DirXML Trace Viewer's library: parser, highlighter, LDAP trace source (its release attaches the jar) -->
         <!-- Directory Console's shared library console-auth: OIDC sign-in, TLS trust -->

@@ -62,7 +62,7 @@ if [ -z "$(ls lib/*.jar 2>/dev/null)" ]; then
   if [ -n "$(ls "$SRC"/*.jar 2>/dev/null)" ]; then
     cp -L "$SRC"/*.jar lib/ && echo "engine jars: $(ls lib | wc -l | tr -d ' ') copied from $SRC into $DIR/lib" && NEWJARS=1
   else
-    echo "engine jars: none yet (optional). Validate's compile check and the simulator need them: put dirxml.jar, dirxml_misc.jar, nxsl.jar, xp.jar, CommonDriverShim.jar, jclient.jar, dhutil.jar, XDS.jar and js.jar from an IDM engine's lib/dirxml/classes in $DIR/lib (files, not symlinks), or run again with IDM_LIB=/path/to/them. Everything else works without them."
+    echo "engine jars: none yet (optional). Validate's compile check and the simulator need them: put dirxml.jar, dirxml_misc.jar, nxsl.jar, xp.jar (xp-1.0.0.jar from 4.10.2 on), CommonDriverShim.jar, jclient.jar, dhutil.jar, XDS.jar and js.jar from an IDM engine's lib/dirxml/classes in $DIR/lib (files, not symlinks), or run again with IDM_LIB=/path/to/them. Everything else works without them."
   fi
 fi
 # the repository: your tree under tree/, the corpus under cases/ (with no tree, the page makes the

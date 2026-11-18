@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.94.0] - 2026-11-18
+
 ### Changed
 
 - Needs DirXMLDev 0.74.0 (was 0.73.0). `idm import-ldif` in the image reads a second Library inside the driver

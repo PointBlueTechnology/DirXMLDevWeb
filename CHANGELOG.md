@@ -7,6 +7,12 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- Needs DirXMLDev 0.74.0 (was 0.73.0). `idm import-ldif` in the image reads a second Library inside the driver
+  set (`cn=SKyPRO,<driver set>`) as a Library, not a driver, so the links to its objects resolve; a link finds
+  its target by the DN it names (PointBlueTechnology/DirXMLDev#133). Nothing changes on the page.
+
 ## [0.93.0] - 2026-11-16
 
 ### Changed

@@ -7,6 +7,14 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- Needs DirXMLDev 0.75.0 (was 0.74.0). Imports find a driver's channels by object class, so a channel not
+  called `Publisher`/`Subscriber` (`cn=pub`) keeps its policies under the driver, and deploy writes to its
+  real DN. The duplicate-name note across Libraries says the limit is the tree's, not IDM's, and names the
+  drivers that link a copy left out when the copies differ (PointBlueTechnology/DirXMLDev#133). Nothing
+  else changes on the page.
+
 ## [0.94.0] - 2026-11-18
 
 ### Changed

@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.95.0] - 2026-11-20
+
 ### Changed
 
 - Needs DirXMLDev 0.75.0 (was 0.74.0). Imports find a driver's channels by object class, so a channel not

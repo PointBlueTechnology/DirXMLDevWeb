@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.97.0] - 2026-11-23
+
 ### Changed
 
 - Needs DirXMLDev 0.78.0 (was 0.76.0). **Every Library in its own place** (L3 of DirXMLDev's

@@ -72,9 +72,12 @@ Every view of the page, by area, in every install; the items marked *local and s
   engine on request (`DriverGetSchema`, the driver stopped) and kept in the tree; the
   application side of the schema map offers its names.
 - **Outline** of the driver set: Library, drivers, policies by channel, configuration files,
-  entitlements, forms, PRDs. A Library object that lives in another Library of the vault is
-  marked *read-only*. Its page shows the source and where it lives, and offers no edits; links
-  to it keep its DN, and compare and deploy leave it alone.
+  entitlements, forms, PRDs. Each other Library or container the driver set uses has a group of
+  its own, as the tree has a folder of its own for it (`libraries/<alias>/`), marked *read-only*
+  with its DN; two Libraries can each hold an object of one name. Such an object's page shows
+  the source and where it lives, and offers no edits; links to it keep its DN, and compare and
+  deploy leave it alone. The Developer view, the policy-set picker, validation and promotion
+  name the Library too.
 - **Policy flow**: the fishbone the VS Code extension draws, from the same model. Hover a policy
   for its description; click it to open it. Click a policy set to open it beside the picture:
   reorder its policies (▲ ▼), unlink one, or link an existing policy or resource — one reviewed

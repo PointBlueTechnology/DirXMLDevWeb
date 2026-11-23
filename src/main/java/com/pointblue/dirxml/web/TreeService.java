@@ -157,6 +157,7 @@ public final class TreeService {
         lib.put("policies", nodes(ds, ds.library.policies, files));
         lib.put("resources", nodes(ds, ds.library.resources, files));
         o.put("library", lib);
+        o.put("libraries", libraries(ds));
         List<Object> drivers = new ArrayList<>();
         for (Driver d : ds.drivers) {
             String dir = "drivers/" + AsCodeWriter.fileSafe(d.name);
@@ -229,12 +230,38 @@ public final class TreeService {
             n.put("name", a.name);
             n.put("kind", kindOf(a));
             n.put("file", files.get(a.path()));
+            if (a.library != null) {
+                n.put("library", a.library);   // its folder under libraries/ (DirXMLDev 0.77.0)
+            }
             // a Library object from another Library: a read-only reference (DirXMLDev 0.58.0, #111)
             String other = com.pointblue.dirxml.dev.model.Libraries.outside(ds, a);
             if (other != null) {
                 n.put("readOnly", other);
             }
             out.add(n);
+        }
+        return out;
+    }
+
+    /**
+     * The other Libraries and containers the driver set uses, one per folder under {@code libraries/}
+     * (DirXMLDev 0.77.0, docs/library-containers.md): alias, DN, and how many of its objects the tree holds
+     * (none when only links reach it).
+     */
+    private static List<Object> libraries(DriverSet ds) {
+        List<Object> out = new ArrayList<>();
+        for (Map.Entry<String, String> e : ds.libraries.entrySet()) {
+            int count = 0;
+            for (Artifact a : ds.library.artifacts()) {
+                if (e.getKey().equals(a.library)) {
+                    count++;
+                }
+            }
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("alias", e.getKey());
+            m.put("dn", e.getValue());
+            m.put("items", count);
+            out.add(m);
         }
         return out;
     }
@@ -435,13 +462,25 @@ public final class TreeService {
         // the library
         Map<String, Object> lib = node("library", "Library", "folder", null);
         List<Object> lk = kids(lib);
+        // each other Library or container in a folder of its own, as the tree has it (DirXMLDev 0.77.0)
+        Map<String, Map<String, Object>> others = new LinkedHashMap<>();
+        for (Map.Entry<String, String> e : ds.libraries.entrySet()) {
+            Map<String, Object> f = node("library:" + e.getKey(), libraryTitle(e.getKey()), "folder", null);
+            f.put("readOnly", e.getValue());
+            others.put(e.getKey(), f);
+        }
         for (Object n : nodes(ds, ds.library.policies, files)) {
-            lk.add(artifactLeaf("lib", n));
+            libraryKids(lk, others, n).add(artifactLeaf("lib", n));
         }
         for (Object n : nodes(ds, ds.library.resources, files)) {
-            lk.add(artifactLeaf("lib", n));
+            libraryKids(lk, others, n).add(artifactLeaf("lib", n));
         }
         rootKids.add(lib);
+        for (Map<String, Object> f : others.values()) {
+            if (!kids(f).isEmpty()) {   // a container only links reach has nothing to show
+                rootKids.add(f);
+            }
+        }
         // the drivers
         Map<String, Object> drivers = node("drivers", "Drivers", "folder", null);
         List<Object> dk = kids(drivers);
@@ -573,11 +612,24 @@ public final class TreeService {
         return n;
     }
 
+    /** How another Library reads: its alias, "Library" first unless the alias says it (the page's libraryTitle). */
+    static String libraryTitle(String alias) {
+        return alias.matches("(?i)library(@.*|~.*)?") ? alias : "Library " + alias;
+    }
+
+    /** Where a Library node goes in the Developer tree: its own Library's folder, or the driver set's Library. */
+    @SuppressWarnings("unchecked")
+    private static List<Object> libraryKids(List<Object> own, Map<String, Map<String, Object>> others, Object nodeMap) {
+        Object alias = ((Map<String, Object>) nodeMap).get("library");
+        Map<String, Object> f = alias == null ? null : others.get(String.valueOf(alias));
+        return f == null ? own : kids(f);
+    }
+
     @SuppressWarnings("unchecked")
     private static Map<String, Object> artifactLeaf(String prefix, Object nodeMap) {
         Map<String, Object> n = (Map<String, Object>) nodeMap;
         Map<String, Object> l = leaf(prefix + ":" + n.get("path"), String.valueOf(n.get("name")), String.valueOf(n.get("kind")), Map.of("type", "artifact", "path", String.valueOf(n.get("path"))));
-        if (n.get("readOnly") != null) {
+        if (n.get("readOnly") != null && n.get("library") == null) {   // in another Library's folder, the folder says it
             l.put("readOnly", n.get("readOnly"));
         }
         return l;

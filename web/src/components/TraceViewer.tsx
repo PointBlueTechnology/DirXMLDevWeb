@@ -63,7 +63,8 @@ export function TraceViewer({ env, file, drivers, popout, outline, onSelect, onO
           m.set(p.name, p.path);
         }
       }
-      for (const p of outline.library.policies) {
+      // the driver set's own Library last, so its object wins a name another Library shares
+      for (const p of [...outline.library.policies.filter((x) => x.library), ...outline.library.policies.filter((x) => !x.library)]) {
         m.set(p.name, p.path);
       }
     }

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { ownLibrary } from "../libraries";
 import { api } from "../api";
 import { writeEntitlement } from "../prov/entitlement";
 import type { CatalogPackage, NewWhat, OpCall, Outline, Selection } from "../types";
@@ -75,7 +76,7 @@ const NAME = /^[^\\/:*?"<>|]+$/;
 
 function findArtifact(o: Outline, driver: string | null, name: string): Selection | null {
   const pool = driver ? (o.drivers.find((x) => x.name === driver)?.policies ?? null) : null;
-  const all = driver ? [...(pool?.driver ?? []), ...(pool?.subscriber ?? []), ...(pool?.publisher ?? []), ...(o.drivers.find((x) => x.name === driver)?.resources ?? [])] : [...o.library.policies, ...o.library.resources];
+  const all = driver ? [...(pool?.driver ?? []), ...(pool?.subscriber ?? []), ...(pool?.publisher ?? []), ...(o.drivers.find((x) => x.name === driver)?.resources ?? [])] : [...ownLibrary(o).policies, ...ownLibrary(o).resources];
   const hit = all.find((a) => a.name === name);
   return hit ? { type: "artifact", path: hit.path } : null;
 }

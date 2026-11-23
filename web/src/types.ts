@@ -115,6 +115,8 @@ export interface ArtifactNode {
   file: string | null;
   /** A Library object from another Library: the DN of the Library it lives in; read-only here. */
   readOnly?: string;
+  /** A Library object from another Library: its folder's alias, libraries/<alias>/ (DirXMLDev 0.77.0). */
+  library?: string;
 }
 
 export interface FileNode {
@@ -155,7 +157,10 @@ export interface Outline {
     /** The vault schema in the tree, when read: counts, source, read-at. */
     schema: { source?: string; "read-at"?: string; attributes: number; classes: number; customAttributes: number; customClasses: number } | null;
   };
+  /** Every Library object: the driver set's own (library/) and, with an alias, other Libraries' (libraries/<alias>/). */
   library: { policies: ArtifactNode[]; resources: ArtifactNode[] };
+  /** The other Libraries and containers the set uses, one folder each; items 0 when only links reach one. */
+  libraries?: { alias: string; dn: string; items: number }[];
   drivers: DriverOutline[];
 }
 

@@ -1,6 +1,7 @@
 // The policy-flow fishbone, as SVG. Ported from the DirXMLDev VS Code extension
 // (extensions/dirxmldev-visual/src/webview.ts) so both draw the same picture from the same model.
 import type { FishboneBone, FishboneModel, FishbonePolicy } from "./types";
+import { libraryAliasOf, libraryTitle } from "../libraries";
 
 const POLICY_CHIP_W = 150;
 const POLICY_CHIP_STEP = 26;
@@ -225,7 +226,9 @@ function resourceBone(x: number, y: number, w: number, bone: FishboneBone): stri
 
 /** The hover text of a policy chip: its full name and kind, then its description when it has one. */
 export function policyTip(p: FishbonePolicy): string {
-  const head = p.unresolved ? `${p.name} — not in the tree (unresolved link)` : `${p.name} (${p.kind})`;
+  const alias = libraryAliasOf(p.ref);
+  const lib = alias ? `, in ${libraryTitle(alias)}` : "";
+  const head = p.unresolved ? `${p.name} — not in the tree (unresolved link)` : `${p.name} (${p.kind}${lib})`;
   return p.description ? `${head}\n${p.description}` : head;
 }
 

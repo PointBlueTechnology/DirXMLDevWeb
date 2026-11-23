@@ -9,6 +9,7 @@ describe("moduleOf: the module a finding is grouped under", () => {
   });
   it("puts Library artifacts under Library and set-level things under the driver set", () => {
     expect(moduleOf("library/lib-Common")).toEqual({ module: "Library", rest: "lib-Common", order: 1 });
+    expect(moduleOf("libraries/pub/lib-Common")).toEqual({ module: "Library pub", rest: "lib-Common", order: 1 });
     expect(moduleOf("driverset")).toEqual({ module: "Driver set", rest: "", order: 0 });
     expect(moduleOf("config-values.xml")).toEqual({ module: "Driver set", rest: "config-values.xml", order: 0 });
   });

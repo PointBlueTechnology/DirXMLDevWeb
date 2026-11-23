@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { libraryTitle } from "../libraries";
 import type { Finding, Validation } from "../types";
 
 export const SEVERITIES = ["error", "warning", "info"] as const;
@@ -18,6 +19,10 @@ export function moduleOf(path: string): { module: string; rest: string; order: n
   }
   if (parts[0] === "library") {
     return { module: "Library", rest: parts.slice(1).join("/"), order: 1 };
+  }
+  if (parts[0] === "libraries" && parts.length > 1) {
+    // another Library's folder (DirXMLDev 0.77.0)
+    return { module: libraryTitle(parts[1]!), rest: parts.slice(2).join("/"), order: 1 };
   }
   if (path === "driverset" || parts[0] === "driverset" || path === "" || parts[0]!.endsWith(".xml")) {
     return { module: "Driver set", rest: path === "driverset" ? "" : path, order: 0 };

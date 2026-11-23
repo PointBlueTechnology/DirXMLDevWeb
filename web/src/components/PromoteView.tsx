@@ -511,6 +511,9 @@ function manifestOf(path: string): string {
   if (parts[0] === "library" && parts.length >= 2 && path !== "library/library.xml") {
     return "library/library.xml";
   }
+  if (parts[0] === "libraries" && parts.length >= 3 && !(parts.length === 3 && parts[2] === "library.xml")) {
+    return `libraries/${parts[1]}/library.xml`;
+  }
   return "driverset.xml";
 }
 

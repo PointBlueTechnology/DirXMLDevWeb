@@ -398,7 +398,7 @@ final class Mcp implements HttpHandler {
             props(), List.of(), false, a -> new Request("GET", "/api/session", null));
         tool("outline", "The tree: the driver set, its drivers and every policy, resource and object, with the tree's revision.",
             props(), List.of(), false, a -> new Request("GET", "/api/outline", null));
-        tool("read_artifact", "One artifact's content and details, by its tree path (e.g. drivers/AD/subscriber/sub-ctp, library/NOVLLIBAJC-JS).",
+        tool("read_artifact", "One artifact's content and details, by its tree path (e.g. drivers/AD/subscriber/sub-ctp, library/NOVLLIBAJC-JS, or libraries/<alias>/<name> for another Library's object).",
             props("path", str("the artifact's tree path, as outline lists it")), List.of("path"), false,
             a -> new Request("GET", "/api/artifact?" + a.q("path").substring(1), null));
         tool("read_file", "A file of the tree, by its path relative to the tree (e.g. drivers/AD/driver.xml, overrides/QA.properties).",

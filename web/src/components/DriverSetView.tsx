@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { libraryTitle, ownLibrary } from "../libraries";
 import type { ArtifactNode, Outline, Selection } from "../types";
 import { ConfigEditor } from "./ConfigEditor";
 import { SchemaView } from "./SchemaView";
@@ -14,6 +15,7 @@ import { isUserApplication } from "../drivers";
 export function DriverSetView({ outline, revision, canOverride, linkable, initialTab, onOpen, onSelect, onSaved }: { outline: Outline; revision: string; canOverride: boolean; linkable: ArtifactNode[]; initialTab?: "overview" | "gcvs" | "schema" | "designer"; onOpen: (path: string) => void; onSelect: (s: Selection) => void; onSaved: () => void }) {
   const [tab, setTab] = useState<"overview" | "gcvs" | "schema" | "designer">(initialTab ?? "overview");
   const ds = outline.driverSet;
+  const own = ownLibrary(outline);
   const pkgs = Object.entries(ds.packages);
   const meta = Object.entries(ds.meta).filter(([k]) => !k.startsWith("source."));
   return (
@@ -92,8 +94,13 @@ export function DriverSetView({ outline, revision, canOverride, linkable, initia
               <tr>
                 <th>Library</th>
                 <td>
-                  {ds.libraryItems} item{ds.libraryItems === 1 ? "" : "s"} ({outline.library.policies.length} polic{outline.library.policies.length === 1 ? "y" : "ies"}, {outline.library.resources.length} resource
-                  {outline.library.resources.length === 1 ? "" : "s"})
+                  {own.policies.length + own.resources.length} item{own.policies.length + own.resources.length === 1 ? "" : "s"} ({own.policies.length} polic{own.policies.length === 1 ? "y" : "ies"}, {own.resources.length} resource
+                  {own.resources.length === 1 ? "" : "s"})
+                  {(outline.libraries ?? []).map((l) => (
+                    <div key={l.alias} className="muted small" title={l.dn} data-testid={`ds-library-${l.alias}`}>
+                      {libraryTitle(l.alias)}: {l.items === 0 ? "only links reach it" : `${l.items} item${l.items === 1 ? "" : "s"}, read-only`} · {l.dn}
+                    </div>
+                  ))}
                 </td>
               </tr>
               <tr>

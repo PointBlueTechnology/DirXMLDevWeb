@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { ArtifactNode, DriverOutline, NewWhat, Outline, Selection } from "../types";
 import { isUserApplication } from "../drivers";
+import { libraryTitle, otherLibraries, ownLibrary } from "../libraries";
 
 interface Props {
   outline: Outline;
@@ -25,6 +26,9 @@ export function OutlineTree({ outline, selection, onSelect }: Props) {
   const q = filter.trim().toLowerCase();
   const hit = (name: string) => q === "" || name.toLowerCase().includes(q);
   const filtering = q !== "";
+  // the driver set's own Library, then each other Library in a group of its own (DirXMLDev 0.77.0)
+  const own = ownLibrary(outline);
+  const others = otherLibraries(outline);
 
   const artifacts = (label: string, all: ArtifactNode[]) => {
     const nodes = all.filter((n) => hit(n.name));
@@ -42,7 +46,7 @@ export function OutlineTree({ outline, selection, onSelect }: Props) {
                 title={n.readOnly ? `${n.path}: lives in ${n.readOnly}, outside the driver set's Library; read-only here` : n.path}
               >
                 <span className="badge">{KIND_BADGE[n.kind] ?? "·"}</span>
-                {n.readOnly && (
+                {n.readOnly && !n.library && (
                   <span className="pill ro" data-testid={`readonly-${n.path}`}>
                     read-only
                   </span>
@@ -203,17 +207,33 @@ export function OutlineTree({ outline, selection, onSelect }: Props) {
         "Driver set files",
         outline.driverSet.config.map((f) => ({ name: f, file: f })),
       )}
-      <details open={filtering || outline.library.policies.length > 0 || outline.library.resources.length > 0}>
+      <details open={filtering || own.policies.length > 0 || own.resources.length > 0}>
         <summary className="driver">
           Library
           <NewMenu items={ARTIFACT_ITEMS} onPick={(what) => onSelect({ type: "new", what: what as NewWhat, driver: null })} />
         </summary>
         <div className="indent">
-          {artifacts("Policies", outline.library.policies)}
-          {artifacts("Resources", outline.library.resources)}
-          {outline.library.policies.length === 0 && outline.library.resources.length === 0 && <p className="muted small">empty — the + adds a shared policy or resource</p>}
+          {artifacts("Policies", own.policies)}
+          {artifacts("Resources", own.resources)}
+          {own.policies.length === 0 && own.resources.length === 0 && <p className="muted small">empty — the + adds a shared policy or resource</p>}
         </div>
       </details>
+      {others
+        .filter((l) => [...l.policies, ...l.resources].some((n) => hit(n.name)))
+        .map((l) => (
+          <details key={l.alias} open={filtering} data-testid={`library-${l.alias}`}>
+            <summary className="driver" title={`${l.dn}: another Library the driver set uses; read-only here`}>
+              {libraryTitle(l.alias ?? "")} <span className="pill ro">read-only</span>
+            </summary>
+            <div className="indent">
+              <p className="muted small" title={l.dn ?? undefined}>
+                in {l.dn}
+              </p>
+              {artifacts("Policies", l.policies)}
+              {artifacts("Resources", l.resources)}
+            </div>
+          </details>
+        ))}
       {shownDrivers.map(driver)}
       {filtering && shownDrivers.length === 0 && <p className="muted small pad-x">no driver has "{filter.trim()}"</p>}
       <button className="leaf newdriver" onClick={() => onSelect({ type: "new", what: "driver", driver: null })} data-testid="new-driver">

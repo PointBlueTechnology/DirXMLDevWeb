@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { libraryAliasOf, libraryLabel, libraryTitle } from "../libraries";
 import { api } from "../api";
 import type { FishboneBone, FishboneModel } from "../fishbone/types";
 import { renderSvg } from "../fishbone/render";
@@ -111,8 +112,12 @@ function SetPanel({ driver, bone, outline, onOpen, onClose, onSaved }: { driver:
   const [ops, setOps] = useState<OpCall[] | null>(null);
   const names = useMemo(() => {
     const m = new Map<string, string>();
-    bone.policies.forEach((p) => m.set(p.ref, p.name));
-    candidates(outline, driver, bone).forEach((a) => m.set(a.path, a.name));
+    // another Library's object says which: two Libraries can each hold one of a name (DirXMLDev 0.77.0)
+    bone.policies.forEach((p) => {
+      const alias = libraryAliasOf(p.ref);
+      m.set(p.ref, alias ? `${p.name} (${libraryTitle(alias)})` : p.name);
+    });
+    candidates(outline, driver, bone).forEach((a) => m.set(a.path, a.library ? `${a.name} (${libraryTitle(a.library)})` : a.name));
     return m;
   }, [bone, outline, driver]);
   const linkable = candidates(outline, driver, bone).filter((a) => !order.includes(a.path));
@@ -187,7 +192,7 @@ function SetPanel({ driver, bone, outline, onOpen, onClose, onSaved }: { driver:
           <option value="">link an existing {bone.key === "ecmascript" || bone.key === "gcv" ? "resource" : "policy"}…</option>
           {linkable.map((a) => (
             <option key={a.path} value={a.path}>
-              {a.path.startsWith("library/") ? `Library: ${a.name}` : a.name}
+              {libraryLabel(a)}
             </option>
           ))}
         </select>

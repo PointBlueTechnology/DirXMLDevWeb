@@ -7,6 +7,22 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- Needs DirXMLDev 0.78.0 (was 0.76.0). **Every Library in its own place** (L3 of DirXMLDev's
+  docs/library-containers.md, PointBlueTechnology/DirXMLDev#133): an object of another Library or container
+  the driver set uses now lives in the tree's `libraries/<alias>/`, and two Libraries can each hold one of a
+  name.
+  - The outline and the Developer view list the driver set's own Library, then each other Library in a
+    read-only group of its own, with its DN. The driver set page counts the own Library's items and names
+    each other Library (or says only links reach it).
+  - A policy set's members and its "link an existing policy" picker say which Library a copy comes from
+    (`shared-only (Library@services)`), and so does a policy's hover text in the flow.
+  - Validation groups another Library's findings under it (`Library pub`). Promotion knows the manifest of a
+    `libraries/` file. The trace links a policy name to the driver set's own Library first.
+  - A tree written before DirXMLDev 0.77.0 still reads: its other-Library objects stay in `library/`, marked
+    read-only, until the next import (DirXMLDev's tree-layout.md, "Trees imported before 0.77.0").
+
 ## [0.96.0] - 2026-11-23
 
 ### Changed

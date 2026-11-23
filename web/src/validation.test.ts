@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { moduleOf } from "./components/ValidationPanel";
+import { findingText, moduleOf } from "./components/ValidationPanel";
 
 describe("moduleOf: the module a finding is grouped under", () => {
   it("names the driver for anything under drivers/", () => {
@@ -14,5 +14,14 @@ describe("moduleOf: the module a finding is grouped under", () => {
   });
   it("orders driver set, Library, drivers", () => {
     expect([moduleOf("drivers/Z/x"), moduleOf("library/y"), moduleOf("driverset")].map((m) => m.order)).toEqual([2, 1, 0]);
+  });
+});
+
+describe("findingText: a finding as text for the clipboard (#197)", () => {
+  it("reads like idm validate's line, with the detail under it", () => {
+    expect(findingText({ severity: "ERROR", code: "mapping-table-column", path: "drivers/AD/subscriber/maps", message: "<token-map> names column 'x'" })).toBe(
+      "ERROR mapping-table-column drivers/AD/subscriber/maps: <token-map> names column 'x'",
+    );
+    expect(findingText({ severity: "warning", code: "c", path: "library/L", message: "m", detail: "more" })).toBe("WARNING c library/L: m\n  more");
   });
 });

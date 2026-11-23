@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { Finding, Validation } from "../types";
 
 export const SEVERITIES = ["error", "warning", "info"] as const;
@@ -23,6 +23,39 @@ export function moduleOf(path: string): { module: string; rest: string; order: n
     return { module: "Driver set", rest: path === "driverset" ? "" : path, order: 0 };
   }
   return { module: parts[0]!, rest: parts.slice(1).join("/"), order: 3 };
+}
+
+/** A finding as text for the clipboard (#197), as `idm validate` prints it: severity, code, path, message, then its detail. */
+export function findingText(f: Finding): string {
+  const head = `${f.severity.toUpperCase()} ${f.code} ${f.path}: ${f.message}`;
+  return f.detail ? `${head}\n  ${f.detail}` : head;
+}
+
+/**
+ * Puts text on the clipboard: the Clipboard API, or, where the page may not use it (plain http on
+ * another host has no navigator.clipboard), a selected textarea and the copy command.
+ */
+async function copyText(text: string): Promise<void> {
+  try {
+    if (navigator.clipboard) {
+      await navigator.clipboard.writeText(text);
+      return;
+    }
+  } catch {
+    // refused: try the copy command
+  }
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.setAttribute("readonly", "");
+  ta.style.position = "fixed";
+  ta.style.opacity = "0";
+  document.body.appendChild(ta);
+  ta.select();
+  const ok = document.execCommand("copy");
+  document.body.removeChild(ta);
+  if (!ok) {
+    throw new Error("the browser refused the copy");
+  }
 }
 
 function pillClass(s: Severity, counts: { error: number }): string {
@@ -86,6 +119,16 @@ export function ValidationPanel({ validation, show, onToggle, onOpen, onHide }: 
   const counts = validation?.counts ?? { error: 0, warning: 0, info: 0 };
   const visible = (f: Finding) => show.has(f.severity.toLowerCase() as Severity);
   const shown = groups.map((g) => ({ ...g, items: g.items.filter(visible) })).filter((g) => g.items.length > 0);
+  // the copy button last pressed ("all" or a finding's key) and whether it worked, shown for a moment
+  const [copied, setCopied] = useState<{ key: string; ok: boolean } | null>(null);
+  const copy = (key: string, text: string) => {
+    const show = (ok: boolean) => {
+      setCopied({ key, ok });
+      window.setTimeout(() => setCopied((c) => (c?.key === key ? null : c)), ok ? 1500 : 4000);
+    };
+    copyText(text).then(() => show(true), () => show(false));
+  };
+  const copyLabel = (key: string, idle: string) => (copied?.key === key ? (copied.ok ? "copied" : "copy failed") : idle);
 
   return (
     <div className="validation" data-testid="validation">
@@ -96,6 +139,16 @@ export function ValidationPanel({ validation, show, onToggle, onOpen, onHide }: 
           </button>
         ))}
         <span className="spacer" />
+        {shown.length > 0 && (
+          <button
+            className="linkish"
+            onClick={() => copy("all", shown.flatMap((g) => g.items.map(findingText)).join("\n"))}
+            title="Copy every finding at the selected severities as text"
+            data-testid="validation-copy-all"
+          >
+            {copyLabel("all", "Copy shown")}
+          </button>
+        )}
         <button className="linkish" onClick={onHide} title="Hide the findings (the counts stay in the top bar)" data-testid="validation-hide">
           hide ▸
         </button>
@@ -118,15 +171,27 @@ export function ValidationPanel({ validation, show, onToggle, onOpen, onHide }: 
               </span>
             </summary>
             <ul className="findings">
-              {g.items.map((f, i) => (
-                <li key={f.path + f.code + i} className={"finding " + f.severity.toLowerCase()}>
-                  <button onClick={() => onOpen(f.path)} title={f.path}>
-                    <span className="code">{f.code}</span>
-                    {f.rest && <span className="path">{f.rest}</span>}
-                    <span className="msg">{f.message}</span>
-                  </button>
-                </li>
-              ))}
+              {g.items.map((f, i) => {
+                const key = f.path + f.code + i;
+                return (
+                  <li key={key} className={"finding " + f.severity.toLowerCase()}>
+                    <button onClick={() => onOpen(f.path)} title={f.path}>
+                      <span className="code">{f.code}</span>
+                      {f.rest && <span className="path">{f.rest}</span>}
+                      <span className="msg">{f.message}</span>
+                    </button>
+                    <button
+                      className="fcopy linkish"
+                      onClick={() => copy(key, findingText(f))}
+                      title="Copy this finding as text"
+                      aria-label="Copy this finding as text"
+                      data-testid="finding-copy"
+                    >
+                      {copyLabel(key, "copy")}
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
           </details>
         ))

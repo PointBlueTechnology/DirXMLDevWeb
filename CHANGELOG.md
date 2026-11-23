@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.96.0] - 2026-11-23
+
 ### Changed
 
 - Needs DirXMLDev 0.76.0 (was 0.75.0). `idm import-ldif` in the image takes the vault's schema from an LDIF

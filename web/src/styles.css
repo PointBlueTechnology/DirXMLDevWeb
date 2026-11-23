@@ -521,6 +521,26 @@ th {
 .finding.warning > button {
   border-left-color: var(--warn);
 }
+.finding {
+  position: relative;
+}
+/* copy one finding (#197): shown on hover or keyboard focus, beside the message */
+.finding > button.fcopy {
+  display: block;
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  width: auto;
+  padding: 0 4px;
+  border: none;
+  font-size: 11px;
+  background: var(--surface);
+  opacity: 0;
+}
+.finding:hover > button.fcopy,
+.finding:focus-within > button.fcopy {
+  opacity: 1;
+}
 .finding .code {
   font-family: ui-monospace, Menlo, monospace;
   font-size: 11px;

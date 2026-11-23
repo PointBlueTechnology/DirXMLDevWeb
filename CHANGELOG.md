@@ -7,6 +7,14 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- **Copy validation findings (#197):** each finding has a copy button (on hover or focus), and the panel head
+  has **Copy shown** for every finding at the selected severities. The text reads like `idm validate`'s line:
+  severity, code, path, message, and the detail under it. Where the browser won't let the page use the
+  Clipboard API (plain http to another host), it falls back to the copy command, and a refusal says
+  "copy failed".
+
 ## [0.95.0] - 2026-11-20
 
 ### Changed

@@ -7,6 +7,13 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- Needs DirXMLDev 0.76.0 (was 0.75.0). `idm import-ldif` in the image takes the vault's schema from an LDIF
+  that carries `cn=schema` (PointBlueTechnology/DirXMLDev#139), and validation no longer calls a Map token
+  column named by a local variable or GCV an error (PointBlueTechnology/DirXMLDev#140): it is listed as
+  `mapping-table-dynamic` info.
+
 ### Added
 
 - **Copy validation findings (#197):** each finding has a copy button (on hover or focus), and the panel head

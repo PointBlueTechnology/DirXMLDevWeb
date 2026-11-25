@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.98.0] - 2026-11-25
+
 ### Changed
 
 - Needs DirXMLDev 0.79.0 (was 0.78.0). **Reads of the vault take in other Libraries**

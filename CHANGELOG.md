@@ -7,6 +7,19 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- Needs DirXMLDev 0.79.0 (was 0.78.0). **Reads of the vault take in other Libraries**
+  (PointBlueTechnology/DirXMLDev#115): Compare, Plan, Deploy and capture now see the objects the driver set's
+  links name outside it, as the LDIF and Designer imports do, so a tree read from the vault no longer reports
+  `link-unresolved` for them. Deploy's verify no longer fails on a trace size limit it leaves alone. The
+  simulator behind Simulate is 1.10.0: entitlements a user holds are seen, and Matching, Create and Placement
+  run only when the engine runs them.
+- **Update this branch from <env>** keeps the tree's folder name for each other Library (a read could name
+  `Library@services` just `Library`). Updating chosen drivers brings in the other-Library objects they link
+  that the tree doesn't have yet, with the folder when the tree has none for that container; the tree's
+  other objects stay as they are.
+
 ## [0.97.0] - 2026-11-23
 
 ### Changed

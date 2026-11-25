@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * The tree, as the page needs it: the outline, an artifact with its source and references, a
@@ -904,6 +905,59 @@ public final class TreeService {
     }
 
     /**
+     * A partial pull swaps in the named drivers from {@code live}; their links into {@code libraries/} must still
+     * resolve. Each other-Library object those drivers link that {@code result} (the tree) lacks is added, with its
+     * folder when the tree has no Library for that DN. Objects the tree already has stay as they are: they are
+     * read-only references, refreshed by a whole-set pull. Returns the folders that got objects.
+     */
+    static Set<String> addLinkedLibraryObjects(DriverSet result, DriverSet live, List<String> drivers, List<String> notes) {
+        Set<String> wanted = new java.util.TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        for (String name : drivers) {
+            Driver d = live.driver(name);
+            if (d != null) {
+                for (com.pointblue.dirxml.dev.model.PolicyLink l : d.links) {
+                    if (l.ref != null && l.ref.startsWith("libraries/")) {
+                        wanted.add(l.ref);
+                    }
+                }
+            }
+        }
+        Set<String> aliases = new java.util.TreeSet<>();
+        for (Artifact a : live.library.artifacts()) {
+            if (a.library == null || !wanted.contains(a.path()) || result.resolve(a.path()) != null) {
+                continue;
+            }
+            String dn = live.libraries.get(a.library);
+            String have = result.libraries.get(a.library);
+            if (have == null && dn != null) {
+                result.libraries.put(a.library, dn);
+                notes.add("libraries/" + a.library + ": " + dn + " (another Library the update's drivers link)");
+            } else if (have != null && dn != null
+                    && !com.pointblue.dirxml.dev.model.Libraries.normDn(have).equals(com.pointblue.dirxml.dev.model.Libraries.normDn(dn))) {
+                notes.add(a.path() + ": the tree's folder " + a.library + " is " + have + ", the vault's object is in " + dn + "; left out");
+                continue;
+            }
+            if (a instanceof Policy) {
+                result.library.policies.add((Policy) a);
+            } else if (a instanceof Resource) {
+                result.library.resources.add((Resource) a);
+            } else {
+                continue;
+            }
+            aliases.add(a.library);
+        }
+        Set<String> dirs = new java.util.TreeSet<>();
+        Map<String, String> byAlias = AsCodeWriter.libraryDirs(result);
+        for (String alias : aliases) {
+            String dir = byAlias.get(alias);
+            if (dir != null) {
+                dirs.add(dir);
+            }
+        }
+        return dirs;
+    }
+
+    /**
      * Write the vault's state into this workspace's tree, as {@code idm import-live --env} does: the whole driver set,
      * or only the {@code drivers} named (the rest of the tree as it is); with an {@code overrides/} directory the
      * environment's differing values go to {@code overrides/<env>.properties} and the base files keep their base
@@ -951,8 +1005,11 @@ public final class TreeService {
             if (base != null) {
                 notes.addAll(com.pointblue.dirxml.dev.deploy.Overrides.toTreeNames(live, base.overrides.get(envName)));
                 notes.addAll(com.pointblue.dirxml.dev.deploy.ServerMap.toTree(live, base.overrides.get(envName), base));
+                // a read sees only the Libraries its links name: give each the tree's folder name (DirXMLDev #115)
+                com.pointblue.dirxml.dev.model.Libraries.adoptAliases(live, base);
             }
             DriverSet result = live;
+            Set<String> newLibraryDirs = new java.util.TreeSet<>();
             if (drivers != null && !drivers.isEmpty()) {
                 if (base == null) {
                     throw new BadRequest("the workspace has no tree yet: take the whole driver set");
@@ -981,6 +1038,7 @@ public final class TreeService {
                     }
                 }
                 result.overrides.clear();
+                newLibraryDirs.addAll(addLinkedLibraryObjects(result, live, drivers, notes));
             }
             notes.addAll(com.pointblue.dirxml.dev.deploy.DriverEnvironments.keepOnImport(result, envName, base, markNew,
                 drivers != null && !drivers.isEmpty() ? drivers : null));
@@ -1013,6 +1071,19 @@ public final class TreeService {
             }
             roots.add(com.pointblue.dirxml.dev.deploy.Overrides.DIR);
             roots.add(".gitattributes");
+            // the other-Library objects a partial pull brought in: their files and the folder's manifest, not the rest
+            for (String dir : newLibraryDirs) {
+                Path p = copy.resolve(dir);
+                names.add(dir + "/" + AsCodeWriter.LIBRARY_MANIFEST);
+                if (Files.isDirectory(p)) {
+                    try (java.util.stream.Stream<Path> s = Files.walk(p)) {
+                        s.filter(Files::isRegularFile)
+                            .map(f -> copy.relativize(f).toString().replace('\\', '/'))
+                            .filter(f -> !Files.exists(tree.resolve(f)))
+                            .forEach(names::add);
+                    }
+                }
+            }
             for (Path side : List.of(tree, copy)) {
                 for (String r : roots) {
                     Path p = side.resolve(r);
